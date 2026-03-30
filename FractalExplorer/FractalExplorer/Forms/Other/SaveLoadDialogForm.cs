@@ -64,6 +64,11 @@ namespace FractalExplorer.Forms
         private const float SavedPreviewOverscanFactor = 1.06f;
         private const float SavedPreviewDownscaleFactor = 1.08f;
 
+        private bool IsSerpinskyOwner()
+        {
+            return string.Equals(_ownerFractalForm.FractalTypeIdentifier, "Serpinsky", StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>
         /// Инициализирует новый экземпляр класса <see cref="SaveLoadDialogForm"/>.
         /// </summary>
@@ -85,6 +90,8 @@ namespace FractalExplorer.Forms
                 }
             };
             pictureBoxPreview.Paint += PictureBoxPreview_Paint;
+
+            btnRenderPreview.Visible = !IsSerpinskyOwner();
 
             var presetsCheckBox = this.Controls.Find("cbPresets", true).FirstOrDefault() as CheckBox ?? this.Controls.Find("checkBoxShowPresets", true).FirstOrDefault() as CheckBox;
             if (presetsCheckBox != null)
@@ -628,7 +635,10 @@ namespace FractalExplorer.Forms
             {
                 if (MessageBox.Show($"Сохранение с именем '{saveName}' уже существует. Перезаписать?", "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
-                    DeleteScreenshotForState(existingSave);
+                    if (!IsSerpinskyOwner())
+                    {
+                        DeleteScreenshotForState(existingSave);
+                    }
                     userSaves.Remove(existingSave);
                 }
                 else
@@ -640,7 +650,10 @@ namespace FractalExplorer.Forms
             var newState = _ownerFractalForm.GetCurrentStateForSave(saveName);
             userSaves.Add(newState);
             _ownerFractalForm.SaveAllSavesForThisType(userSaves);
-            SaveScreenshotForStateAsync(newState);
+            if (!IsSerpinskyOwner())
+            {
+                SaveScreenshotForStateAsync(newState);
+            }
 
             PopulateList(false);
             int newIndex = _displayedItems.FindIndex(s => s.SaveName == saveName && s.Timestamp == newState.Timestamp);
@@ -667,7 +680,10 @@ namespace FractalExplorer.Forms
                     var itemToRemove = userSaves.FirstOrDefault(s => s.SaveName == stateToDelete.SaveName && s.Timestamp == stateToDelete.Timestamp);
                     if (itemToRemove != null)
                     {
-                        DeleteScreenshotForState(itemToRemove);
+                        if (!IsSerpinskyOwner())
+                        {
+                            DeleteScreenshotForState(itemToRemove);
+                        }
                         userSaves.Remove(itemToRemove);
                         _ownerFractalForm.SaveAllSavesForThisType(userSaves);
                         PopulateList(false);
@@ -689,7 +705,9 @@ namespace FractalExplorer.Forms
             btnDelete.Enabled = itemSelected && !presetsMode;
             btnSaveAsNew.Enabled = !presetsMode;
             textBoxSaveName.Enabled = !presetsMode;
-            btnRenderPreview.Enabled = itemSelected && !presetsMode && !_isManualPreviewRendering;
+            bool canManualRenderPreview = !IsSerpinskyOwner();
+            btnRenderPreview.Visible = canManualRenderPreview;
+            btnRenderPreview.Enabled = canManualRenderPreview && itemSelected && !presetsMode && !_isManualPreviewRendering;
         }
 
         /// <summary>
@@ -790,7 +808,7 @@ namespace FractalExplorer.Forms
         /// </summary>
         private bool ShouldUseRenderedPreview()
         {
-            if (string.Equals(_ownerFractalForm.FractalTypeIdentifier, "Serpinsky", StringComparison.OrdinalIgnoreCase))
+            if (IsSerpinskyOwner())
             {
                 return true;
             }
