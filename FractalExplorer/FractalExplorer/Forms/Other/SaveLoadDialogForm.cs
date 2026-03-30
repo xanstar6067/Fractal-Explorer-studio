@@ -276,14 +276,20 @@ namespace FractalExplorer.Forms
                     }
 
                     BitmapData bmpData = newRenderingBitmap.LockBits(tile.Bounds, ImageLockMode.WriteOnly, newRenderingBitmap.PixelFormat);
-                    int tileRowWidthInBytes = tile.Bounds.Width * 4;
-                    for (int y = 0; y < tile.Bounds.Height; y++)
+                    try
                     {
-                        IntPtr currentDestPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
-                        int sourceOffset = y * tileRowWidthInBytes;
-                        Marshal.Copy(tileBuffer, sourceOffset, currentDestPtr, tileRowWidthInBytes);
+                        int tileRowWidthInBytes = tile.Bounds.Width * 4;
+                        for (int y = 0; y < tile.Bounds.Height; y++)
+                        {
+                            IntPtr currentDestPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
+                            int sourceOffset = y * tileRowWidthInBytes;
+                            Marshal.Copy(tileBuffer, sourceOffset, currentDestPtr, tileRowWidthInBytes);
+                        }
                     }
-                    newRenderingBitmap.UnlockBits(bmpData);
+                    finally
+                    {
+                        newRenderingBitmap.UnlockBits(bmpData);
+                    }
                 }
                 _renderVisualizer.NotifyTileRenderComplete(tile.Bounds);
             }, token);
@@ -329,13 +335,19 @@ namespace FractalExplorer.Forms
                 {
                     var cachedTileBuffer = new byte[tile.Bounds.Width * tile.Bounds.Height * 4];
                     BitmapData bmpData = _cachedFullPreviewBitmap.LockBits(tile.Bounds, ImageLockMode.ReadOnly, _cachedFullPreviewBitmap.PixelFormat);
-                    int tileRowBytes = tile.Bounds.Width * 4;
-                    for (int y = 0; y < tile.Bounds.Height; y++)
+                    try
                     {
-                        IntPtr sourcePtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
-                        Marshal.Copy(sourcePtr, cachedTileBuffer, y * tileRowBytes, tileRowBytes);
+                        int tileRowBytes = tile.Bounds.Width * 4;
+                        for (int y = 0; y < tile.Bounds.Height; y++)
+                        {
+                            IntPtr sourcePtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
+                            Marshal.Copy(sourcePtr, cachedTileBuffer, y * tileRowBytes, tileRowBytes);
+                        }
                     }
-                    _cachedFullPreviewBitmap.UnlockBits(bmpData);
+                    finally
+                    {
+                        _cachedFullPreviewBitmap.UnlockBits(bmpData);
+                    }
                     return cachedTileBuffer;
                 }
             }
@@ -360,13 +372,19 @@ namespace FractalExplorer.Forms
                 if (!_renderedTilesCache.Contains(tileCoord))
                 {
                     BitmapData bmpData = _cachedFullPreviewBitmap.LockBits(tile.Bounds, ImageLockMode.WriteOnly, _cachedFullPreviewBitmap.PixelFormat);
-                    int tileRowBytes = tile.Bounds.Width * 4;
-                    for (int y = 0; y < tile.Bounds.Height; y++)
+                    try
                     {
-                        IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
-                        Marshal.Copy(renderedTileBuffer, y * tileRowBytes, destPtr, tileRowBytes);
+                        int tileRowBytes = tile.Bounds.Width * 4;
+                        for (int y = 0; y < tile.Bounds.Height; y++)
+                        {
+                            IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
+                            Marshal.Copy(renderedTileBuffer, y * tileRowBytes, destPtr, tileRowBytes);
+                        }
                     }
-                    _cachedFullPreviewBitmap.UnlockBits(bmpData);
+                    finally
+                    {
+                        _cachedFullPreviewBitmap.UnlockBits(bmpData);
+                    }
                     _renderedTilesCache.Add(tileCoord);
                 }
             }
