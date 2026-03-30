@@ -779,13 +779,19 @@ namespace FractalDraving
                         tileRect.Intersect(bitmapRect);
                         if (tileRect.Width == 0 || tileRect.Height == 0) return;
                         BitmapData bmpData = _currentRenderingBitmap.LockBits(tileRect, ImageLockMode.WriteOnly, _currentRenderingBitmap.PixelFormat);
-                        for (int y = 0; y < tileRect.Height; y++)
+                        try
                         {
-                            IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
-                            int srcOffset = y * tileRect.Width * bytesPerPixel;
-                            Marshal.Copy(tileBuffer, srcOffset, destPtr, tileRect.Width * bytesPerPixel);
+                            for (int y = 0; y < tileRect.Height; y++)
+                            {
+                                IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
+                                int srcOffset = y * tileRect.Width * bytesPerPixel;
+                                Marshal.Copy(tileBuffer, srcOffset, destPtr, tileRect.Width * bytesPerPixel);
+                            }
                         }
-                        _currentRenderingBitmap.UnlockBits(bmpData);
+                        finally
+                        {
+                            _currentRenderingBitmap.UnlockBits(bmpData);
+                        }
                     }
                     _renderVisualizer?.NotifyTileRenderComplete(tile.Bounds);
                     if (ct.IsCancellationRequested || !canvas.IsHandleCreated || canvas.IsDisposed) return;
@@ -931,14 +937,20 @@ namespace FractalDraving
                         tileRect.Intersect(bitmapRect);
                         if (tileRect.Width == 0 || tileRect.Height == 0) return;
                         BitmapData bmpData = _currentRenderingBitmap.LockBits(tileRect, ImageLockMode.WriteOnly, _currentRenderingBitmap.PixelFormat);
-                        int originalTileWidthInBytes = tile.Bounds.Width * bytesPerPixel;
-                        for (int y = 0; y < tileRect.Height; y++)
+                        try
                         {
-                            IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
-                            int srcOffset = ((y + tileRect.Y) - tile.Bounds.Y) * originalTileWidthInBytes + ((tileRect.X - tile.Bounds.X) * bytesPerPixel);
-                            Marshal.Copy(tileBuffer, srcOffset, destPtr, tileRect.Width * bytesPerPixel);
+                            int originalTileWidthInBytes = tile.Bounds.Width * bytesPerPixel;
+                            for (int y = 0; y < tileRect.Height; y++)
+                            {
+                                IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
+                                int srcOffset = ((y + tileRect.Y) - tile.Bounds.Y) * originalTileWidthInBytes + ((tileRect.X - tile.Bounds.X) * bytesPerPixel);
+                                Marshal.Copy(tileBuffer, srcOffset, destPtr, tileRect.Width * bytesPerPixel);
+                            }
                         }
-                        _currentRenderingBitmap.UnlockBits(bmpData);
+                        finally
+                        {
+                            _currentRenderingBitmap.UnlockBits(bmpData);
+                        }
                     }
                     _renderVisualizer?.NotifyTileRenderComplete(tile.Bounds);
                     if (ct.IsCancellationRequested || !canvas.IsHandleCreated || canvas.IsDisposed) return;
