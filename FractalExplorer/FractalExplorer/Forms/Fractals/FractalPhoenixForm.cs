@@ -16,6 +16,7 @@ using System.Text;
 using System.Drawing.Drawing2D;
 
 using FractalExplorer.Utilities.Theme;
+using FractalExplorer.Utilities.UI;
 namespace FractalExplorer.Forms
 {
     /// <summary>
@@ -136,6 +137,7 @@ namespace FractalExplorer.Forms
         /// Флаг, отключающий запуск полного рендера при программном изменении layout.
         /// </summary>
         private bool _suppressResizeRender = false;
+        private readonly FullscreenToggleController _fullscreenController = new();
         /// <summary>
         /// Признак видимости панели управления.
         /// </summary>
@@ -157,6 +159,7 @@ namespace FractalExplorer.Forms
         public FractalPhoenixForm()
         {
             InitializeComponent();
+            KeyPreview = true;
             ThemeManager.RegisterForm(this);
             Text = "Фрактал Феникс";
         }
@@ -236,6 +239,8 @@ namespace FractalExplorer.Forms
             canvas.Resize += Canvas_Resize;
             canvasHost.Resize += CanvasHost_Resize;
             controlsHost.SizeChanged += ControlsHost_SizeChanged;
+            KeyDown += Form_KeyDown;
+            FormClosing += Form_FormClosing;
         }
         #endregion
 
@@ -245,6 +250,62 @@ namespace FractalExplorer.Forms
         private void ClearInitialControlSelection()
         {
             BeginInvoke(new Action(() => ActiveControl = null));
+        }
+
+        private void ToggleFullscreenSafely()
+        {
+            _suppressResizeRender = true;
+            try
+            {
+                _fullscreenController.Toggle(this);
+                UpdateToggleControlsPosition();
+                ScheduleRender();
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void ExitFullscreenSafely()
+        {
+            if (!_fullscreenController.IsFullscreen(this))
+            {
+                return;
+            }
+
+            _suppressResizeRender = true;
+            try
+            {
+                _fullscreenController.ExitFullscreen(this);
+                UpdateToggleControlsPosition();
+                ScheduleRender();
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void Form_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                ToggleFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == Keys.Escape && _fullscreenController.IsFullscreen(this))
+            {
+                ExitFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void Form_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            ExitFullscreenSafely();
         }
 
         #region UI Event Handlers

@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 
 using FractalExplorer.Utilities.Theme;
+using FractalExplorer.Utilities.UI;
 namespace FractalExplorer
 {
     /// <summary>
@@ -139,6 +140,7 @@ namespace FractalExplorer
         private string _baseTitle;
         private const int ToggleButtonMargin = 12;
         private bool _suppressResizeRender = false;
+        private readonly FullscreenToggleController _fullscreenController = new();
         private bool _controlsPanelVisible = true;
 
         /// <summary>
@@ -194,6 +196,7 @@ namespace FractalExplorer
         public NewtonPools()
         {
             InitializeComponent();
+            KeyPreview = true;
             ThemeManager.RegisterForm(this);
             _engine = new FractalNewtonEngine();
             _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 300 };
@@ -243,6 +246,8 @@ namespace FractalExplorer
             pnlFormulaInput.MouseLeave += FormulaInput_MouseLeave;
             canvasHost.Resize += CanvasHost_Resize;
             controlsHost.SizeChanged += ControlsHost_SizeChanged;
+            KeyDown += Form_KeyDown;
+            FormClosing += Form_FormClosing;
             pnlFormulaGlow.MouseEnter += FormulaInput_MouseEnter;
             pnlFormulaGlow.MouseLeave += FormulaInput_MouseLeave;
             lblFormulaExample.MouseEnter += FormulaInput_MouseEnter;
@@ -274,6 +279,62 @@ namespace FractalExplorer
             UpdateToggleControlsPosition();
             ClearInitialControlSelection();
             ScheduleRender();
+        }
+
+        private void ToggleFullscreenSafely()
+        {
+            _suppressResizeRender = true;
+            try
+            {
+                _fullscreenController.Toggle(this);
+                UpdateToggleControlsPosition();
+                ScheduleRender();
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void ExitFullscreenSafely()
+        {
+            if (!_fullscreenController.IsFullscreen(this))
+            {
+                return;
+            }
+
+            _suppressResizeRender = true;
+            try
+            {
+                _fullscreenController.ExitFullscreen(this);
+                UpdateToggleControlsPosition();
+                ScheduleRender();
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void Form_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                ToggleFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == Keys.Escape && _fullscreenController.IsFullscreen(this))
+            {
+                ExitFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void Form_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            ExitFullscreenSafely();
         }
 
         private void btnApplyFormula_Click(object? sender, EventArgs e)
