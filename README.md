@@ -10,6 +10,7 @@ Welcome to Fractal Explorer Studio! This is a comprehensive Windows Forms applic
 - **Advanced Color Management:** Upgraded palette managers for different fractal types and an entirely new Color Probe tool to grab colors from anywhere on your monitor.
 - **Smart Save System:** A unified manager for user saves and built-in "Points of Interest". All data (states, palettes, themes) is securely stored in human-readable JSON files in the Saves folder.
 - **Professional Image Export:** Save your fractals in JPG or PNG formats at any resolution. Features upscaling algorithms (Lanczos-3, Bicubic) and SSAA (Super-Sample Anti-Aliasing) for pixel-perfect quality.
+- **Fullscreen Hotkeys:** Press **F11** to toggle fullscreen mode and **Esc** to exit fullscreen.
 
 ## 🎨 Visualization and Design
 
@@ -159,6 +160,7 @@ This project is distributed under the Apache 2.0 license. The full text of the l
 - **Продвинутая Работа с Цветом:** Усовершенствованные менеджеры палитр для разных типов фракталов и абсолютно новый инструмент "Пипетка" (Color Probe) для захвата цвета из любой точки вашего монитора.
 - **Умная Система Сохранений:** Единый менеджер для пользовательских сохранений и встроенных "Точек интереса". Все данные (состояния, палитры, темы) надежно хранятся в JSON-файлах в папке Saves.
 - **Профессиональный Экспорт Изображений:** Сохраняйте фракталы в форматах JPG или PNG с любым разрешением. Доступны алгоритмы масштабирования (Ланцош-3, Бикубический) и сглаживание SSAA (Сверхвысокое разрешение) для идеального качества.
+- **Горячие клавиши полноэкранного режима:** **F11** — переключение полноэкранного режима, **Esc** — выход.
 
 ## 🎨 Визуализация и Дизайн
 
