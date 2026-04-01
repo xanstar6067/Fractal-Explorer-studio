@@ -194,6 +194,7 @@ namespace FractalDraving
         /// Существует только в памяти текущей формы и не сериализуется.
         /// </summary>
         private readonly ColoringRuntimeState _coloringRuntimeState = ColoringRuntimeState.CreateDefault();
+        private bool _suppressQuickModeChange = false;
 
         #endregion
 
@@ -403,6 +404,7 @@ namespace FractalDraving
             nudZoom.Value = _zoom;
 
             UpdateSmoothSettingsButtonState();
+            InitializeQuickColoringModeControls();
 
             if (nudRe != null && nudIm != null)
             {
@@ -431,6 +433,7 @@ namespace FractalDraving
             if (nudRe != null) nudRe.ValueChanged += ParamControl_Changed;
             if (nudIm != null) nudIm.ValueChanged += ParamControl_Changed;
             btnSmoothSettings.Click += btnSmoothSettings_Click;
+            cbQuickColoringMode.SelectedIndexChanged += CbQuickColoringMode_SelectedIndexChanged;
 
             btnRender.Click += (s, e) => ScheduleRender();
 
@@ -574,6 +577,7 @@ namespace FractalDraving
             _coloringRuntimeState.InteriorColor = e.RuntimeState.InteriorColor;
 
             UpdateSmoothSettingsButtonState();
+            SyncQuickColoringModeSelection();
 
             if (!string.IsNullOrWhiteSpace(e.SelectedPaletteName))
             {
@@ -588,9 +592,60 @@ namespace FractalDraving
             ScheduleRender();
         }
 
+        private void CbQuickColoringMode_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (_suppressQuickModeChange)
+            {
+                return;
+            }
+
+            if (cbQuickColoringMode.SelectedItem is not ColoringModeOption option)
+            {
+                return;
+            }
+
+            _coloringRuntimeState.ActiveMode = ColoringModeRuntime.FromType(option.ModeType);
+            UpdateEngineParameters();
+            ScheduleRender();
+        }
+
         private void UpdateSmoothSettingsButtonState()
         {
             btnSmoothSettings.Enabled = true;
+        }
+
+        private void InitializeQuickColoringModeControls()
+        {
+            cbQuickColoringMode.Items.Clear();
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.Discrete, "Дискретный"));
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.Smooth, "Плавный"));
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.Histogram, "Histogram"));
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.OrbitTrap, "Orbit Trap"));
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.StripeAverage, "Stripe Average"));
+            SyncQuickColoringModeSelection();
+        }
+
+        private void SyncQuickColoringModeSelection()
+        {
+            _suppressQuickModeChange = true;
+            try
+            {
+                for (int i = 0; i < cbQuickColoringMode.Items.Count; i++)
+                {
+                    if (cbQuickColoringMode.Items[i] is ColoringModeOption option
+                        && option.ModeType == _coloringRuntimeState.ActiveMode.ModeType)
+                    {
+                        cbQuickColoringMode.SelectedIndex = i;
+                        return;
+                    }
+                }
+
+                cbQuickColoringMode.SelectedIndex = -1;
+            }
+            finally
+            {
+                _suppressQuickModeChange = false;
+            }
         }
 
         /// <summary>
@@ -2003,6 +2058,20 @@ namespace FractalDraving
             Custom = 1
         }
 
+        private sealed class ColoringModeOption
+        {
+            public ColoringModeType ModeType { get; }
+            public string DisplayName { get; }
+
+            public ColoringModeOption(ColoringModeType modeType, string displayName)
+            {
+                ModeType = modeType;
+                DisplayName = displayName;
+            }
+
+            public override string ToString() => DisplayName;
+        }
+
         public enum ColoringModeType
         {
             Discrete = 0,
@@ -2181,6 +2250,8 @@ namespace FractalDraving
                     // Игнорируем ошибки превью-параметров: базовый режим уже определён выше.
                 }
             }
+
+            SyncQuickColoringModeSelection();
         }
 
         private ColoringModeType ResolveLoadedColoringMode(MandelbrotFamilySaveState state)
