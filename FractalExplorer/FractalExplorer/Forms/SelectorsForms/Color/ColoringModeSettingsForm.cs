@@ -91,13 +91,14 @@ namespace FractalExplorer.Utilities
         {
             Text = "Настройки окраски";
             StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.Sizable;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
             ShowIcon = true;
-            MinimumSize = new Size(480, 380);
-            Size = new Size(520, 440);
+            ClientSize = new Size(600, 440);
+            MinimumSize = Size;
+            MaximumSize = Size;
 
             var root = new TableLayoutPanel
             {
