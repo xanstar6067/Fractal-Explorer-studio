@@ -621,7 +621,7 @@ namespace FractalDraving
             cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.Smooth, "Плавная"));
             cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.Histogram, "Гистограмма"));
             cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.OrbitTrap, "Орбитальная ловушка"));
-            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.StripeAverage, "Среднее полосы"));
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.StripeAverage, "Полосатое усреднение"));
             SyncQuickColoringModeSelection();
         }
 

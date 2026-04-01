@@ -189,9 +189,9 @@ namespace FractalExplorer.Utilities
         {
             (FractalMandelbrotFamilyForm.ColoringModeType.Discrete,     "Дискретно"),
             (FractalMandelbrotFamilyForm.ColoringModeType.Smooth,       "Плавно"),
-            (FractalMandelbrotFamilyForm.ColoringModeType.Histogram,    "Histogram"),
-            (FractalMandelbrotFamilyForm.ColoringModeType.OrbitTrap,    "Orbit Trap"),
-            (FractalMandelbrotFamilyForm.ColoringModeType.StripeAverage,"Stripe Average"),
+            (FractalMandelbrotFamilyForm.ColoringModeType.Histogram,    "Гистограмма"),
+            (FractalMandelbrotFamilyForm.ColoringModeType.OrbitTrap,    "Орбитальная ловушка"),
+            (FractalMandelbrotFamilyForm.ColoringModeType.StripeAverage,"Полосатое усреднение"),
         };
 
         private void PopulateModeChips()
