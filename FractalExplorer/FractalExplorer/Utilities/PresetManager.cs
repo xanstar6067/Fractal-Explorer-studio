@@ -89,6 +89,8 @@ namespace FractalExplorer.Utilities
                     return GetSimonobrotPresets();
                 case "Collatz": // <-- ДОБАВЛЕННЫЙ CASE
                     return GetCollatzPresets();
+                case "Lyapunov":
+                    return GetLyapunovPresets();
                 default:
                     return new List<FractalSaveStateBase>();
             }
@@ -1206,6 +1208,66 @@ namespace FractalExplorer.Utilities
             };
             preset1.PreviewParametersJson = JsonSerializer.Serialize(previewParams1, jsonOptions);
             presets.Add(preset1);
+
+            return presets;
+        }
+
+        #endregion
+
+        #region Lyapunov Presets
+
+        private static List<FractalSaveStateBase> GetLyapunovPresets()
+        {
+            var presets = new List<FractalSaveStateBase>();
+            var jsonOptions = new JsonSerializerOptions();
+
+            var preset1 = new LyapunovSaveState("Lyapunov")
+            {
+                SaveName = "Классический AB",
+                Timestamp = DateTime.MinValue,
+                AMin = 2.5m,
+                AMax = 4.0m,
+                BMin = 2.5m,
+                BMax = 4.0m,
+                Pattern = "AB",
+                Iterations = 320,
+                TransientIterations = 80
+            };
+            preset1.PreviewParametersJson = JsonSerializer.Serialize(new FractalLyapunovForm.LyapunovPreviewParams
+            {
+                AMin = preset1.AMin,
+                AMax = preset1.AMax,
+                BMin = preset1.BMin,
+                BMax = preset1.BMax,
+                Pattern = preset1.Pattern,
+                Iterations = 180,
+                TransientIterations = preset1.TransientIterations
+            }, jsonOptions);
+            presets.Add(preset1);
+
+            var preset2 = new LyapunovSaveState("Lyapunov")
+            {
+                SaveName = "ABBA-структуры",
+                Timestamp = DateTime.MinValue,
+                AMin = 3.2m,
+                AMax = 4.0m,
+                BMin = 2.6m,
+                BMax = 3.6m,
+                Pattern = "ABBA",
+                Iterations = 350,
+                TransientIterations = 100
+            };
+            preset2.PreviewParametersJson = JsonSerializer.Serialize(new FractalLyapunovForm.LyapunovPreviewParams
+            {
+                AMin = preset2.AMin,
+                AMax = preset2.AMax,
+                BMin = preset2.BMin,
+                BMax = preset2.BMax,
+                Pattern = preset2.Pattern,
+                Iterations = 200,
+                TransientIterations = preset2.TransientIterations
+            }, jsonOptions);
+            presets.Add(preset2);
 
             return presets;
         }
