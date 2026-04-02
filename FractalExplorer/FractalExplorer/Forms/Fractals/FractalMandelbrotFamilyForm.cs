@@ -1514,7 +1514,7 @@ namespace FractalDraving
         private int ClampInt(int value, int min, int max) => Math.Max(min, Math.Min(max, value));
 
         /// <inheritdoc/>
-        public double LoupeZoom => nudBaseScale != null ? (double)nudBaseScale.Value : 4.0;
+        public double LoupeZoom => 4.0;
 
         /// <inheritdoc/>
         public event EventHandler LoupeZoomChanged;

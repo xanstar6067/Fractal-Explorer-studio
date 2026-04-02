@@ -49,7 +49,6 @@
             mandelbrotPreviewPanel = new Panel();
             mandelbrotPreviewCanvas = new PictureBox();
             canvas = new PictureBox();
-            nudBaseScale = new NumericUpDown();
             contentPanel.SuspendLayout();
             canvasHost.SuspendLayout();
             controlsHost.SuspendLayout();
@@ -62,7 +61,6 @@
             mandelbrotPreviewPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)mandelbrotPreviewCanvas).BeginInit();
             ((System.ComponentModel.ISupportInitialize)canvas).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)nudBaseScale).BeginInit();
             SuspendLayout();
             // 
             // btnToggleControls
@@ -464,23 +462,12 @@
             canvas.TabIndex = 1;
             canvas.TabStop = false;
             // 
-            // nudBaseScale
-            // 
-            nudBaseScale.Location = new Point(219, 665);
-            nudBaseScale.Minimum = new decimal(new int[] { 1, 0, 0, 196608 });
-            nudBaseScale.Name = "nudBaseScale";
-            nudBaseScale.Size = new Size(87, 23);
-            nudBaseScale.TabIndex = 22;
-            nudBaseScale.Value = new decimal(new int[] { 4, 0, 0, 0 });
-            nudBaseScale.Visible = false;
-            // 
             // FractalMandelbrotFamilyForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1084, 662);
             Controls.Add(contentPanel);
-            Controls.Add(nudBaseScale);
             Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(1100, 695);
             Name = "FractalMandelbrotFamilyForm";
@@ -500,7 +487,6 @@
             mandelbrotPreviewPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)mandelbrotPreviewCanvas).EndInit();
             ((System.ComponentModel.ISupportInitialize)canvas).EndInit();
-            ((System.ComponentModel.ISupportInitialize)nudBaseScale).EndInit();
             ResumeLayout(false);
         }
         #endregion
@@ -530,7 +516,6 @@
         protected System.Windows.Forms.NumericUpDown nudIm;
         protected System.Windows.Forms.NumericUpDown nudRe;
         protected System.Windows.Forms.Button color_configurations;
-        protected System.Windows.Forms.NumericUpDown nudBaseScale;
         private System.Windows.Forms.Button btnStateManager;
         private System.Windows.Forms.ComboBox cbSSAA;
         protected System.Windows.Forms.Label lbSSAA;
