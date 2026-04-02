@@ -9,24 +9,24 @@ namespace FractalExplorer.Utilities
     /// Окно runtime-настроек режима окрашивания и быстрой смены палитры.
     /// Не управляет CRUD палитр, а только применяет выбранные параметры.
     /// </summary>
-    public sealed class ColoringModeSettingsForm : Form
+    public sealed partial class ColoringModeSettingsForm : Form
     {
         private readonly PaletteManager _paletteManager;
         private readonly FractalMandelbrotFamilyForm.ColoringRuntimeState _workingState;
         private readonly ColorSelectionService _colorSelectionService = ColorSelectionService.Default;
 
         // ── Выбор режима ────────────────────────────────────────────────────
-        private readonly FlowLayoutPanel _pnlModeChips = new();
+        private FlowLayoutPanel _pnlModeChips = null!;
         private readonly List<Button> _modeChips = new();
 
         // ── Вкладки ─────────────────────────────────────────────────────────
-        private readonly TabControl _tabs = new();
-        private readonly TabPage _tabParams = new();
-        private readonly TabPage _tabPalette = new();
-        private readonly TabPage _tabInterior = new();
+        private TabControl _tabs = null!;
+        private TabPage _tabParams = null!;
+        private TabPage _tabPalette = null!;
+        private TabPage _tabInterior = null!;
 
         // ── Вкладка «Параметры» ─────────────────────────────────────────────
-        private readonly Panel _modeParamsPanel = new();
+        private Panel _modeParamsPanel = null!;
 
         // Поля режима Smooth
         private NumericUpDown? _nudBlendPower;
@@ -47,19 +47,19 @@ namespace FractalExplorer.Utilities
         private NumericUpDown? _nudStripeBias;
 
         // ── Вкладка «Палитра» ────────────────────────────────────────────────
-        private readonly ComboBox _cbPalette = new();
+        private ComboBox _cbPalette = null!;
         private NumericUpDown? _nudPalettePhaseOffset;
         private NumericUpDown? _nudPaletteScale;
         private ComboBox? _cbPaletteWrapMode;
 
         // ── Вкладка «Внутренность» ───────────────────────────────────────────
-        private readonly ComboBox _cbInteriorMode = new();
-        private readonly Button _btnPickInteriorColor = new();
-        private readonly Panel _pnlInteriorColorPreview = new();
+        private ComboBox _cbInteriorMode = null!;
+        private Button _btnPickInteriorColor = null!;
+        private Panel _pnlInteriorColorPreview = null!;
 
         // ── Кнопки ──────────────────────────────────────────────────────────
-        private readonly Button _btnApply = new();
-        private readonly Button _btnCancel = new();
+        private Button _btnApply = null!;
+        private Button _btnCancel = null!;
 
         public event EventHandler<ColoringModeSettingsAppliedEventArgs>? SettingsApplied;
 
@@ -73,7 +73,7 @@ namespace FractalExplorer.Utilities
             _workingState = runtimeState?.Clone() ?? throw new ArgumentNullException(nameof(runtimeState));
             ThemeManager.RegisterForm(this);
 
-            InitializeUi();
+            InitializeComponent();
             PopulateModeChips();
             PopulatePalettesTab(activePaletteName);
             PopulateInteriorTab();
@@ -81,107 +81,6 @@ namespace FractalExplorer.Utilities
 
             if (ownerIcon is not null)
                 Icon = ownerIcon;
-        }
-
-        // ────────────────────────────────────────────────────────────────────
-        //  Построение UI
-        // ────────────────────────────────────────────────────────────────────
-
-        private void InitializeUi()
-        {
-            Text = "Настройки окраски";
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MinimizeBox = false;
-            MaximizeBox = false;
-            ShowInTaskbar = false;
-            ShowIcon = true;
-            ClientSize = new Size(600, 440);
-            MinimumSize = Size;
-            MaximumSize = Size;
-
-            var root = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 3,
-                Padding = new Padding(12)
-            };
-            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // строка чипов режима
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // вкладки
-            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // кнопки
-
-            // ── Блок выбора режима ───────────────────────────────────────────
-            var modeGroup = new GroupBox
-            {
-                Text = "Режим окраски",
-                Dock = DockStyle.Fill,
-                AutoSize = true,
-                Padding = new Padding(6, 4, 6, 6),
-                Margin = new Padding(0, 0, 0, 8)
-            };
-
-            _pnlModeChips.Dock = DockStyle.Fill;
-            _pnlModeChips.FlowDirection = FlowDirection.LeftToRight;
-            _pnlModeChips.WrapContents = true;
-            _pnlModeChips.AutoSize = true;
-            _pnlModeChips.Padding = new Padding(0, 2, 0, 0);
-            modeGroup.Controls.Add(_pnlModeChips);
-
-            // ── Вкладки ─────────────────────────────────────────────────────
-            _tabs.Dock = DockStyle.Fill;
-            _tabs.Padding = new Point(10, 4);
-            _tabs.Margin = new Padding(0);
-
-            _tabParams.Text = "Параметры";
-            _tabPalette.Text = "Палитра";
-            _tabInterior.Text = "Внутренность";
-
-            _tabs.TabPages.Add(_tabParams);
-            _tabs.TabPages.Add(_tabPalette);
-            _tabs.TabPages.Add(_tabInterior);
-
-            // Вкладка «Параметры»
-            _modeParamsPanel.Dock = DockStyle.Fill;
-            _modeParamsPanel.AutoScroll = true;
-            _modeParamsPanel.Padding = new Padding(8);
-            _tabParams.Controls.Add(_modeParamsPanel);
-            _tabParams.Padding = new Padding(4);
-
-            // Вкладка «Палитра» — заполним в PopulatePalettesTab()
-            _tabPalette.Padding = new Padding(4);
-            _tabPalette.AutoScroll = true;
-
-            // Вкладка «Внутренность» — заполним в PopulateInteriorTab()
-            _tabInterior.Padding = new Padding(4);
-            _tabInterior.AutoScroll = true;
-
-            // ── Кнопки ──────────────────────────────────────────────────────
-            var buttonsRow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.RightToLeft,
-                Dock = DockStyle.Fill,
-                AutoSize = true,
-                Margin = new Padding(0, 8, 0, 0)
-            };
-
-            _btnApply.Text = "Применить";
-            _btnApply.AutoSize = true;
-            _btnApply.MinimumSize = new Size(90, 28);
-            _btnApply.Click += BtnApply_Click;
-
-            _btnCancel.Text = "Отмена";
-            _btnCancel.AutoSize = true;
-            _btnCancel.MinimumSize = new Size(80, 28);
-            _btnCancel.Click += (_, _) => Close();
-
-            buttonsRow.Controls.Add(_btnApply);
-            buttonsRow.Controls.Add(_btnCancel);
-
-            root.Controls.Add(modeGroup, 0, 0);
-            root.Controls.Add(_tabs, 0, 1);
-            root.Controls.Add(buttonsRow, 0, 2);
-            Controls.Add(root);
         }
 
         // ── Чипы режима ──────────────────────────────────────────────────────
