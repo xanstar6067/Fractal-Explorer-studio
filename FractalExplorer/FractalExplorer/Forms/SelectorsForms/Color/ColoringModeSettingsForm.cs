@@ -502,6 +502,11 @@ namespace FractalExplorer.Utilities
             };
         }
 
+        private void _btnCancel_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
         // ── Вспомогательные record-типы ───────────────────────────────────────
 
         private sealed record PaletteItem(string PaletteName, string DisplayName)
