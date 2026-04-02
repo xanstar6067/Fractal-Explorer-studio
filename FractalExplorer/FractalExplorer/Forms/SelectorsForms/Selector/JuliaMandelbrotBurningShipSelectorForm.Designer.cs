@@ -10,6 +10,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(BurningShipCSelectorForm));
             mainLayout = new TableLayoutPanel();
             hintLabel = new Label();
             canvasBorderPanel = new Panel();
@@ -32,7 +33,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             mainLayout.Name = "mainLayout";
             mainLayout.Padding = new Padding(10);
             mainLayout.RowCount = 2;
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            mainLayout.RowStyles.Add(new RowStyle());
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainLayout.Size = new Size(784, 661);
             mainLayout.TabIndex = 0;
@@ -40,9 +41,10 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             // hintLabel
             // 
             hintLabel.AutoSize = true;
+            hintLabel.Location = new Point(10, 10);
             hintLabel.Margin = new Padding(0, 0, 0, 8);
             hintLabel.Name = "hintLabel";
-            hintLabel.Size = new Size(461, 15);
+            hintLabel.Size = new Size(412, 15);
             hintLabel.TabIndex = 0;
             hintLabel.Text = "ЛКМ: выбор точки C, зажмите СКМ: панорамирование, колесо: масштаб";
             // 
@@ -50,20 +52,22 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             // 
             canvasBorderPanel.Controls.Add(canvasHoverBorderPanel);
             canvasBorderPanel.Dock = DockStyle.Fill;
+            canvasBorderPanel.Location = new Point(10, 33);
             canvasBorderPanel.Margin = new Padding(0);
             canvasBorderPanel.Name = "canvasBorderPanel";
             canvasBorderPanel.Padding = new Padding(1);
-            canvasBorderPanel.Size = new Size(764, 628);
+            canvasBorderPanel.Size = new Size(764, 618);
             canvasBorderPanel.TabIndex = 1;
             // 
             // canvasHoverBorderPanel
             // 
             canvasHoverBorderPanel.Controls.Add(displayPictureBox);
             canvasHoverBorderPanel.Dock = DockStyle.Fill;
+            canvasHoverBorderPanel.Location = new Point(1, 1);
             canvasHoverBorderPanel.Margin = new Padding(0);
             canvasHoverBorderPanel.Name = "canvasHoverBorderPanel";
             canvasHoverBorderPanel.Padding = new Padding(1);
-            canvasHoverBorderPanel.Size = new Size(762, 626);
+            canvasHoverBorderPanel.Size = new Size(762, 616);
             canvasHoverBorderPanel.TabIndex = 0;
             // 
             // displayPictureBox
@@ -72,7 +76,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             displayPictureBox.Dock = DockStyle.Fill;
             displayPictureBox.Location = new Point(1, 1);
             displayPictureBox.Name = "displayPictureBox";
-            displayPictureBox.Size = new Size(760, 624);
+            displayPictureBox.Size = new Size(760, 614);
             displayPictureBox.SizeMode = PictureBoxSizeMode.StretchImage;
             displayPictureBox.TabIndex = 0;
             displayPictureBox.TabStop = false;
@@ -84,6 +88,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             ClientSize = new Size(784, 661);
             Controls.Add(mainLayout);
             FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             Name = "BurningShipCSelectorForm";
             StartPosition = FormStartPosition.CenterParent;

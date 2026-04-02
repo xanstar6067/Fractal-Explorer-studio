@@ -19,6 +19,7 @@ namespace FractalExplorer.SelectorsForms
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PhoenixCSelectorForm));
             sliceCanvasP = new PictureBox();
             sliceCanvasQ = new PictureBox();
             lblSliceP = new Label();
@@ -262,6 +263,7 @@ namespace FractalExplorer.SelectorsForms
             Controls.Add(sliceCanvasQ);
             Controls.Add(sliceCanvasP);
             FormBorderStyle = FormBorderStyle.FixedDialog;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             MinimizeBox = false;
             Name = "PhoenixCSelectorForm";

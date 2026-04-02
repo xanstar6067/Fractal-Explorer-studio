@@ -10,6 +10,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(NovaMandelbrotSelectorForm));
             mainLayout = new TableLayoutPanel();
             mandelbrotHintLabel = new Label();
             mandelbrotCanvasBorder = new Panel();
@@ -32,7 +33,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             mainLayout.Name = "mainLayout";
             mainLayout.Padding = new Padding(10);
             mainLayout.RowCount = 2;
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            mainLayout.RowStyles.Add(new RowStyle());
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainLayout.Size = new Size(784, 661);
             mainLayout.TabIndex = 0;
@@ -40,9 +41,10 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             // mandelbrotHintLabel
             // 
             mandelbrotHintLabel.AutoSize = true;
+            mandelbrotHintLabel.Location = new Point(10, 10);
             mandelbrotHintLabel.Margin = new Padding(0, 0, 0, 8);
             mandelbrotHintLabel.Name = "mandelbrotHintLabel";
-            mandelbrotHintLabel.Size = new Size(461, 15);
+            mandelbrotHintLabel.Size = new Size(412, 15);
             mandelbrotHintLabel.TabIndex = 0;
             mandelbrotHintLabel.Text = "ЛКМ: выбор точки C, зажмите СКМ: панорамирование, колесо: масштаб";
             // 
@@ -50,20 +52,22 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             // 
             mandelbrotCanvasBorder.Controls.Add(mandelbrotCanvasHoverBorder);
             mandelbrotCanvasBorder.Dock = DockStyle.Fill;
+            mandelbrotCanvasBorder.Location = new Point(10, 33);
             mandelbrotCanvasBorder.Margin = new Padding(0);
             mandelbrotCanvasBorder.Name = "mandelbrotCanvasBorder";
             mandelbrotCanvasBorder.Padding = new Padding(1);
-            mandelbrotCanvasBorder.Size = new Size(764, 628);
+            mandelbrotCanvasBorder.Size = new Size(764, 618);
             mandelbrotCanvasBorder.TabIndex = 1;
             // 
             // mandelbrotCanvasHoverBorder
             // 
             mandelbrotCanvasHoverBorder.Controls.Add(mandelbrotDisplay);
             mandelbrotCanvasHoverBorder.Dock = DockStyle.Fill;
+            mandelbrotCanvasHoverBorder.Location = new Point(1, 1);
             mandelbrotCanvasHoverBorder.Margin = new Padding(0);
             mandelbrotCanvasHoverBorder.Name = "mandelbrotCanvasHoverBorder";
             mandelbrotCanvasHoverBorder.Padding = new Padding(1);
-            mandelbrotCanvasHoverBorder.Size = new Size(762, 626);
+            mandelbrotCanvasHoverBorder.Size = new Size(762, 616);
             mandelbrotCanvasHoverBorder.TabIndex = 0;
             // 
             // mandelbrotDisplay
@@ -72,7 +76,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             mandelbrotDisplay.Dock = DockStyle.Fill;
             mandelbrotDisplay.Location = new Point(1, 1);
             mandelbrotDisplay.Name = "mandelbrotDisplay";
-            mandelbrotDisplay.Size = new Size(760, 624);
+            mandelbrotDisplay.Size = new Size(760, 614);
             mandelbrotDisplay.SizeMode = PictureBoxSizeMode.StretchImage;
             mandelbrotDisplay.TabIndex = 0;
             mandelbrotDisplay.TabStop = false;
@@ -84,6 +88,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             ClientSize = new Size(784, 661);
             Controls.Add(mainLayout);
             FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             Name = "NovaMandelbrotSelectorForm";
             StartPosition = FormStartPosition.CenterParent;
