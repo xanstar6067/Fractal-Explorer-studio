@@ -350,6 +350,18 @@ namespace FractalExplorer
                 PreviewImage = Properties.Resources.buffalo_preview_sq512
             });
 
+
+            _fractalCatalog.Add(new FractalInfo
+            {
+                Family = "Множество Мандельброта",
+                DisplayName = "Кельтский Мандельброт",
+                FormToLaunch = typeof(FractalCelticMandelbrot),
+                Description = "Модификация классического алгоритма, где после возведения Z в квадрат берётся модуль действительной части: Z = (|Re(Z²)| + i·Im(Z²)) + C.\n\n" +
+                              "Такая трансформация заметно меняет топологию множества и формирует характерные 'кельтские' узоры с выраженной осевой структурой.\n\n" +
+                              "Особенности: Используйте те же инструменты масштабирования, центрирования и палитры, что и для других вариантов семейства Мандельброта.",
+                PreviewImage = Properties.Resources.celtic_mandelbrot_preview_sq512
+            });
+
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Множество Мандельброта",

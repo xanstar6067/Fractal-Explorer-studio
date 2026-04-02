@@ -93,6 +93,16 @@ namespace FractalExplorer.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap celtic_mandelbrot_preview_sq512 {
+            get {
+                object obj = ResourceManager.GetObject("celtic_mandelbrot_preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap burningship_preview {
             get {
                 object obj = ResourceManager.GetObject("burningship_preview", resourceCulture);

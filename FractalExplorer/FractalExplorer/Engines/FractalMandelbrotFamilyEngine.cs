@@ -1272,6 +1272,63 @@ namespace FractalExplorer.Engines
         }
     }
 
+
+    /// <summary>
+    /// Реализует движок для рендеринга фрактала "Кельтский Мандельброт".
+    /// Итерационная формула: z -> (|Re(z²)| + i·Im(z²)) + c.
+    /// </summary>
+    public class CelticMandelbrotEngine : FractalMandelbrotFamilyEngine
+    {
+        /// <inheritdoc />
+        public override void CopySpecificParametersFrom(FractalMandelbrotFamilyEngine source)
+        {
+            // Для этого движка нет специфичных параметров.
+        }
+
+        /// <inheritdoc />
+        protected override void GetCalculationParameters(decimal re, decimal im, out ComplexDecimal initialZ, out ComplexDecimal constantC)
+        {
+            initialZ = ComplexDecimal.Zero;
+            constantC = new ComplexDecimal(re, im);
+        }
+
+        /// <inheritdoc />
+        public override int CalculateIterations(ref ComplexDecimal z, ComplexDecimal c)
+        {
+            int iter = 0;
+            while (iter < MaxIterations && z.MagnitudeSquared <= ThresholdSquared)
+            {
+                ComplexDecimal squared = z * z;
+                z = new ComplexDecimal(Math.Abs(squared.Real), squared.Imaginary) + c;
+                iter++;
+            }
+
+            return iter;
+        }
+
+        /// <inheritdoc />
+        protected override void GetCalculationParametersDouble(double re, double im, out ComplexDouble initialZ, out ComplexDouble constantC)
+        {
+            initialZ = ComplexDouble.Zero;
+            constantC = new ComplexDouble(re, im);
+        }
+
+        /// <inheritdoc />
+        public override int CalculateIterationsDouble(ref ComplexDouble z, ComplexDouble c)
+        {
+            int iter = 0;
+            double thresholdSq = (double)ThresholdSquared;
+            while (iter < MaxIterations && z.MagnitudeSquared <= thresholdSq)
+            {
+                ComplexDouble squared = z * z;
+                z = new ComplexDouble(Math.Abs(squared.Real), squared.Imaginary) + c;
+                iter++;
+            }
+
+            return iter;
+        }
+    }
+
     /// <summary>
     /// Реализует движок для рендеринга фрактала Симоноброт (пользовательская версия).
     /// Итерационная формула: z -> (z^p * |z|^p) + c.

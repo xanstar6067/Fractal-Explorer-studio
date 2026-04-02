@@ -2304,6 +2304,7 @@ namespace FractalDraving
                     case "MandelbrotBurningShip": previewEngine = new MandelbrotBurningShipEngine(); break;
                     case "JuliaBurningShip": previewEngine = new JuliaBurningShipEngine { C = new ComplexDecimal(previewParams.CRe, previewParams.CIm) }; break;
                     case "Tricorn": previewEngine = new TricornEngine(); break;
+                    case "CelticMandelbrot": previewEngine = new CelticMandelbrotEngine(); break;
                     case "GeneralizedMandelbrot":
                         var genMandelbrotParams = JsonSerializer.Deserialize<FractalGeneralizedMandelbrot.GeneralizedMandelbrotPreviewParams>(stateBase.PreviewParametersJson);
                         previewEngine = new GeneralizedMandelbrotEngine
@@ -2358,6 +2359,7 @@ namespace FractalDraving
                 case "MandelbrotBurningShip": previewEngine = new MandelbrotBurningShipEngine(); break;
                 case "JuliaBurningShip": previewEngine = new JuliaBurningShipEngine { C = new ComplexDecimal(previewParams.CRe, previewParams.CIm) }; break;
                 case "Tricorn": previewEngine = new TricornEngine(); break;
+                case "CelticMandelbrot": previewEngine = new CelticMandelbrotEngine(); break;
                 default:
                     var bmpError = new Bitmap(previewWidth, previewHeight);
                     using (var g = Graphics.FromImage(bmpError)) { g.Clear(Color.DarkOrange); TextRenderer.DrawText(g, "Неизв. тип движка", Font, new Rectangle(0, 0, previewWidth, previewHeight), Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); }
@@ -2604,6 +2606,9 @@ namespace FractalDraving
                     break;
                 case "Buffalo":
                     engine = new BuffaloEngine();
+                    break;
+                case "CelticMandelbrot":
+                    engine = new CelticMandelbrotEngine();
                     break;
                 case "Simonobrot":
                     engine = new SimonobrotEngine();
