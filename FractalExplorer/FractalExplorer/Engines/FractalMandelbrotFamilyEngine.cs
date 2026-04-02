@@ -31,7 +31,8 @@ namespace FractalExplorer.Engines
             Mandelbrot,
             Julia,
             MandelbrotBurningShip,
-            JuliaBurningShip
+            JuliaBurningShip,
+            Tricorn
         }
 
         #region Constants
@@ -328,6 +329,10 @@ namespace FractalExplorer.Engines
             {
                 z = new ComplexDecimal(Math.Abs(z.Real), -Math.Abs(z.Imaginary));
             }
+            else if (kind == SpecializedEngineKind.Tricorn)
+            {
+                z = new ComplexDecimal(z.Real, -z.Imaginary);
+            }
             return z * z + c;
         }
 
@@ -336,6 +341,10 @@ namespace FractalExplorer.Engines
             if (kind == SpecializedEngineKind.MandelbrotBurningShip || kind == SpecializedEngineKind.JuliaBurningShip)
             {
                 z = new ComplexDouble(Math.Abs(z.Real), -Math.Abs(z.Imaginary));
+            }
+            else if (kind == SpecializedEngineKind.Tricorn)
+            {
+                z = new ComplexDouble(z.Real, -z.Imaginary);
             }
             return z * z + c;
         }
@@ -593,6 +602,7 @@ namespace FractalExplorer.Engines
             if (this is JuliaEngine) return SpecializedEngineKind.Julia;
             if (this is MandelbrotBurningShipEngine) return SpecializedEngineKind.MandelbrotBurningShip;
             if (this is JuliaBurningShipEngine) return SpecializedEngineKind.JuliaBurningShip;
+            if (this is TricornEngine) return SpecializedEngineKind.Tricorn;
             return SpecializedEngineKind.None;
         }
 
@@ -675,6 +685,22 @@ namespace FractalExplorer.Engines
                     while (iter < maxIterations && z.MagnitudeSquared <= thresholdSq)
                     {
                         z = new ComplexDecimal(Math.Abs(z.Real), -Math.Abs(z.Imaginary));
+                        z = z * z + c;
+                        iter++;
+                    }
+                };
+            }
+
+            if (kind == SpecializedEngineKind.Tricorn)
+            {
+                return (decimal re, decimal im, out int iter, out ComplexDecimal z) =>
+                {
+                    ComplexDecimal c = new ComplexDecimal(re, im);
+                    z = ComplexDecimal.Zero;
+                    iter = 0;
+                    while (iter < maxIterations && z.MagnitudeSquared <= thresholdSq)
+                    {
+                        z = new ComplexDecimal(z.Real, -z.Imaginary);
                         z = z * z + c;
                         iter++;
                     }
@@ -767,6 +793,22 @@ namespace FractalExplorer.Engines
                     while (iter < maxIterations && z.MagnitudeSquared <= thresholdSq)
                     {
                         z = new ComplexDouble(Math.Abs(z.Real), -Math.Abs(z.Imaginary));
+                        z = z * z + c;
+                        iter++;
+                    }
+                };
+            }
+
+            if (kind == SpecializedEngineKind.Tricorn)
+            {
+                return (double re, double im, out int iter, out ComplexDouble z) =>
+                {
+                    ComplexDouble c = new ComplexDouble(re, im);
+                    z = ComplexDouble.Zero;
+                    iter = 0;
+                    while (iter < maxIterations && z.MagnitudeSquared <= thresholdSq)
+                    {
+                        z = new ComplexDouble(z.Real, -z.Imaginary);
                         z = z * z + c;
                         iter++;
                     }
@@ -1513,6 +1555,61 @@ namespace FractalExplorer.Engines
             double thresholdSq = (double)ThresholdSquared;
             while (iter < MaxIterations && z.MagnitudeSquared <= thresholdSq)
             {
+                z = z * z + c;
+                iter++;
+            }
+            return iter;
+        }
+    }
+
+
+    /// <summary>
+    /// Реализует движок для рендеринга фрактала Трикорн (Mandelbar).
+    /// Итерационная формула: z_next = conjugate(z)^2 + c.
+    /// </summary>
+    public class TricornEngine : FractalMandelbrotFamilyEngine
+    {
+        /// <inheritdoc />
+        public override void CopySpecificParametersFrom(FractalMandelbrotFamilyEngine source)
+        {
+            // Для этого движка нет специфичных параметров для копирования.
+        }
+
+        /// <inheritdoc />
+        protected override void GetCalculationParameters(decimal re, decimal im, out ComplexDecimal initialZ, out ComplexDecimal constantC)
+        {
+            initialZ = ComplexDecimal.Zero;
+            constantC = new ComplexDecimal(re, im);
+        }
+
+        /// <inheritdoc />
+        public override int CalculateIterations(ref ComplexDecimal z, ComplexDecimal c)
+        {
+            int iter = 0;
+            while (iter < MaxIterations && z.MagnitudeSquared <= ThresholdSquared)
+            {
+                z = new ComplexDecimal(z.Real, -z.Imaginary);
+                z = z * z + c;
+                iter++;
+            }
+            return iter;
+        }
+
+        /// <inheritdoc />
+        protected override void GetCalculationParametersDouble(double re, double im, out ComplexDouble initialZ, out ComplexDouble constantC)
+        {
+            initialZ = ComplexDouble.Zero;
+            constantC = new ComplexDouble(re, im);
+        }
+
+        /// <inheritdoc />
+        public override int CalculateIterationsDouble(ref ComplexDouble z, ComplexDouble c)
+        {
+            int iter = 0;
+            double thresholdSq = (double)ThresholdSquared;
+            while (iter < MaxIterations && z.MagnitudeSquared <= thresholdSq)
+            {
+                z = new ComplexDouble(z.Real, -z.Imaginary);
                 z = z * z + c;
                 iter++;
             }
