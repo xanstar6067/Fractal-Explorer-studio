@@ -336,7 +336,7 @@ namespace FractalExplorer
                               "Из-за сопряжения фрактал получает характерную трёхлепестковую структуру и симметрию, отличную от классического Мандельброта.\n\n" +
                               "Особенности: Исследуйте иную динамику итераций и необычные области самоподобия, используя те же инструменты окрашивания и масштабирования.",
 
-                PreviewImage = Properties.Resources.tricorn_preview_sq512
+                PreviewImage = Properties.Resources.tricorn__preview_sq512
             });
 
             _fractalCatalog.Add(new FractalInfo

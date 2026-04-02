@@ -71,6 +71,8 @@ namespace FractalExplorer.Utilities
                     return GetJuliaPresets();
                 case "MandelbrotBurningShip":
                     return GetMandelbrotBurningShipPresets();
+                case "Tricorn":
+                    return GetTricornPresets();
                 case "JuliaBurningShip":
                     return GetJuliaBurningShipPresets();
                 case "Phoenix":
@@ -491,6 +493,89 @@ namespace FractalExplorer.Utilities
                 PreviewEngineType = "MandelbrotBurningShip"
             };
             preset3.PreviewParametersJson = JsonSerializer.Serialize(previewParams3BS);
+            presets.Add(preset3);
+
+            return presets;
+        }
+
+        /// <summary>
+        /// Создает и возвращает список предустановленных состояний для фрактала Tricorn.
+        /// </summary>
+        /// <returns>Список пресетов Tricorn.</returns>
+        private static List<FractalSaveStateBase> GetTricornPresets()
+        {
+            var presets = new List<FractalSaveStateBase>();
+
+            var preset1 = new MandelbrotFamilySaveState("Tricorn")
+            {
+                SaveName = "Тройной Крест",
+                CenterX = 0m,
+                CenterY = 0m,
+                Zoom = 0.85m,
+                Iterations = 500,
+                Threshold = 2.0m,
+                PaletteName = "Ультрафиолет",
+                Timestamp = DateTime.MinValue
+            };
+            var previewParams1 = new FractalMandelbrotFamilyForm.PreviewParams
+            {
+                CenterX = preset1.CenterX,
+                CenterY = preset1.CenterY,
+                Zoom = preset1.Zoom,
+                Iterations = Math.Min(preset1.Iterations, PREVIEW_ITERATION_LIMIT_MANDELBROT_FAMILY),
+                PaletteName = preset1.PaletteName,
+                Threshold = preset1.Threshold,
+                PreviewEngineType = "Tricorn"
+            };
+            preset1.PreviewParametersJson = JsonSerializer.Serialize(previewParams1);
+            presets.Add(preset1);
+
+            var preset2 = new MandelbrotFamilySaveState("Tricorn")
+            {
+                SaveName = "Левый Вихрь",
+                CenterX = -0.295m,
+                CenterY = 0.018m,
+                Zoom = 9.5m,
+                Iterations = 800,
+                Threshold = 2.0m,
+                PaletteName = "Огонь",
+                Timestamp = DateTime.MinValue
+            };
+            var previewParams2 = new FractalMandelbrotFamilyForm.PreviewParams
+            {
+                CenterX = preset2.CenterX,
+                CenterY = preset2.CenterY,
+                Zoom = preset2.Zoom,
+                Iterations = Math.Min(preset2.Iterations, PREVIEW_ITERATION_LIMIT_MANDELBROT_FAMILY),
+                PaletteName = preset2.PaletteName,
+                Threshold = preset2.Threshold,
+                PreviewEngineType = "Tricorn"
+            };
+            preset2.PreviewParametersJson = JsonSerializer.Serialize(previewParams2);
+            presets.Add(preset2);
+
+            var preset3 = new MandelbrotFamilySaveState("Tricorn")
+            {
+                SaveName = "Северный Лепесток",
+                CenterX = -0.1096m,
+                CenterY = 0.8198m,
+                Zoom = 28m,
+                Iterations = 1100,
+                Threshold = 2.0m,
+                PaletteName = "Лёд",
+                Timestamp = DateTime.MinValue
+            };
+            var previewParams3 = new FractalMandelbrotFamilyForm.PreviewParams
+            {
+                CenterX = preset3.CenterX,
+                CenterY = preset3.CenterY,
+                Zoom = preset3.Zoom,
+                Iterations = Math.Min(preset3.Iterations, PREVIEW_ITERATION_LIMIT_MANDELBROT_FAMILY),
+                PaletteName = preset3.PaletteName,
+                Threshold = preset3.Threshold,
+                PreviewEngineType = "Tricorn"
+            };
+            preset3.PreviewParametersJson = JsonSerializer.Serialize(previewParams3);
             presets.Add(preset3);
 
             return presets;
