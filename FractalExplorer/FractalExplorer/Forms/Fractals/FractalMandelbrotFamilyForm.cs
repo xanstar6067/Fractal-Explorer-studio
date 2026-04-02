@@ -390,7 +390,7 @@ namespace FractalDraving
             nudIterations.Maximum = 100000;
             nudIterations.Value = 500;
 
-            nudThreshold.Minimum = 2m;
+            nudThreshold.Minimum = 0.1m;
             nudThreshold.Maximum = 1000m;
             nudThreshold.DecimalPlaces = 1;
             nudThreshold.Increment = 0.1m;
