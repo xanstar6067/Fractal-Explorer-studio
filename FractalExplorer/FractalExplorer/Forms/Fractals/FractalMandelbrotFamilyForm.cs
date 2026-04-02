@@ -2303,6 +2303,7 @@ namespace FractalDraving
                     case "Julia": previewEngine = new JuliaEngine { C = new ComplexDecimal(previewParams.CRe, previewParams.CIm) }; break;
                     case "MandelbrotBurningShip": previewEngine = new MandelbrotBurningShipEngine(); break;
                     case "JuliaBurningShip": previewEngine = new JuliaBurningShipEngine { C = new ComplexDecimal(previewParams.CRe, previewParams.CIm) }; break;
+                    case "Tricorn": previewEngine = new TricornEngine(); break;
                     case "GeneralizedMandelbrot":
                         var genMandelbrotParams = JsonSerializer.Deserialize<FractalGeneralizedMandelbrot.GeneralizedMandelbrotPreviewParams>(stateBase.PreviewParametersJson);
                         previewEngine = new GeneralizedMandelbrotEngine
@@ -2356,6 +2357,7 @@ namespace FractalDraving
                 case "Julia": previewEngine = new JuliaEngine { C = new ComplexDecimal(previewParams.CRe, previewParams.CIm) }; break;
                 case "MandelbrotBurningShip": previewEngine = new MandelbrotBurningShipEngine(); break;
                 case "JuliaBurningShip": previewEngine = new JuliaBurningShipEngine { C = new ComplexDecimal(previewParams.CRe, previewParams.CIm) }; break;
+                case "Tricorn": previewEngine = new TricornEngine(); break;
                 default:
                     var bmpError = new Bitmap(previewWidth, previewHeight);
                     using (var g = Graphics.FromImage(bmpError)) { g.Clear(Color.DarkOrange); TextRenderer.DrawText(g, "Неизв. тип движка", Font, new Rectangle(0, 0, previewWidth, previewHeight), Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); }
@@ -2592,6 +2594,7 @@ namespace FractalDraving
                 case "Julia": engine = new JuliaEngine { C = state.JuliaC.Value }; break;
                 case "MandelbrotBurningShip": engine = new MandelbrotBurningShipEngine(); break;
                 case "JuliaBurningShip": engine = new JuliaBurningShipEngine { C = state.JuliaC.Value }; break;
+                case "Tricorn": engine = new TricornEngine(); break;
                 case "GeneralizedMandelbrot":
                     engine = new GeneralizedMandelbrotEngine();
                     if (state.Power.HasValue && engine is GeneralizedMandelbrotEngine genEngine)
