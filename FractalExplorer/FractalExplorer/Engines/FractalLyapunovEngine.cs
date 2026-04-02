@@ -1,4 +1,5 @@
-﻿using System.Drawing.Imaging;
+﻿using FractalExplorer.Resources;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Engines

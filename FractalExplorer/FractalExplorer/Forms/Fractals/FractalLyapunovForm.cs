@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using FractalExplorer.Engines;
+using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
