@@ -323,19 +323,29 @@ namespace FractalExplorer.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap tricorn_preview_sq512 {
-            get {
-                object obj = ResourceManager.GetObject("tricorn_preview_sq512", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-
         internal static System.Drawing.Bitmap simonobrot_preview_sq512 {
             get {
                 object obj = ResourceManager.GetObject("simonobrot_preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap tricorn__preview_sq512 {
+            get {
+                object obj = ResourceManager.GetObject("tricorn__preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap tricorn_preview {
+            get {
+                object obj = ResourceManager.GetObject("tricorn_preview", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
