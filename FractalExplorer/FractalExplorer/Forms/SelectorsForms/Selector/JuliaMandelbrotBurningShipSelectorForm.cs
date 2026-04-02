@@ -11,7 +11,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
     /// путем интерактивного клика по изображению множества "Пылающий корабль" (Мандельброт-версия).
     /// Также поддерживает панорамирование и масштабирование отображаемого множества.
     /// </summary>
-    public class BurningShipCSelectorForm : Form
+    public partial class BurningShipCSelectorForm : Form
     {
         #region Fields
 
@@ -40,13 +40,6 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
         /// </summary>
         private readonly IFractalForm ownerForm;
 
-        /// <summary>
-        /// Элемент PictureBox для отображения множества "Пылающий корабль".
-        /// </summary>
-        private PictureBox displayPictureBox;
-        private Panel canvasBorderPanel;
-        private Panel canvasHoverBorderPanel;
-        private Label hintLabel;
         private bool isCanvasHovered = false;
         private EventHandler? themeChangedHandler;
 
@@ -172,44 +165,9 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
         public BurningShipCSelectorForm(IFractalForm owner, double initialRe, double initialIm, double validMinRe, double validMaxRe, double validMinIm, double validMaxIm)
         {
             ownerForm = owner ?? throw new ArgumentNullException(nameof(owner));
-            Text = "Выбор точки C (Множество Горящий Корабль)";
-            Size = new Size(800, 700);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
+            InitializeComponent();
 
             ThemeManager.RegisterForm(this);
-
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                RowCount = 2,
-                ColumnCount = 1,
-                Padding = new Padding(10)
-            };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            hintLabel = new Label
-            {
-                AutoSize = true,
-                Margin = new Padding(0, 0, 0, 8),
-                Text = "ЛКМ: выбор точки C, зажмите СКМ: панорамирование, колесо: масштаб"
-            };
-
-            canvasBorderPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(1),
-                Margin = new Padding(0)
-            };
-
-            canvasHoverBorderPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(1),
-                Margin = new Padding(0)
-            };
 
             // Сохраняем допустимые границы
             _validMinRe = validMinRe;
@@ -217,17 +175,6 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             _validMinIm = validMinIm;
             _validMaxIm = validMaxIm;
 
-            displayPictureBox = new PictureBox
-            {
-                Dock = DockStyle.Fill,
-                SizeMode = PictureBoxSizeMode.StretchImage,
-                Cursor = Cursors.Cross
-            };
-            canvasHoverBorderPanel.Controls.Add(displayPictureBox);
-            canvasBorderPanel.Controls.Add(canvasHoverBorderPanel);
-            layout.Controls.Add(hintLabel, 0, 0);
-            layout.Controls.Add(canvasBorderPanel, 0, 1);
-            Controls.Add(layout);
 
             // Подписка на события.
             Load += SelectorForm_Load;

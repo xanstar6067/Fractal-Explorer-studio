@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using FractalExplorer.Utilities.Theme;
 namespace FractalExplorer.Forms.SelectorsForms.Selector
 {
-    public class NovaMandelbrotSelectorForm : Form
+    public partial class NovaMandelbrotSelectorForm : Form
     {
         private readonly double _validMinRe;
         private readonly double _validMaxRe;
@@ -14,10 +14,6 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
         private readonly double _validMaxIm;
 
         private readonly IFractalForm ownerForm;
-        private PictureBox mandelbrotDisplay;
-        private Panel mandelbrotCanvasBorder;
-        private Panel mandelbrotCanvasHoverBorder;
-        private Label mandelbrotHintLabel;
         private bool isCanvasHovered = false;
         private EventHandler? themeChangedHandler;
         private Bitmap mandelbrotBitmap;
@@ -66,57 +62,9 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             _validMinIm = validMinIm;
             _validMaxIm = validMaxIm;
 
-            Text = "Выбор точки C (Nova Mandelbrot)";
-            Size = new Size(800, 700);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
+            InitializeComponent();
 
             ThemeManager.RegisterForm(this);
-
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                RowCount = 2,
-                ColumnCount = 1,
-                Padding = new Padding(10)
-            };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            mandelbrotHintLabel = new Label
-            {
-                AutoSize = true,
-                Margin = new Padding(0, 0, 0, 8),
-                Text = "ЛКМ: выбор точки C, зажмите СКМ: панорамирование, колесо: масштаб"
-            };
-
-            mandelbrotCanvasBorder = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(1),
-                Margin = new Padding(0)
-            };
-
-            mandelbrotCanvasHoverBorder = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(1),
-                Margin = new Padding(0)
-            };
-
-            mandelbrotDisplay = new PictureBox
-            {
-                Dock = DockStyle.Fill,
-                SizeMode = PictureBoxSizeMode.StretchImage,
-                Cursor = Cursors.Cross
-            };
-
-            mandelbrotCanvasHoverBorder.Controls.Add(mandelbrotDisplay);
-            mandelbrotCanvasBorder.Controls.Add(mandelbrotCanvasHoverBorder);
-            layout.Controls.Add(mandelbrotHintLabel, 0, 0);
-            layout.Controls.Add(mandelbrotCanvasBorder, 0, 1);
-            Controls.Add(layout);
 
             Load += MandelbrotSelectorForm_Load;
             mandelbrotDisplay.Paint += MandelbrotDisplay_Paint;

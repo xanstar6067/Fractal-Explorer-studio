@@ -11,7 +11,7 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
     /// путем интерактивного клика по изображению множества Мандельброта.
     /// Также поддерживает панорамирование и масштабирование отображаемого множества Мандельброта.
     /// </summary>
-    public class JuliaMandelbrotSelectorForm : Form
+    public partial class JuliaMandelbrotSelectorForm : Form
     {
         #region Fields
 
@@ -40,13 +40,6 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
         /// </summary>
         private readonly IFractalForm ownerForm;
 
-        /// <summary>
-        /// Элемент PictureBox для отображения множества Мандельброта.
-        /// </summary>
-        private PictureBox mandelbrotDisplay;
-        private Panel mandelbrotCanvasBorder;
-        private Panel mandelbrotCanvasHoverBorder;
-        private Label mandelbrotHintLabel;
         private bool isCanvasHovered = false;
         private EventHandler? themeChangedHandler;
 
@@ -172,44 +165,9 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
         public JuliaMandelbrotSelectorForm(IFractalForm owner, double initialRe, double initialIm, double validMinRe, double validMaxRe, double validMinIm, double validMaxIm)
         {
             ownerForm = owner ?? throw new ArgumentNullException(nameof(owner));
-            Text = "Выбор точки C (Множество Мандельброта)";
-            Size = new Size(800, 700);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
-            StartPosition = FormStartPosition.CenterParent;
+            InitializeComponent();
 
             ThemeManager.RegisterForm(this);
-
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                RowCount = 2,
-                ColumnCount = 1,
-                Padding = new Padding(10)
-            };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            mandelbrotHintLabel = new Label
-            {
-                AutoSize = true,
-                Margin = new Padding(0, 0, 0, 8),
-                Text = "ЛКМ: выбор точки C, зажмите СКМ: панорамирование, колесо: масштаб"
-            };
-
-            mandelbrotCanvasBorder = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(1),
-                Margin = new Padding(0)
-            };
-
-            mandelbrotCanvasHoverBorder = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(1),
-                Margin = new Padding(0)
-            };
 
             // Сохраняем допустимые границы
             _validMinRe = validMinRe;
@@ -217,17 +175,6 @@ namespace FractalExplorer.Forms.SelectorsForms.Selector
             _validMinIm = validMinIm;
             _validMaxIm = validMaxIm;
 
-            mandelbrotDisplay = new PictureBox
-            {
-                Dock = DockStyle.Fill,
-                SizeMode = PictureBoxSizeMode.StretchImage, // Используется для заполнения PictureBox, но рисование происходит в Paint
-                Cursor = Cursors.Cross
-            };
-            mandelbrotCanvasHoverBorder.Controls.Add(mandelbrotDisplay);
-            mandelbrotCanvasBorder.Controls.Add(mandelbrotCanvasHoverBorder);
-            layout.Controls.Add(mandelbrotHintLabel, 0, 0);
-            layout.Controls.Add(mandelbrotCanvasBorder, 0, 1);
-            Controls.Add(layout);
 
             // Подписка на события.
             Load += MandelbrotSelectorForm_Load;
