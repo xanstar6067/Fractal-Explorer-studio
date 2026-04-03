@@ -155,6 +155,7 @@ namespace FractalExplorer.SelectorsForms
         {
             string name = GenerateUniqueName("Новая палитра");
             var palette = LyapunovPaletteManager.CreateDefaultBuiltInPalette().CloneAsCustom(name);
+            palette.Mode = LyapunovColoringMode.Diverging;
             _paletteManager.Palettes.Add(palette);
             _paletteManager.SavePalettes();
             PopulatePaletteList();
