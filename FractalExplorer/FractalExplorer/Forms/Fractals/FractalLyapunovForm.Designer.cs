@@ -389,6 +389,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnSaveImage.TabIndex = 20;
             _btnSaveImage.Text = "Сохранить изображение";
             _btnSaveImage.UseVisualStyleBackColor = true;
+            _btnSaveImage.Click += btnSaveImage_Click;
             // 
             // _btnPalette
             // 

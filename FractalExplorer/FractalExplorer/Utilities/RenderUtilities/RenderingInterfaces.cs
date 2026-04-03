@@ -54,6 +54,15 @@ namespace FractalExplorer.Utilities.RenderUtilities
         #endregion
         // --- End of new code ---
 
+        #region Lyapunov Specific Parameters
+        public decimal? LyapunovAMin { get; set; }
+        public decimal? LyapunovAMax { get; set; }
+        public decimal? LyapunovBMin { get; set; }
+        public decimal? LyapunovBMax { get; set; }
+        public int? LyapunovTransientIterations { get; set; }
+        public string? LyapunovPattern { get; set; }
+        #endregion
+
         public HighResRenderState Clone()
         {
             return (HighResRenderState)this.MemberwiseClone();

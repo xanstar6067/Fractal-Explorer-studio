@@ -2,15 +2,17 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FractalExplorer.Engines;
+using FractalExplorer.Forms.Other;
 using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
+using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Drawing.Drawing2D;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public partial class FractalLyapunovForm : Form, ISaveLoadCapableFractal
+    public partial class FractalLyapunovForm : Form, ISaveLoadCapableFractal, IHighResRenderable
     {
         private const int PreviewTileSize = 16;
         private const decimal DefaultAMin = 2.8m;
@@ -37,6 +39,7 @@ namespace FractalExplorer.Forms.Fractals
         private bool _isUserResizingWindow;
         private bool _hasPendingCanvasResizeRender;
         private bool _isQueuingRenderRestart;
+        private bool _isHighResRendering;
         private Point _panStartPoint;
         private decimal _renderedAMin = DefaultAMin;
         private decimal _renderedAMax = DefaultAMax;
@@ -853,6 +856,111 @@ namespace FractalExplorer.Forms.Fractals
         {
             using var dialog = new SaveLoadDialogForm(this);
             dialog.ShowDialog(this);
+        }
+
+        private void btnSaveImage_Click(object sender, EventArgs e)
+        {
+            if (_isHighResRendering)
+            {
+                MessageBox.Show("Процесс рендеринга уже запущен.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using var saveManager = new SaveImageManagerForm(this);
+            saveManager.ShowDialog(this);
+        }
+
+        public HighResRenderState GetRenderState()
+        {
+            string pattern = string.IsNullOrWhiteSpace(_tbPattern.Text) ? "AB" : _tbPattern.Text.Trim().ToUpperInvariant();
+            return new HighResRenderState
+            {
+                EngineType = FractalTypeIdentifier,
+                Iterations = (int)_nudIterations.Value,
+                FileNameDetails = $"lyapunov_{pattern}",
+                Threshold = 0,
+                BaseScale = 1,
+                Zoom = _nudZoom.Value,
+                LyapunovAMin = _nudAMin.Value,
+                LyapunovAMax = _nudAMax.Value,
+                LyapunovBMin = _nudBMin.Value,
+                LyapunovBMax = _nudBMax.Value,
+                LyapunovTransientIterations = (int)_nudTransient.Value,
+                LyapunovPattern = pattern
+            };
+        }
+
+        public async Task<Bitmap> RenderHighResolutionAsync(HighResRenderState state, int width, int height, int ssaaFactor, IProgress<RenderProgress> progress, CancellationToken cancellationToken)
+        {
+            _isHighResRendering = true;
+            try
+            {
+                var engine = new FractalLyapunovEngine
+                {
+                    AMin = state.LyapunovAMin ?? _nudAMin.Value,
+                    AMax = state.LyapunovAMax ?? _nudAMax.Value,
+                    BMin = state.LyapunovBMin ?? _nudBMin.Value,
+                    BMax = state.LyapunovBMax ?? _nudBMax.Value,
+                    Pattern = string.IsNullOrWhiteSpace(state.LyapunovPattern) ? _tbPattern.Text : state.LyapunovPattern,
+                    Iterations = state.Iterations > 0 ? state.Iterations : (int)_nudIterations.Value,
+                    TransientIterations = state.LyapunovTransientIterations ?? (int)_nudTransient.Value
+                };
+
+                return await Task.Run(() =>
+                {
+                    int safeWidth = Math.Max(1, width);
+                    int safeHeight = Math.Max(1, height);
+                    int effectiveSsaa = Math.Max(1, ssaaFactor);
+                    int totalRows = safeHeight;
+                    var result = new Bitmap(safeWidth, safeHeight, PixelFormat.Format32bppArgb);
+                    int threadCount = Math.Max(1, (int)_nudThreads.Value);
+
+                    var po = new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = threadCount,
+                        CancellationToken = cancellationToken
+                    };
+
+                    int completedRows = 0;
+                    Parallel.For(0, totalRows, po, y =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var tile = new TileInfo(0, y, safeWidth, 1);
+                        byte[] rowBuffer = RenderTileWithSsaa(engine, tile, safeWidth, safeHeight, effectiveSsaa, out int bytesPerPixel);
+
+                        lock (result)
+                        {
+                            WriteTileToBitmap(result, tile, rowBuffer, bytesPerPixel);
+                        }
+
+                        int done = Interlocked.Increment(ref completedRows);
+                        int percentage = (int)Math.Round(done * 100.0 / totalRows);
+                        progress.Report(new RenderProgress { Percentage = percentage, Status = "Рендеринг..." });
+                    });
+
+                    return result;
+                }, cancellationToken);
+            }
+            finally
+            {
+                _isHighResRendering = false;
+            }
+        }
+
+        public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
+        {
+            var engine = new FractalLyapunovEngine
+            {
+                AMin = state.LyapunovAMin ?? _nudAMin.Value,
+                AMax = state.LyapunovAMax ?? _nudAMax.Value,
+                BMin = state.LyapunovBMin ?? _nudBMin.Value,
+                BMax = state.LyapunovBMax ?? _nudBMax.Value,
+                Pattern = string.IsNullOrWhiteSpace(state.LyapunovPattern) ? _tbPattern.Text : state.LyapunovPattern,
+                Iterations = state.Iterations > 0 ? state.Iterations : (int)_nudIterations.Value,
+                TransientIterations = state.LyapunovTransientIterations ?? (int)_nudTransient.Value
+            };
+
+            return engine.RenderToBitmap(previewWidth, previewHeight, Math.Max(1, (int)_nudThreads.Value));
         }
 
         public string FractalTypeIdentifier => "Lyapunov";
