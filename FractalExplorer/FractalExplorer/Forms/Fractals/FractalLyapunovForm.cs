@@ -12,6 +12,7 @@ using FractalExplorer.Utilities.Coloring;
 using FractalExplorer.SelectorsForms;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Drawing.Drawing2D;
+using FractalExplorer.Utilities.UI;
 
 namespace FractalExplorer.Forms.Fractals
 {
@@ -45,6 +46,7 @@ namespace FractalExplorer.Forms.Fractals
         private bool _hasPendingCanvasResizeRender;
         private bool _isQueuingRenderRestart;
         private bool _isHighResRendering;
+        private readonly FullscreenToggleController _fullscreenController = new();
         private Point _panStartPoint;
         private decimal _renderedAMin = DefaultAMin;
         private decimal _renderedAMax = DefaultAMax;
@@ -58,10 +60,13 @@ namespace FractalExplorer.Forms.Fractals
             Height = 780;
             StartPosition = FormStartPosition.CenterScreen;
             InitializeComponent();
+            KeyPreview = true;
             ApplyDefaults();
             Shown += async (_, __) => await RenderAsync();
+            KeyDown += Form_KeyDown;
             FormClosing += (_, __) =>
             {
+                ExitFullscreenSafely();
                 CancelPreviewRender();
                 _renderRestartTimer.Stop();
                 _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
@@ -99,6 +104,41 @@ namespace FractalExplorer.Forms.Fractals
             };
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
             AttachAutoRenderControlTriggers();
+        }
+
+        private void ToggleFullscreenSafely()
+        {
+            _fullscreenController.Toggle(this);
+            UpdateOverlayLayout();
+            QueueRenderRestart(immediate: true);
+        }
+
+        private void ExitFullscreenSafely()
+        {
+            if (!_fullscreenController.IsFullscreen(this))
+            {
+                return;
+            }
+
+            _fullscreenController.ExitFullscreen(this);
+            UpdateOverlayLayout();
+            QueueRenderRestart(immediate: true);
+        }
+
+        private void Form_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                ToggleFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == Keys.Escape && _fullscreenController.IsFullscreen(this))
+            {
+                ExitFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
         }
 
         private void ToggleControls()
