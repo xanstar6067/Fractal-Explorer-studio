@@ -5,7 +5,7 @@ using FractalExplorer.Utilities.Theme;
 
 namespace FractalExplorer.SelectorsForms
 {
-    public class ColorConfigurationLyapunovForm : Form
+    public partial class ColorConfigurationLyapunovForm : Form
     {
         private static readonly LyapunovColoringMode[] ModeUiOrder =
         {
@@ -23,148 +23,21 @@ namespace FractalExplorer.SelectorsForms
         private bool _isProgrammaticChange;
         private bool _hasUnsavedChanges;
 
-        private readonly ListBox _lbPalettes = new();
-        private readonly ListBox _lbColors = new();
-        private readonly TextBox _txtName = new();
-        private readonly ComboBox _cbMode = new();
-        private readonly NumericUpDown _nudRange = new();
-        private readonly NumericUpDown _nudZeroBand = new();
-        private readonly Panel _panelPreview = new();
-        private readonly Button _btnSave = new();
-        private readonly Button _btnApply = new();
-        private readonly Button _btnClose = new();
-        private readonly Button _btnNew = new();
-        private readonly Button _btnCopy = new();
-        private readonly Button _btnDelete = new();
-        private readonly Button _btnAddColor = new();
-        private readonly Button _btnEditColor = new();
-        private readonly Button _btnRemoveColor = new();
-
         public event EventHandler? PaletteApplied;
 
         public ColorConfigurationLyapunovForm(LyapunovPaletteManager paletteManager)
         {
             _paletteManager = paletteManager;
-            InitializeUi();
+            InitializeComponent();
+            InitializeData();
+            InitializeEventHandlers();
             ThemeManager.RegisterForm(this);
             Load += (_, _) => PopulatePaletteList();
         }
 
-        private void InitializeUi()
+        private void InitializeData()
         {
-            Text = "Настройка палитры (Lyapunov)";
-            StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(669, 501);
-            MinimumSize = new Size(685, 540);
-            MaximumSize = new Size(685, 540);
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
-            MinimizeBox = false;
-            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-
-            var grpPalettes = new GroupBox { Text = "Список палитр", Location = new Point(12, 12), Size = new Size(238, 437) };
-            _lbPalettes.Location = new Point(7, 22);
-            _lbPalettes.Size = new Size(224, 364);
-            _lbPalettes.SelectedIndexChanged += (_, _) => OnPaletteSelected();
-
-            _btnNew.Text = "Новая";
-            _btnNew.Location = new Point(7, 400);
-            _btnNew.Size = new Size(61, 28);
-            _btnNew.Click += (_, _) => CreateNew();
-
-            _btnCopy.Text = "Копировать";
-            _btnCopy.Location = new Point(74, 400);
-            _btnCopy.Size = new Size(88, 28);
-            _btnCopy.Click += (_, _) => CopySelected();
-
-            _btnDelete.Text = "Удалить";
-            _btnDelete.Location = new Point(168, 400);
-            _btnDelete.Size = new Size(63, 28);
-            _btnDelete.Click += (_, _) => DeleteSelected();
-
-            grpPalettes.Controls.AddRange(new Control[] { _lbPalettes, _btnNew, _btnCopy, _btnDelete });
-
-            var grpEditor = new GroupBox { Text = "Редактор палитры Lyapunov", Location = new Point(272, 12), Size = new Size(385, 437) };
-            var lblName = new Label { Text = "Название:", Location = new Point(9, 22), AutoSize = true };
-            _txtName.Location = new Point(9, 40);
-            _txtName.Size = new Size(369, 23);
-            _txtName.TextChanged += (_, _) => { if (!_isProgrammaticChange && IsEditable()) { _selectedPalette!.Name = _txtName.Text; MarkUnsaved(); } };
-
-            var lblMode = new Label { Text = "Режим:", Location = new Point(9, 71), AutoSize = true };
-            _cbMode.DropDownStyle = ComboBoxStyle.DropDownList;
-            _cbMode.Location = new Point(9, 89);
-            _cbMode.Size = new Size(369, 23);
             _cbMode.Items.AddRange(ModeUiOrder.Select(mode => mode.ToString()).ToArray());
-            _cbMode.SelectedIndexChanged += (_, _) =>
-            {
-                if (_isProgrammaticChange || _selectedPalette == null || !IsEditable()) return;
-                _selectedPalette.Mode = GetSelectedModeOrDefault();
-                MarkUnsaved();
-                _panelPreview.Invalidate();
-            };
-
-            var lblRange = new Label { Text = "Диапазон |λ|:", Location = new Point(9, 120), AutoSize = true };
-            _nudRange.Location = new Point(9, 138);
-            _nudRange.Size = new Size(178, 23);
-            _nudRange.DecimalPlaces = 3;
-            _nudRange.Minimum = 0.001m;
-            _nudRange.Maximum = 20;
-            _nudRange.Increment = 0.01m;
-            _nudRange.ValueChanged += (_, _) => { if (!_isProgrammaticChange && IsEditable()) { _selectedPalette!.ExponentRange = (double)_nudRange.Value; MarkUnsaved(); _panelPreview.Invalidate(); } };
-
-            var lblZero = new Label { Text = "Zero-band:", Location = new Point(200, 120), AutoSize = true };
-            _nudZeroBand.Location = new Point(200, 138);
-            _nudZeroBand.Size = new Size(178, 23);
-            _nudZeroBand.DecimalPlaces = 4;
-            _nudZeroBand.Minimum = 0.0001m;
-            _nudZeroBand.Maximum = 2;
-            _nudZeroBand.Increment = 0.001m;
-            _nudZeroBand.ValueChanged += (_, _) => { if (!_isProgrammaticChange && IsEditable()) { _selectedPalette!.ZeroBandWidth = (double)_nudZeroBand.Value; MarkUnsaved(); _panelPreview.Invalidate(); } };
-
-            var lblPreview = new Label { Text = "Превью:", Location = new Point(9, 170), AutoSize = true };
-            _panelPreview.Location = new Point(9, 188);
-            _panelPreview.Size = new Size(369, 38);
-            _panelPreview.BorderStyle = BorderStyle.FixedSingle;
-            _panelPreview.Paint += (_, e) => DrawPreview(e.Graphics);
-
-            var lblColors = new Label { Text = "Ключевые цвета:", Location = new Point(9, 235), AutoSize = true };
-            _lbColors.Location = new Point(9, 253);
-            _lbColors.Size = new Size(256, 139);
-            _lbColors.SelectedIndexChanged += (_, _) => UpdateControlsState();
-
-            _btnAddColor.Text = "Добавить...";
-            _btnAddColor.Location = new Point(271, 253);
-            _btnAddColor.Size = new Size(107, 28);
-            _btnAddColor.Click += (_, _) => AddColor();
-
-            _btnEditColor.Text = "Изменить...";
-            _btnEditColor.Location = new Point(271, 287);
-            _btnEditColor.Size = new Size(107, 28);
-            _btnEditColor.Click += (_, _) => EditColor();
-
-            _btnRemoveColor.Text = "Удалить";
-            _btnRemoveColor.Location = new Point(271, 321);
-            _btnRemoveColor.Size = new Size(107, 28);
-            _btnRemoveColor.Click += (_, _) => RemoveColor();
-
-            grpEditor.Controls.AddRange(new Control[] { lblName, _txtName, lblMode, _cbMode, lblRange, _nudRange, lblZero, _nudZeroBand, lblPreview, _panelPreview, lblColors, _lbColors, _btnAddColor, _btnEditColor, _btnRemoveColor });
-
-            _btnSave.Text = "Сохранить изменения";
-            _btnSave.Location = new Point(19, 461);
-            _btnSave.Size = new Size(149, 28);
-            _btnSave.Click += (_, _) => SaveSelected();
-
-            _btnApply.Text = "Применить";
-            _btnApply.Location = new Point(432, 461);
-            _btnApply.Size = new Size(107, 28);
-            _btnApply.Click += (_, _) => ApplySelected();
-
-            _btnClose.Text = "Закрыть";
-            _btnClose.Location = new Point(545, 461);
-            _btnClose.Size = new Size(107, 28);
-            _btnClose.Click += (_, _) => Close();
-
-            Controls.AddRange(new Control[] { grpPalettes, grpEditor, _btnSave, _btnApply, _btnClose });
         }
 
         private void PopulatePaletteList()
@@ -395,9 +268,66 @@ namespace FractalExplorer.SelectorsForms
             }
         }
 
-        private void InitializeComponent()
+        private void InitializeEventHandlers()
         {
+            _lbPalettes.SelectedIndexChanged += (_, _) => OnPaletteSelected();
+            _lbColors.SelectedIndexChanged += (_, _) => UpdateControlsState();
 
+            _btnNew.Click += (_, _) => CreateNew();
+            _btnCopy.Click += (_, _) => CopySelected();
+            _btnDelete.Click += (_, _) => DeleteSelected();
+
+            _txtName.TextChanged += (_, _) =>
+            {
+                if (_isProgrammaticChange || !IsEditable())
+                {
+                    return;
+                }
+
+                _selectedPalette!.Name = _txtName.Text;
+                MarkUnsaved();
+            };
+
+            _cbMode.SelectedIndexChanged += (_, _) =>
+            {
+                if (_isProgrammaticChange || _selectedPalette == null || !IsEditable()) return;
+                _selectedPalette.Mode = GetSelectedModeOrDefault();
+                MarkUnsaved();
+                _panelPreview.Invalidate();
+            };
+
+            _nudRange.ValueChanged += (_, _) =>
+            {
+                if (_isProgrammaticChange || !IsEditable())
+                {
+                    return;
+                }
+
+                _selectedPalette!.ExponentRange = (double)_nudRange.Value;
+                MarkUnsaved();
+                _panelPreview.Invalidate();
+            };
+
+            _nudZeroBand.ValueChanged += (_, _) =>
+            {
+                if (_isProgrammaticChange || !IsEditable())
+                {
+                    return;
+                }
+
+                _selectedPalette!.ZeroBandWidth = (double)_nudZeroBand.Value;
+                MarkUnsaved();
+                _panelPreview.Invalidate();
+            };
+
+            _panelPreview.Paint += (_, e) => DrawPreview(e.Graphics);
+
+            _btnAddColor.Click += (_, _) => AddColor();
+            _btnEditColor.Click += (_, _) => EditColor();
+            _btnRemoveColor.Click += (_, _) => RemoveColor();
+            _btnSave.Click += (_, _) => SaveSelected();
+            _btnApply.Click += (_, _) => ApplySelected();
+            _btnClose.Click += (_, _) => Close();
         }
 
         private LyapunovColoringMode GetSelectedModeOrDefault()
