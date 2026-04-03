@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public sealed class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal
+    public sealed partial class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal
     {
         private const decimal BaseScale = 4.0m;
 
@@ -17,115 +17,53 @@ namespace FractalExplorer.Forms.Fractals
         private readonly PaletteManager _paletteManager = new();
         private CancellationTokenSource? _renderCts;
 
-        private readonly PictureBox _canvas = new();
-        private readonly ComboBox _modeCombo = new();
-        private readonly ComboBox _paletteCombo = new();
-        private readonly NumericUpDown _iterations = new();
-        private readonly NumericUpDown _samples = new();
-        private readonly NumericUpDown _zoom = new();
-
-        private readonly NumericUpDown _sampleMinRe = new();
-        private readonly NumericUpDown _sampleMaxRe = new();
-        private readonly NumericUpDown _sampleMinIm = new();
-        private readonly NumericUpDown _sampleMaxIm = new();
-
         private decimal _centerX = 0;
         private decimal _centerY = 0;
 
         public FractalBuddhabrotForm()
         {
-            Text = "Фрактал Buddhabrot";
-            Width = 1320;
-            Height = 860;
-            KeyPreview = true;
+            InitializeComponent();
             ThemeManager.RegisterForm(this);
-
-            BuildLayout();
-            Load += (_, __) =>
-            {
-                ApplyUiToEngine();
-                _ = RenderAsync();
-            };
-            FormClosing += (_, __) => _renderCts?.Cancel();
+            InitializeUiState();
         }
 
-        private void BuildLayout()
+        private void InitializeUiState()
         {
-            var root = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 1020 };
-            Controls.Add(root);
-
-            _canvas.Dock = DockStyle.Fill;
-            _canvas.BackColor = Color.Black;
-            _canvas.SizeMode = PictureBoxSizeMode.Zoom;
-            _canvas.MouseWheel += Canvas_MouseWheel;
-            root.Panel1.Controls.Add(_canvas);
-
-            var panel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.TopDown,
-                AutoScroll = true,
-                WrapContents = false,
-                Padding = new Padding(8)
-            };
-            root.Panel2.Controls.Add(panel);
-
-            panel.Controls.Add(MakeLabel("Режим"));
-            _modeCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-            _modeCombo.Items.AddRange(new object[] { "Buddhabrot", "Anti-Buddhabrot" });
             _modeCombo.SelectedIndex = 0;
-            panel.Controls.Add(_modeCombo);
 
-            panel.Controls.Add(MakeLabel("Палитра"));
-            _paletteCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-            foreach (var p in _paletteManager.Palettes) _paletteCombo.Items.Add(p.Name);
+            _paletteCombo.Items.Clear();
+            foreach (var palette in _paletteManager.Palettes)
+            {
+                _paletteCombo.Items.Add(palette.Name);
+            }
+
             _paletteCombo.SelectedItem = _paletteManager.ActivePalette?.Name;
-            panel.Controls.Add(_paletteCombo);
-
-            panel.Controls.Add(MakeLabel("Samples"));
-            ConfigureDecimal(_samples, 1_000, 5_000_000, 250_000, 0);
-            panel.Controls.Add(_samples);
-
-            panel.Controls.Add(MakeLabel("Max Iterations"));
-            ConfigureDecimal(_iterations, 10, 10_000, 500, 0);
-            panel.Controls.Add(_iterations);
-
-            panel.Controls.Add(MakeLabel("Zoom"));
-            ConfigureDecimal(_zoom, 0.0000001m, 100000m, 1m, 6);
-            panel.Controls.Add(_zoom);
-
-            panel.Controls.Add(MakeLabel("Sample Min Re"));
-            ConfigureDecimal(_sampleMinRe, -4, 4, -2m, 4);
-            panel.Controls.Add(_sampleMinRe);
-            panel.Controls.Add(MakeLabel("Sample Max Re"));
-            ConfigureDecimal(_sampleMaxRe, -4, 4, 1m, 4);
-            panel.Controls.Add(_sampleMaxRe);
-            panel.Controls.Add(MakeLabel("Sample Min Im"));
-            ConfigureDecimal(_sampleMinIm, -4, 4, -1.5m, 4);
-            panel.Controls.Add(_sampleMinIm);
-            panel.Controls.Add(MakeLabel("Sample Max Im"));
-            ConfigureDecimal(_sampleMaxIm, -4, 4, 1.5m, 4);
-            panel.Controls.Add(_sampleMaxIm);
-
-            var btnRender = new Button { Text = "Рендер", Width = 220, Height = 36 };
-            btnRender.Click += async (_, __) => await RenderAsync();
-            panel.Controls.Add(btnRender);
-
-            var btnSaveLoad = new Button { Text = "Сохранить / Загрузить", Width = 220, Height = 36 };
-            btnSaveLoad.Click += (_, __) => new SaveLoadDialogForm(this).ShowDialog(this);
-            panel.Controls.Add(btnSaveLoad);
+            if (_paletteCombo.SelectedIndex < 0 && _paletteCombo.Items.Count > 0)
+            {
+                _paletteCombo.SelectedIndex = 0;
+            }
         }
 
-        private static Label MakeLabel(string text) => new() { Text = text, Width = 220, Height = 24, TextAlign = ContentAlignment.BottomLeft };
-
-        private static void ConfigureDecimal(NumericUpDown nud, decimal min, decimal max, decimal value, int decimalPlaces)
+        private async void FractalBuddhabrotForm_Load(object? sender, EventArgs e)
         {
-            nud.Minimum = min;
-            nud.Maximum = max;
-            nud.Value = Math.Clamp(value, min, max);
-            nud.DecimalPlaces = decimalPlaces;
-            nud.Increment = decimalPlaces == 0 ? 1 : 0.01m;
-            nud.Width = 220;
+            ApplyUiToEngine();
+            await RenderAsync();
+        }
+
+        private void FractalBuddhabrotForm_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            _renderCts?.Cancel();
+        }
+
+        private async void BtnRender_Click(object? sender, EventArgs e)
+        {
+            await RenderAsync();
+        }
+
+        private void BtnSaveLoad_Click(object? sender, EventArgs e)
+        {
+            using var dialog = new SaveLoadDialogForm(this);
+            dialog.ShowDialog(this);
         }
 
         private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
