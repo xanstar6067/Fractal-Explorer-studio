@@ -7,7 +7,8 @@ namespace FractalExplorer.Utilities.Coloring
         Diverging = 0,
         Absolute = 1,
         ZeroBandHighlight = 2,
-        HistogramEqualized = 3
+        HistogramEqualized = 3,
+        LegacyBuiltIn = 4
     }
 
     public sealed class LyapunovColoringContext
@@ -45,6 +46,11 @@ namespace FractalExplorer.Utilities.Coloring
             }
 
             palette ??= LyapunovPaletteManager.CreateDefaultBuiltInPalette();
+            if (palette.Mode == LyapunovColoringMode.LegacyBuiltIn)
+            {
+                return MapLegacyBuiltIn(exponent);
+            }
+
             List<Color> colors = EnsureColors(palette.Colors);
             double range = Math.Max(1e-9, Math.Abs(palette.ExponentRange));
 
@@ -55,6 +61,29 @@ namespace FractalExplorer.Utilities.Coloring
                 LyapunovColoringMode.HistogramEqualized => Interpolate(colors, context?.MapByHistogram(exponent) ?? Math.Clamp((exponent + range) / (2 * range), 0, 1)),
                 _ => MapDiverging(exponent, colors, range)
             };
+        }
+
+        private static Color MapLegacyBuiltIn(double exponent)
+        {
+            if (double.IsNaN(exponent) || double.IsInfinity(exponent))
+            {
+                return Color.Black;
+            }
+
+            if (exponent < 0)
+            {
+                double t = Math.Clamp((-exponent) / 2.0, 0, 1);
+                int r = (int)(20 + 70 * t);
+                int g = (int)(30 + 170 * t);
+                int b = (int)(80 + 175 * t);
+                return Color.FromArgb(r, g, b);
+            }
+
+            double tp = Math.Clamp(exponent / 2.0, 0, 1);
+            int rp = (int)(120 + 135 * tp);
+            int gp = (int)(50 + 90 * (1 - tp));
+            int bp = (int)(30 + 40 * (1 - tp));
+            return Color.FromArgb(rp, gp, bp);
         }
 
         private static Color MapDiverging(double exponent, List<Color> colors, double range)

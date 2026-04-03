@@ -605,7 +605,8 @@ namespace FractalExplorer.Forms.Fractals
                 BMax = _engine.BMax,
                 Pattern = _engine.Pattern,
                 Iterations = _engine.Iterations,
-                TransientIterations = _engine.TransientIterations
+                TransientIterations = _engine.TransientIterations,
+                ColorPalette = _engine.ColorPalette
             };
 
             LyapunovColoringContext? coloringContext = await Task.Run(() => engine.PrepareColoringContext(width, height, token), token);

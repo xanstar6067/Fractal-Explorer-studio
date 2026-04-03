@@ -7,6 +7,15 @@ namespace FractalExplorer.SelectorsForms
 {
     public class ColorConfigurationLyapunovForm : Form
     {
+        private static readonly LyapunovColoringMode[] ModeUiOrder =
+        {
+            LyapunovColoringMode.LegacyBuiltIn,
+            LyapunovColoringMode.Diverging,
+            LyapunovColoringMode.Absolute,
+            LyapunovColoringMode.ZeroBandHighlight,
+            LyapunovColoringMode.HistogramEqualized
+        };
+
         private readonly LyapunovPaletteManager _paletteManager;
         private readonly ColorSelectionService _colorSelectionService = ColorSelectionService.Default;
 
@@ -85,11 +94,11 @@ namespace FractalExplorer.SelectorsForms
             _cbMode.DropDownStyle = ComboBoxStyle.DropDownList;
             _cbMode.Location = new Point(9, 89);
             _cbMode.Size = new Size(369, 23);
-            _cbMode.Items.AddRange(Enum.GetNames(typeof(LyapunovColoringMode)));
+            _cbMode.Items.AddRange(ModeUiOrder.Select(mode => mode.ToString()).ToArray());
             _cbMode.SelectedIndexChanged += (_, _) =>
             {
                 if (_isProgrammaticChange || _selectedPalette == null || !IsEditable()) return;
-                _selectedPalette.Mode = (LyapunovColoringMode)_cbMode.SelectedIndex;
+                _selectedPalette.Mode = GetSelectedModeOrDefault();
                 MarkUnsaved();
                 _panelPreview.Invalidate();
             };
@@ -187,7 +196,11 @@ namespace FractalExplorer.SelectorsForms
 
             _isProgrammaticChange = true;
             _txtName.Text = _selectedPalette.Name;
-            _cbMode.SelectedIndex = (int)_selectedPalette.Mode;
+            _cbMode.SelectedIndex = Array.IndexOf(ModeUiOrder, _selectedPalette.Mode);
+            if (_cbMode.SelectedIndex < 0)
+            {
+                _cbMode.SelectedIndex = 0;
+            }
             _nudRange.Value = (decimal)Math.Clamp(_selectedPalette.ExponentRange, (double)_nudRange.Minimum, (double)_nudRange.Maximum);
             _nudZeroBand.Value = (decimal)Math.Clamp(_selectedPalette.ZeroBandWidth, (double)_nudZeroBand.Minimum, (double)_nudZeroBand.Maximum);
             _lbColors.Items.Clear();
@@ -368,7 +381,7 @@ namespace FractalExplorer.SelectorsForms
             int h = Math.Max(1, _panelPreview.ClientSize.Height);
             var local = new LyapunovColorPalette
             {
-                Mode = (LyapunovColoringMode)Math.Max(0, _cbMode.SelectedIndex),
+                Mode = GetSelectedModeOrDefault(),
                 Colors = _selectedPalette.Colors.ToList(),
                 ExponentRange = (double)_nudRange.Value,
                 ZeroBandWidth = (double)_nudZeroBand.Value
@@ -380,6 +393,14 @@ namespace FractalExplorer.SelectorsForms
                 using var pen = new Pen(LyapunovColoring.MapExponent(exponent, local));
                 g.DrawLine(pen, x, 0, x, h);
             }
+        }
+
+        private LyapunovColoringMode GetSelectedModeOrDefault()
+        {
+            int index = _cbMode.SelectedIndex;
+            return index >= 0 && index < ModeUiOrder.Length
+                ? ModeUiOrder[index]
+                : LyapunovColoringMode.LegacyBuiltIn;
         }
     }
 }
