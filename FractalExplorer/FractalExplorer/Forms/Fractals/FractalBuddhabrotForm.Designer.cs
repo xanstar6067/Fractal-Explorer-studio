@@ -218,7 +218,7 @@ namespace FractalExplorer.Forms.Fractals
             _samples.Maximum = new decimal(new int[] { 5000000, 0, 0, 0 });
             _samples.Minimum = new decimal(new int[] { 1000, 0, 0, 0 });
             _samples.Name = "_samples";
-            _samples.Size = new Size(127, 23);
+            _samples.Size = new Size(124, 23);
             _samples.TabIndex = 4;
             _samples.Value = new decimal(new int[] { 250000, 0, 0, 0 });
             // 
@@ -241,7 +241,7 @@ namespace FractalExplorer.Forms.Fractals
             _threadsCombo.Location = new Point(6, 93);
             _threadsCombo.Margin = new Padding(6, 3, 3, 3);
             _threadsCombo.Name = "_threadsCombo";
-            _threadsCombo.Size = new Size(127, 23);
+            _threadsCombo.Size = new Size(124, 23);
             _threadsCombo.TabIndex = 6;
             // 
             // _threadsLabel
@@ -263,7 +263,7 @@ namespace FractalExplorer.Forms.Fractals
             _iterations.Maximum = new decimal(new int[] { 10000, 0, 0, 0 });
             _iterations.Minimum = new decimal(new int[] { 10, 0, 0, 0 });
             _iterations.Name = "_iterations";
-            _iterations.Size = new Size(127, 23);
+            _iterations.Size = new Size(124, 23);
             _iterations.TabIndex = 8;
             _iterations.Value = new decimal(new int[] { 500, 0, 0, 0 });
             // 
@@ -284,7 +284,7 @@ namespace FractalExplorer.Forms.Fractals
             _zoomLabel.Dock = DockStyle.Fill;
             _zoomLabel.Location = new Point(3, 148);
             _zoomLabel.Name = "_zoomLabel";
-            _zoomLabel.Size = new Size(130, 15);
+            _zoomLabel.Size = new Size(127, 15);
             _zoomLabel.TabIndex = 8;
             _zoomLabel.Text = "Zoom";
             _zoomLabel.TextAlign = ContentAlignment.BottomLeft;
@@ -294,12 +294,12 @@ namespace FractalExplorer.Forms.Fractals
             _zoom.DecimalPlaces = 6;
             _zoom.Dock = DockStyle.Fill;
             _zoom.Increment = new decimal(new int[] { 1, 0, 0, 65536 });
-            _zoom.Location = new Point(6, 137);
+            _zoom.Location = new Point(6, 166);
             _zoom.Margin = new Padding(6, 3, 3, 3);
             _zoom.Maximum = new decimal(new int[] { 100000, 0, 0, 0 });
-            _zoom.Minimum = 0.0000001m;
+            _zoom.Minimum = new decimal(new int[] { 1, 0, 0, 458752 });
             _zoom.Name = "_zoom";
-            _zoom.Size = new Size(127, 23);
+            _zoom.Size = new Size(124, 23);
             _zoom.TabIndex = 10;
             _zoom.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
@@ -312,7 +312,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMinRe.Margin = new Padding(6, 3, 3, 3);
             _sampleMinRe.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
             _sampleMinRe.Name = "_sampleMinRe";
-            _sampleMinRe.Size = new Size(127, 23);
+            _sampleMinRe.Size = new Size(124, 23);
             _sampleMinRe.TabIndex = 11;
             _sampleMinRe.Value = new decimal(new int[] { 2, 0, 0, int.MinValue });
             // 
@@ -337,7 +337,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxRe.Maximum = new decimal(new int[] { 4, 0, 0, 0 });
             _sampleMaxRe.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
             _sampleMaxRe.Name = "_sampleMaxRe";
-            _sampleMaxRe.Size = new Size(127, 23);
+            _sampleMaxRe.Size = new Size(124, 23);
             _sampleMaxRe.TabIndex = 13;
             _sampleMaxRe.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
@@ -361,9 +361,9 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMinIm.Margin = new Padding(6, 3, 3, 3);
             _sampleMinIm.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
             _sampleMinIm.Name = "_sampleMinIm";
-            _sampleMinIm.Size = new Size(127, 23);
+            _sampleMinIm.Size = new Size(124, 23);
             _sampleMinIm.TabIndex = 15;
-            _sampleMinIm.Value = -1.5m;
+            _sampleMinIm.Value = new decimal(new int[] { 15, 0, 0, -2147418112 });
             // 
             // _sampleMinImLabel
             // 
@@ -386,9 +386,9 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxIm.Maximum = new decimal(new int[] { 4, 0, 0, 0 });
             _sampleMaxIm.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
             _sampleMaxIm.Name = "_sampleMaxIm";
-            _sampleMaxIm.Size = new Size(127, 23);
+            _sampleMaxIm.Size = new Size(124, 23);
             _sampleMaxIm.TabIndex = 17;
-            _sampleMaxIm.Value = 1.5m;
+            _sampleMaxIm.Value = new decimal(new int[] { 15, 0, 0, 65536 });
             // 
             // _sampleMaxImLabel
             // 
@@ -447,7 +447,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnSaveLoad.Name = "_btnSaveLoad";
             _btnSaveLoad.Size = new Size(230, 39);
             _btnSaveLoad.TabIndex = 22;
-            _btnSaveLoad.Text = "Сохранить / Загрузить";
+            _btnSaveLoad.Text = "Менеджер сохранений";
             _btnSaveLoad.UseVisualStyleBackColor = true;
             _btnSaveLoad.Click += BtnSaveLoad_Click;
             // 
@@ -469,14 +469,12 @@ namespace FractalExplorer.Forms.Fractals
             _renderProgress.Dock = DockStyle.Fill;
             _renderProgress.Location = new Point(6, 511);
             _renderProgress.Margin = new Padding(6, 3, 6, 3);
-            _renderProgress.Maximum = 100;
             _renderProgress.Name = "_renderProgress";
             _renderProgress.Size = new Size(230, 24);
             _renderProgress.TabIndex = 24;
             // 
             // _btnToggleControls
             // 
-            _btnToggleControls.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             _btnToggleControls.AutoSize = true;
             _btnToggleControls.BackColor = Color.FromArgb(235, 32, 32, 32);
             _btnToggleControls.FlatStyle = FlatStyle.Popup;
@@ -510,8 +508,8 @@ namespace FractalExplorer.Forms.Fractals
             KeyPreview = true;
             Name = "FractalBuddhabrotForm";
             Text = "Фрактал Buddhabrot";
-            Load += FractalBuddhabrotForm_Load;
             FormClosing += FractalBuddhabrotForm_FormClosing;
+            Load += FractalBuddhabrotForm_Load;
             _contentPanel.ResumeLayout(false);
             _canvasHost.ResumeLayout(false);
             _canvasHost.PerformLayout();
