@@ -32,6 +32,14 @@ namespace FractalExplorer.Forms.Fractals
         private void InitializeUiState()
         {
             _modeCombo.SelectedIndex = 0;
+            int cores = Environment.ProcessorCount;
+            _threadsCombo.Items.Clear();
+            _threadsCombo.Items.Add("Auto");
+            for (int i = 1; i <= cores; i++)
+            {
+                _threadsCombo.Items.Add(i);
+            }
+            _threadsCombo.SelectedItem = "Auto";
 
             _paletteCombo.Items.Clear();
             foreach (var palette in _paletteManager.Palettes)
@@ -82,6 +90,9 @@ namespace FractalExplorer.Forms.Fractals
             _engine.Scale = BaseScale / Math.Max(0.0000001m, _zoom.Value);
             _engine.MaxIterations = (int)_iterations.Value;
             _engine.SampleCount = (int)_samples.Value;
+            _engine.ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto"
+                ? 0
+                : Convert.ToInt32(_threadsCombo.SelectedItem);
             _engine.RenderMode = _modeCombo.SelectedIndex == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot;
 
             _engine.SampleMinRe = _sampleMinRe.Value;
@@ -337,15 +348,33 @@ namespace FractalExplorer.Forms.Fractals
             await Task.Run(() =>
             {
                 var engine = BuildEngineFromState(s);
-                decimal fullScale = BaseScale / Math.Max(0.0000001m, s.Zoom);
-                decimal shiftX = ((tile.Bounds.X + tile.Bounds.Width / 2m) - totalWidth / 2m) / totalWidth;
-                decimal shiftY = ((tile.Bounds.Y + tile.Bounds.Height / 2m) - totalHeight / 2m) / totalWidth;
+                int fullWidth = Math.Max(1, totalWidth);
+                int fullHeight = Math.Max(1, totalHeight);
+                byte[] fullPixels = new byte[fullWidth * fullHeight * 4];
+                engine.RenderToBuffer(fullPixels, fullWidth, fullHeight, fullWidth * 4, 4, CancellationToken.None);
 
-                engine.CenterX = s.CenterX + shiftX * fullScale;
-                engine.CenterY = s.CenterY - shiftY * fullScale;
-                engine.Scale = fullScale * ((decimal)w / Math.Max(1, totalWidth));
+                for (int y = 0; y < h; y++)
+                {
+                    int srcY = tile.Bounds.Y + y;
+                    if ((uint)srcY >= (uint)fullHeight)
+                    {
+                        continue;
+                    }
 
-                engine.RenderToBuffer(pixels, w, h, w * 4, 4, CancellationToken.None);
+                    int srcX = Math.Max(0, tile.Bounds.X);
+                    int copyWidth = Math.Min(w, fullWidth - srcX);
+                    if (copyWidth <= 0)
+                    {
+                        continue;
+                    }
+
+                    Buffer.BlockCopy(
+                        fullPixels,
+                        (srcY * fullWidth + srcX) * 4,
+                        pixels,
+                        y * w * 4,
+                        copyWidth * 4);
+                }
             });
 
             return pixels;
@@ -399,6 +428,7 @@ namespace FractalExplorer.Forms.Fractals
                 Scale = BaseScale / Math.Max(0.0000001m, s.Zoom),
                 MaxIterations = s.MaxIterations,
                 SampleCount = s.SampleCount,
+                ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto" ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
                 RenderMode = s.RenderMode == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot,
                 SampleMinRe = s.SampleMinRe,
                 SampleMaxRe = s.SampleMaxRe,

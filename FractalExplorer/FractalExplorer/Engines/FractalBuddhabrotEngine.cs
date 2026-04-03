@@ -18,6 +18,10 @@ namespace FractalExplorer.Engines
 
         public int MaxIterations { get; set; } = 500;
         public int SampleCount { get; set; } = 250_000;
+        /// <summary>
+        /// Количество рабочих потоков. 0 или меньше = Auto (все логические ядра).
+        /// </summary>
+        public int ThreadCount { get; set; } = 0;
         public decimal EscapeRadiusSquared { get; set; } = 16m;
         public BuddhabrotRenderMode RenderMode { get; set; } = BuddhabrotRenderMode.Buddhabrot;
 
@@ -36,12 +40,12 @@ namespace FractalExplorer.Engines
             if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width));
             if (bytesPerPixel < 4) throw new ArgumentOutOfRangeException(nameof(bytesPerPixel));
 
-            double[] density = new double[width * height];
+            int[] density = new int[width * height];
             BuildDensityBuffer(density, width, height, token, reportProgress);
             ConvertDensityBufferToColor(buffer, density, width, height, stride, bytesPerPixel);
         }
 
-        private void BuildDensityBuffer(double[] density, int width, int height, CancellationToken token, Action<int>? reportProgress)
+        private void BuildDensityBuffer(int[] density, int width, int height, CancellationToken token, Action<int>? reportProgress)
         {
             double minRe = (double)SampleMinRe;
             double maxRe = (double)SampleMaxRe;
@@ -55,56 +59,68 @@ namespace FractalExplorer.Engines
             double viewScaleY = viewScale * (height / (double)width);
 
             int progressStep = Math.Max(1, SampleCount / 100);
-            var orbit = new List<(double re, double im)>(Math.Max(8, MaxIterations));
-            Random random = new(42);
+            int resolvedThreadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
+            int completedSamples = 0;
 
-            for (int s = 0; s < SampleCount; s++)
+            var options = new ParallelOptions
             {
-                token.ThrowIfCancellationRequested();
-                orbit.Clear();
+                MaxDegreeOfParallelism = Math.Max(1, resolvedThreadCount),
+                CancellationToken = token
+            };
 
-                double cre = minRe + random.NextDouble() * (maxRe - minRe);
-                double cim = minIm + random.NextDouble() * (maxIm - minIm);
-
-                double zre = 0.0;
-                double zim = 0.0;
-                bool escaped = false;
-
-                for (int i = 0; i < MaxIterations; i++)
+            Parallel.For(0, SampleCount, options,
+                () => (random: new Random(42 + Environment.CurrentManagedThreadId * 7919), orbit: new List<(double re, double im)>(Math.Max(8, MaxIterations))),
+                (s, _, local) =>
                 {
-                    double nextRe = zre * zre - zim * zim + cre;
-                    double nextIm = 2.0 * zre * zim + cim;
-                    zre = nextRe;
-                    zim = nextIm;
+                    token.ThrowIfCancellationRequested();
+                    local.orbit.Clear();
 
-                    orbit.Add((zre, zim));
-                    if (zre * zre + zim * zim > escapeSq)
+                    double cre = minRe + local.random.NextDouble() * (maxRe - minRe);
+                    double cim = minIm + local.random.NextDouble() * (maxIm - minIm);
+
+                    double zre = 0.0;
+                    double zim = 0.0;
+                    bool escaped = false;
+
+                    for (int i = 0; i < MaxIterations; i++)
                     {
-                        escaped = true;
-                        break;
-                    }
-                }
+                        double nextRe = zre * zre - zim * zim + cre;
+                        double nextIm = 2.0 * zre * zim + cim;
+                        zre = nextRe;
+                        zim = nextIm;
 
-                bool takeOrbit = RenderMode == BuddhabrotRenderMode.Buddhabrot ? escaped : !escaped;
-                if (takeOrbit)
-                {
-                    foreach ((double ore, double oim) in orbit)
-                    {
-                        int px = (int)((ore - viewLeft) / viewScale * width);
-                        int py = (int)((viewTop - oim) / viewScaleY * height);
-
-                        if ((uint)px < (uint)width && (uint)py < (uint)height)
+                        local.orbit.Add((zre, zim));
+                        if (zre * zre + zim * zim > escapeSq)
                         {
-                            density[py * width + px] += 1.0;
+                            escaped = true;
+                            break;
                         }
                     }
-                }
 
-                if (s % progressStep == 0)
-                {
-                    reportProgress?.Invoke((int)(s * 100.0 / Math.Max(1, SampleCount)));
-                }
-            }
+                    bool takeOrbit = RenderMode == BuddhabrotRenderMode.Buddhabrot ? escaped : !escaped;
+                    if (takeOrbit)
+                    {
+                        foreach ((double ore, double oim) in local.orbit)
+                        {
+                            int px = (int)((ore - viewLeft) / viewScale * width);
+                            int py = (int)((viewTop - oim) / viewScaleY * height);
+
+                            if ((uint)px < (uint)width && (uint)py < (uint)height)
+                            {
+                                Interlocked.Increment(ref density[py * width + px]);
+                            }
+                        }
+                    }
+
+                    int processed = Interlocked.Increment(ref completedSamples);
+                    if (processed % progressStep == 0 || processed == SampleCount)
+                    {
+                        reportProgress?.Invoke((int)(processed * 100.0 / Math.Max(1, SampleCount)));
+                    }
+
+                    return local;
+                },
+                _ => { });
 
             reportProgress?.Invoke(100);
         }
@@ -112,9 +128,9 @@ namespace FractalExplorer.Engines
         /// <summary>
         /// Отдельный этап преобразования буфера плотности в итоговые пиксели.
         /// </summary>
-        public void ConvertDensityBufferToColor(byte[] targetBuffer, double[] density, int width, int height, int stride, int bytesPerPixel)
+        public void ConvertDensityBufferToColor(byte[] targetBuffer, int[] density, int width, int height, int stride, int bytesPerPixel)
         {
-            double maxDensity = density.Max();
+            int maxDensity = density.Max();
             if (maxDensity <= 0)
             {
                 Array.Clear(targetBuffer, 0, targetBuffer.Length);
@@ -130,7 +146,7 @@ namespace FractalExplorer.Engines
                 for (int x = 0; x < width; x++)
                 {
                     int idx = y * width + x;
-                    double value = density[idx];
+                    int value = density[idx];
                     double normalized = value <= 0 ? 0 : Math.Log(1.0 + value) / Math.Max(eps, denom);
 
                     Color color = MapDensityToColor(normalized);
