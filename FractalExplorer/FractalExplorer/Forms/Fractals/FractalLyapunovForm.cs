@@ -11,6 +11,29 @@ namespace FractalExplorer.Forms.Fractals
     {
         private readonly FractalLyapunovEngine _engine = new();
         private readonly PictureBox _canvas = new() { Dock = DockStyle.Fill, BackColor = Color.Black, SizeMode = PictureBoxSizeMode.Zoom };
+        private readonly Panel _canvasHost = new() { Dock = DockStyle.Fill };
+        private readonly Panel _controlsHost = new()
+        {
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left,
+            BackColor = SystemColors.Control,
+            BorderStyle = BorderStyle.FixedSingle,
+            Width = 231
+        };
+        private readonly TableLayoutPanel _pnlControls = new()
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 14
+        };
+        private readonly Button _btnToggleControls = new()
+        {
+            AutoSize = true,
+            BackColor = Color.FromArgb(235, 32, 32, 32),
+            FlatStyle = FlatStyle.Popup,
+            ForeColor = Color.White,
+            Size = new Size(44, 32),
+            Text = "✕"
+        };
         private readonly NumericUpDown _nudAMin = new();
         private readonly NumericUpDown _nudAMax = new();
         private readonly NumericUpDown _nudBMin = new();
@@ -19,9 +42,12 @@ namespace FractalExplorer.Forms.Fractals
         private readonly NumericUpDown _nudTransient = new();
         private readonly NumericUpDown _nudThreads = new();
         private readonly TextBox _tbPattern = new();
-        private readonly Button _btnRender = new() { Text = "Рендер" };
+        private readonly Button _btnSaveImage = new() { Text = "Сохранить изображение" };
+        private readonly Button _btnPalette = new() { Text = "Настроить палитру" };
+        private readonly Button _btnRender = new() { Text = "Запустить рендер" };
         private readonly Button _btnPresets = new() { Text = "Пресеты" };
-        private readonly Button _btnState = new() { Text = "Сохранения" };
+        private readonly Button _btnState = new() { Text = "Менеджер сохранений" };
+        private int _controlsOpenWidth = 231;
 
         public FractalLyapunovForm()
         {
@@ -36,45 +62,50 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeUi()
         {
-            var split = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                FixedPanel = FixedPanel.Panel2,
-                SplitterDistance = 970,
-                IsSplitterFixed = false
-            };
+            _canvasHost.Controls.Add(_controlsHost);
+            _canvasHost.Controls.Add(_btnToggleControls);
+            _canvasHost.Controls.Add(_canvas);
+            Controls.Add(_canvasHost);
 
-            split.Panel1.Controls.Add(_canvas);
+            _controlsHost.Controls.Add(_pnlControls);
 
-            var panel = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 11,
-                Padding = new Padding(8)
-            };
-            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52f));
-            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48f));
-            for (int i = 0; i < panel.RowCount; i++) panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34f));
+            _pnlControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55f));
+            _pnlControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+            _pnlControls.RowStyles.Add(new RowStyle()); // A min
+            _pnlControls.RowStyles.Add(new RowStyle()); // A max
+            _pnlControls.RowStyles.Add(new RowStyle()); // B min
+            _pnlControls.RowStyles.Add(new RowStyle()); // B max
+            _pnlControls.RowStyles.Add(new RowStyle()); // Pattern
+            _pnlControls.RowStyles.Add(new RowStyle()); // Iterations
+            _pnlControls.RowStyles.Add(new RowStyle()); // Transient
+            _pnlControls.RowStyles.Add(new RowStyle()); // Threads
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f)); // Save image
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f)); // Palette
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f)); // Render
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f)); // Presets
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f)); // State
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            AddLabeledControl(panel, 0, "A min", _nudAMin);
-            AddLabeledControl(panel, 1, "A max", _nudAMax);
-            AddLabeledControl(panel, 2, "B min", _nudBMin);
-            AddLabeledControl(panel, 3, "B max", _nudBMax);
-            AddLabeledControl(panel, 4, "Pattern (A/B)", _tbPattern);
-            AddLabeledControl(panel, 5, "Iterations", _nudIterations);
-            AddLabeledControl(panel, 6, "Transient", _nudTransient);
-            AddLabeledControl(panel, 7, "Threads", _nudThreads);
+            AddLabeledControl(_pnlControls, 0, "A min", _nudAMin);
+            AddLabeledControl(_pnlControls, 1, "A max", _nudAMax);
+            AddLabeledControl(_pnlControls, 2, "B min", _nudBMin);
+            AddLabeledControl(_pnlControls, 3, "B max", _nudBMax);
+            AddLabeledControl(_pnlControls, 4, "Pattern (A/B)", _tbPattern);
+            AddLabeledControl(_pnlControls, 5, "Iterations", _nudIterations);
+            AddLabeledControl(_pnlControls, 6, "Transient", _nudTransient);
+            AddLabeledControl(_pnlControls, 7, "Threads", _nudThreads);
 
-            panel.Controls.Add(_btnRender, 0, 8);
-            panel.SetColumnSpan(_btnRender, 2);
-            panel.Controls.Add(_btnPresets, 0, 9);
-            panel.SetColumnSpan(_btnPresets, 2);
-            panel.Controls.Add(_btnState, 0, 10);
-            panel.SetColumnSpan(_btnState, 2);
+            AddMainButton(_btnSaveImage, 8);
+            AddMainButton(_btnPalette, 9);
+            AddMainButton(_btnRender, 10);
+            AddMainButton(_btnPresets, 11);
+            AddMainButton(_btnState, 12);
 
-            split.Panel2.Controls.Add(panel);
-            Controls.Add(split);
+            _controlsHost.Location = new Point(0, 0);
+            _controlsHost.Height = ClientSize.Height;
+            _btnToggleControls.Location = new Point(_controlsHost.Width + 25, 12);
+            _btnToggleControls.Click += (_, __) => ToggleControls();
+            Resize += (_, __) => UpdateOverlayLayout();
 
             _btnRender.Click += async (_, __) => await RenderAsync();
             _btnPresets.Click += (_, __) => ApplyPreset();
@@ -87,9 +118,47 @@ namespace FractalExplorer.Forms.Fractals
 
         private static void AddLabeledControl(TableLayoutPanel panel, int row, string label, Control control)
         {
-            panel.Controls.Add(new Label { Text = label, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, row);
             control.Dock = DockStyle.Fill;
-            panel.Controls.Add(control, 1, row);
+            control.Margin = new Padding(6, 3, 3, 3);
+            panel.Controls.Add(control, 0, row);
+            panel.Controls.Add(new Label { Text = label, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill, AutoSize = true }, 1, row);
+        }
+
+        private void AddMainButton(Button button, int row)
+        {
+            _pnlControls.SetColumnSpan(button, 2);
+            button.Dock = DockStyle.Fill;
+            button.Margin = new Padding(6, 3, 6, 3);
+            _pnlControls.Controls.Add(button, 0, row);
+        }
+
+        private void ToggleControls()
+        {
+            bool hide = _controlsHost.Visible && _controlsHost.Width > 0;
+            if (hide)
+            {
+                _controlsOpenWidth = _controlsHost.Width > 0 ? _controlsHost.Width : _controlsOpenWidth;
+                _controlsHost.Visible = false;
+                _controlsHost.Width = 0;
+                _btnToggleControls.Text = "☰";
+                _btnToggleControls.Location = new Point(12, 12);
+            }
+            else
+            {
+                _controlsHost.Width = _controlsOpenWidth > 0 ? _controlsOpenWidth : 231;
+                _controlsHost.Visible = true;
+                _btnToggleControls.Text = "✕";
+                _btnToggleControls.Location = new Point(_controlsHost.Width + 25, 12);
+            }
+        }
+
+        private void UpdateOverlayLayout()
+        {
+            _controlsHost.Height = ClientSize.Height;
+            if (_controlsHost.Visible && _controlsHost.Width > 0)
+            {
+                _btnToggleControls.Location = new Point(_controlsHost.Width + 25, 12);
+            }
         }
 
         private void ApplyDefaults()
