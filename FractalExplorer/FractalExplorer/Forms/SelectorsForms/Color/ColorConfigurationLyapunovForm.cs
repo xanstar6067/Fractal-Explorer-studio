@@ -395,6 +395,11 @@ namespace FractalExplorer.SelectorsForms
             }
         }
 
+        private void InitializeComponent()
+        {
+
+        }
+
         private LyapunovColoringMode GetSelectedModeOrDefault()
         {
             int index = _cbMode.SelectedIndex;
