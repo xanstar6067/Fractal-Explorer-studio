@@ -838,7 +838,6 @@ namespace FractalExplorer
             _panStart = e.Location;
 
             fractal_bitmap.Invalidate();
-            ScheduleRender();
         }
 
         /// <summary>
@@ -847,7 +846,11 @@ namespace FractalExplorer
         private void Canvas_MouseUp(object sender, MouseEventArgs e)
         {
             if (_isHighResRendering) return;
-            if (e.Button == MouseButtons.Left) _panning = false;
+            if (e.Button == MouseButtons.Left)
+            {
+                _panning = false;
+                ScheduleRender();
+            }
         }
 
         /// <summary>

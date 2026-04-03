@@ -752,7 +752,6 @@ namespace FractalDraving
             _centerY += (e.Y - _panStart.Y) * unitsPerPixel;
             _panStart = e.Location;
             canvas.Invalidate();
-            ScheduleRender();
         }
 
         /// <summary>
@@ -767,6 +766,7 @@ namespace FractalDraving
             {
                 _panning = false;
                 canvas.Cursor = Cursors.Default;
+                ScheduleRender();
             }
         }
 

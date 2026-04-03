@@ -595,7 +595,6 @@ namespace FractalExplorer
             centerY += worldBefore.Y - worldAfter.Y;
             panStart = e.Location;
             canvasSerpinsky.Invalidate();
-            ScheduleRender();
         }
 
         /// <summary>
@@ -605,7 +604,11 @@ namespace FractalExplorer
         /// <param name="e">Данные события мыши.</param>
         private void CanvasSerpinsky_MouseUp(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left) panning = false;
+            if (e.Button == MouseButtons.Left)
+            {
+                panning = false;
+                ScheduleRender();
+            }
         }
 
         /// <summary>

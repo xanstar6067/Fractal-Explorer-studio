@@ -306,7 +306,6 @@ namespace FractalExplorer.Forms
             _centerY += (decimal)(e.Y - _panStart.Y) * unitsPerPixel;
             _panStart = e.Location;
             canvas.Invalidate();
-            ScheduleRender();
         }
 
         private void Canvas_MouseUp(object sender, MouseEventArgs e)
@@ -320,6 +319,7 @@ namespace FractalExplorer.Forms
             {
                 _panning = false;
                 canvas.Cursor = Cursors.Default;
+                ScheduleRender();
             }
         }
 

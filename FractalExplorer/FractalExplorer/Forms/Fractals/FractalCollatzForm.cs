@@ -501,7 +501,6 @@ namespace FractalExplorer.Forms.Fractals
             _centerY += (decimal)(e.Y - _panStart.Y) * unitsPerPixel;
             _panStart = e.Location;
             canvas.Invalidate();
-            ScheduleRender();
         }
 
         /// <summary>
@@ -514,6 +513,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _panning = false;
                 canvas.Cursor = Cursors.Default;
+                ScheduleRender();
             }
         }
 

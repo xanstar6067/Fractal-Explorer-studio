@@ -405,19 +405,28 @@ namespace FractalExplorer.Forms.Fractals
             _suppressViewportSync = false;
 
             _canvas.Invalidate();
-            _ = RenderAsync();
         }
 
         private void Canvas_MouseUp(object? sender, MouseEventArgs e)
         {
+            bool wasPanning = _isPanning;
             _isPanning = false;
             _canvas.Cursor = Cursors.Default;
+            if (wasPanning)
+            {
+                QueueRenderRestart(immediate: true);
+            }
         }
 
         private void Canvas_MouseLeave(object? sender, EventArgs e)
         {
+            bool wasPanning = _isPanning;
             _isPanning = false;
             _canvas.Cursor = Cursors.Default;
+            if (wasPanning)
+            {
+                QueueRenderRestart(immediate: true);
+            }
         }
 
         private void SyncViewportFromRangeControls()
