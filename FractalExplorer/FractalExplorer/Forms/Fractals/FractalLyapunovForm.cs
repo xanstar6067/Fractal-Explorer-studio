@@ -9,7 +9,7 @@ using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using FractalExplorer.Utilities.Coloring;
-using FractalExplorer.Forms.SelectorsForms.Color;
+using FractalExplorer.SelectorsForms;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Drawing.Drawing2D;
 

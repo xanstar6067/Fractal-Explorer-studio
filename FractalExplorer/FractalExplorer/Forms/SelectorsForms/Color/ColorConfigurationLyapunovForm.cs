@@ -3,7 +3,7 @@ using FractalExplorer.Utilities.Coloring;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using FractalExplorer.Utilities.Theme;
 
-namespace FractalExplorer.Forms.SelectorsForms.Color
+namespace FractalExplorer.SelectorsForms
 {
     public class ColorConfigurationLyapunovForm : Form
     {
