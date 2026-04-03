@@ -7,6 +7,9 @@ using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;
+using FractalExplorer.Utilities.SaveIO.ColorPalettes;
+using FractalExplorer.Utilities.Coloring;
+using FractalExplorer.Forms.SelectorsForms.Color;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Drawing.Drawing2D;
 
@@ -25,6 +28,8 @@ namespace FractalExplorer.Forms.Fractals
         private const decimal MaxBDomain = 8m;
 
         private readonly FractalLyapunovEngine _engine = new();
+        private readonly LyapunovPaletteManager _paletteManager = new();
+        private ColorConfigurationLyapunovForm? _lyapunovColorConfigForm;
         private readonly object _frameBufferLock = new();
         private readonly RenderVisualizerComponent _renderVisualizer = new(PreviewTileSize);
         private readonly System.Windows.Forms.Timer _renderRestartTimer = new() { Interval = 350 };
@@ -69,6 +74,8 @@ namespace FractalExplorer.Forms.Fractals
                     _currentRenderingFrameBuffer = null;
                     _currentRenderedTiles.Clear();
                 }
+                _lyapunovColorConfigForm?.Dispose();
+                _lyapunovColorConfigForm = null;
                 _renderVisualizer.Dispose();
             };
             _renderVisualizer.NeedsRedraw += () => _canvas.Invalidate();
@@ -148,6 +155,7 @@ namespace FractalExplorer.Forms.Fractals
 
             _tbPattern.Text = "AB";
             _pbRenderProgress.Value = 0;
+            _engine.ColorPalette = _paletteManager.ActivePalette;
 
             _nudZoom.ValueChanged += (_, _) => ApplyZoomFromControl();
             _nudAMin.ValueChanged += (_, _) => SyncViewportFromRangeControls();
@@ -464,6 +472,7 @@ namespace FractalExplorer.Forms.Fractals
             _engine.Pattern = _tbPattern.Text;
             _engine.Iterations = (int)_nudIterations.Value;
             _engine.TransientIterations = (int)_nudTransient.Value;
+            _engine.ColorPalette = _paletteManager.ActivePalette;
         }
 
         private void CommitAndBakePreview()
@@ -599,6 +608,8 @@ namespace FractalExplorer.Forms.Fractals
                 TransientIterations = _engine.TransientIterations
             };
 
+            LyapunovColoringContext? coloringContext = await Task.Run(() => engine.PrepareColoringContext(width, height, token), token);
+
             Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
             lock (_frameBufferLock)
             {
@@ -626,7 +637,7 @@ namespace FractalExplorer.Forms.Fractals
                     ct.ThrowIfCancellationRequested();
                     _renderVisualizer.NotifyTileRenderStart(tile.Bounds);
 
-                    byte[] tileBuffer = RenderTileWithSsaa(engine, tile, width, height, ssaaFactor, out int bytesPerPixel);
+                    byte[] tileBuffer = RenderTileWithSsaa(engine, tile, width, height, ssaaFactor, out int bytesPerPixel, coloringContext);
                     ct.ThrowIfCancellationRequested();
 
                     lock (_frameBufferLock)
@@ -709,17 +720,17 @@ namespace FractalExplorer.Forms.Fractals
             };
         }
 
-        private static byte[] RenderTileWithSsaa(FractalLyapunovEngine engine, TileInfo tile, int width, int height, int ssaaFactor, out int bytesPerPixel)
+        private static byte[] RenderTileWithSsaa(FractalLyapunovEngine engine, TileInfo tile, int width, int height, int ssaaFactor, out int bytesPerPixel, LyapunovColoringContext? coloringContext = null)
         {
             if (ssaaFactor <= 1)
             {
-                return engine.RenderSingleTile(tile, width, height, out bytesPerPixel);
+                return engine.RenderSingleTile(tile, width, height, out bytesPerPixel, coloringContext);
             }
 
             int hiWidth = width * ssaaFactor;
             int hiHeight = height * ssaaFactor;
             var hiTile = new TileInfo(tile.Bounds.X * ssaaFactor, tile.Bounds.Y * ssaaFactor, tile.Bounds.Width * ssaaFactor, tile.Bounds.Height * ssaaFactor);
-            byte[] hiBuffer = engine.RenderSingleTile(hiTile, hiWidth, hiHeight, out int hiBpp);
+            byte[] hiBuffer = engine.RenderSingleTile(hiTile, hiWidth, hiHeight, out int hiBpp, coloringContext);
             bytesPerPixel = hiBpp;
             return DownsampleTile(hiBuffer, tile.Bounds.Width, tile.Bounds.Height, ssaaFactor, bytesPerPixel);
         }
@@ -870,6 +881,19 @@ namespace FractalExplorer.Forms.Fractals
             saveManager.ShowDialog(this);
         }
 
+
+        private void btnPalette_Click(object sender, EventArgs e)
+        {
+            if (_lyapunovColorConfigForm == null || _lyapunovColorConfigForm.IsDisposed)
+            {
+                _lyapunovColorConfigForm = new ColorConfigurationLyapunovForm(_paletteManager);
+                _lyapunovColorConfigForm.PaletteApplied += (_, _) => QueueRenderRestart(immediate: true);
+            }
+
+            _lyapunovColorConfigForm.Show(this);
+            _lyapunovColorConfigForm.BringToFront();
+        }
+
         public HighResRenderState GetRenderState()
         {
             string pattern = string.IsNullOrWhiteSpace(_tbPattern.Text) ? "AB" : _tbPattern.Text.Trim().ToUpperInvariant();
@@ -903,7 +927,8 @@ namespace FractalExplorer.Forms.Fractals
                     BMax = state.LyapunovBMax ?? _nudBMax.Value,
                     Pattern = string.IsNullOrWhiteSpace(state.LyapunovPattern) ? _tbPattern.Text : state.LyapunovPattern,
                     Iterations = state.Iterations > 0 ? state.Iterations : (int)_nudIterations.Value,
-                    TransientIterations = state.LyapunovTransientIterations ?? (int)_nudTransient.Value
+                    TransientIterations = state.LyapunovTransientIterations ?? (int)_nudTransient.Value,
+                    ColorPalette = _paletteManager.ActivePalette
                 };
 
                 return await Task.Run(() =>
@@ -912,6 +937,7 @@ namespace FractalExplorer.Forms.Fractals
                     int safeHeight = Math.Max(1, height);
                     int effectiveSsaa = Math.Max(1, ssaaFactor);
                     int totalRows = safeHeight;
+                    LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(safeWidth, safeHeight, cancellationToken);
                     var result = new Bitmap(safeWidth, safeHeight, PixelFormat.Format32bppArgb);
                     int threadCount = Math.Max(1, (int)_nudThreads.Value);
 
@@ -926,7 +952,7 @@ namespace FractalExplorer.Forms.Fractals
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var tile = new TileInfo(0, y, safeWidth, 1);
-                        byte[] rowBuffer = RenderTileWithSsaa(engine, tile, safeWidth, safeHeight, effectiveSsaa, out int bytesPerPixel);
+                        byte[] rowBuffer = RenderTileWithSsaa(engine, tile, safeWidth, safeHeight, effectiveSsaa, out int bytesPerPixel, coloringContext);
 
                         lock (result)
                         {
@@ -957,10 +983,12 @@ namespace FractalExplorer.Forms.Fractals
                 BMax = state.LyapunovBMax ?? _nudBMax.Value,
                 Pattern = string.IsNullOrWhiteSpace(state.LyapunovPattern) ? _tbPattern.Text : state.LyapunovPattern,
                 Iterations = state.Iterations > 0 ? state.Iterations : (int)_nudIterations.Value,
-                TransientIterations = state.LyapunovTransientIterations ?? (int)_nudTransient.Value
+                TransientIterations = state.LyapunovTransientIterations ?? (int)_nudTransient.Value,
+                ColorPalette = _paletteManager.ActivePalette
             };
 
-            return engine.RenderToBitmap(previewWidth, previewHeight, Math.Max(1, (int)_nudThreads.Value));
+            LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(previewWidth, previewHeight);
+            return engine.RenderToBitmap(previewWidth, previewHeight, Math.Max(1, (int)_nudThreads.Value), coloringContext: coloringContext);
         }
 
         public string FractalTypeIdentifier => "Lyapunov";
@@ -989,7 +1017,8 @@ namespace FractalExplorer.Forms.Fractals
                 BMax = _nudBMax.Value,
                 Pattern = _tbPattern.Text,
                 Iterations = (int)_nudIterations.Value,
-                TransientIterations = (int)_nudTransient.Value
+                TransientIterations = (int)_nudTransient.Value,
+                PaletteName = _paletteManager.ActivePalette.Name
             };
 
             state.PreviewParametersJson = JsonSerializer.Serialize(new LyapunovPreviewParams
@@ -1020,6 +1049,10 @@ namespace FractalExplorer.Forms.Fractals
             _tbPattern.Text = lyapunov.Pattern;
             _nudIterations.Value = Math.Max(_nudIterations.Minimum, Math.Min(_nudIterations.Maximum, lyapunov.Iterations));
             _nudTransient.Value = Math.Max(_nudTransient.Minimum, Math.Min(_nudTransient.Maximum, lyapunov.TransientIterations));
+            if (!string.IsNullOrWhiteSpace(lyapunov.PaletteName))
+            {
+                _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == lyapunov.PaletteName) ?? _paletteManager.ActivePalette;
+            }
             _ = RenderAsync();
         }
 
@@ -1038,10 +1071,12 @@ namespace FractalExplorer.Forms.Fractals
                 BMax = lyapunov.BMax,
                 Pattern = lyapunov.Pattern,
                 Iterations = lyapunov.Iterations,
-                TransientIterations = lyapunov.TransientIterations
+                TransientIterations = lyapunov.TransientIterations,
+                ColorPalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == lyapunov.PaletteName) ?? _paletteManager.ActivePalette
             };
 
-            return engine.RenderToBitmap(previewWidth, previewHeight, 1);
+            LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(previewWidth, previewHeight);
+            return engine.RenderToBitmap(previewWidth, previewHeight, 1, coloringContext: coloringContext);
         }
 
         public async Task<byte[]> RenderPreviewTileAsync(FractalSaveStateBase state, TileInfo tile, int totalWidth, int totalHeight, int tileSize)
@@ -1061,9 +1096,11 @@ namespace FractalExplorer.Forms.Fractals
                     BMax = lyapunov.BMax,
                     Pattern = lyapunov.Pattern,
                     Iterations = lyapunov.Iterations,
-                    TransientIterations = lyapunov.TransientIterations
+                    TransientIterations = lyapunov.TransientIterations,
+                    ColorPalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == lyapunov.PaletteName) ?? _paletteManager.ActivePalette
                 };
-                return engine.RenderSingleTile(tile, totalWidth, totalHeight, out _);
+                LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(totalWidth, totalHeight);
+                return engine.RenderSingleTile(tile, totalWidth, totalHeight, out _, coloringContext);
             });
         }
 

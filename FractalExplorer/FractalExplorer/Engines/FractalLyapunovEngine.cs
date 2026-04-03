@@ -1,4 +1,6 @@
 ﻿using FractalExplorer.Resources;
+using FractalExplorer.Utilities.Coloring;
+using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
@@ -23,6 +25,7 @@ namespace FractalExplorer.Engines
 
         private const double MinLogArgument = 1e-300;
         private const double LogisticStateClamp = 1e-15;
+        private const int HistogramBins = 2048;
 
         public decimal AMin { get; set; } = 2.5m;
         public decimal AMax { get; set; } = 4.0m;
@@ -31,6 +34,8 @@ namespace FractalExplorer.Engines
         public int Iterations { get; set; } = 120;
         public int TransientIterations { get; set; } = 60;
         public string Pattern { get; set; } = "AB";
+        public LyapunovColorPalette ColorPalette { get; set; } = LyapunovPaletteManager.CreateDefaultBuiltInPalette();
+
 
         private static string NormalizePattern(string? pattern)
         {
@@ -123,32 +128,81 @@ namespace FractalExplorer.Engines
                 : ComputeLyapunovExponentHighDepth(a, b, transient, iterations, pattern);
         }
 
-        private static Color MapExponentToColor(double exponent)
+        public LyapunovColoringContext? PrepareColoringContext(int canvasWidth, int canvasHeight, CancellationToken cancellationToken = default)
         {
-            if (double.IsNaN(exponent) || double.IsInfinity(exponent))
+            if (ColorPalette.Mode != LyapunovColoringMode.HistogramEqualized || canvasWidth <= 0 || canvasHeight <= 0)
             {
-                return Color.Black;
+                return null;
             }
 
-            if (exponent < 0)
+            string pattern = NormalizePattern(Pattern);
+            int iterations = ClampDepth(Iterations);
+            int transient = Math.Clamp(TransientIterations, 0, MaxStableDepth);
+
+            double[] exponents = new double[canvasWidth * canvasHeight];
+            double min = double.PositiveInfinity;
+            double max = double.NegativeInfinity;
+
+            for (int y = 0; y < canvasHeight; y++)
             {
-                double t = Math.Max(0, Math.Min(1, (-exponent) / 2.0));
-                int r = (int)(20 + 70 * t);
-                int g = (int)(30 + 170 * t);
-                int b = (int)(80 + 175 * t);
-                return Color.FromArgb(r, g, b);
+                cancellationToken.ThrowIfCancellationRequested();
+                decimal b = BMax - (BMax - BMin) * y / Math.Max(1, canvasHeight - 1);
+                int row = y * canvasWidth;
+                for (int x = 0; x < canvasWidth; x++)
+                {
+                    decimal a = AMin + (AMax - AMin) * x / Math.Max(1, canvasWidth - 1);
+                    double exponent = ComputeLyapunovExponent(a, b, transient, iterations, pattern);
+                    exponents[row + x] = exponent;
+                    if (double.IsFinite(exponent))
+                    {
+                        min = Math.Min(min, exponent);
+                        max = Math.Max(max, exponent);
+                    }
+                }
             }
-            else
+
+            if (!double.IsFinite(min) || !double.IsFinite(max) || max <= min)
             {
-                double t = Math.Max(0, Math.Min(1, exponent / 2.0));
-                int r = (int)(120 + 135 * t);
-                int g = (int)(50 + 90 * (1 - t));
-                int b = (int)(30 + 40 * (1 - t));
-                return Color.FromArgb(r, g, b);
+                return null;
             }
+
+            int[] bins = new int[HistogramBins];
+            int finiteCount = 0;
+            foreach (double exponent in exponents)
+            {
+                if (!double.IsFinite(exponent))
+                {
+                    continue;
+                }
+
+                double t = (exponent - min) / (max - min);
+                int bin = Math.Clamp((int)Math.Round(t * (HistogramBins - 1)), 0, HistogramBins - 1);
+                bins[bin]++;
+                finiteCount++;
+            }
+
+            if (finiteCount == 0)
+            {
+                return null;
+            }
+
+            double[] cdf = new double[HistogramBins];
+            int cumulative = 0;
+            for (int i = 0; i < HistogramBins; i++)
+            {
+                cumulative += bins[i];
+                cdf[i] = cumulative / (double)finiteCount;
+            }
+
+            return new LyapunovColoringContext
+            {
+                MinExponent = min,
+                MaxExponent = max,
+                Cdf = cdf
+            };
         }
 
-        public byte[] RenderSingleTile(TileInfo tile, int canvasWidth, int canvasHeight, out int bytesPerPixel)
+        public byte[] RenderSingleTile(TileInfo tile, int canvasWidth, int canvasHeight, out int bytesPerPixel, LyapunovColoringContext? coloringContext = null)
         {
             bytesPerPixel = 4;
             byte[] buffer = new byte[tile.Bounds.Width * tile.Bounds.Height * bytesPerPixel];
@@ -172,7 +226,7 @@ namespace FractalExplorer.Engines
                     decimal a = AMin + (AMax - AMin) * globalX / Math.Max(1, canvasWidth - 1);
 
                     double exponent = ComputeLyapunovExponent(a, b, transient, iterations, pattern);
-                    Color color = MapExponentToColor(exponent);
+                    Color color = LyapunovColoring.MapExponent(exponent, ColorPalette, coloringContext);
 
                     int idx = (y * tile.Bounds.Width + x) * bytesPerPixel;
                     buffer[idx] = color.B;
@@ -185,7 +239,7 @@ namespace FractalExplorer.Engines
             return buffer;
         }
 
-        public Bitmap RenderToBitmap(int width, int height, int threads, Action<int>? progressCallback = null, CancellationToken cancellationToken = default)
+        public Bitmap RenderToBitmap(int width, int height, int threads, Action<int>? progressCallback = null, CancellationToken cancellationToken = default, LyapunovColoringContext? coloringContext = null)
         {
             if (width <= 0 || height <= 0)
             {
@@ -200,6 +254,7 @@ namespace FractalExplorer.Engines
             int iterations = ClampDepth(Iterations);
             int transient = Math.Clamp(TransientIterations, 0, MaxStableDepth);
             int doneRows = 0;
+            coloringContext ??= PrepareColoringContext(width, height, cancellationToken);
             object lockObj = new object();
 
             var po = new ParallelOptions
@@ -217,7 +272,7 @@ namespace FractalExplorer.Engines
                 {
                     decimal a = AMin + (AMax - AMin) * x / Math.Max(1, width - 1);
                     double exponent = ComputeLyapunovExponent(a, b, transient, iterations, pattern);
-                    Color color = MapExponentToColor(exponent);
+                    Color color = LyapunovColoring.MapExponent(exponent, ColorPalette, coloringContext);
 
                     int idx = rowBase + x * 3;
                     buffer[idx] = color.B;

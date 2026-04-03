@@ -402,6 +402,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnPalette.TabIndex = 21;
             _btnPalette.Text = "Настроить палитру";
             _btnPalette.UseVisualStyleBackColor = true;
+            _btnPalette.Click += btnPalette_Click;
             // 
             // _btnRender
             // 

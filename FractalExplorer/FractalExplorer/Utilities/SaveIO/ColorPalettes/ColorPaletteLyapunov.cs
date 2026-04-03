@@ -1,0 +1,141 @@
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using FractalExplorer.Utilities.Coloring;
+
+namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
+{
+    public class LyapunovColorPalette
+    {
+        public string Name { get; set; } = "Новая палитра";
+        public LyapunovColoringMode Mode { get; set; } = LyapunovColoringMode.Diverging;
+        public List<Color> Colors { get; set; } = new();
+        public double ExponentRange { get; set; } = 2.0;
+        public double ZeroBandWidth { get; set; } = 0.05;
+
+        [JsonIgnore]
+        public bool IsBuiltIn { get; set; }
+
+        public LyapunovColorPalette CloneAsCustom(string newName)
+        {
+            return new LyapunovColorPalette
+            {
+                Name = newName,
+                Mode = Mode,
+                Colors = Colors.ToList(),
+                ExponentRange = ExponentRange,
+                ZeroBandWidth = ZeroBandWidth,
+                IsBuiltIn = false
+            };
+        }
+    }
+
+    public class LyapunovPaletteManager
+    {
+        private const string PaletteFile = "lyapunov_palettes.json";
+
+        public List<LyapunovColorPalette> Palettes { get; } = new();
+        public LyapunovColorPalette ActivePalette { get; set; }
+
+        public LyapunovPaletteManager()
+        {
+            LoadPalettes();
+            ActivePalette = Palettes.FirstOrDefault() ?? CreateDefaultBuiltInPalette();
+        }
+
+        public static LyapunovColorPalette CreateDefaultBuiltInPalette()
+        {
+            return new LyapunovColorPalette
+            {
+                Name = "Классическая Lyapunov",
+                Mode = LyapunovColoringMode.Diverging,
+                Colors = new List<Color>
+                {
+                    Color.FromArgb(20, 30, 80),
+                    Color.FromArgb(90, 200, 255),
+                    Color.FromArgb(120, 140, 70),
+                    Color.FromArgb(190, 100, 45),
+                    Color.FromArgb(255, 50, 30)
+                },
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            };
+        }
+
+        private void LoadPalettes()
+        {
+            Palettes.Clear();
+
+            Palettes.Add(CreateDefaultBuiltInPalette());
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Absolute / Spectral",
+                Mode = LyapunovColoringMode.Absolute,
+                Colors = new List<Color> { Color.Black, Color.MidnightBlue, Color.Cyan, Color.Yellow, Color.White },
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Zero band",
+                Mode = LyapunovColoringMode.ZeroBandHighlight,
+                Colors = new List<Color> { Color.DarkBlue, Color.CornflowerBlue, Color.White, Color.Orange, Color.DarkRed },
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.03,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Histogram equalized",
+                Mode = LyapunovColoringMode.HistogramEqualized,
+                Colors = new List<Color> { Color.Black, Color.DarkViolet, Color.DeepSkyBlue, Color.Lime, Color.Yellow, Color.White },
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
+
+            string filePath = Path.Combine(Application.StartupPath, "Saves", PaletteFile);
+            if (!File.Exists(filePath))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                var options = new JsonSerializerOptions();
+                options.Converters.Add(new JsonConverters.JsonColorConverter());
+                var loaded = JsonSerializer.Deserialize<List<LyapunovColorPalette>>(json, options);
+                if (loaded != null)
+                {
+                    Palettes.AddRange(loaded.Where(p => p != null));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось загрузить палитры Ляпунова: {ex.Message}", "Ошибка загрузки палитр", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        public void SavePalettes()
+        {
+            try
+            {
+                string saveDir = Path.Combine(Application.StartupPath, "Saves");
+                Directory.CreateDirectory(saveDir);
+                string filePath = Path.Combine(saveDir, PaletteFile);
+
+                var custom = Palettes.Where(p => !p.IsBuiltIn).ToList();
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                options.Converters.Add(new JsonConverters.JsonColorConverter());
+                string json = JsonSerializer.Serialize(custom, options);
+                File.WriteAllText(filePath, json);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось сохранить палитры Ляпунова: {ex.Message}", "Ошибка сохранения палитр", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+}

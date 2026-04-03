@@ -12,6 +12,7 @@
         public string Pattern { get; set; } = "AB";
         public int Iterations { get; set; }
         public int TransientIterations { get; set; }
+        public string PaletteName { get; set; } = string.Empty;
 
         public LyapunovSaveState()
         {
