@@ -62,7 +62,7 @@ namespace FractalExplorer.Forms.Fractals
             InitializeComponent();
             KeyPreview = true;
             ApplyDefaults();
-            Shown += async (_, __) => await RenderAsync();
+            Shown += HandleFormShown;
             KeyDown += Form_KeyDown;
             FormClosing += (_, __) =>
             {
@@ -91,7 +91,6 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.MouseUp += Canvas_MouseUp;
             _canvas.MouseLeave += Canvas_MouseLeave;
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
-            _canvas.SizeChanged += Canvas_SizeChanged;
             ResizeBegin += (_, _) => _isUserResizingWindow = true;
             ResizeEnd += (_, _) =>
             {
@@ -104,6 +103,13 @@ namespace FractalExplorer.Forms.Fractals
             };
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
             AttachAutoRenderControlTriggers();
+        }
+
+        private async void HandleFormShown(object? sender, EventArgs e)
+        {
+            Shown -= HandleFormShown;
+            await RenderAsync();
+            _canvas.SizeChanged += Canvas_SizeChanged;
         }
 
         private void ToggleFullscreenSafely()
