@@ -66,7 +66,17 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             Palettes.Clear();
 
-            Palettes.Add(CreateDefaultBuiltInPalette());
+            LyapunovColorPalette defaultBuiltIn = CreateDefaultBuiltInPalette();
+            Palettes.Add(defaultBuiltIn);
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Legacy built-in",
+                Mode = LyapunovColoringMode.LegacyBuiltIn,
+                Colors = defaultBuiltIn.Colors.ToList(),
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
             Palettes.Add(new LyapunovColorPalette
             {
                 Name = "Absolute / Spectral",
