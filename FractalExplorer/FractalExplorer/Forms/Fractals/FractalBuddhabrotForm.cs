@@ -12,6 +12,7 @@ namespace FractalExplorer.Forms.Fractals
     public sealed partial class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal
     {
         private const decimal BaseScale = 4.0m;
+        private const int ToggleButtonMargin = 12;
 
         private readonly FractalBuddhabrotEngine _engine = new();
         private readonly PaletteManager _paletteManager = new();
@@ -19,6 +20,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private decimal _centerX = 0;
         private decimal _centerY = 0;
+        private bool _controlsPanelVisible = true;
 
         public FractalBuddhabrotForm()
         {
@@ -46,6 +48,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private async void FractalBuddhabrotForm_Load(object? sender, EventArgs e)
         {
+            UpdateToggleControlsPosition();
             ApplyUiToEngine();
             await RenderAsync();
         }
@@ -143,7 +146,16 @@ namespace FractalExplorer.Forms.Fractals
             byte[] pixels = new byte[width * height * 4];
             try
             {
-                await Task.Run(() => _engine.RenderToBuffer(pixels, width, height, width * 4, 4, token), token);
+                SetRenderingState(isRendering: true);
+
+                await Task.Run(() => _engine.RenderToBuffer(
+                    pixels,
+                    width,
+                    height,
+                    width * 4,
+                    4,
+                    token,
+                    p => UpdateRenderProgressSafe(Math.Clamp(p, 0, 100))), token);
                 token.ThrowIfCancellationRequested();
 
                 using var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
@@ -163,6 +175,95 @@ namespace FractalExplorer.Forms.Fractals
             catch (OperationCanceledException)
             {
             }
+            finally
+            {
+                SetRenderingState(isRendering: false);
+            }
+        }
+
+        private void UpdateRenderProgressSafe(int value)
+        {
+            if (IsDisposed) return;
+
+            void SetProgress()
+            {
+                int clamped = Math.Clamp(value, _renderProgress.Minimum, _renderProgress.Maximum);
+                _renderProgress.Value = clamped;
+                _progressLabel.Text = $"Обработка: {clamped}%";
+            }
+
+            if (InvokeRequired)
+            {
+                BeginInvoke((Action)SetProgress);
+            }
+            else
+            {
+                SetProgress();
+            }
+        }
+
+        private void SetRenderingState(bool isRendering)
+        {
+            if (IsDisposed) return;
+
+            void UpdateUi()
+            {
+                _btnRender.Enabled = !isRendering;
+                if (!isRendering && _renderProgress.Value >= _renderProgress.Maximum)
+                {
+                    _progressLabel.Text = "Обработка: завершено";
+                }
+                else if (!isRendering)
+                {
+                    _progressLabel.Text = "Обработка: 0%";
+                    _renderProgress.Value = 0;
+                }
+                else
+                {
+                    _progressLabel.Text = "Обработка: 0%";
+                    _renderProgress.Value = 0;
+                }
+            }
+
+            if (InvokeRequired)
+            {
+                BeginInvoke((Action)UpdateUi);
+            }
+            else
+            {
+                UpdateUi();
+            }
+        }
+
+        private void BtnToggleControls_Click(object? sender, EventArgs e)
+        {
+            _controlsPanelVisible = !_controlsPanelVisible;
+            _controlsHost.Visible = _controlsPanelVisible;
+            _btnToggleControls.Text = _controlsPanelVisible ? "✕" : "☰";
+            UpdateToggleControlsPosition();
+        }
+
+        private void CanvasHost_Resize(object? sender, EventArgs e)
+        {
+            UpdateToggleControlsPosition();
+        }
+
+        private void ControlsHost_SizeChanged(object? sender, EventArgs e)
+        {
+            UpdateToggleControlsPosition();
+        }
+
+        private void UpdateToggleControlsPosition()
+        {
+            int targetX = ToggleButtonMargin;
+            if (_controlsPanelVisible)
+            {
+                targetX = _controlsHost.Right + ToggleButtonMargin;
+            }
+
+            int maxX = Math.Max(ToggleButtonMargin, _canvasHost.ClientSize.Width - _btnToggleControls.Width - ToggleButtonMargin);
+            _btnToggleControls.Location = new Point(Math.Min(targetX, maxX), ToggleButtonMargin);
+            _btnToggleControls.BringToFront();
         }
 
         public string FractalTypeIdentifier => "Buddhabrot";
