@@ -6,6 +6,7 @@ using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using FractalExplorer.SelectorsForms;
 using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.Theme;
+using FractalExplorer.Utilities.UI;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -23,6 +24,7 @@ namespace FractalExplorer.Forms.Fractals
         private ColorConfigurationBuddhabrotForm? _buddhabrotColorConfigForm;
         private CancellationTokenSource? _renderCts;
         private readonly System.Windows.Forms.Timer _renderRestartTimer = new() { Interval = 350 };
+        private readonly FullscreenToggleController _fullscreenController = new();
 
         private decimal _centerX = 0;
         private decimal _centerY = 0;
@@ -68,6 +70,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.SizeChanged += Canvas_SizeChanged;
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
             _btnSaveImage.Click += BtnSaveImage_Click;
+            KeyDown += Form_KeyDown;
             AttachAutoRenderControlTriggers();
         }
 
@@ -80,6 +83,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private void FractalBuddhabrotForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
+            ExitFullscreenSafely();
             _renderCts?.Cancel();
             _renderRestartTimer.Stop();
             _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
@@ -390,6 +394,41 @@ namespace FractalExplorer.Forms.Fractals
 
             _isQueuingRenderRestart = false;
             await RenderAsync();
+        }
+
+        private void ToggleFullscreenSafely()
+        {
+            _fullscreenController.Toggle(this);
+            UpdateToggleControlsPosition();
+            QueueRenderRestart(immediate: true);
+        }
+
+        private void ExitFullscreenSafely()
+        {
+            if (!_fullscreenController.IsFullscreen(this))
+            {
+                return;
+            }
+
+            _fullscreenController.ExitFullscreen(this);
+            UpdateToggleControlsPosition();
+            QueueRenderRestart(immediate: true);
+        }
+
+        private void Form_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                ToggleFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == Keys.Escape && _fullscreenController.IsFullscreen(this))
+            {
+                ExitFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
         }
 
         private void ApplyUiToEngine()
