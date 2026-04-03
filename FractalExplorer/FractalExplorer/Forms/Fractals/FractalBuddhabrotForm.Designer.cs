@@ -84,7 +84,7 @@ namespace FractalExplorer.Forms.Fractals
             _contentPanel.Dock = DockStyle.Fill;
             _contentPanel.Location = new Point(0, 0);
             _contentPanel.Name = "_contentPanel";
-            _contentPanel.Size = new Size(1304, 821);
+            _contentPanel.Size = new Size(1029, 561);
             _contentPanel.TabIndex = 0;
             // 
             // _canvasHost
@@ -95,7 +95,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvasHost.Dock = DockStyle.Fill;
             _canvasHost.Location = new Point(0, 0);
             _canvasHost.Name = "_canvasHost";
-            _canvasHost.Size = new Size(1304, 821);
+            _canvasHost.Size = new Size(1029, 561);
             _canvasHost.TabIndex = 0;
             _canvasHost.Resize += CanvasHost_Resize;
             // 
@@ -107,7 +107,7 @@ namespace FractalExplorer.Forms.Fractals
             _controlsHost.Controls.Add(_controlsPanel);
             _controlsHost.Location = new Point(0, 0);
             _controlsHost.Name = "_controlsHost";
-            _controlsHost.Size = new Size(244, 821);
+            _controlsHost.Size = new Size(244, 561);
             _controlsHost.TabIndex = 0;
             _controlsHost.SizeChanged += ControlsHost_SizeChanged;
             // 
@@ -164,7 +164,7 @@ namespace FractalExplorer.Forms.Fractals
             _controlsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             _controlsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
             _controlsPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _controlsPanel.Size = new Size(242, 819);
+            _controlsPanel.Size = new Size(242, 559);
             _controlsPanel.TabIndex = 0;
             // 
             // _modeCombo
@@ -493,7 +493,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.Dock = DockStyle.Fill;
             _canvas.Location = new Point(0, 0);
             _canvas.Name = "_canvas";
-            _canvas.Size = new Size(1304, 821);
+            _canvas.Size = new Size(1029, 561);
             _canvas.SizeMode = PictureBoxSizeMode.Zoom;
             _canvas.TabIndex = 2;
             _canvas.TabStop = false;
@@ -503,9 +503,10 @@ namespace FractalExplorer.Forms.Fractals
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1304, 821);
+            ClientSize = new Size(1029, 561);
             Controls.Add(_contentPanel);
             KeyPreview = true;
+            MinimumSize = new Size(1045, 600);
             Name = "FractalBuddhabrotForm";
             Text = "Фрактал Buddhabrot";
             FormClosing += FractalBuddhabrotForm_FormClosing;
