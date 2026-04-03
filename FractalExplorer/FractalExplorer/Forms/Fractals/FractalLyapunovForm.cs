@@ -825,17 +825,17 @@ namespace FractalExplorer.Forms.Fractals
 
         private void ClearPreviewRenderToken()
         {
-            CancellationTokenSource? current = Interlocked.Exchange(ref _previewRenderCts, null);
-            current?.Dispose();
+            CancellationTokenSource? currentToken = Interlocked.Exchange(ref _previewRenderCts, null);
+            currentToken?.Dispose();
         }
 
         private void CancelPreviewRender()
         {
-            CancellationTokenSource? current = Interlocked.Exchange(ref _previewRenderCts, null);
-            if (current != null)
+            CancellationTokenSource? currentToken = Interlocked.Exchange(ref _previewRenderCts, null);
+            if (currentToken != null)
             {
-                current.Cancel();
-                current.Dispose();
+                currentToken.Cancel();
+                currentToken.Dispose();
             }
         }
 
