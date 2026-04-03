@@ -11,13 +11,22 @@ namespace FractalExplorer.Forms.Fractals
 {
     public partial class FractalLyapunovForm : Form, ISaveLoadCapableFractal
     {
-        private const int PreviewTileSize = 64;
+        private const int PreviewTileSize = 16;
+        private const decimal DefaultAMin = 2.8m;
+        private const decimal DefaultAMax = 4.0m;
+        private const decimal DefaultBMin = 2.8m;
+        private const decimal DefaultBMax = 4.0m;
+        private const decimal MinDomain = 0m;
+        private const decimal MaxDomain = 4m;
 
         private readonly FractalLyapunovEngine _engine = new();
         private readonly object _frameBufferLock = new();
+        private readonly RenderVisualizerComponent _renderVisualizer = new(PreviewTileSize);
         private Bitmap? _currentFrameBuffer;
         private CancellationTokenSource? _previewRenderCts;
         private int _controlsOpenWidth = 231;
+        private bool _isRenderingPreview;
+        private bool _suppressViewportSync;
 
         public FractalLyapunovForm()
         {
@@ -28,7 +37,20 @@ namespace FractalExplorer.Forms.Fractals
             InitializeComponent();
             ApplyDefaults();
             Shown += async (_, __) => await RenderAsync();
-            FormClosing += (_, __) => CancelPreviewRender();
+            FormClosing += (_, __) =>
+            {
+                CancelPreviewRender();
+                lock (_frameBufferLock)
+                {
+                    _currentFrameBuffer?.Dispose();
+                    _currentFrameBuffer = null;
+                }
+                _renderVisualizer.Dispose();
+            };
+            _renderVisualizer.NeedsRedraw += () => _canvas.Invalidate();
+            _canvas.Paint += Canvas_Paint;
+            _canvas.MouseWheel += Canvas_MouseWheel;
+            _canvas.MouseEnter += (_, _) => _canvas.Focus();
         }
 
         private void ToggleControls()
@@ -62,10 +84,10 @@ namespace FractalExplorer.Forms.Fractals
 
         private void ApplyDefaults()
         {
-            ConfigureDecimal(_nudAMin, 2, 0.01m, 0m, 4m, 2.8m);
-            ConfigureDecimal(_nudAMax, 2, 0.01m, 0m, 4m, 4.0m);
-            ConfigureDecimal(_nudBMin, 2, 0.01m, 0m, 4m, 2.8m);
-            ConfigureDecimal(_nudBMax, 2, 0.01m, 0m, 4m, 4.0m);
+            ConfigureDecimal(_nudAMin, 2, 0.01m, MinDomain, MaxDomain, DefaultAMin);
+            ConfigureDecimal(_nudAMax, 2, 0.01m, MinDomain, MaxDomain, DefaultAMax);
+            ConfigureDecimal(_nudBMin, 2, 0.01m, MinDomain, MaxDomain, DefaultBMin);
+            ConfigureDecimal(_nudBMax, 2, 0.01m, MinDomain, MaxDomain, DefaultBMax);
 
             _nudIterations.Minimum = 20;
             _nudIterations.Maximum = 5000;
@@ -79,9 +101,18 @@ namespace FractalExplorer.Forms.Fractals
             _nudThreads.Maximum = Environment.ProcessorCount;
             _nudThreads.Value = Math.Max(1, Environment.ProcessorCount / 2);
 
+            ConfigureDecimal(_nudZoom, 4, 0.1m, 1.0m, 200m, 1.0m);
+            _cbSSAA.Items.AddRange(new object[] { "Выкл (1x)", "Низкое (2x)", "Высокое (4x)" });
+            _cbSSAA.SelectedIndex = 0;
+
             _tbPattern.Text = "AB";
             _pbRenderProgress.Value = 0;
-            _lblRenderProgress.Text = "Прогресс: 0%";
+
+            _nudZoom.ValueChanged += (_, _) => ApplyZoomFromControl();
+            _nudAMin.ValueChanged += (_, _) => SyncViewportFromRangeControls();
+            _nudAMax.ValueChanged += (_, _) => SyncViewportFromRangeControls();
+            _nudBMin.ValueChanged += (_, _) => SyncViewportFromRangeControls();
+            _nudBMax.ValueChanged += (_, _) => SyncViewportFromRangeControls();
         }
 
         private static void ConfigureDecimal(NumericUpDown nud, int decimals, decimal increment, decimal min, decimal max, decimal value)
@@ -91,6 +122,124 @@ namespace FractalExplorer.Forms.Fractals
             nud.Minimum = min;
             nud.Maximum = max;
             nud.Value = value;
+        }
+
+        private void Canvas_Paint(object? sender, PaintEventArgs e)
+        {
+            lock (_frameBufferLock)
+            {
+                if (_currentFrameBuffer != null)
+                {
+                    e.Graphics.DrawImage(_currentFrameBuffer, _canvas.ClientRectangle);
+                }
+            }
+
+            if (_isRenderingPreview)
+            {
+                _renderVisualizer.DrawVisualization(e.Graphics);
+            }
+        }
+
+        private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
+        {
+            if (_isRenderingPreview || _canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return;
+            }
+
+            decimal factor = e.Delta > 0 ? 1.5m : 1.0m / 1.5m;
+            decimal nextZoom = Math.Max(_nudZoom.Minimum, Math.Min(_nudZoom.Maximum, _nudZoom.Value * factor));
+            ApplyZoom(nextZoom, e.X, e.Y);
+            _ = RenderAsync();
+        }
+
+        private void SyncViewportFromRangeControls()
+        {
+            if (_suppressViewportSync)
+            {
+                return;
+            }
+
+            decimal currentRange = _nudAMax.Value - _nudAMin.Value;
+            if (currentRange <= 0)
+            {
+                return;
+            }
+
+            decimal baseRange = DefaultAMax - DefaultAMin;
+            decimal inferredZoom = Math.Max(_nudZoom.Minimum, Math.Min(_nudZoom.Maximum, baseRange / currentRange));
+            _suppressViewportSync = true;
+            _nudZoom.Value = inferredZoom;
+            _suppressViewportSync = false;
+        }
+
+        private void ApplyZoomFromControl()
+        {
+            if (_suppressViewportSync || _canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return;
+            }
+
+            ApplyZoom(_nudZoom.Value, _canvas.Width / 2, _canvas.Height / 2);
+        }
+
+        private void ApplyZoom(decimal nextZoom, int anchorX, int anchorY)
+        {
+            decimal width = Math.Max(1, _canvas.Width);
+            decimal height = Math.Max(1, _canvas.Height);
+            decimal aRange = _nudAMax.Value - _nudAMin.Value;
+            decimal bRange = _nudBMax.Value - _nudBMin.Value;
+
+            if (aRange <= 0 || bRange <= 0)
+            {
+                return;
+            }
+
+            decimal mouseA = _nudAMin.Value + (anchorX / width) * aRange;
+            decimal mouseB = _nudBMax.Value - (anchorY / height) * bRange;
+
+            decimal newRangeA = (DefaultAMax - DefaultAMin) / nextZoom;
+            decimal newRangeB = (DefaultBMax - DefaultBMin) / nextZoom;
+
+            decimal newAMin = mouseA - (anchorX / width) * newRangeA;
+            decimal newBMax = mouseB + (anchorY / height) * newRangeB;
+            decimal newAMax = newAMin + newRangeA;
+            decimal newBMin = newBMax - newRangeB;
+
+            ClampRange(ref newAMin, ref newAMax, MinDomain, MaxDomain);
+            ClampRange(ref newBMin, ref newBMax, MinDomain, MaxDomain);
+
+            _suppressViewportSync = true;
+            _nudAMin.Value = Math.Max(_nudAMin.Minimum, Math.Min(_nudAMin.Maximum, newAMin));
+            _nudAMax.Value = Math.Max(_nudAMax.Minimum, Math.Min(_nudAMax.Maximum, newAMax));
+            _nudBMin.Value = Math.Max(_nudBMin.Minimum, Math.Min(_nudBMin.Maximum, newBMin));
+            _nudBMax.Value = Math.Max(_nudBMax.Minimum, Math.Min(_nudBMax.Maximum, newBMax));
+            _nudZoom.Value = Math.Max(_nudZoom.Minimum, Math.Min(_nudZoom.Maximum, nextZoom));
+            _suppressViewportSync = false;
+        }
+
+        private static void ClampRange(ref decimal min, ref decimal max, decimal domainMin, decimal domainMax)
+        {
+            decimal width = max - min;
+            if (width <= 0)
+            {
+                return;
+            }
+
+            if (min < domainMin)
+            {
+                max += domainMin - min;
+                min = domainMin;
+            }
+
+            if (max > domainMax)
+            {
+                min -= max - domainMax;
+                max = domainMax;
+            }
+
+            min = Math.Max(domainMin, min);
+            max = Math.Min(domainMax, max);
         }
 
         private void SyncEngine()
@@ -119,6 +268,7 @@ namespace FractalExplorer.Forms.Fractals
             int width = _canvas.Width;
             int height = _canvas.Height;
             int threads = (int)_nudThreads.Value;
+            int ssaaFactor = GetSelectedSsaaFactor();
             var tiles = GenerateTiles(width, height, PreviewTileSize);
 
             var engine = new FractalLyapunovEngine
@@ -133,30 +283,33 @@ namespace FractalExplorer.Forms.Fractals
             };
 
             Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            Bitmap? previous = _canvas.Image as Bitmap;
-            _canvas.Image = frame;
-            previous?.Dispose();
             lock (_frameBufferLock)
             {
+                Bitmap? previous = _currentFrameBuffer;
                 _currentFrameBuffer = frame;
+                previous?.Dispose();
             }
+            _canvas.Invalidate();
 
             if (_pbRenderProgress.IsHandleCreated)
             {
                 _pbRenderProgress.Maximum = Math.Max(1, tiles.Count);
                 _pbRenderProgress.Value = 0;
             }
-            _lblRenderProgress.Text = "Прогресс: 0%";
 
             int completedTiles = 0;
             var dispatcher = new TileRenderDispatcher(tiles, threads, RenderPatternSettings.SelectedPattern);
+            _renderVisualizer.NotifyRenderSessionStart();
+            _isRenderingPreview = true;
 
             try
             {
                 await dispatcher.RenderAsync(async (tile, ct) =>
                 {
                     ct.ThrowIfCancellationRequested();
-                    byte[] tileBuffer = engine.RenderSingleTile(tile, width, height, out int bytesPerPixel);
+                    _renderVisualizer.NotifyTileRenderStart(tile.Bounds);
+
+                    byte[] tileBuffer = RenderTileWithSsaa(engine, tile, width, height, ssaaFactor, out int bytesPerPixel);
                     ct.ThrowIfCancellationRequested();
 
                     lock (_frameBufferLock)
@@ -170,7 +323,6 @@ namespace FractalExplorer.Forms.Fractals
                     }
 
                     int done = Interlocked.Increment(ref completedTiles);
-                    int percent = (int)Math.Round(done * 100.0 / Math.Max(1, tiles.Count));
                     if (IsHandleCreated && !IsDisposed)
                     {
                         BeginInvoke((Action)(() =>
@@ -179,16 +331,15 @@ namespace FractalExplorer.Forms.Fractals
                             {
                                 _pbRenderProgress.Value = Math.Min(_pbRenderProgress.Maximum, done);
                             }
-                            _lblRenderProgress.Text = $"Прогресс: {percent}%";
                             _canvas.Invalidate(tile.Bounds);
                         }));
                     }
 
+                    _renderVisualizer.NotifyTileRenderComplete(tile.Bounds);
                     await Task.Yield();
                 }, token);
 
                 token.ThrowIfCancellationRequested();
-                _lblRenderProgress.Text = "Прогресс: 100%";
             }
             catch (OperationCanceledException)
             {
@@ -196,6 +347,9 @@ namespace FractalExplorer.Forms.Fractals
             }
             finally
             {
+                _isRenderingPreview = false;
+                _renderVisualizer.NotifyRenderSessionComplete();
+
                 if (!token.IsCancellationRequested)
                 {
                     ClearPreviewRenderToken();
@@ -204,6 +358,70 @@ namespace FractalExplorer.Forms.Fractals
                 Cursor = Cursors.Default;
                 _btnRender.Enabled = true;
             }
+        }
+
+        private int GetSelectedSsaaFactor()
+        {
+            return _cbSSAA.SelectedIndex switch
+            {
+                1 => 2,
+                2 => 4,
+                _ => 1
+            };
+        }
+
+        private static byte[] RenderTileWithSsaa(FractalLyapunovEngine engine, TileInfo tile, int width, int height, int ssaaFactor, out int bytesPerPixel)
+        {
+            if (ssaaFactor <= 1)
+            {
+                return engine.RenderSingleTile(tile, width, height, out bytesPerPixel);
+            }
+
+            int hiWidth = width * ssaaFactor;
+            int hiHeight = height * ssaaFactor;
+            var hiTile = new TileInfo(tile.Bounds.X * ssaaFactor, tile.Bounds.Y * ssaaFactor, tile.Bounds.Width * ssaaFactor, tile.Bounds.Height * ssaaFactor);
+            byte[] hiBuffer = engine.RenderSingleTile(hiTile, hiWidth, hiHeight, out int hiBpp);
+            bytesPerPixel = hiBpp;
+            return DownsampleTile(hiBuffer, tile.Bounds.Width, tile.Bounds.Height, ssaaFactor, bytesPerPixel);
+        }
+
+        private static byte[] DownsampleTile(byte[] source, int width, int height, int factor, int bytesPerPixel)
+        {
+            byte[] output = new byte[width * height * bytesPerPixel];
+            int hiWidth = width * factor;
+            int kernel = factor * factor;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    int destIndex = (y * width + x) * bytesPerPixel;
+                    int sumB = 0;
+                    int sumG = 0;
+                    int sumR = 0;
+                    int sumA = 0;
+
+                    for (int sy = 0; sy < factor; sy++)
+                    {
+                        int row = (y * factor + sy) * hiWidth;
+                        for (int sx = 0; sx < factor; sx++)
+                        {
+                            int srcIndex = (row + (x * factor + sx)) * bytesPerPixel;
+                            sumB += source[srcIndex + 0];
+                            sumG += source[srcIndex + 1];
+                            sumR += source[srcIndex + 2];
+                            sumA += source[srcIndex + 3];
+                        }
+                    }
+
+                    output[destIndex + 0] = (byte)(sumB / kernel);
+                    output[destIndex + 1] = (byte)(sumG / kernel);
+                    output[destIndex + 2] = (byte)(sumR / kernel);
+                    output[destIndex + 3] = (byte)(sumA / kernel);
+                }
+            }
+
+            return output;
         }
 
         private static void WriteTileToBitmap(Bitmap bitmap, TileInfo tile, byte[] tileBuffer, int bytesPerPixel)
