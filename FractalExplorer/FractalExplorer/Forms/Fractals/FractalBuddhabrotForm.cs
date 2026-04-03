@@ -17,10 +17,15 @@ namespace FractalExplorer.Forms.Fractals
         private readonly FractalBuddhabrotEngine _engine = new();
         private readonly PaletteManager _paletteManager = new();
         private CancellationTokenSource? _renderCts;
+        private readonly System.Windows.Forms.Timer _renderRestartTimer = new() { Interval = 350 };
 
         private decimal _centerX = 0;
         private decimal _centerY = 0;
         private bool _controlsPanelVisible = true;
+        private bool _isPanning;
+        private bool _suppressAutoRender;
+        private bool _isQueuingRenderRestart;
+        private Point _panStartPoint;
 
         public FractalBuddhabrotForm()
         {
@@ -52,6 +57,15 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _paletteCombo.SelectedIndex = 0;
             }
+
+            _canvas.MouseDown += Canvas_MouseDown;
+            _canvas.MouseMove += Canvas_MouseMove;
+            _canvas.MouseUp += Canvas_MouseUp;
+            _canvas.MouseLeave += Canvas_MouseLeave;
+            _canvas.MouseEnter += (_, _) => _canvas.Focus();
+            _canvas.SizeChanged += Canvas_SizeChanged;
+            _renderRestartTimer.Tick += RenderRestartTimer_Tick;
+            AttachAutoRenderControlTriggers();
         }
 
         private async void FractalBuddhabrotForm_Load(object? sender, EventArgs e)
@@ -64,6 +78,9 @@ namespace FractalExplorer.Forms.Fractals
         private void FractalBuddhabrotForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             _renderCts?.Cancel();
+            _renderRestartTimer.Stop();
+            _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
+            _renderRestartTimer.Dispose();
         }
 
         private async void BtnRender_Click(object? sender, EventArgs e)
@@ -79,8 +96,149 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
         {
-            _zoom.Value = Math.Clamp(_zoom.Value * (e.Delta > 0 ? 0.8m : 1.25m), _zoom.Minimum, _zoom.Maximum);
-            _ = RenderAsync();
+            if (_canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return;
+            }
+
+            decimal scaleBeforeZoom = BaseScale / Math.Max(0.0000001m, _zoom.Value);
+            decimal mouseReal = _centerX + (e.X - _canvas.Width / 2.0m) * scaleBeforeZoom / _canvas.Width;
+            decimal mouseImaginary = _centerY - (e.Y - _canvas.Height / 2.0m) * scaleBeforeZoom / _canvas.Height;
+
+            decimal nextZoom = Math.Clamp(_zoom.Value * (e.Delta > 0 ? 1.25m : 0.8m), _zoom.Minimum, _zoom.Maximum);
+            if (nextZoom == _zoom.Value)
+            {
+                return;
+            }
+
+            decimal scaleAfterZoom = BaseScale / Math.Max(0.0000001m, nextZoom);
+            _centerX = mouseReal - (e.X - _canvas.Width / 2.0m) * scaleAfterZoom / _canvas.Width;
+            _centerY = mouseImaginary + (e.Y - _canvas.Height / 2.0m) * scaleAfterZoom / _canvas.Height;
+
+            _suppressAutoRender = true;
+            _zoom.Value = nextZoom;
+            _suppressAutoRender = false;
+            QueueRenderRestart();
+        }
+
+        private void Canvas_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || _canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return;
+            }
+
+            _isPanning = true;
+            _panStartPoint = e.Location;
+            _canvas.Cursor = Cursors.Hand;
+        }
+
+        private void Canvas_MouseMove(object? sender, MouseEventArgs e)
+        {
+            if (!_isPanning || _canvas.Width <= 0)
+            {
+                return;
+            }
+
+            decimal unitsPerPixel = BaseScale / Math.Max(0.0000001m, _zoom.Value) / _canvas.Width;
+            _centerX -= (e.X - _panStartPoint.X) * unitsPerPixel;
+            _centerY += (e.Y - _panStartPoint.Y) * unitsPerPixel;
+            _panStartPoint = e.Location;
+        }
+
+        private void Canvas_MouseUp(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            bool wasPanning = _isPanning;
+            _isPanning = false;
+            _canvas.Cursor = Cursors.Default;
+            if (wasPanning)
+            {
+                QueueRenderRestart(immediate: true);
+            }
+        }
+
+        private void Canvas_MouseLeave(object? sender, EventArgs e)
+        {
+            bool wasPanning = _isPanning;
+            _isPanning = false;
+            _canvas.Cursor = Cursors.Default;
+            if (wasPanning)
+            {
+                QueueRenderRestart(immediate: true);
+            }
+        }
+
+        private void Canvas_SizeChanged(object? sender, EventArgs e)
+        {
+            if (_canvas.Width <= 1 || _canvas.Height <= 1)
+            {
+                return;
+            }
+
+            QueueRenderRestart(immediate: true);
+        }
+
+        private void AttachAutoRenderControlTriggers()
+        {
+            _modeCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
+            _paletteCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
+            _threadsCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
+            _iterations.ValueChanged += (_, _) => QueueRenderRestart();
+            _samples.ValueChanged += (_, _) => QueueRenderRestart();
+            _zoom.ValueChanged += (_, _) =>
+            {
+                if (_suppressAutoRender)
+                {
+                    return;
+                }
+
+                QueueRenderRestart();
+            };
+            _sampleMinRe.ValueChanged += (_, _) => QueueRenderRestart();
+            _sampleMaxRe.ValueChanged += (_, _) => QueueRenderRestart();
+            _sampleMinIm.ValueChanged += (_, _) => QueueRenderRestart();
+            _sampleMaxIm.ValueChanged += (_, _) => QueueRenderRestart();
+        }
+
+        private void QueueRenderRestart(bool immediate = false)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            _isQueuingRenderRestart = true;
+            if (immediate)
+            {
+                _renderRestartTimer.Stop();
+                _ = TriggerQueuedRenderRestartAsync();
+                return;
+            }
+
+            _renderRestartTimer.Stop();
+            _renderRestartTimer.Start();
+        }
+
+        private async void RenderRestartTimer_Tick(object? sender, EventArgs e)
+        {
+            _renderRestartTimer.Stop();
+            await TriggerQueuedRenderRestartAsync();
+        }
+
+        private async Task TriggerQueuedRenderRestartAsync()
+        {
+            if (!_isQueuingRenderRestart || _isPanning)
+            {
+                return;
+            }
+
+            _isQueuingRenderRestart = false;
+            await RenderAsync();
         }
 
         private void ApplyUiToEngine()
