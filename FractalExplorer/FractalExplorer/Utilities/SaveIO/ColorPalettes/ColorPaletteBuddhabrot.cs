@@ -57,6 +57,21 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             return new BuddhabrotColorPalette
             {
+                Name = "Стандартный Ч/Б",
+                Colors = new List<Color> { Color.Black, Color.White },
+                IsGradient = true,
+                MaxColorIterations = 500,
+                AlignWithRenderIterations = false,
+                Gamma = 1.0,
+                ColoringMode = BuddhabrotColoringMode.Linear,
+                IsBuiltIn = true
+            };
+        }
+
+        private static BuddhabrotColorPalette CreateClassicBuiltInPalette()
+        {
+            return new BuddhabrotColorPalette
+            {
                 Name = "Классический Buddhabrot",
                 Colors = new List<Color> { Color.Black, Color.DarkBlue, Color.Cyan, Color.White },
                 IsGradient = true,
@@ -72,6 +87,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             Palettes.Clear();
             Palettes.Add(CreateDefaultBuiltInPalette());
+            Palettes.Add(CreateClassicBuiltInPalette());
             Palettes.Add(new BuddhabrotColorPalette
             {
                 Name = "Fire",

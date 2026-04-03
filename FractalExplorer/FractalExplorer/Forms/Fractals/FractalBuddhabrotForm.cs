@@ -651,6 +651,20 @@ namespace FractalExplorer.Forms.Fractals
                 PopulatePaletteCombo();
                 _paletteCombo.SelectedItem = imported.Name;
             }
+            else
+            {
+                BuddhabrotColorPalette fallbackPalette = _paletteManager.Palettes.FirstOrDefault()
+                    ?? BuddhabrotPaletteManager.CreateDefaultBuiltInPalette();
+                _paletteManager.ActivePalette = fallbackPalette;
+                if (_paletteCombo.Items.Contains(fallbackPalette.Name))
+                {
+                    _paletteCombo.SelectedItem = fallbackPalette.Name;
+                }
+                else if (_paletteCombo.Items.Count > 0)
+                {
+                    _paletteCombo.SelectedIndex = 0;
+                }
+            }
 
             _ = RenderAsync();
         }
