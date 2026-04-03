@@ -104,6 +104,139 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                 ZeroBandWidth = 0.05,
                 IsBuiltIn = true
             });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Закат (Diverging)",
+                Mode = LyapunovColoringMode.Diverging,
+                Colors = new List<Color>
+                {
+                    Color.FromArgb(25, 25, 112),
+                    Color.FromArgb(139, 0, 139),
+                    Color.FromArgb(220, 20, 60),
+                    Color.FromArgb(255, 140, 0),
+                    Color.FromArgb(255, 215, 0)
+                },
+                ExponentRange = 2.2,
+                ZeroBandWidth = 0.04,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Океан (Absolute)",
+                Mode = LyapunovColoringMode.Absolute,
+                Colors = new List<Color>
+                {
+                    Color.Black,
+                    Color.FromArgb(0, 20, 40),
+                    Color.FromArgb(0, 100, 150),
+                    Color.FromArgb(100, 200, 255),
+                    Color.White
+                },
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Лава (Zero band)",
+                Mode = LyapunovColoringMode.ZeroBandHighlight,
+                Colors = new List<Color>
+                {
+                    Color.FromArgb(139, 0, 0),
+                    Color.FromArgb(205, 0, 0),
+                    Color.FromArgb(255, 69, 0),
+                    Color.FromArgb(255, 140, 0),
+                    Color.FromArgb(255, 255, 224)
+                },
+                ExponentRange = 1.9,
+                ZeroBandWidth = 0.02,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Неон (Histogram)",
+                Mode = LyapunovColoringMode.HistogramEqualized,
+                Colors = new List<Color>
+                {
+                    Color.Black,
+                    Color.FromArgb(75, 0, 75),
+                    Color.Magenta,
+                    Color.Cyan,
+                    Color.Lime,
+                    Color.Yellow,
+                    Color.White
+                },
+                ExponentRange = 2.4,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Лес (Diverging)",
+                Mode = LyapunovColoringMode.Diverging,
+                Colors = new List<Color>
+                {
+                    Color.FromArgb(0, 39, 0),
+                    Color.FromArgb(34, 139, 34),
+                    Color.FromArgb(124, 252, 0),
+                    Color.FromArgb(173, 255, 47),
+                    Color.White
+                },
+                ExponentRange = 2.1,
+                ZeroBandWidth = 0.035,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Космос (Absolute)",
+                Mode = LyapunovColoringMode.Absolute,
+                Colors = new List<Color>
+                {
+                    Color.Black,
+                    Color.FromArgb(25, 25, 112),
+                    Color.FromArgb(72, 61, 139),
+                    Color.FromArgb(138, 43, 226),
+                    Color.FromArgb(255, 20, 147),
+                    Color.FromArgb(255, 182, 193),
+                    Color.White
+                },
+                ExponentRange = 2.5,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Монохром синий (Zero band)",
+                Mode = LyapunovColoringMode.ZeroBandHighlight,
+                Colors = new List<Color>
+                {
+                    Color.FromArgb(0, 0, 139),
+                    Color.FromArgb(0, 0, 205),
+                    Color.FromArgb(65, 105, 225),
+                    Color.FromArgb(135, 206, 235),
+                    Color.White
+                },
+                ExponentRange = 1.8,
+                ZeroBandWidth = 0.025,
+                IsBuiltIn = true
+            });
+            Palettes.Add(new LyapunovColorPalette
+            {
+                Name = "Золото (Histogram)",
+                Mode = LyapunovColoringMode.HistogramEqualized,
+                Colors = new List<Color>
+                {
+                    Color.Black,
+                    Color.FromArgb(85, 65, 0),
+                    Color.FromArgb(205, 173, 0),
+                    Color.FromArgb(255, 215, 0),
+                    Color.FromArgb(255, 248, 220),
+                    Color.White
+                },
+                ExponentRange = 2.0,
+                ZeroBandWidth = 0.05,
+                IsBuiltIn = true
+            });
 
             string filePath = Path.Combine(Application.StartupPath, "Saves", PaletteFile);
             if (!File.Exists(filePath))
