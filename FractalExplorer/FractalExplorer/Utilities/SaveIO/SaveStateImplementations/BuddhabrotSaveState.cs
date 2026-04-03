@@ -1,3 +1,5 @@
+using FractalExplorer.Utilities.SaveIO.ColorPalettes;
+
 namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
 {
     public sealed class BuddhabrotSaveState : FractalSaveStateBase
@@ -9,6 +11,7 @@ namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
         public int MaxIterations { get; set; }
         public int SampleCount { get; set; }
         public string PaletteName { get; set; } = string.Empty;
+        public BuddhabrotColorPalette? Palette { get; set; }
         public int RenderMode { get; set; }
 
         public decimal SampleMinRe { get; set; }

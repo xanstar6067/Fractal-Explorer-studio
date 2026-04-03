@@ -3,6 +3,7 @@ using FractalExplorer.Resources;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
+using FractalExplorer.SelectorsForms;
 using FractalExplorer.Utilities.Theme;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -16,7 +17,8 @@ namespace FractalExplorer.Forms.Fractals
         private const int ToggleButtonMargin = 12;
 
         private readonly FractalBuddhabrotEngine _engine = new();
-        private readonly PaletteManager _paletteManager = new();
+        private readonly BuddhabrotPaletteManager _paletteManager = new();
+        private ColorConfigurationBuddhabrotForm? _buddhabrotColorConfigForm;
         private CancellationTokenSource? _renderCts;
         private readonly System.Windows.Forms.Timer _renderRestartTimer = new() { Interval = 350 };
 
@@ -54,17 +56,7 @@ namespace FractalExplorer.Forms.Fractals
             }
             _threadsCombo.SelectedItem = "Auto";
 
-            _paletteCombo.Items.Clear();
-            foreach (var palette in _paletteManager.Palettes)
-            {
-                _paletteCombo.Items.Add(palette.Name);
-            }
-
-            _paletteCombo.SelectedItem = _paletteManager.ActivePalette?.Name;
-            if (_paletteCombo.SelectedIndex < 0 && _paletteCombo.Items.Count > 0)
-            {
-                _paletteCombo.SelectedIndex = 0;
-            }
+            PopulatePaletteCombo();
 
             _canvas.MouseDown += Canvas_MouseDown;
             _canvas.MouseMove += Canvas_MouseMove;
@@ -89,6 +81,8 @@ namespace FractalExplorer.Forms.Fractals
             _renderRestartTimer.Stop();
             _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
             _renderRestartTimer.Dispose();
+            _buddhabrotColorConfigForm?.Dispose();
+            _buddhabrotColorConfigForm = null;
             _interactionSourceBitmap?.Dispose();
             _interactionSourceBitmap = null;
         }
@@ -102,6 +96,23 @@ namespace FractalExplorer.Forms.Fractals
         {
             using var dialog = new SaveLoadDialogForm(this);
             dialog.ShowDialog(this);
+        }
+
+        private void BtnPalette_Click(object? sender, EventArgs e)
+        {
+            if (_buddhabrotColorConfigForm == null || _buddhabrotColorConfigForm.IsDisposed)
+            {
+                _buddhabrotColorConfigForm = new ColorConfigurationBuddhabrotForm(_paletteManager);
+                _buddhabrotColorConfigForm.PaletteApplied += (_, _) =>
+                {
+                    PopulatePaletteCombo();
+                    QueueRenderRestart(immediate: true);
+                };
+            }
+
+            _buddhabrotColorConfigForm.ShowDialog(this);
+            PopulatePaletteCombo();
+            QueueRenderRestart(immediate: true);
         }
 
         private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
@@ -264,6 +275,25 @@ namespace FractalExplorer.Forms.Fractals
             }
         }
 
+        private void PopulatePaletteCombo()
+        {
+            _paletteCombo.Items.Clear();
+            foreach (var palette in _paletteManager.Palettes)
+            {
+                _paletteCombo.Items.Add(palette.Name);
+            }
+
+            string activeName = _paletteManager.ActivePalette?.Name ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(activeName) && _paletteCombo.Items.Contains(activeName))
+            {
+                _paletteCombo.SelectedItem = activeName;
+            }
+            else if (_paletteCombo.Items.Count > 0)
+            {
+                _paletteCombo.SelectedIndex = 0;
+            }
+        }
+
         private void AttachAutoRenderControlTriggers()
         {
             _modeCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
@@ -339,12 +369,12 @@ namespace FractalExplorer.Forms.Fractals
             _engine.SampleMinIm = _sampleMinIm.Value;
             _engine.SampleMaxIm = _sampleMaxIm.Value;
 
-            string paletteName = _paletteCombo.SelectedItem?.ToString() ?? _paletteManager.ActivePalette?.Name ?? "Стандартный серый";
+            string paletteName = _paletteCombo.SelectedItem?.ToString() ?? _paletteManager.ActivePalette?.Name ?? string.Empty;
             _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == paletteName) ?? _paletteManager.ActivePalette;
-            _engine.DensityPalette = CreateDensityPalette(_paletteManager.ActivePalette);
+            _engine.DensityPalette = CreateDensityPalette(_paletteManager.ActivePalette, _engine.MaxIterations);
         }
 
-        private static Func<double, Color> CreateDensityPalette(Palette palette)
+        private static Func<double, Color> CreateDensityPalette(BuddhabrotColorPalette palette, int maxIterations)
         {
             var colors = palette.Colors;
             if (colors == null || colors.Count == 0)
@@ -358,26 +388,63 @@ namespace FractalExplorer.Forms.Fractals
 
             if (colors.Count == 1)
             {
-                Color only = colors[0];
+                Color only = ApplyGamma(colors[0], palette.Gamma);
                 return _ => only;
             }
 
-            return t =>
-            {
-                t = Math.Clamp(t, 0, 1);
-                double scaled = t * (colors.Count - 1);
-                int i0 = (int)Math.Floor(scaled);
-                int i1 = Math.Min(i0 + 1, colors.Count - 1);
-                double f = scaled - i0;
+            int cycleLength = palette.AlignWithRenderIterations
+                ? Math.Max(2, maxIterations)
+                : Math.Max(2, palette.MaxColorIterations);
 
-                Color c0 = colors[i0];
-                Color c1 = colors[i1];
-                return Color.FromArgb(
-                    255,
-                    (int)(c0.R + (c1.R - c0.R) * f),
-                    (int)(c0.G + (c1.G - c0.G) * f),
-                    (int)(c0.B + (c1.B - c0.B) * f));
+            return normalized =>
+            {
+                double mapped = MapNormalizedByMode(normalized, palette.ColoringMode);
+                double stepped = mapped * cycleLength;
+                double t = (stepped % cycleLength) / cycleLength;
+
+                if (palette.IsGradient)
+                {
+                    double scaled = t * (colors.Count - 1);
+                    int i0 = (int)Math.Floor(scaled);
+                    int i1 = Math.Min(i0 + 1, colors.Count - 1);
+                    double f = scaled - i0;
+
+                    Color c0 = ApplyGamma(colors[i0], palette.Gamma);
+                    Color c1 = ApplyGamma(colors[i1], palette.Gamma);
+                    return Color.FromArgb(
+                        255,
+                        (int)(c0.R + (c1.R - c0.R) * f),
+                        (int)(c0.G + (c1.G - c0.G) * f),
+                        (int)(c0.B + (c1.B - c0.B) * f));
+                }
+
+                int discreteIndex = (int)Math.Floor(t * colors.Count) % colors.Count;
+                return ApplyGamma(colors[discreteIndex], palette.Gamma);
             };
+        }
+
+        private static double MapNormalizedByMode(double normalized, BuddhabrotColoringMode mode)
+        {
+            normalized = Math.Clamp(normalized, 0.0, 1.0);
+            return mode switch
+            {
+                BuddhabrotColoringMode.Linear => normalized,
+                BuddhabrotColoringMode.Sqrt => Math.Sqrt(normalized),
+                _ => Math.Log(1 + normalized * 15.0) / Math.Log(16.0)
+            };
+        }
+
+        private static Color ApplyGamma(Color color, double gamma)
+        {
+            gamma = Math.Clamp(gamma, 0.1, 5.0);
+            static int Convert(int v, double g)
+            {
+                double normalized = v / 255.0;
+                double corrected = Math.Pow(normalized, 1.0 / g);
+                return (int)Math.Round(Math.Clamp(corrected, 0, 1) * 255.0);
+            }
+
+            return Color.FromArgb(color.A, Convert(color.R, gamma), Convert(color.G, gamma), Convert(color.B, gamma));
         }
 
         private async Task RenderAsync()
@@ -541,6 +608,7 @@ namespace FractalExplorer.Forms.Fractals
                 MaxIterations = _engine.MaxIterations,
                 SampleCount = _engine.SampleCount,
                 PaletteName = _paletteManager.ActivePalette?.Name ?? string.Empty,
+                Palette = _paletteManager.ActivePalette?.CloneAsCustom(_paletteManager.ActivePalette.Name),
                 RenderMode = (int)_engine.RenderMode,
                 SampleMinRe = _engine.SampleMinRe,
                 SampleMaxRe = _engine.SampleMaxRe,
@@ -563,7 +631,26 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxRe.Value = Math.Clamp(s.SampleMaxRe, _sampleMaxRe.Minimum, _sampleMaxRe.Maximum);
             _sampleMinIm.Value = Math.Clamp(s.SampleMinIm, _sampleMinIm.Minimum, _sampleMinIm.Maximum);
             _sampleMaxIm.Value = Math.Clamp(s.SampleMaxIm, _sampleMaxIm.Minimum, _sampleMaxIm.Maximum);
-            _paletteCombo.SelectedItem = _paletteManager.Palettes.FirstOrDefault(p => p.Name == s.PaletteName)?.Name ?? _paletteCombo.SelectedItem;
+            if (!string.IsNullOrWhiteSpace(s.PaletteName) && _paletteManager.Palettes.Any(p => p.Name == s.PaletteName))
+            {
+                _paletteCombo.SelectedItem = s.PaletteName;
+            }
+            else if (s.Palette != null)
+            {
+                BuddhabrotColorPalette imported = s.Palette.CloneAsCustom(s.Palette.Name);
+                string uniqueName = imported.Name;
+                int suffix = 1;
+                while (_paletteManager.Palettes.Any(p => p.Name.Equals(uniqueName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    uniqueName = $"{imported.Name} (из сохранения {suffix++})";
+                }
+
+                imported.Name = uniqueName;
+                _paletteManager.Palettes.Add(imported);
+                _paletteManager.SavePalettes();
+                PopulatePaletteCombo();
+                _paletteCombo.SelectedItem = imported.Name;
+            }
 
             _ = RenderAsync();
         }
@@ -668,7 +755,9 @@ namespace FractalExplorer.Forms.Fractals
 
         private FractalBuddhabrotEngine BuildEngineFromState(BuddhabrotSaveState s)
         {
-            Palette palette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == s.PaletteName) ?? _paletteManager.ActivePalette;
+            BuddhabrotColorPalette palette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == s.PaletteName)
+                ?? s.Palette
+                ?? _paletteManager.ActivePalette;
             return new FractalBuddhabrotEngine
             {
                 CenterX = s.CenterX,
@@ -682,7 +771,7 @@ namespace FractalExplorer.Forms.Fractals
                 SampleMaxRe = s.SampleMaxRe,
                 SampleMinIm = s.SampleMinIm,
                 SampleMaxIm = s.SampleMaxIm,
-                DensityPalette = CreateDensityPalette(palette)
+                DensityPalette = CreateDensityPalette(palette, s.MaxIterations)
             };
         }
     }
