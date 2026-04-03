@@ -142,7 +142,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudThreads.Maximum = Environment.ProcessorCount;
             _nudThreads.Value = Math.Max(1, Environment.ProcessorCount / 2);
 
-            ConfigureDecimal(_nudZoom, 4, 0.001m, 0.001m, 200m, 1.0m);
+            ConfigureDecimal(_nudZoom, 4, 0.001m, 0.001m, 2000000m, 1.0m);
             _cbSSAA.Items.AddRange(new object[] { "Выкл (1x)", "Низкое (2x)", "Высокое (4x)" });
             _cbSSAA.SelectedIndex = 0;
 

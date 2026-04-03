@@ -9,6 +9,21 @@ namespace FractalExplorer.Engines
     /// </summary>
     public class FractalLyapunovEngine
     {
+        /// <summary>
+        /// Порог переключения между базовым и высокостабильным вычислителем.
+        /// Требование: 200,0.
+        /// </summary>
+        public const decimal HighDepthSwitchThreshold = 200.0m;
+
+        /// <summary>
+        /// Верхний предел "глубины" (iterations/transient), который движок принимает для
+        /// гарантированно стабильных по числам вычислений и адекватной практической выполнимости.
+        /// </summary>
+        public const int MaxStableDepth = 2_000_000;
+
+        private const double MinLogArgument = 1e-300;
+        private const double LogisticStateClamp = 1e-15;
+
         public decimal AMin { get; set; } = 2.5m;
         public decimal AMax { get; set; } = 4.0m;
         public decimal BMin { get; set; } = 2.5m;
@@ -26,7 +41,9 @@ namespace FractalExplorer.Engines
 
         private static double Logistic(double x, double r) => r * x * (1d - x);
 
-        private static double ComputeLyapunovExponent(decimal a, decimal b, int transient, int iterations, string pattern)
+        private static int ClampDepth(int value) => Math.Clamp(value, 1, MaxStableDepth);
+
+        private static double ComputeLyapunovExponentBasic(decimal a, decimal b, int transient, int iterations, string pattern)
         {
             double x = 0.5d;
             double aValue = (double)a;
@@ -54,6 +71,56 @@ namespace FractalExplorer.Engines
             }
 
             return sum / Math.Max(1, iterations);
+        }
+
+        private static double ComputeLyapunovExponentHighDepth(decimal a, decimal b, int transient, int iterations, string pattern)
+        {
+            double x = 0.5d;
+            double aValue = (double)a;
+            double bValue = (double)b;
+            int total = Math.Max(1, transient + iterations);
+            double sum = 0.0d;
+            double compensation = 0.0d; // Kahan compensation
+
+            for (int i = 0; i < total; i++)
+            {
+                char token = pattern[i % pattern.Length];
+                double r = token == 'A' ? aValue : bValue;
+                x = Logistic(x, r);
+
+                if (double.IsNaN(x) || double.IsInfinity(x))
+                {
+                    return double.NaN;
+                }
+
+                // Для глубинных серий держим x в рабочем интервале.
+                x = Math.Clamp(x, LogisticStateClamp, 1d - LogisticStateClamp);
+
+                if (i >= transient)
+                {
+                    // Устойчивый вариант ln|r(1-2x)| = ln|r| + ln|1-2x|
+                    // Позволяет избежать переполнения/денормалов при прямом умножении.
+                    double logAbsR = Math.Log(Math.Max(Math.Abs(r), MinLogArgument));
+                    double logAbsTerm = Math.Log(Math.Max(Math.Abs(1d - (2d * x)), MinLogArgument));
+                    double value = logAbsR + logAbsTerm;
+
+                    // Kahan-summation для уменьшения накопления ошибок на большой глубине.
+                    double corrected = value - compensation;
+                    double next = sum + corrected;
+                    compensation = (next - sum) - corrected;
+                    sum = next;
+                }
+            }
+
+            return sum / Math.Max(1, iterations);
+        }
+
+        private static double ComputeLyapunovExponent(decimal a, decimal b, int transient, int iterations, string pattern)
+        {
+            decimal depth = iterations;
+            return depth <= HighDepthSwitchThreshold
+                ? ComputeLyapunovExponentBasic(a, b, transient, iterations, pattern)
+                : ComputeLyapunovExponentHighDepth(a, b, transient, iterations, pattern);
         }
 
         private static Color MapExponentToColor(double exponent)
@@ -91,8 +158,8 @@ namespace FractalExplorer.Engines
             }
 
             string pattern = NormalizePattern(Pattern);
-            int iterations = Math.Max(1, Iterations);
-            int transient = Math.Max(0, TransientIterations);
+            int iterations = ClampDepth(Iterations);
+            int transient = Math.Clamp(TransientIterations, 0, MaxStableDepth);
 
             for (int y = 0; y < tile.Bounds.Height; y++)
             {
@@ -130,8 +197,8 @@ namespace FractalExplorer.Engines
             byte[] buffer = new byte[Math.Abs(data.Stride) * height];
 
             string pattern = NormalizePattern(Pattern);
-            int iterations = Math.Max(1, Iterations);
-            int transient = Math.Max(0, TransientIterations);
+            int iterations = ClampDepth(Iterations);
+            int transient = Math.Clamp(TransientIterations, 0, MaxStableDepth);
             int doneRows = 0;
             object lockObj = new object();
 
