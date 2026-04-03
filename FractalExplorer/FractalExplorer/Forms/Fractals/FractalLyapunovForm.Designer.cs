@@ -33,6 +33,8 @@ namespace FractalExplorer.Forms.Fractals
         private Button _btnRender;
         private Button _btnPresets;
         private Button _btnState;
+        private ProgressBar _pbRenderProgress;
+        private Label _lblRenderProgress;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -73,6 +75,8 @@ namespace FractalExplorer.Forms.Fractals
             _btnRender = new Button();
             _btnPresets = new Button();
             _btnState = new Button();
+            _pbRenderProgress = new ProgressBar();
+            _lblRenderProgress = new Label();
             _btnToggleControls = new Button();
             _canvas = new PictureBox();
             _canvasHost.SuspendLayout();
@@ -136,10 +140,12 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.Controls.Add(_btnRender, 0, 10);
             _pnlControls.Controls.Add(_btnPresets, 0, 11);
             _pnlControls.Controls.Add(_btnState, 0, 12);
+            _pnlControls.Controls.Add(_pbRenderProgress, 0, 13);
+            _pnlControls.Controls.Add(_lblRenderProgress, 0, 14);
             _pnlControls.Dock = DockStyle.Fill;
             _pnlControls.Location = new Point(0, 0);
             _pnlControls.Name = "_pnlControls";
-            _pnlControls.RowCount = 14;
+            _pnlControls.RowCount = 16;
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
@@ -153,6 +159,8 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             _pnlControls.Size = new Size(229, 1380);
             _pnlControls.TabIndex = 0;
@@ -379,6 +387,30 @@ namespace FractalExplorer.Forms.Fractals
             _btnState.Text = "Менеджер сохранений";
             _btnState.UseVisualStyleBackColor = true;
             _btnState.Click += btnState_Click;
+            // 
+            // _pbRenderProgress
+            // 
+            _pnlControls.SetColumnSpan(_pbRenderProgress, 2);
+            _pbRenderProgress.Dock = DockStyle.Fill;
+            _pbRenderProgress.Location = new Point(6, 463);
+            _pbRenderProgress.Margin = new Padding(6, 3, 6, 3);
+            _pbRenderProgress.Name = "_pbRenderProgress";
+            _pbRenderProgress.Size = new Size(217, 22);
+            _pbRenderProgress.Style = ProgressBarStyle.Continuous;
+            _pbRenderProgress.TabIndex = 21;
+            // 
+            // _lblRenderProgress
+            // 
+            _pnlControls.SetColumnSpan(_lblRenderProgress, 2);
+            _lblRenderProgress.Dock = DockStyle.Fill;
+            _lblRenderProgress.Location = new Point(6, 491);
+            _lblRenderProgress.Margin = new Padding(6, 3, 6, 3);
+            _lblRenderProgress.Name = "_lblRenderProgress";
+            _lblRenderProgress.Size = new Size(217, 22);
+            _lblRenderProgress.TabIndex = 22;
+            _lblRenderProgress.Text = "Прогресс: 0%";
+            _lblRenderProgress.TextAlign = ContentAlignment.MiddleLeft;
+            // 
             // 
             // _btnToggleControls
             // 

@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using FractalExplorer.Engines;
 using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
@@ -9,7 +11,12 @@ namespace FractalExplorer.Forms.Fractals
 {
     public partial class FractalLyapunovForm : Form, ISaveLoadCapableFractal
     {
+        private const int PreviewTileSize = 64;
+
         private readonly FractalLyapunovEngine _engine = new();
+        private readonly object _frameBufferLock = new();
+        private Bitmap? _currentFrameBuffer;
+        private CancellationTokenSource? _previewRenderCts;
         private int _controlsOpenWidth = 231;
 
         public FractalLyapunovForm()
@@ -21,6 +28,7 @@ namespace FractalExplorer.Forms.Fractals
             InitializeComponent();
             ApplyDefaults();
             Shown += async (_, __) => await RenderAsync();
+            FormClosing += (_, __) => CancelPreviewRender();
         }
 
         private void ToggleControls()
@@ -72,6 +80,8 @@ namespace FractalExplorer.Forms.Fractals
             _nudThreads.Value = Math.Max(1, Environment.ProcessorCount / 2);
 
             _tbPattern.Text = "AB";
+            _pbRenderProgress.Value = 0;
+            _lblRenderProgress.Text = "Прогресс: 0%";
         }
 
         private static void ConfigureDecimal(NumericUpDown nud, int decimals, decimal increment, decimal min, decimal max, decimal value)
@@ -102,18 +112,161 @@ namespace FractalExplorer.Forms.Fractals
             }
 
             SyncEngine();
+            CancellationToken token = StartNewPreviewRender();
             Cursor = Cursors.WaitCursor;
+            _btnRender.Enabled = false;
+
+            int width = _canvas.Width;
+            int height = _canvas.Height;
+            int threads = (int)_nudThreads.Value;
+            var tiles = GenerateTiles(width, height, PreviewTileSize);
+
+            var engine = new FractalLyapunovEngine
+            {
+                AMin = _engine.AMin,
+                AMax = _engine.AMax,
+                BMin = _engine.BMin,
+                BMax = _engine.BMax,
+                Pattern = _engine.Pattern,
+                Iterations = _engine.Iterations,
+                TransientIterations = _engine.TransientIterations
+            };
+
+            Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            Bitmap? previous = _canvas.Image as Bitmap;
+            _canvas.Image = frame;
+            previous?.Dispose();
+            lock (_frameBufferLock)
+            {
+                _currentFrameBuffer = frame;
+            }
+
+            if (_pbRenderProgress.IsHandleCreated)
+            {
+                _pbRenderProgress.Maximum = Math.Max(1, tiles.Count);
+                _pbRenderProgress.Value = 0;
+            }
+            _lblRenderProgress.Text = "Прогресс: 0%";
+
+            int completedTiles = 0;
+            var dispatcher = new TileRenderDispatcher(tiles, threads, RenderPatternSettings.SelectedPattern);
+
             try
             {
-                int threads = (int)_nudThreads.Value;
-                Bitmap bmp = await Task.Run(() => _engine.RenderToBitmap(_canvas.Width, _canvas.Height, threads));
-                var prev = _canvas.Image;
-                _canvas.Image = bmp;
-                prev?.Dispose();
+                await dispatcher.RenderAsync(async (tile, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    byte[] tileBuffer = engine.RenderSingleTile(tile, width, height, out int bytesPerPixel);
+                    ct.ThrowIfCancellationRequested();
+
+                    lock (_frameBufferLock)
+                    {
+                        if (ct.IsCancellationRequested || _currentFrameBuffer != frame)
+                        {
+                            return;
+                        }
+
+                        WriteTileToBitmap(frame, tile, tileBuffer, bytesPerPixel);
+                    }
+
+                    int done = Interlocked.Increment(ref completedTiles);
+                    int percent = (int)Math.Round(done * 100.0 / Math.Max(1, tiles.Count));
+                    if (IsHandleCreated && !IsDisposed)
+                    {
+                        BeginInvoke((Action)(() =>
+                        {
+                            if (_pbRenderProgress.IsHandleCreated)
+                            {
+                                _pbRenderProgress.Value = Math.Min(_pbRenderProgress.Maximum, done);
+                            }
+                            _lblRenderProgress.Text = $"Прогресс: {percent}%";
+                            _canvas.Invalidate(tile.Bounds);
+                        }));
+                    }
+
+                    await Task.Yield();
+                }, token);
+
+                token.ThrowIfCancellationRequested();
+                _lblRenderProgress.Text = "Прогресс: 100%";
+            }
+            catch (OperationCanceledException)
+            {
+                // Безопасная отмена — новая сессия рендера перезапишет _currentFrameBuffer.
             }
             finally
             {
+                if (!token.IsCancellationRequested)
+                {
+                    ClearPreviewRenderToken();
+                }
+
                 Cursor = Cursors.Default;
+                _btnRender.Enabled = true;
+            }
+        }
+
+        private static void WriteTileToBitmap(Bitmap bitmap, TileInfo tile, byte[] tileBuffer, int bytesPerPixel)
+        {
+            BitmapData bmpData = bitmap.LockBits(tile.Bounds, ImageLockMode.WriteOnly, bitmap.PixelFormat);
+            try
+            {
+                int tileWidthInBytes = tile.Bounds.Width * bytesPerPixel;
+                for (int y = 0; y < tile.Bounds.Height; y++)
+                {
+                    IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
+                    int srcOffset = y * tileWidthInBytes;
+                    Marshal.Copy(tileBuffer, srcOffset, destPtr, tileWidthInBytes);
+                }
+            }
+            finally
+            {
+                bitmap.UnlockBits(bmpData);
+            }
+        }
+
+        private static List<TileInfo> GenerateTiles(int width, int height, int tileSize)
+        {
+            var tiles = new List<TileInfo>();
+            for (int y = 0; y < height; y += tileSize)
+            {
+                int h = Math.Min(tileSize, height - y);
+                for (int x = 0; x < width; x += tileSize)
+                {
+                    int w = Math.Min(tileSize, width - x);
+                    tiles.Add(new TileInfo(x, y, w, h));
+                }
+            }
+
+            return tiles;
+        }
+
+        private CancellationToken StartNewPreviewRender()
+        {
+            var next = new CancellationTokenSource();
+            CancellationTokenSource? previous = Interlocked.Exchange(ref _previewRenderCts, next);
+            if (previous != null)
+            {
+                previous.Cancel();
+                previous.Dispose();
+            }
+
+            return next.Token;
+        }
+
+        private void ClearPreviewRenderToken()
+        {
+            CancellationTokenSource? current = Interlocked.Exchange(ref _previewRenderCts, null);
+            current?.Dispose();
+        }
+
+        private void CancelPreviewRender()
+        {
+            CancellationTokenSource? current = Interlocked.Exchange(ref _previewRenderCts, null);
+            if (current != null)
+            {
+                current.Cancel();
+                current.Dispose();
             }
         }
 
