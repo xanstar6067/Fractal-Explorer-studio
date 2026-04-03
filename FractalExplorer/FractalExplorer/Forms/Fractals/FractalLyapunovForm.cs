@@ -261,9 +261,8 @@ namespace FractalExplorer.Forms.Fractals
             }
 
             SyncEngine();
-            CancellationToken token = StartNewPreviewRender();
-            Cursor = Cursors.WaitCursor;
-            _btnRender.Enabled = false;
+            CancellationTokenSource renderSession = StartNewPreviewRender();
+            CancellationToken token = renderSession.Token;
 
             int width = _canvas.Width;
             int height = _canvas.Height;
@@ -347,16 +346,13 @@ namespace FractalExplorer.Forms.Fractals
             }
             finally
             {
-                _isRenderingPreview = false;
-                _renderVisualizer.NotifyRenderSessionComplete();
-
-                if (!token.IsCancellationRequested)
+                if (ReferenceEquals(_previewRenderCts, renderSession))
                 {
+                    _isRenderingPreview = false;
+                    _renderVisualizer.NotifyRenderSessionComplete();
                     ClearPreviewRenderToken();
+                    _canvas.Invalidate();
                 }
-
-                Cursor = Cursors.Default;
-                _btnRender.Enabled = true;
             }
         }
 
@@ -459,7 +455,7 @@ namespace FractalExplorer.Forms.Fractals
             return tiles;
         }
 
-        private CancellationToken StartNewPreviewRender()
+        private CancellationTokenSource StartNewPreviewRender()
         {
             var next = new CancellationTokenSource();
             CancellationTokenSource? previous = Interlocked.Exchange(ref _previewRenderCts, next);
@@ -469,7 +465,7 @@ namespace FractalExplorer.Forms.Fractals
                 previous.Dispose();
             }
 
-            return next.Token;
+            return next;
         }
 
         private void ClearPreviewRenderToken()
