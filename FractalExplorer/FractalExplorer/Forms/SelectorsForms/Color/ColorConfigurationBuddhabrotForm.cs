@@ -64,11 +64,7 @@ namespace FractalExplorer.SelectorsForms
             _checkAlignSteps.Checked = _selectedPalette.AlignWithRenderIterations;
             _nudMaxSteps.Value = Math.Clamp(_selectedPalette.MaxColorIterations, (int)_nudMaxSteps.Minimum, (int)_nudMaxSteps.Maximum);
             _nudGamma.Value = (decimal)Math.Clamp(_selectedPalette.Gamma, (double)_nudGamma.Minimum, (double)_nudGamma.Maximum);
-            _lbColors.Items.Clear();
-            foreach (Color c in _selectedPalette.Colors)
-            {
-                _lbColors.Items.Add($"#{c.R:X2}{c.G:X2}{c.B:X2}");
-            }
+            RefreshColorsList();
             _isProgrammaticChange = false;
 
             ResetUnsaved();
@@ -102,6 +98,7 @@ namespace FractalExplorer.SelectorsForms
             _nudMaxSteps.Enabled = editable && !_checkAlignSteps.Checked;
             _nudGamma.Enabled = editable;
             _lbColors.Enabled = editable;
+            _lbColors.AllowDrop = editable;
             _btnAddColor.Enabled = editable;
             _btnEditColor.Enabled = editable && _lbColors.SelectedIndex >= 0;
             _btnRemoveColor.Enabled = editable && _lbColors.SelectedIndex >= 0 && _selectedPalette!.Colors.Count > 1;
@@ -109,6 +106,20 @@ namespace FractalExplorer.SelectorsForms
             _btnCopy.Enabled = has;
             _btnApply.Enabled = has;
             _btnSave.Enabled = editable && _hasUnsavedChanges;
+        }
+
+        private void RefreshColorsList()
+        {
+            _lbColors.Items.Clear();
+            if (_selectedPalette == null)
+            {
+                return;
+            }
+
+            foreach (Color c in _selectedPalette.Colors)
+            {
+                _lbColors.Items.Add($"#{c.R:X2}{c.G:X2}{c.B:X2}");
+            }
         }
 
         private string GenerateUniqueName(string baseName)
@@ -256,6 +267,64 @@ namespace FractalExplorer.SelectorsForms
             }
         }
 
+        private void ColorsListMouseDown(object? sender, MouseEventArgs e)
+        {
+            if (!IsEditable() || e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            int sourceIndex = _lbColors.IndexFromPoint(e.Location);
+            if (sourceIndex == ListBox.NoMatches)
+            {
+                return;
+            }
+
+            _lbColors.SelectedIndex = sourceIndex;
+            _lbColors.DoDragDrop(sourceIndex, DragDropEffects.Move);
+        }
+
+        private void ColorsListDragOver(object? sender, DragEventArgs e)
+        {
+            e.Effect = e.Data?.GetDataPresent(typeof(int)) == true && IsEditable()
+                ? DragDropEffects.Move
+                : DragDropEffects.None;
+        }
+
+        private void ColorsListDragDrop(object? sender, DragEventArgs e)
+        {
+            if (!IsEditable() || _selectedPalette == null || e.Data?.GetDataPresent(typeof(int)) != true)
+            {
+                return;
+            }
+
+            int sourceIndex = (int)e.Data.GetData(typeof(int))!;
+            Point point = _lbColors.PointToClient(new Point(e.X, e.Y));
+            int destinationIndex = _lbColors.IndexFromPoint(point);
+            if (destinationIndex == ListBox.NoMatches)
+            {
+                destinationIndex = _lbColors.Items.Count - 1;
+            }
+
+            if (sourceIndex < 0 || sourceIndex >= _selectedPalette.Colors.Count || sourceIndex == destinationIndex)
+            {
+                return;
+            }
+
+            Color moved = _selectedPalette.Colors[sourceIndex];
+            _selectedPalette.Colors.RemoveAt(sourceIndex);
+            if (sourceIndex < destinationIndex)
+            {
+                destinationIndex--;
+            }
+            _selectedPalette.Colors.Insert(destinationIndex, moved);
+
+            MarkUnsaved();
+            RefreshColorsList();
+            _lbColors.SelectedIndex = destinationIndex;
+            _panelPreview.Invalidate();
+        }
+
         private static Color ApplyGamma(Color c, double gamma)
         {
             gamma = Math.Clamp(gamma, 0.1, 5.0);
@@ -273,6 +342,9 @@ namespace FractalExplorer.SelectorsForms
         {
             _lbPalettes.SelectedIndexChanged += (_, _) => OnPaletteSelected();
             _lbColors.SelectedIndexChanged += (_, _) => UpdateControlsState();
+            _lbColors.MouseDown += ColorsListMouseDown;
+            _lbColors.DragOver += ColorsListDragOver;
+            _lbColors.DragDrop += ColorsListDragDrop;
 
             _btnNew.Click += (_, _) => CreateNew();
             _btnCopy.Click += (_, _) => CopySelected();
