@@ -32,6 +32,15 @@ namespace FractalExplorer.Utilities.RenderUtilities
         public decimal Scale { get; set; }
         public bool UseInversion { get; set; }
 
+        #region Buddhabrot Specific Parameters
+        public int? BuddhabrotSampleCount { get; set; }
+        public int? BuddhabrotRenderMode { get; set; }
+        public decimal? BuddhabrotSampleMinRe { get; set; }
+        public decimal? BuddhabrotSampleMaxRe { get; set; }
+        public decimal? BuddhabrotSampleMinIm { get; set; }
+        public decimal? BuddhabrotSampleMaxIm { get; set; }
+        #endregion
+
         #region Collatz Specific Parameters
         public CollatzVariation? Variation { get; set; }
         public decimal? P_Parameter { get; set; }

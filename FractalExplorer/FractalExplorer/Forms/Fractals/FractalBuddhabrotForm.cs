@@ -4,14 +4,16 @@ using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using FractalExplorer.SelectorsForms;
+using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.Theme;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using FractalExplorer.Forms.Other;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public sealed partial class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal
+    public sealed partial class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal, IHighResRenderable
     {
         private const decimal BaseScale = 4.0m;
         private const int ToggleButtonMargin = 12;
@@ -65,6 +67,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
             _canvas.SizeChanged += Canvas_SizeChanged;
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
+            _btnSaveImage.Click += BtnSaveImage_Click;
             AttachAutoRenderControlTriggers();
         }
 
@@ -96,6 +99,18 @@ namespace FractalExplorer.Forms.Fractals
         {
             using var dialog = new SaveLoadDialogForm(this);
             dialog.ShowDialog(this);
+        }
+
+        private void BtnSaveImage_Click(object? sender, EventArgs e)
+        {
+            if (_btnRender.Enabled == false)
+            {
+                MessageBox.Show("Процесс рендеринга уже запущен.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using var saveManager = new SaveImageManagerForm(this);
+            saveManager.ShowDialog(this);
         }
 
         private void BtnPalette_Click(object? sender, EventArgs e)
@@ -750,6 +765,133 @@ namespace FractalExplorer.Forms.Fractals
             }, cancellationToken);
 
             return pixels;
+        }
+
+        public HighResRenderState GetRenderState()
+        {
+            ApplyUiToEngine();
+
+            return new HighResRenderState
+            {
+                EngineType = FractalTypeIdentifier,
+                CenterX = _engine.CenterX,
+                CenterY = _engine.CenterY,
+                Zoom = _zoom.Value,
+                BaseScale = BaseScale,
+                Iterations = _engine.MaxIterations,
+                ActivePaletteName = _paletteManager.ActivePalette?.Name ?? string.Empty,
+                FileNameDetails = "buddhabrot_fractal",
+                BuddhabrotSampleCount = _engine.SampleCount,
+                BuddhabrotRenderMode = (int)_engine.RenderMode,
+                BuddhabrotSampleMinRe = _engine.SampleMinRe,
+                BuddhabrotSampleMaxRe = _engine.SampleMaxRe,
+                BuddhabrotSampleMinIm = _engine.SampleMinIm,
+                BuddhabrotSampleMaxIm = _engine.SampleMaxIm
+            };
+        }
+
+        public async Task<Bitmap> RenderHighResolutionAsync(HighResRenderState state, int width, int height, int ssaaFactor, IProgress<RenderProgress> progress, CancellationToken cancellationToken)
+        {
+            BuddhabrotColorPalette palette = _paletteManager.Palettes
+                .FirstOrDefault(p => string.Equals(p.Name, state.ActivePaletteName, StringComparison.OrdinalIgnoreCase))
+                ?? _paletteManager.ActivePalette;
+
+            var engine = new FractalBuddhabrotEngine
+            {
+                CenterX = state.CenterX,
+                CenterY = state.CenterY,
+                Scale = state.BaseScale / Math.Max(0.0000001m, state.Zoom),
+                MaxIterations = state.Iterations,
+                SampleCount = state.BuddhabrotSampleCount ?? _engine.SampleCount,
+                ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto" ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
+                RenderMode = state.BuddhabrotRenderMode == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot,
+                SampleMinRe = state.BuddhabrotSampleMinRe ?? _engine.SampleMinRe,
+                SampleMaxRe = state.BuddhabrotSampleMaxRe ?? _engine.SampleMaxRe,
+                SampleMinIm = state.BuddhabrotSampleMinIm ?? _engine.SampleMinIm,
+                SampleMaxIm = state.BuddhabrotSampleMaxIm ?? _engine.SampleMaxIm,
+                DensityPalette = CreateDensityPalette(palette, state.Iterations)
+            };
+
+            int renderWidth = Math.Max(1, width * Math.Max(1, ssaaFactor));
+            int renderHeight = Math.Max(1, height * Math.Max(1, ssaaFactor));
+            byte[] pixels = new byte[renderWidth * renderHeight * 4];
+
+            await Task.Run(() =>
+            {
+                engine.RenderToBuffer(
+                    pixels,
+                    renderWidth,
+                    renderHeight,
+                    renderWidth * 4,
+                    4,
+                    cancellationToken,
+                    p => progress.Report(new RenderProgress { Percentage = Math.Clamp(p, 0, 100), Status = "Рендеринг..." }));
+            }, cancellationToken);
+
+            var fullBitmap = new Bitmap(renderWidth, renderHeight, PixelFormat.Format32bppArgb);
+            BitmapData fullData = fullBitmap.LockBits(new Rectangle(0, 0, renderWidth, renderHeight), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                Marshal.Copy(pixels, 0, fullData.Scan0, pixels.Length);
+            }
+            finally
+            {
+                fullBitmap.UnlockBits(fullData);
+            }
+
+            if (ssaaFactor <= 1)
+            {
+                return fullBitmap;
+            }
+
+            var downscaled = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(downscaled))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.DrawImage(fullBitmap, new Rectangle(0, 0, width, height));
+            }
+
+            fullBitmap.Dispose();
+            return downscaled;
+        }
+
+        public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
+        {
+            var previewEngine = new FractalBuddhabrotEngine
+            {
+                CenterX = state.CenterX,
+                CenterY = state.CenterY,
+                Scale = state.BaseScale / Math.Max(0.0000001m, state.Zoom),
+                MaxIterations = Math.Max(50, Math.Min(state.Iterations, 300)),
+                SampleCount = Math.Max(25_000, (state.BuddhabrotSampleCount ?? _engine.SampleCount) / 6),
+                ThreadCount = 1,
+                RenderMode = state.BuddhabrotRenderMode == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot,
+                SampleMinRe = state.BuddhabrotSampleMinRe ?? _engine.SampleMinRe,
+                SampleMaxRe = state.BuddhabrotSampleMaxRe ?? _engine.SampleMaxRe,
+                SampleMinIm = state.BuddhabrotSampleMinIm ?? _engine.SampleMinIm,
+                SampleMaxIm = state.BuddhabrotSampleMaxIm ?? _engine.SampleMaxIm,
+                DensityPalette = CreateDensityPalette(_paletteManager.ActivePalette, state.Iterations)
+            };
+
+            int width = Math.Max(1, previewWidth);
+            int height = Math.Max(1, previewHeight);
+            byte[] pixels = new byte[width * height * 4];
+            previewEngine.RenderToBuffer(pixels, width, height, width * 4, 4, CancellationToken.None);
+
+            var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            BitmapData data = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
+            }
+            finally
+            {
+                bitmap.UnlockBits(data);
+            }
+
+            return bitmap;
         }
 
         public List<FractalSaveStateBase> LoadAllSavesForThisType() =>
