@@ -69,6 +69,11 @@ namespace FractalExplorer.Forms
             return string.Equals(_ownerFractalForm.FractalTypeIdentifier, "Serpinsky", StringComparison.OrdinalIgnoreCase);
         }
 
+        private bool SupportsFullPreviewRender()
+        {
+            return _ownerFractalForm is IFullPreviewRenderCapableFractal;
+        }
+
         /// <summary>
         /// Инициализирует новый экземпляр класса <see cref="SaveLoadDialogForm"/>.
         /// </summary>
@@ -162,7 +167,7 @@ namespace FractalExplorer.Forms
                 textBoxSaveName.Text = selectedState.SaveName;
                 if (ShouldUseRenderedPreview())
                 {
-                    StartTiledPreviewRender(selectedState);
+                    StartPreviewRender(selectedState);
                 }
                 else
                 {
@@ -174,6 +179,127 @@ namespace FractalExplorer.Forms
                 ClearPreview();
             }
             UpdateButtonsState();
+        }
+
+        /// <summary>
+        /// Запускает подходящий тип рендера превью для выбранного фрактала.
+        /// Для поддерживающих фракталов используется полноразмерный (неплиточный) рендер.
+        /// </summary>
+        private void StartPreviewRender(FractalSaveStateBase state)
+        {
+            if (SupportsFullPreviewRender())
+            {
+                StartFullPreviewRender(state);
+                return;
+            }
+
+            StartTiledPreviewRender(state);
+        }
+
+        /// <summary>
+        /// Запускает асинхронный полноразмерный рендер превью без плиток.
+        /// Используется для фракталов, которым мозаичный рендер дает некорректный результат.
+        /// </summary>
+        private async void StartFullPreviewRender(FractalSaveStateBase state)
+        {
+            if (state == null || pictureBoxPreview.Width <= 0 || pictureBoxPreview.Height <= 0)
+            {
+                ClearPreview();
+                return;
+            }
+
+            if (_ownerFractalForm is not IFullPreviewRenderCapableFractal fullPreviewRenderer)
+            {
+                StartTiledPreviewRender(state);
+                return;
+            }
+
+            _isRenderingPreview = true;
+            CancelAndDisposePreviewCts();
+            _previewRenderCts = new CancellationTokenSource();
+            var token = _previewRenderCts.Token;
+            var progress = new Progress<int>(value => SetRenderStatus($"Рендер превью: {Math.Clamp(value, 0, 100)}%"));
+
+            try
+            {
+                using Bitmap renderedPreview = await RenderPreviewBitmapAsyncFull(state, fullPreviewRenderer, token, progress);
+                token.ThrowIfCancellationRequested();
+                lock (_bitmapLock)
+                {
+                    _previewBitmap?.Dispose();
+                    _previewBitmap = (Bitmap)renderedPreview.Clone();
+                    _currentRenderingBitmap?.Dispose();
+                    _currentRenderingBitmap = null;
+                }
+
+                SetRenderStatus("Рендер превью: 100%");
+            }
+            catch (OperationCanceledException)
+            {
+                SetRenderStatus("Рендер отменен.");
+                lock (_bitmapLock)
+                {
+                    _currentRenderingBitmap?.Dispose();
+                    _currentRenderingBitmap = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка полноразмерного рендера превью: {ex.Message}");
+                SetRenderStatus("Ошибка рендера превью.");
+            }
+            finally
+            {
+                _isRenderingPreview = false;
+                _renderVisualizer.NotifyRenderSessionComplete();
+                if (pictureBoxPreview.IsHandleCreated)
+                {
+                    pictureBoxPreview.Invalidate();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Рендерит превью целиком без разбиения на плитки.
+        /// </summary>
+        private async Task<Bitmap> RenderPreviewBitmapAsyncFull(
+            FractalSaveStateBase state,
+            IFullPreviewRenderCapableFractal fullPreviewRenderer,
+            CancellationToken token,
+            IProgress<int> progress)
+        {
+            int width = pictureBoxPreview.Width;
+            int height = pictureBoxPreview.Height;
+            if (state == null || width <= 0 || height <= 0)
+            {
+                throw new InvalidOperationException("Невозможно запустить рендер превью: некорректные входные параметры.");
+            }
+
+            lock (_bitmapLock)
+            {
+                _currentRenderingBitmap?.Dispose();
+                _currentRenderingBitmap = null;
+            }
+
+            byte[] pixels = await fullPreviewRenderer.RenderPreviewAsync(state, width, height, token, progress);
+            token.ThrowIfCancellationRequested();
+            if (pixels.Length != width * height * 4)
+            {
+                throw new InvalidOperationException("Полноразмерный рендер вернул буфер некорректного размера.");
+            }
+
+            var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                Marshal.Copy(pixels, 0, bitmapData.Scan0, pixels.Length);
+            }
+            finally
+            {
+                bitmap.UnlockBits(bitmapData);
+            }
+
+            return bitmap;
         }
 
         /// <summary>
@@ -213,6 +339,7 @@ namespace FractalExplorer.Forms
             catch (OperationCanceledException)
             {
                 // Отмена — это штатное поведение, игнорируем исключение.
+                SetRenderStatus("Рендер отменен.");
                 lock (_bitmapLock)
                 {
                     if (_currentRenderingBitmap != null)
@@ -225,6 +352,7 @@ namespace FractalExplorer.Forms
             catch (Exception ex)
             {
                 Console.WriteLine($"Ошибка мозаичного рендера превью: {ex.Message}");
+                SetRenderStatus("Ошибка рендера превью.");
             }
             finally
             {
@@ -760,17 +888,28 @@ namespace FractalExplorer.Forms
 
             try
             {
-                using Bitmap renderedPreview = await RenderPreviewBitmapAsync(selectedState, token);
-
-                token.ThrowIfCancellationRequested();
-                ReplaceScreenshotForState(selectedState, renderedPreview);
-
-                lock (_bitmapLock)
+                Bitmap renderedPreview;
+                if (_ownerFractalForm is IFullPreviewRenderCapableFractal fullPreviewRenderer)
                 {
-                    _previewBitmap?.Dispose();
-                    _previewBitmap = (Bitmap)renderedPreview.Clone();
-                    _currentRenderingBitmap?.Dispose();
-                    _currentRenderingBitmap = null;
+                    var progress = new Progress<int>(value => SetRenderStatus($"Рендер превью: {Math.Clamp(value, 0, 100)}%"));
+                    renderedPreview = await RenderPreviewBitmapAsyncFull(selectedState, fullPreviewRenderer, token, progress);
+                }
+                else
+                {
+                    renderedPreview = await RenderPreviewBitmapAsync(selectedState, token);
+                }
+                using (renderedPreview)
+                {
+                    token.ThrowIfCancellationRequested();
+                    ReplaceScreenshotForState(selectedState, renderedPreview);
+
+                    lock (_bitmapLock)
+                    {
+                        _previewBitmap?.Dispose();
+                        _previewBitmap = (Bitmap)renderedPreview.Clone();
+                        _currentRenderingBitmap?.Dispose();
+                        _currentRenderingBitmap = null;
+                    }
                 }
 
                 if (pictureBoxPreview.IsHandleCreated)
@@ -913,6 +1052,12 @@ namespace FractalExplorer.Forms
             Bitmap sourceBitmap = null;
             try
             {
+                sourceBitmap = TryGetBitmapFromOwnerCanvasImage(ownerForm);
+                if (sourceBitmap != null)
+                {
+                    return CreateCenterCroppedPreview(sourceBitmap, pictureBoxPreview.Width, pictureBoxPreview.Height);
+                }
+
                 // Важно: сначала пытаемся брать полноразмерный буфер рендера, чтобы превью
                 // масштабировалось из немного большего размера в меньший (downscale),
                 // а не наоборот из маленького в большой (upscale).
@@ -933,6 +1078,19 @@ namespace FractalExplorer.Forms
             {
                 sourceBitmap?.Dispose();
             }
+        }
+
+        private Bitmap TryGetBitmapFromOwnerCanvasImage(Form ownerForm)
+        {
+            var canvasControl = ownerForm.Controls.Find("canvas", true).FirstOrDefault()
+                               ?? ownerForm.Controls.Find("canvasSerpinsky", true).FirstOrDefault()
+                               ?? ownerForm.Controls.Find("_canvas", true).FirstOrDefault();
+            if (canvasControl is PictureBox pictureBox && pictureBox.Image is Bitmap canvasBitmap)
+            {
+                return (Bitmap)canvasBitmap.Clone();
+            }
+
+            return null;
         }
 
         private Bitmap TryGetBitmapFromOwnerField(Form ownerForm, string fieldName)

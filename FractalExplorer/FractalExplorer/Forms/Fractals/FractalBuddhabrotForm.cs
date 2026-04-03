@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public sealed partial class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal
+    public sealed partial class FractalBuddhabrotForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal
     {
         private const decimal BaseScale = 4.0m;
         private const int ToggleButtonMargin = 12;
@@ -347,6 +347,38 @@ namespace FractalExplorer.Forms.Fractals
 
                 engine.RenderToBuffer(pixels, w, h, w * 4, 4, CancellationToken.None);
             });
+
+            return pixels;
+        }
+
+        public async Task<byte[]> RenderPreviewAsync(
+            FractalSaveStateBase state,
+            int previewWidth,
+            int previewHeight,
+            CancellationToken cancellationToken,
+            IProgress<int>? progress = null)
+        {
+            if (state is not BuddhabrotSaveState s)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int width = Math.Max(1, previewWidth);
+            int height = Math.Max(1, previewHeight);
+            byte[] pixels = new byte[width * height * 4];
+            var engine = BuildEngineFromState(s);
+
+            await Task.Run(() =>
+            {
+                engine.RenderToBuffer(
+                    pixels,
+                    width,
+                    height,
+                    width * 4,
+                    4,
+                    cancellationToken,
+                    p => progress?.Report(Math.Clamp(p, 0, 100)));
+            }, cancellationToken);
 
             return pixels;
         }
