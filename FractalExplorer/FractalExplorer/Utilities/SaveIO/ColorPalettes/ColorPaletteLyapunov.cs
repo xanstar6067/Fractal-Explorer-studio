@@ -7,7 +7,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
     public class LyapunovColorPalette
     {
         public string Name { get; set; } = "Новая палитра";
-        public LyapunovColoringMode Mode { get; set; } = LyapunovColoringMode.Diverging;
+        public LyapunovColoringMode Mode { get; set; } = LyapunovColoringMode.LegacyBuiltIn;
         public List<Color> Colors { get; set; } = new();
         public double ExponentRange { get; set; } = 2.0;
         public double ZeroBandWidth { get; set; } = 0.05;
@@ -46,8 +46,8 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             return new LyapunovColorPalette
             {
-                Name = "Классическая Lyapunov",
-                Mode = LyapunovColoringMode.Diverging,
+                Name = "Legacy built-in",
+                Mode = LyapunovColoringMode.LegacyBuiltIn,
                 Colors = new List<Color>
                 {
                     Color.FromArgb(20, 30, 80),
@@ -70,8 +70,8 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
             Palettes.Add(defaultBuiltIn);
             Palettes.Add(new LyapunovColorPalette
             {
-                Name = "Legacy built-in",
-                Mode = LyapunovColoringMode.LegacyBuiltIn,
+                Name = "Классическая Lyapunov",
+                Mode = LyapunovColoringMode.Diverging,
                 Colors = defaultBuiltIn.Colors.ToList(),
                 ExponentRange = 2.0,
                 ZeroBandWidth = 0.05,
