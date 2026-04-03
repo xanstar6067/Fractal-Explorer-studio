@@ -917,8 +917,10 @@ namespace FractalExplorer.Forms
                 // масштабировалось из немного большего размера в меньший (downscale),
                 // а не наоборот из маленького в большой (upscale).
                 sourceBitmap = TryGetBitmapFromOwnerField(ownerForm, "canvasBitmap")
-                               ?? TryCaptureOwnerCanvasBitmap(ownerForm)
-                               ?? TryGetBitmapFromOwnerField(ownerForm, "_previewBitmap");
+                               ?? TryGetBitmapFromOwnerField(ownerForm, "_previewBitmap")
+                               ?? TryGetBitmapFromOwnerField(ownerForm, "_previewFrameBuffer")
+                               ?? TryGetBitmapFromOwnerField(ownerForm, "_currentRenderingFrameBuffer")
+                               ?? TryCaptureOwnerCanvasBitmap(ownerForm);
 
                 if (sourceBitmap == null)
                 {
@@ -947,7 +949,8 @@ namespace FractalExplorer.Forms
         private Bitmap TryCaptureOwnerCanvasBitmap(Form ownerForm)
         {
             var canvasControl = ownerForm.Controls.Find("canvas", true).FirstOrDefault()
-                               ?? ownerForm.Controls.Find("canvasSerpinsky", true).FirstOrDefault();
+                               ?? ownerForm.Controls.Find("canvasSerpinsky", true).FirstOrDefault()
+                               ?? ownerForm.Controls.Find("_canvas", true).FirstOrDefault();
             if (canvasControl == null || canvasControl.Width <= 0 || canvasControl.Height <= 0)
             {
                 return null;
