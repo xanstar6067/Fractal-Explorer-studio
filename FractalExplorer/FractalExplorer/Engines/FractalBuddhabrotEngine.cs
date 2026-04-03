@@ -19,6 +19,11 @@ namespace FractalExplorer.Engines
         public int MaxIterations { get; set; } = 500;
         public int SampleCount { get; set; } = 250_000;
         /// <summary>
+        /// Количество начальных итераций орбиты, которые пропускаются при накоплении плотности.
+        /// Уменьшает квадратный артефакт от равномерной выборки c в первых шагах.
+        /// </summary>
+        public int OrbitWarmupIterations { get; set; } = 2;
+        /// <summary>
         /// Количество рабочих потоков. 0 или меньше = Auto (все логические ядра).
         /// </summary>
         public int ThreadCount { get; set; } = 0;
@@ -60,6 +65,7 @@ namespace FractalExplorer.Engines
 
             int progressStep = Math.Max(1, SampleCount / 100);
             int resolvedThreadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
+            int orbitWarmupIterations = Math.Max(0, OrbitWarmupIterations);
             int completedSamples = 0;
 
             var options = new ParallelOptions
@@ -89,7 +95,11 @@ namespace FractalExplorer.Engines
                         zre = nextRe;
                         zim = nextIm;
 
-                        local.orbit.Add((zre, zim));
+                        if (i >= orbitWarmupIterations)
+                        {
+                            local.orbit.Add((zre, zim));
+                        }
+
                         if (zre * zre + zim * zim > escapeSq)
                         {
                             escaped = true;
