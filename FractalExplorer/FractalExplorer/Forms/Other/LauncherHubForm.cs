@@ -477,6 +477,17 @@ namespace FractalExplorer
 
             _fractalCatalog.Add(new FractalInfo
             {
+                Family = "Итерируемые функции",
+                DisplayName = "Buddhabrot / Anti-Buddhabrot",
+                FormToLaunch = typeof(FractalBuddhabrotForm),
+                Description = "Вместо прямого окрашивания точки по escape-time этот рендер накапливает плотность посещения орбит в отдельном буфере.\n\n" +
+                              "Режим Buddhabrot учитывает только орбиты вышедших точек, а Anti-Buddhabrot — орбиты оставшихся ограниченными в заданном лимите итераций.\n\n" +
+                              "Особенности: настройка числа случайных стартовых точек, максимума итераций и ограничений области выборки.",
+                PreviewImage = Properties.Resources.mandelbrot_preview_sq512
+            });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
                 Family = "Динамические системы",
                 DisplayName = "Экспонента Ляпунова",
                 FormToLaunch = typeof(FractalLyapunovForm),
