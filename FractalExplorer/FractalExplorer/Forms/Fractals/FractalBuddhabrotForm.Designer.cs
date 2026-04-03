@@ -38,8 +38,6 @@ namespace FractalExplorer.Forms.Fractals
             _controlsPanel = new TableLayoutPanel();
             _modeCombo = new ComboBox();
             _modeLabel = new Label();
-            _paletteCombo = new ComboBox();
-            _paletteLabel = new Label();
             _samples = new NumericUpDown();
             _samplesLabel = new Label();
             _threadsCombo = new ComboBox();
@@ -118,8 +116,6 @@ namespace FractalExplorer.Forms.Fractals
             _controlsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
             _controlsPanel.Controls.Add(_modeCombo, 0, 0);
             _controlsPanel.Controls.Add(_modeLabel, 1, 0);
-            _controlsPanel.Controls.Add(_paletteCombo, 0, 1);
-            _controlsPanel.Controls.Add(_paletteLabel, 1, 1);
             _controlsPanel.Controls.Add(_samples, 0, 2);
             _controlsPanel.Controls.Add(_samplesLabel, 1, 2);
             _controlsPanel.Controls.Add(_threadsCombo, 0, 3);
@@ -188,27 +184,6 @@ namespace FractalExplorer.Forms.Fractals
             _modeLabel.TabIndex = 1;
             _modeLabel.Text = "Режим";
             _modeLabel.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _paletteCombo
-            // 
-            _paletteCombo.DropDownStyle = ComboBoxStyle.DropDownList;
-            _paletteCombo.FormattingEnabled = true;
-            _paletteCombo.Location = new Point(6, 35);
-            _paletteCombo.Margin = new Padding(6, 3, 3, 3);
-            _paletteCombo.Name = "_paletteCombo";
-            _paletteCombo.Size = new Size(124, 23);
-            _paletteCombo.TabIndex = 2;
-            // 
-            // _paletteLabel
-            // 
-            _paletteLabel.AutoSize = true;
-            _paletteLabel.Dock = DockStyle.Fill;
-            _paletteLabel.Location = new Point(136, 32);
-            _paletteLabel.Name = "_paletteLabel";
-            _paletteLabel.Size = new Size(103, 29);
-            _paletteLabel.TabIndex = 3;
-            _paletteLabel.Text = "Палитра";
-            _paletteLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _samples
             // 
@@ -539,8 +514,6 @@ namespace FractalExplorer.Forms.Fractals
         private Button _btnToggleControls;
         private ComboBox _modeCombo;
         private Label _modeLabel;
-        private ComboBox _paletteCombo;
-        private Label _paletteLabel;
         private NumericUpDown _samples;
         private Label _samplesLabel;
         private ComboBox _threadsCombo;

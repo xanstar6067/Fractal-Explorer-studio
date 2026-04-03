@@ -56,7 +56,7 @@ namespace FractalExplorer.Forms.Fractals
             }
             _threadsCombo.SelectedItem = "Auto";
 
-            PopulatePaletteCombo();
+            EnsureActivePalette();
 
             _canvas.MouseDown += Canvas_MouseDown;
             _canvas.MouseMove += Canvas_MouseMove;
@@ -105,13 +105,13 @@ namespace FractalExplorer.Forms.Fractals
                 _buddhabrotColorConfigForm = new ColorConfigurationBuddhabrotForm(_paletteManager);
                 _buddhabrotColorConfigForm.PaletteApplied += (_, _) =>
                 {
-                    PopulatePaletteCombo();
+                    EnsureActivePalette();
                     QueueRenderRestart(immediate: true);
                 };
             }
 
             _buddhabrotColorConfigForm.ShowDialog(this);
-            PopulatePaletteCombo();
+            EnsureActivePalette();
             QueueRenderRestart(immediate: true);
         }
 
@@ -275,29 +275,54 @@ namespace FractalExplorer.Forms.Fractals
             }
         }
 
-        private void PopulatePaletteCombo()
+        private void EnsureActivePalette()
         {
-            _paletteCombo.Items.Clear();
-            foreach (var palette in _paletteManager.Palettes)
+            if (_paletteManager.ActivePalette != null
+                && _paletteManager.Palettes.Any(p => string.Equals(p.Name, _paletteManager.ActivePalette.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                _paletteCombo.Items.Add(palette.Name);
+                return;
             }
 
-            string activeName = _paletteManager.ActivePalette?.Name ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(activeName) && _paletteCombo.Items.Contains(activeName))
+            _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault()
+                ?? BuddhabrotPaletteManager.CreateDefaultBuiltInPalette();
+        }
+
+        private BuddhabrotColorPalette ResolvePaletteFromState(BuddhabrotSaveState state)
+        {
+            if (state.Palette is not null)
             {
-                _paletteCombo.SelectedItem = activeName;
+                BuddhabrotColorPalette imported = state.Palette.CloneAsCustom(state.Palette.Name);
+                if (!string.IsNullOrWhiteSpace(state.PaletteName))
+                {
+                    imported.Name = state.PaletteName;
+                }
+
+                string uniqueName = imported.Name;
+                int suffix = 1;
+                while (_paletteManager.Palettes.Any(p => p.Name.Equals(uniqueName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    uniqueName = $"{imported.Name} (из сохранения {suffix++})";
+                }
+
+                imported.Name = uniqueName;
+                _paletteManager.Palettes.Add(imported);
+                _paletteManager.SavePalettes();
+                return imported;
             }
-            else if (_paletteCombo.Items.Count > 0)
+
+            BuddhabrotColorPalette? byName = _paletteManager.Palettes.FirstOrDefault(p =>
+                string.Equals(p.Name, state.PaletteName, StringComparison.OrdinalIgnoreCase));
+            if (byName is not null)
             {
-                _paletteCombo.SelectedIndex = 0;
+                return byName;
             }
+
+            return _paletteManager.Palettes.FirstOrDefault() ?? BuddhabrotPaletteManager.CreateDefaultBuiltInPalette();
         }
 
         private void AttachAutoRenderControlTriggers()
         {
             _modeCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
-            _paletteCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
             _threadsCombo.SelectedIndexChanged += (_, _) => QueueRenderRestart();
             _iterations.ValueChanged += (_, _) => QueueRenderRestart();
             _samples.ValueChanged += (_, _) => QueueRenderRestart();
@@ -369,8 +394,7 @@ namespace FractalExplorer.Forms.Fractals
             _engine.SampleMinIm = _sampleMinIm.Value;
             _engine.SampleMaxIm = _sampleMaxIm.Value;
 
-            string paletteName = _paletteCombo.SelectedItem?.ToString() ?? _paletteManager.ActivePalette?.Name ?? string.Empty;
-            _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == paletteName) ?? _paletteManager.ActivePalette;
+            EnsureActivePalette();
             _engine.DensityPalette = CreateDensityPalette(_paletteManager.ActivePalette, _engine.MaxIterations);
         }
 
@@ -631,40 +655,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxRe.Value = Math.Clamp(s.SampleMaxRe, _sampleMaxRe.Minimum, _sampleMaxRe.Maximum);
             _sampleMinIm.Value = Math.Clamp(s.SampleMinIm, _sampleMinIm.Minimum, _sampleMinIm.Maximum);
             _sampleMaxIm.Value = Math.Clamp(s.SampleMaxIm, _sampleMaxIm.Minimum, _sampleMaxIm.Maximum);
-            if (!string.IsNullOrWhiteSpace(s.PaletteName) && _paletteManager.Palettes.Any(p => p.Name == s.PaletteName))
-            {
-                _paletteCombo.SelectedItem = s.PaletteName;
-            }
-            else if (s.Palette != null)
-            {
-                BuddhabrotColorPalette imported = s.Palette.CloneAsCustom(s.Palette.Name);
-                string uniqueName = imported.Name;
-                int suffix = 1;
-                while (_paletteManager.Palettes.Any(p => p.Name.Equals(uniqueName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    uniqueName = $"{imported.Name} (из сохранения {suffix++})";
-                }
-
-                imported.Name = uniqueName;
-                _paletteManager.Palettes.Add(imported);
-                _paletteManager.SavePalettes();
-                PopulatePaletteCombo();
-                _paletteCombo.SelectedItem = imported.Name;
-            }
-            else
-            {
-                BuddhabrotColorPalette fallbackPalette = _paletteManager.Palettes.FirstOrDefault()
-                    ?? BuddhabrotPaletteManager.CreateDefaultBuiltInPalette();
-                _paletteManager.ActivePalette = fallbackPalette;
-                if (_paletteCombo.Items.Contains(fallbackPalette.Name))
-                {
-                    _paletteCombo.SelectedItem = fallbackPalette.Name;
-                }
-                else if (_paletteCombo.Items.Count > 0)
-                {
-                    _paletteCombo.SelectedIndex = 0;
-                }
-            }
+            _paletteManager.ActivePalette = ResolvePaletteFromState(s);
 
             _ = RenderAsync();
         }
@@ -769,8 +760,8 @@ namespace FractalExplorer.Forms.Fractals
 
         private FractalBuddhabrotEngine BuildEngineFromState(BuddhabrotSaveState s)
         {
-            BuddhabrotColorPalette palette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == s.PaletteName)
-                ?? s.Palette
+            BuddhabrotColorPalette palette = s.Palette
+                ?? _paletteManager.Palettes.FirstOrDefault(p => string.Equals(p.Name, s.PaletteName, StringComparison.OrdinalIgnoreCase))
                 ?? _paletteManager.ActivePalette;
             return new FractalBuddhabrotEngine
             {
