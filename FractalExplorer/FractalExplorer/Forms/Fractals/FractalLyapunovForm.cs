@@ -25,6 +25,7 @@ namespace FractalExplorer.Forms.Fractals
         private readonly FractalLyapunovEngine _engine = new();
         private readonly object _frameBufferLock = new();
         private readonly RenderVisualizerComponent _renderVisualizer = new(PreviewTileSize);
+        private readonly System.Windows.Forms.Timer _renderRestartTimer = new() { Interval = 350 };
         private readonly HashSet<Rectangle> _currentRenderedTiles = new();
         private Bitmap? _previewFrameBuffer;
         private Bitmap? _currentRenderingFrameBuffer;
@@ -33,6 +34,9 @@ namespace FractalExplorer.Forms.Fractals
         private bool _isRenderingPreview;
         private bool _suppressViewportSync;
         private bool _isPanning;
+        private bool _isUserResizingWindow;
+        private bool _hasPendingCanvasResizeRender;
+        private bool _isQueuingRenderRestart;
         private Point _panStartPoint;
         private decimal _renderedAMin = DefaultAMin;
         private decimal _renderedAMax = DefaultAMax;
@@ -51,6 +55,9 @@ namespace FractalExplorer.Forms.Fractals
             FormClosing += (_, __) =>
             {
                 CancelPreviewRender();
+                _renderRestartTimer.Stop();
+                _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
+                _renderRestartTimer.Dispose();
                 lock (_frameBufferLock)
                 {
                     _previewFrameBuffer?.Dispose();
@@ -69,6 +76,19 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.MouseUp += Canvas_MouseUp;
             _canvas.MouseLeave += Canvas_MouseLeave;
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
+            _canvas.SizeChanged += Canvas_SizeChanged;
+            ResizeBegin += (_, _) => _isUserResizingWindow = true;
+            ResizeEnd += (_, _) =>
+            {
+                _isUserResizingWindow = false;
+                if (_hasPendingCanvasResizeRender)
+                {
+                    _hasPendingCanvasResizeRender = false;
+                    QueueRenderRestart(immediate: true);
+                }
+            };
+            _renderRestartTimer.Tick += RenderRestartTimer_Tick;
+            AttachAutoRenderControlTriggers();
         }
 
         private void ToggleControls()
@@ -131,6 +151,82 @@ namespace FractalExplorer.Forms.Fractals
             _nudAMax.ValueChanged += (_, _) => SyncViewportFromRangeControls();
             _nudBMin.ValueChanged += (_, _) => SyncViewportFromRangeControls();
             _nudBMax.ValueChanged += (_, _) => SyncViewportFromRangeControls();
+        }
+
+        private void AttachAutoRenderControlTriggers()
+        {
+            _nudAMin.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudAMax.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudBMin.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudBMax.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudIterations.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudTransient.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudThreads.ValueChanged += (_, _) => QueueRenderRestart();
+            _nudZoom.ValueChanged += (_, _) => QueueRenderRestart();
+            _cbSSAA.SelectedIndexChanged += (_, _) => QueueRenderRestart();
+            _tbPattern.TextChanged += (_, _) => QueueRenderRestart();
+            _tbPattern.Leave += (_, _) => QueueRenderRestart(immediate: true);
+            _tbPattern.KeyDown += (_, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    QueueRenderRestart(immediate: true);
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+            };
+        }
+
+        private void QueueRenderRestart(bool immediate = false)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            _isQueuingRenderRestart = true;
+            if (immediate)
+            {
+                _renderRestartTimer.Stop();
+                _ = TriggerQueuedRenderRestartAsync();
+                return;
+            }
+
+            _renderRestartTimer.Stop();
+            _renderRestartTimer.Start();
+        }
+
+        private async void RenderRestartTimer_Tick(object? sender, EventArgs e)
+        {
+            _renderRestartTimer.Stop();
+            await TriggerQueuedRenderRestartAsync();
+        }
+
+        private async Task TriggerQueuedRenderRestartAsync()
+        {
+            if (!_isQueuingRenderRestart || _isPanning)
+            {
+                return;
+            }
+
+            _isQueuingRenderRestart = false;
+            await RenderAsync();
+        }
+
+        private void Canvas_SizeChanged(object? sender, EventArgs e)
+        {
+            if (_canvas.Width <= 1 || _canvas.Height <= 1)
+            {
+                return;
+            }
+
+            if (_isUserResizingWindow)
+            {
+                _hasPendingCanvasResizeRender = true;
+                return;
+            }
+
+            QueueRenderRestart(immediate: true);
         }
 
         private static void ConfigureDecimal(NumericUpDown nud, int decimals, decimal increment, decimal min, decimal max, decimal value)
