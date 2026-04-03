@@ -6,6 +6,7 @@ using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
+using System.Drawing.Drawing2D;
 
 namespace FractalExplorer.Forms.Fractals
 {
@@ -27,6 +28,12 @@ namespace FractalExplorer.Forms.Fractals
         private int _controlsOpenWidth = 231;
         private bool _isRenderingPreview;
         private bool _suppressViewportSync;
+        private bool _isPanning;
+        private Point _panStartPoint;
+        private decimal _renderedAMin = DefaultAMin;
+        private decimal _renderedAMax = DefaultAMax;
+        private decimal _renderedBMin = DefaultBMin;
+        private decimal _renderedBMax = DefaultBMax;
 
         public FractalLyapunovForm()
         {
@@ -50,6 +57,10 @@ namespace FractalExplorer.Forms.Fractals
             _renderVisualizer.NeedsRedraw += () => _canvas.Invalidate();
             _canvas.Paint += Canvas_Paint;
             _canvas.MouseWheel += Canvas_MouseWheel;
+            _canvas.MouseDown += Canvas_MouseDown;
+            _canvas.MouseMove += Canvas_MouseMove;
+            _canvas.MouseUp += Canvas_MouseUp;
+            _canvas.MouseLeave += Canvas_MouseLeave;
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
         }
 
@@ -126,11 +137,25 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
         {
+            e.Graphics.Clear(Color.Black);
             lock (_frameBufferLock)
             {
                 if (_currentFrameBuffer != null)
                 {
-                    e.Graphics.DrawImage(_currentFrameBuffer, _canvas.ClientRectangle);
+                    bool sameViewport =
+                        _renderedAMin == _nudAMin.Value &&
+                        _renderedAMax == _nudAMax.Value &&
+                        _renderedBMin == _nudBMin.Value &&
+                        _renderedBMax == _nudBMax.Value;
+
+                    if (sameViewport)
+                    {
+                        e.Graphics.DrawImage(_currentFrameBuffer, _canvas.ClientRectangle);
+                    }
+                    else
+                    {
+                        DrawTransformedFrame(e.Graphics, _currentFrameBuffer, _canvas.ClientRectangle);
+                    }
                 }
             }
 
@@ -142,15 +167,81 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
         {
-            if (_isRenderingPreview || _canvas.Width <= 0 || _canvas.Height <= 0)
+            if (_canvas.Width <= 0 || _canvas.Height <= 0)
             {
                 return;
             }
 
+            CommitAndBakePreview();
             decimal factor = e.Delta > 0 ? 1.5m : 1.0m / 1.5m;
             decimal nextZoom = Math.Max(_nudZoom.Minimum, Math.Min(_nudZoom.Maximum, _nudZoom.Value * factor));
             ApplyZoom(nextZoom, e.X, e.Y);
+            _canvas.Invalidate();
             _ = RenderAsync();
+        }
+
+        private void Canvas_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || _canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return;
+            }
+
+            CommitAndBakePreview();
+            _isPanning = true;
+            _panStartPoint = e.Location;
+            _canvas.Cursor = Cursors.Hand;
+        }
+
+        private void Canvas_MouseMove(object? sender, MouseEventArgs e)
+        {
+            if (!_isPanning || _canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return;
+            }
+
+            decimal deltaX = e.X - _panStartPoint.X;
+            decimal deltaY = e.Y - _panStartPoint.Y;
+            _panStartPoint = e.Location;
+
+            decimal aRange = _nudAMax.Value - _nudAMin.Value;
+            decimal bRange = _nudBMax.Value - _nudBMin.Value;
+            if (aRange <= 0 || bRange <= 0)
+            {
+                return;
+            }
+
+            decimal shiftA = (deltaX / Math.Max(1, _canvas.Width)) * aRange;
+            decimal shiftB = (deltaY / Math.Max(1, _canvas.Height)) * bRange;
+
+            decimal newAMin = _nudAMin.Value - shiftA;
+            decimal newAMax = _nudAMax.Value - shiftA;
+            decimal newBMin = _nudBMin.Value + shiftB;
+            decimal newBMax = _nudBMax.Value + shiftB;
+            ClampRange(ref newAMin, ref newAMax, MinDomain, MaxDomain);
+            ClampRange(ref newBMin, ref newBMax, MinDomain, MaxDomain);
+
+            _suppressViewportSync = true;
+            _nudAMin.Value = Math.Max(_nudAMin.Minimum, Math.Min(_nudAMin.Maximum, newAMin));
+            _nudAMax.Value = Math.Max(_nudAMax.Minimum, Math.Min(_nudAMax.Maximum, newAMax));
+            _nudBMin.Value = Math.Max(_nudBMin.Minimum, Math.Min(_nudBMin.Maximum, newBMin));
+            _nudBMax.Value = Math.Max(_nudBMax.Minimum, Math.Min(_nudBMax.Maximum, newBMax));
+            _suppressViewportSync = false;
+
+            _canvas.Invalidate();
+            _ = RenderAsync();
+        }
+
+        private void Canvas_MouseUp(object? sender, MouseEventArgs e)
+        {
+            _isPanning = false;
+            _canvas.Cursor = Cursors.Default;
+        }
+
+        private void Canvas_MouseLeave(object? sender, EventArgs e)
+        {
+            _isPanning = false;
+            _canvas.Cursor = Cursors.Default;
         }
 
         private void SyncViewportFromRangeControls()
@@ -253,6 +344,47 @@ namespace FractalExplorer.Forms.Fractals
             _engine.TransientIterations = (int)_nudTransient.Value;
         }
 
+        private void CommitAndBakePreview()
+        {
+            CancelPreviewRender();
+            lock (_frameBufferLock)
+            {
+                if (_currentFrameBuffer == null)
+                {
+                    return;
+                }
+
+                _renderedAMin = _nudAMin.Value;
+                _renderedAMax = _nudAMax.Value;
+                _renderedBMin = _nudBMin.Value;
+                _renderedBMax = _nudBMax.Value;
+            }
+        }
+
+        private void DrawTransformedFrame(Graphics g, Bitmap bitmap, Rectangle destinationRect)
+        {
+            decimal renderedARange = _renderedAMax - _renderedAMin;
+            decimal renderedBRange = _renderedBMax - _renderedBMin;
+            decimal currentARange = _nudAMax.Value - _nudAMin.Value;
+            decimal currentBRange = _nudBMax.Value - _nudBMin.Value;
+            if (renderedARange <= 0 || renderedBRange <= 0 || currentARange <= 0 || currentBRange <= 0)
+            {
+                g.DrawImage(bitmap, destinationRect);
+                return;
+            }
+
+            decimal offsetX = (_renderedAMin - _nudAMin.Value) / currentARange * destinationRect.Width;
+            decimal offsetY = (_nudBMax.Value - _renderedBMax) / currentBRange * destinationRect.Height;
+            decimal newWidth = renderedARange / currentARange * destinationRect.Width;
+            decimal newHeight = renderedBRange / currentBRange * destinationRect.Height;
+
+            g.InterpolationMode = InterpolationMode.Bilinear;
+            PointF p1 = new(destinationRect.X + (float)offsetX, destinationRect.Y + (float)offsetY);
+            PointF p2 = new(destinationRect.X + (float)(offsetX + newWidth), destinationRect.Y + (float)offsetY);
+            PointF p3 = new(destinationRect.X + (float)offsetX, destinationRect.Y + (float)(offsetY + newHeight));
+            g.DrawImage(bitmap, new[] { p1, p2, p3 });
+        }
+
         private async Task RenderAsync()
         {
             if (_canvas.Width <= 1 || _canvas.Height <= 1)
@@ -286,6 +418,10 @@ namespace FractalExplorer.Forms.Fractals
             {
                 Bitmap? previous = _currentFrameBuffer;
                 _currentFrameBuffer = frame;
+                _renderedAMin = _nudAMin.Value;
+                _renderedAMax = _nudAMax.Value;
+                _renderedBMin = _nudBMin.Value;
+                _renderedBMax = _nudBMax.Value;
                 previous?.Dispose();
             }
             _canvas.Invalidate();
