@@ -23,7 +23,9 @@ namespace FractalExplorer.Forms.Fractals
         private readonly FractalLyapunovEngine _engine = new();
         private readonly object _frameBufferLock = new();
         private readonly RenderVisualizerComponent _renderVisualizer = new(PreviewTileSize);
-        private Bitmap? _currentFrameBuffer;
+        private readonly HashSet<Rectangle> _currentRenderedTiles = new();
+        private Bitmap? _previewFrameBuffer;
+        private Bitmap? _currentRenderingFrameBuffer;
         private CancellationTokenSource? _previewRenderCts;
         private int _controlsOpenWidth = 231;
         private bool _isRenderingPreview;
@@ -49,8 +51,11 @@ namespace FractalExplorer.Forms.Fractals
                 CancelPreviewRender();
                 lock (_frameBufferLock)
                 {
-                    _currentFrameBuffer?.Dispose();
-                    _currentFrameBuffer = null;
+                    _previewFrameBuffer?.Dispose();
+                    _previewFrameBuffer = null;
+                    _currentRenderingFrameBuffer?.Dispose();
+                    _currentRenderingFrameBuffer = null;
+                    _currentRenderedTiles.Clear();
                 }
                 _renderVisualizer.Dispose();
             };
@@ -137,10 +142,10 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
         {
-            e.Graphics.Clear(Color.Black);
             lock (_frameBufferLock)
             {
-                if (_currentFrameBuffer != null)
+                bool drewStableFrame = false;
+                if (_previewFrameBuffer != null)
                 {
                     bool sameViewport =
                         _renderedAMin == _nudAMin.Value &&
@@ -150,12 +155,28 @@ namespace FractalExplorer.Forms.Fractals
 
                     if (sameViewport)
                     {
-                        e.Graphics.DrawImage(_currentFrameBuffer, _canvas.ClientRectangle);
+                        e.Graphics.DrawImage(_previewFrameBuffer, _canvas.ClientRectangle);
                     }
                     else
                     {
-                        DrawTransformedFrame(e.Graphics, _currentFrameBuffer, _canvas.ClientRectangle);
+                        DrawTransformedFrame(e.Graphics, _previewFrameBuffer, _canvas.ClientRectangle);
                     }
+
+                    drewStableFrame = true;
+                }
+
+                bool hasWorkingTiles = _currentRenderingFrameBuffer != null && _currentRenderedTiles.Count > 0;
+                if (hasWorkingTiles && _currentRenderingFrameBuffer != null)
+                {
+                    foreach (Rectangle tile in _currentRenderedTiles)
+                    {
+                        e.Graphics.DrawImage(_currentRenderingFrameBuffer, tile, tile, GraphicsUnit.Pixel);
+                    }
+                }
+
+                if (!drewStableFrame && !hasWorkingTiles)
+                {
+                    e.Graphics.Clear(Color.Black);
                 }
             }
 
@@ -349,16 +370,76 @@ namespace FractalExplorer.Forms.Fractals
             CancelPreviewRender();
             lock (_frameBufferLock)
             {
-                if (_currentFrameBuffer == null)
+                Bitmap? bakedFrame = CreateBakedFrameUnsafe();
+                if (bakedFrame == null)
                 {
                     return;
                 }
 
+                _previewFrameBuffer?.Dispose();
+                _previewFrameBuffer = bakedFrame;
+                _currentRenderingFrameBuffer?.Dispose();
+                _currentRenderingFrameBuffer = null;
+                _currentRenderedTiles.Clear();
                 _renderedAMin = _nudAMin.Value;
                 _renderedAMax = _nudAMax.Value;
                 _renderedBMin = _nudBMin.Value;
                 _renderedBMax = _nudBMax.Value;
             }
+
+            _isRenderingPreview = false;
+            _renderVisualizer.NotifyRenderSessionComplete();
+            _canvas.Invalidate();
+        }
+
+        private Bitmap? CreateBakedFrameUnsafe()
+        {
+            if (_canvas.Width <= 0 || _canvas.Height <= 0)
+            {
+                return null;
+            }
+
+            bool hasStableFrame = _previewFrameBuffer != null;
+            bool hasWorkingTiles = _currentRenderingFrameBuffer != null && _currentRenderedTiles.Count > 0;
+            if (!hasStableFrame && !hasWorkingTiles)
+            {
+                return null;
+            }
+
+            Bitmap bakedFrame = new Bitmap(_canvas.Width, _canvas.Height, PixelFormat.Format32bppArgb);
+            using Graphics g = Graphics.FromImage(bakedFrame);
+
+            if (_previewFrameBuffer != null)
+            {
+                bool sameViewport =
+                    _renderedAMin == _nudAMin.Value &&
+                    _renderedAMax == _nudAMax.Value &&
+                    _renderedBMin == _nudBMin.Value &&
+                    _renderedBMax == _nudBMax.Value;
+
+                if (sameViewport)
+                {
+                    g.DrawImage(_previewFrameBuffer, _canvas.ClientRectangle);
+                }
+                else
+                {
+                    DrawTransformedFrame(g, _previewFrameBuffer, _canvas.ClientRectangle);
+                }
+            }
+            else
+            {
+                g.Clear(Color.Black);
+            }
+
+            if (_currentRenderingFrameBuffer != null)
+            {
+                foreach (Rectangle tile in _currentRenderedTiles)
+                {
+                    g.DrawImage(_currentRenderingFrameBuffer, tile, tile, GraphicsUnit.Pixel);
+                }
+            }
+
+            return bakedFrame;
         }
 
         private void DrawTransformedFrame(Graphics g, Bitmap bitmap, Rectangle destinationRect)
@@ -401,6 +482,10 @@ namespace FractalExplorer.Forms.Fractals
             int threads = (int)_nudThreads.Value;
             int ssaaFactor = GetSelectedSsaaFactor();
             var tiles = GenerateTiles(width, height, PreviewTileSize);
+            decimal renderTargetAMin = _nudAMin.Value;
+            decimal renderTargetAMax = _nudAMax.Value;
+            decimal renderTargetBMin = _nudBMin.Value;
+            decimal renderTargetBMax = _nudBMax.Value;
 
             var engine = new FractalLyapunovEngine
             {
@@ -416,13 +501,9 @@ namespace FractalExplorer.Forms.Fractals
             Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
             lock (_frameBufferLock)
             {
-                Bitmap? previous = _currentFrameBuffer;
-                _currentFrameBuffer = frame;
-                _renderedAMin = _nudAMin.Value;
-                _renderedAMax = _nudAMax.Value;
-                _renderedBMin = _nudBMin.Value;
-                _renderedBMax = _nudBMax.Value;
-                previous?.Dispose();
+                _currentRenderingFrameBuffer?.Dispose();
+                _currentRenderingFrameBuffer = frame;
+                _currentRenderedTiles.Clear();
             }
             _canvas.Invalidate();
 
@@ -449,12 +530,13 @@ namespace FractalExplorer.Forms.Fractals
 
                     lock (_frameBufferLock)
                     {
-                        if (ct.IsCancellationRequested || _currentFrameBuffer != frame)
+                        if (ct.IsCancellationRequested || _currentRenderingFrameBuffer != frame)
                         {
                             return;
                         }
 
                         WriteTileToBitmap(frame, tile, tileBuffer, bytesPerPixel);
+                        _currentRenderedTiles.Add(tile.Bounds);
                     }
 
                     int done = Interlocked.Increment(ref completedTiles);
@@ -475,10 +557,34 @@ namespace FractalExplorer.Forms.Fractals
                 }, token);
 
                 token.ThrowIfCancellationRequested();
+
+                lock (_frameBufferLock)
+                {
+                    if (_currentRenderingFrameBuffer == frame)
+                    {
+                        Bitmap? previousStable = _previewFrameBuffer;
+                        _previewFrameBuffer = frame;
+                        _currentRenderingFrameBuffer = null;
+                        _currentRenderedTiles.Clear();
+                        _renderedAMin = renderTargetAMin;
+                        _renderedAMax = renderTargetAMax;
+                        _renderedBMin = renderTargetBMin;
+                        _renderedBMax = renderTargetBMax;
+                        previousStable?.Dispose();
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
-                // Безопасная отмена — новая сессия рендера перезапишет _currentFrameBuffer.
+                lock (_frameBufferLock)
+                {
+                    if (_currentRenderingFrameBuffer == frame)
+                    {
+                        _currentRenderingFrameBuffer = null;
+                        _currentRenderedTiles.Clear();
+                    }
+                }
+                frame.Dispose();
             }
             finally
             {
