@@ -17,8 +17,10 @@ namespace FractalExplorer.Forms.Fractals
         private const decimal DefaultAMax = 4.0m;
         private const decimal DefaultBMin = 2.8m;
         private const decimal DefaultBMax = 4.0m;
-        private const decimal MinDomain = 0m;
-        private const decimal MaxDomain = 4m;
+        private const decimal MinADomain = 0m;
+        private const decimal MaxADomain = 4m;
+        private const decimal MinBDomain = -8m;
+        private const decimal MaxBDomain = 8m;
 
         private readonly FractalLyapunovEngine _engine = new();
         private readonly object _frameBufferLock = new();
@@ -100,10 +102,10 @@ namespace FractalExplorer.Forms.Fractals
 
         private void ApplyDefaults()
         {
-            ConfigureDecimal(_nudAMin, 2, 0.01m, MinDomain, MaxDomain, DefaultAMin);
-            ConfigureDecimal(_nudAMax, 2, 0.01m, MinDomain, MaxDomain, DefaultAMax);
-            ConfigureDecimal(_nudBMin, 2, 0.01m, MinDomain, MaxDomain, DefaultBMin);
-            ConfigureDecimal(_nudBMax, 2, 0.01m, MinDomain, MaxDomain, DefaultBMax);
+            ConfigureDecimal(_nudAMin, 2, 0.01m, MinADomain, MaxADomain, DefaultAMin);
+            ConfigureDecimal(_nudAMax, 2, 0.01m, MinADomain, MaxADomain, DefaultAMax);
+            ConfigureDecimal(_nudBMin, 2, 0.01m, MinBDomain, MaxBDomain, DefaultBMin);
+            ConfigureDecimal(_nudBMax, 2, 0.01m, MinBDomain, MaxBDomain, DefaultBMax);
 
             _nudIterations.Minimum = 20;
             _nudIterations.Maximum = 5000;
@@ -117,7 +119,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudThreads.Maximum = Environment.ProcessorCount;
             _nudThreads.Value = Math.Max(1, Environment.ProcessorCount / 2);
 
-            ConfigureDecimal(_nudZoom, 4, 0.1m, 1.0m, 200m, 1.0m);
+            ConfigureDecimal(_nudZoom, 4, 0.001m, 0.001m, 200m, 1.0m);
             _cbSSAA.Items.AddRange(new object[] { "Выкл (1x)", "Низкое (2x)", "Высокое (4x)" });
             _cbSSAA.SelectedIndex = 0;
 
@@ -239,8 +241,8 @@ namespace FractalExplorer.Forms.Fractals
             decimal newAMax = _nudAMax.Value - shiftA;
             decimal newBMin = _nudBMin.Value + shiftB;
             decimal newBMax = _nudBMax.Value + shiftB;
-            ClampRange(ref newAMin, ref newAMax, MinDomain, MaxDomain);
-            ClampRange(ref newBMin, ref newBMax, MinDomain, MaxDomain);
+            ClampRange(ref newAMin, ref newAMax, MinADomain, MaxADomain);
+            ClampRange(ref newBMin, ref newBMax, MinBDomain, MaxBDomain);
 
             _suppressViewportSync = true;
             _nudAMin.Value = Math.Max(_nudAMin.Minimum, Math.Min(_nudAMin.Maximum, newAMin));
@@ -318,8 +320,8 @@ namespace FractalExplorer.Forms.Fractals
             decimal newAMax = newAMin + newRangeA;
             decimal newBMin = newBMax - newRangeB;
 
-            ClampRange(ref newAMin, ref newAMax, MinDomain, MaxDomain);
-            ClampRange(ref newBMin, ref newBMax, MinDomain, MaxDomain);
+            ClampRange(ref newAMin, ref newAMax, MinADomain, MaxADomain);
+            ClampRange(ref newBMin, ref newBMax, MinBDomain, MaxBDomain);
 
             _suppressViewportSync = true;
             _nudAMin.Value = Math.Max(_nudAMin.Minimum, Math.Min(_nudAMin.Maximum, newAMin));

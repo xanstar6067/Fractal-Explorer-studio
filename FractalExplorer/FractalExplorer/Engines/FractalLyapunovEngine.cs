@@ -24,23 +24,30 @@ namespace FractalExplorer.Engines
             return string.IsNullOrWhiteSpace(sanitized) ? "AB" : sanitized;
         }
 
-        private static decimal Logistic(decimal x, decimal r) => r * x * (1m - x);
+        private static double Logistic(double x, double r) => r * x * (1d - x);
 
         private static double ComputeLyapunovExponent(decimal a, decimal b, int transient, int iterations, string pattern)
         {
-            decimal x = 0.5m;
+            double x = 0.5d;
+            double aValue = (double)a;
+            double bValue = (double)b;
             int total = Math.Max(1, transient + iterations);
             double sum = 0.0;
 
             for (int i = 0; i < total; i++)
             {
                 char token = pattern[i % pattern.Length];
-                decimal r = token == 'A' ? a : b;
+                double r = token == 'A' ? aValue : bValue;
                 x = Logistic(x, r);
+
+                if (double.IsNaN(x) || double.IsInfinity(x) || Math.Abs(x) > 1e12)
+                {
+                    return double.NaN;
+                }
 
                 if (i >= transient)
                 {
-                    double derivative = Math.Abs((double)(r * (1m - 2m * x)));
+                    double derivative = Math.Abs(r * (1d - 2d * x));
                     derivative = Math.Max(derivative, 1e-12);
                     sum += Math.Log(derivative);
                 }
