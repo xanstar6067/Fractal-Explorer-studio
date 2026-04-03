@@ -26,7 +26,7 @@ namespace FractalExplorer.Forms.Fractals
         private Label _lblIterations;
         private NumericUpDown _nudTransient;
         private Label _lblTransient;
-        private NumericUpDown _nudThreads;
+        private ComboBox _cbThreads;
         private Label _lblThreads;
         private Button _btnSaveImage;
         private Button _btnPalette;
@@ -71,7 +71,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblIterations = new Label();
             _nudTransient = new NumericUpDown();
             _lblTransient = new Label();
-            _nudThreads = new NumericUpDown();
+            _cbThreads = new ComboBox();
             _lblThreads = new Label();
             _nudZoom = new NumericUpDown();
             _lblZoom = new Label();
@@ -94,7 +94,6 @@ namespace FractalExplorer.Forms.Fractals
             ((System.ComponentModel.ISupportInitialize)_nudBMax).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_nudIterations).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_nudTransient).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)_nudThreads).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_nudZoom).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_canvas).BeginInit();
             SuspendLayout();
@@ -140,7 +139,7 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.Controls.Add(_lblIterations, 1, 5);
             _pnlControls.Controls.Add(_nudTransient, 0, 6);
             _pnlControls.Controls.Add(_lblTransient, 1, 6);
-            _pnlControls.Controls.Add(_nudThreads, 0, 7);
+            _pnlControls.Controls.Add(_cbThreads, 0, 7);
             _pnlControls.Controls.Add(_lblThreads, 1, 7);
             _pnlControls.Controls.Add(_nudZoom, 0, 8);
             _pnlControls.Controls.Add(_lblZoom, 1, 8);
@@ -316,14 +315,16 @@ namespace FractalExplorer.Forms.Fractals
             _lblTransient.Text = "Transient";
             _lblTransient.TextAlign = ContentAlignment.MiddleLeft;
             // 
-            // _nudThreads
+            // _cbThreads
             // 
-            _nudThreads.Dock = DockStyle.Fill;
-            _nudThreads.Location = new Point(6, 209);
-            _nudThreads.Margin = new Padding(6, 3, 3, 3);
-            _nudThreads.Name = "_nudThreads";
-            _nudThreads.Size = new Size(116, 23);
-            _nudThreads.TabIndex = 14;
+            _cbThreads.Dock = DockStyle.Fill;
+            _cbThreads.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cbThreads.FormattingEnabled = true;
+            _cbThreads.Location = new Point(6, 209);
+            _cbThreads.Margin = new Padding(6, 3, 3, 3);
+            _cbThreads.Name = "_cbThreads";
+            _cbThreads.Size = new Size(116, 23);
+            _cbThreads.TabIndex = 14;
             // 
             // _lblThreads
             // 
@@ -333,7 +334,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblThreads.Name = "_lblThreads";
             _lblThreads.Size = new Size(98, 29);
             _lblThreads.TabIndex = 15;
-            _lblThreads.Text = "Threads";
+            _lblThreads.Text = "Потоки ЦП";
             _lblThreads.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudZoom
@@ -499,7 +500,6 @@ namespace FractalExplorer.Forms.Fractals
             ((System.ComponentModel.ISupportInitialize)_nudBMax).EndInit();
             ((System.ComponentModel.ISupportInitialize)_nudIterations).EndInit();
             ((System.ComponentModel.ISupportInitialize)_nudTransient).EndInit();
-            ((System.ComponentModel.ISupportInitialize)_nudThreads).EndInit();
             ((System.ComponentModel.ISupportInitialize)_nudZoom).EndInit();
             ((System.ComponentModel.ISupportInitialize)_canvas).EndInit();
             ResumeLayout(false);

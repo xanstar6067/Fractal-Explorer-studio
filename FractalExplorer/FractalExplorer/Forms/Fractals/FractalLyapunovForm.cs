@@ -191,9 +191,14 @@ namespace FractalExplorer.Forms.Fractals
             _nudTransient.Maximum = 3000;
             _nudTransient.Value = 100;
 
-            _nudThreads.Minimum = 1;
-            _nudThreads.Maximum = Environment.ProcessorCount;
-            _nudThreads.Value = Math.Max(1, Environment.ProcessorCount / 2);
+            int cores = Environment.ProcessorCount;
+            _cbThreads.Items.Clear();
+            for (int i = 1; i <= cores; i++)
+            {
+                _cbThreads.Items.Add(i);
+            }
+            _cbThreads.Items.Add("Auto");
+            _cbThreads.SelectedItem = "Auto";
 
             ConfigureDecimal(_nudZoom, 4, 0.001m, 0.001m, 2000000m, 1.0m);
             _cbSSAA.Items.AddRange(new object[] { "Выкл (1x)", "Низкое (2x)", "Высокое (4x)" });
@@ -218,7 +223,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudBMax.ValueChanged += (_, _) => QueueRenderRestart();
             _nudIterations.ValueChanged += (_, _) => QueueRenderRestart();
             _nudTransient.ValueChanged += (_, _) => QueueRenderRestart();
-            _nudThreads.ValueChanged += (_, _) => QueueRenderRestart();
+            _cbThreads.SelectedIndexChanged += (_, _) => QueueRenderRestart();
             _nudZoom.ValueChanged += (_, _) => QueueRenderRestart();
             _cbSSAA.SelectedIndexChanged += (_, _) => QueueRenderRestart();
             _tbPattern.TextChanged += (_, _) => QueueRenderRestart();
@@ -644,7 +649,7 @@ namespace FractalExplorer.Forms.Fractals
 
             int width = _canvas.Width;
             int height = _canvas.Height;
-            int threads = (int)_nudThreads.Value;
+            int threads = GetThreadCount();
             int ssaaFactor = GetSelectedSsaaFactor();
             var tiles = GenerateTiles(width, height, PreviewTileSize);
             decimal renderTargetAMin = _nudAMin.Value;
@@ -995,7 +1000,7 @@ namespace FractalExplorer.Forms.Fractals
                     int totalRows = safeHeight;
                     LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(safeWidth, safeHeight, cancellationToken);
                     var result = new Bitmap(safeWidth, safeHeight, PixelFormat.Format32bppArgb);
-                    int threadCount = Math.Max(1, (int)_nudThreads.Value);
+                    int threadCount = GetThreadCount();
 
                     var po = new ParallelOptions
                     {
@@ -1044,7 +1049,22 @@ namespace FractalExplorer.Forms.Fractals
             };
 
             LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(previewWidth, previewHeight);
-            return engine.RenderToBitmap(previewWidth, previewHeight, Math.Max(1, (int)_nudThreads.Value), coloringContext: coloringContext);
+            return engine.RenderToBitmap(previewWidth, previewHeight, GetThreadCount(), coloringContext: coloringContext);
+        }
+
+        private int GetThreadCount()
+        {
+            if (_cbThreads.SelectedItem?.ToString() == "Auto")
+            {
+                return Environment.ProcessorCount;
+            }
+
+            if (_cbThreads.SelectedItem is int selectedThreads)
+            {
+                return Math.Max(1, selectedThreads);
+            }
+
+            return Environment.ProcessorCount;
         }
 
         public string FractalTypeIdentifier => "Lyapunov";
