@@ -4,6 +4,7 @@ using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using FractalExplorer.Utilities.Theme;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
@@ -26,6 +27,13 @@ namespace FractalExplorer.Forms.Fractals
         private bool _suppressAutoRender;
         private bool _isQueuingRenderRestart;
         private Point _panStartPoint;
+        private Bitmap? _interactionSourceBitmap;
+        private decimal _interactionSourceCenterX;
+        private decimal _interactionSourceCenterY;
+        private decimal _interactionSourceZoom = 1.0m;
+        private decimal _renderedCenterX;
+        private decimal _renderedCenterY;
+        private decimal _renderedZoom = 1.0m;
 
         public FractalBuddhabrotForm()
         {
@@ -81,6 +89,8 @@ namespace FractalExplorer.Forms.Fractals
             _renderRestartTimer.Stop();
             _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
             _renderRestartTimer.Dispose();
+            _interactionSourceBitmap?.Dispose();
+            _interactionSourceBitmap = null;
         }
 
         private async void BtnRender_Click(object? sender, EventArgs e)
@@ -101,6 +111,8 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
+            BeginInteractivePreview();
+
             decimal scaleBeforeZoom = BaseScale / Math.Max(0.0000001m, _zoom.Value);
             decimal mouseReal = _centerX + (e.X - _canvas.Width / 2.0m) * scaleBeforeZoom / _canvas.Width;
             decimal mouseImaginary = _centerY - (e.Y - _canvas.Height / 2.0m) * scaleBeforeZoom / _canvas.Height;
@@ -118,6 +130,8 @@ namespace FractalExplorer.Forms.Fractals
             _suppressAutoRender = true;
             _zoom.Value = nextZoom;
             _suppressAutoRender = false;
+
+            ApplyInstantViewportPreview();
             QueueRenderRestart();
         }
 
@@ -128,14 +142,17 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
+            BeginInteractivePreview();
+
             _isPanning = true;
             _panStartPoint = e.Location;
+            ApplyInstantViewportPreview();
             _canvas.Cursor = Cursors.Hand;
         }
 
         private void Canvas_MouseMove(object? sender, MouseEventArgs e)
         {
-            if (!_isPanning || _canvas.Width <= 0)
+            if (!_isPanning || _canvas.Width <= 0 || _canvas.Height <= 0)
             {
                 return;
             }
@@ -144,6 +161,7 @@ namespace FractalExplorer.Forms.Fractals
             _centerX -= (e.X - _panStartPoint.X) * unitsPerPixel;
             _centerY += (e.Y - _panStartPoint.Y) * unitsPerPixel;
             _panStartPoint = e.Location;
+            ApplyInstantViewportPreview();
         }
 
         private void Canvas_MouseUp(object? sender, MouseEventArgs e)
@@ -158,6 +176,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.Cursor = Cursors.Default;
             if (wasPanning)
             {
+                EndInteractivePreview();
                 QueueRenderRestart(immediate: true);
             }
         }
@@ -169,6 +188,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.Cursor = Cursors.Default;
             if (wasPanning)
             {
+                EndInteractivePreview();
                 QueueRenderRestart(immediate: true);
             }
         }
@@ -181,6 +201,67 @@ namespace FractalExplorer.Forms.Fractals
             }
 
             QueueRenderRestart(immediate: true);
+        }
+
+
+        private void BeginInteractivePreview()
+        {
+            if (_interactionSourceBitmap != null)
+            {
+                return;
+            }
+
+            if (_canvas.Image is not Bitmap currentFrame)
+            {
+                return;
+            }
+
+            _interactionSourceBitmap = (Bitmap)currentFrame.Clone();
+            _interactionSourceCenterX = _renderedCenterX;
+            _interactionSourceCenterY = _renderedCenterY;
+            _interactionSourceZoom = Math.Max(0.0000001m, _renderedZoom);
+        }
+
+        private void EndInteractivePreview()
+        {
+            _interactionSourceBitmap?.Dispose();
+            _interactionSourceBitmap = null;
+        }
+
+        private void ApplyInstantViewportPreview()
+        {
+            if (_canvas.Width <= 0 || _canvas.Height <= 0 || _interactionSourceBitmap == null)
+            {
+                return;
+            }
+
+            using var preview = new Bitmap(_canvas.Width, _canvas.Height, PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(preview))
+            {
+                g.Clear(Color.Black);
+                g.InterpolationMode = InterpolationMode.Bilinear;
+
+                decimal sourceScale = BaseScale / Math.Max(0.0000001m, _interactionSourceZoom);
+                decimal targetScale = BaseScale / Math.Max(0.0000001m, _zoom.Value);
+                float scaleRatio = (float)(sourceScale / targetScale);
+
+                float newWidth = _canvas.Width * scaleRatio;
+                float newHeight = _canvas.Height * scaleRatio;
+                float offsetX = (float)((_interactionSourceCenterX - _centerX) / targetScale * _canvas.Width);
+                float offsetY = (float)(-(_interactionSourceCenterY - _centerY) / targetScale * _canvas.Width);
+
+                float drawX = (_canvas.Width - newWidth) * 0.5f + offsetX;
+                float drawY = (_canvas.Height - newHeight) * 0.5f + offsetY;
+
+                g.DrawImage(_interactionSourceBitmap, drawX, drawY, newWidth, newHeight);
+            }
+
+            Bitmap? old = _canvas.Image as Bitmap;
+            _canvas.Image = (Bitmap)preview.Clone();
+            if (!ReferenceEquals(old, _interactionSourceBitmap))
+            {
+                old?.Dispose();
+            }
         }
 
         private void AttachAutoRenderControlTriggers()
@@ -338,8 +419,17 @@ namespace FractalExplorer.Forms.Fractals
                     bmp.UnlockBits(data);
                 }
 
-                _canvas.Image?.Dispose();
+                Bitmap? old = _canvas.Image as Bitmap;
                 _canvas.Image = (Bitmap)bmp.Clone();
+                if (!ReferenceEquals(old, _interactionSourceBitmap))
+                {
+                    old?.Dispose();
+                }
+
+                EndInteractivePreview();
+                _renderedCenterX = _centerX;
+                _renderedCenterY = _centerY;
+                _renderedZoom = _zoom.Value;
             }
             catch (OperationCanceledException)
             {
