@@ -1287,7 +1287,7 @@ namespace FractalExplorer.Forms
             _baseTitle = this.Text;
             _paletteManager = new PaletteManager();
             _fractalEngine = new PhoenixEngine();
-            _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 300 };
+            _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 350 };
             _renderDebounceTimer.Tick += RenderDebounceTimer_Tick;
             _renderVisualizer = new RenderVisualizerComponent(TILE_SIZE);
             _renderVisualizer.NeedsRedraw += OnVisualizerNeedsRedraw;

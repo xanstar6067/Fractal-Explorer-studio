@@ -199,7 +199,7 @@ namespace FractalExplorer
             KeyPreview = true;
             ThemeManager.RegisterForm(this);
             _engine = new FractalNewtonEngine();
-            _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 300 };
+            _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 350 };
             _paletteManager = new NewtonPaletteManager();
             InitializeForm();
         }

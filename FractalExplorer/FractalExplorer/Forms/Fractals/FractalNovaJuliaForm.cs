@@ -1174,7 +1174,7 @@ namespace FractalExplorer.Forms
             _baseTitle = this.Text;
             _fractalEngine = new NovaJuliaEngine();
             _paletteManager = new PaletteManager();
-            _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 300 };
+            _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 350 };
             _renderVisualizer = new RenderVisualizerComponent(TILE_SIZE);
 
             InitializeControls();

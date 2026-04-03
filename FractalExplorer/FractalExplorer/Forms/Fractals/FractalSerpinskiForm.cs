@@ -124,7 +124,7 @@ namespace FractalExplorer
         /// </summary>
         private void InitializeCustomComponents()
         {
-            renderTimer = new System.Windows.Forms.Timer { Interval = 300 };
+            renderTimer = new System.Windows.Forms.Timer { Interval = 350 };
             renderTimer.Tick += RenderTimer_Tick;
 
             int cores = Environment.ProcessorCount;

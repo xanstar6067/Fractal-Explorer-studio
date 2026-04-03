@@ -358,7 +358,7 @@ namespace FractalExplorer.Forms.Fractals
             decimal nextZoom = Math.Max(_nudZoom.Minimum, Math.Min(_nudZoom.Maximum, _nudZoom.Value * factor));
             ApplyZoom(nextZoom, e.X, e.Y);
             _canvas.Invalidate();
-            _ = RenderAsync();
+            QueueRenderRestart();
         }
 
         private void Canvas_MouseDown(object? sender, MouseEventArgs e)
