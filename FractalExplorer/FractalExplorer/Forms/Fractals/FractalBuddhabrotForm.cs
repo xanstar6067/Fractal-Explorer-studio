@@ -476,6 +476,13 @@ namespace FractalExplorer.Forms.Fractals
             }
         }
 
+        private static BuddhabrotRenderMode ParseRenderMode(int modeValue)
+        {
+            return Enum.IsDefined(typeof(BuddhabrotRenderMode), modeValue)
+                ? (BuddhabrotRenderMode)modeValue
+                : BuddhabrotRenderMode.Buddhabrot;
+        }
+
         private void ApplyUiToEngine()
         {
             _engine.CenterX = _centerX;
@@ -486,7 +493,7 @@ namespace FractalExplorer.Forms.Fractals
             _engine.ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto"
                 ? 0
                 : Convert.ToInt32(_threadsCombo.SelectedItem);
-            _engine.RenderMode = _modeCombo.SelectedIndex == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot;
+            _engine.RenderMode = ParseRenderMode(_modeCombo.SelectedIndex);
 
             _engine.SampleMinRe = _sampleMinRe.Value;
             _engine.SampleMaxRe = _sampleMaxRe.Value;
@@ -765,7 +772,7 @@ namespace FractalExplorer.Forms.Fractals
             _zoom.Value = Math.Clamp(s.Zoom, _zoom.Minimum, _zoom.Maximum);
             _iterations.Value = Math.Clamp(s.MaxIterations, _iterations.Minimum, _iterations.Maximum);
             _samples.Value = Math.Clamp(s.SampleCount, _samples.Minimum, _samples.Maximum);
-            _modeCombo.SelectedIndex = s.RenderMode == 1 ? 1 : 0;
+            _modeCombo.SelectedIndex = Math.Clamp((int)ParseRenderMode(s.RenderMode), 0, _modeCombo.Items.Count - 1);
             _sampleMinRe.Value = Math.Clamp(s.SampleMinRe, _sampleMinRe.Minimum, _sampleMinRe.Maximum);
             _sampleMaxRe.Value = Math.Clamp(s.SampleMaxRe, _sampleMaxRe.Minimum, _sampleMaxRe.Maximum);
             _sampleMinIm.Value = Math.Clamp(s.SampleMinIm, _sampleMinIm.Minimum, _sampleMinIm.Maximum);
@@ -904,7 +911,7 @@ namespace FractalExplorer.Forms.Fractals
                 MaxIterations = state.Iterations,
                 SampleCount = state.BuddhabrotSampleCount ?? _engine.SampleCount,
                 ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto" ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
-                RenderMode = state.BuddhabrotRenderMode == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot,
+                RenderMode = ParseRenderMode(state.BuddhabrotRenderMode ?? 0),
                 SampleMinRe = state.BuddhabrotSampleMinRe ?? _engine.SampleMinRe,
                 SampleMaxRe = state.BuddhabrotSampleMaxRe ?? _engine.SampleMaxRe,
                 SampleMinIm = state.BuddhabrotSampleMinIm ?? _engine.SampleMinIm,
@@ -967,7 +974,7 @@ namespace FractalExplorer.Forms.Fractals
                 MaxIterations = Math.Max(50, Math.Min(state.Iterations, 300)),
                 SampleCount = Math.Max(25_000, (state.BuddhabrotSampleCount ?? _engine.SampleCount) / 6),
                 ThreadCount = 1,
-                RenderMode = state.BuddhabrotRenderMode == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot,
+                RenderMode = ParseRenderMode(state.BuddhabrotRenderMode ?? 0),
                 SampleMinRe = state.BuddhabrotSampleMinRe ?? _engine.SampleMinRe,
                 SampleMaxRe = state.BuddhabrotSampleMaxRe ?? _engine.SampleMaxRe,
                 SampleMinIm = state.BuddhabrotSampleMinIm ?? _engine.SampleMinIm,
@@ -1011,7 +1018,7 @@ namespace FractalExplorer.Forms.Fractals
                 MaxIterations = s.MaxIterations,
                 SampleCount = s.SampleCount,
                 ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto" ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
-                RenderMode = s.RenderMode == 1 ? BuddhabrotRenderMode.AntiBuddhabrot : BuddhabrotRenderMode.Buddhabrot,
+                RenderMode = ParseRenderMode(s.RenderMode),
                 SampleMinRe = s.SampleMinRe,
                 SampleMaxRe = s.SampleMaxRe,
                 SampleMinIm = s.SampleMinIm,

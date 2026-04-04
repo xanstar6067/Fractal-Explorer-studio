@@ -167,7 +167,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _modeCombo.DropDownStyle = ComboBoxStyle.DropDownList;
             _modeCombo.FormattingEnabled = true;
-            _modeCombo.Items.AddRange(new object[] { "Buddhabrot", "Anti-Buddhabrot" });
+            _modeCombo.Items.AddRange(new object[] { "Buddhabrot", "Anti-Buddhabrot", "Symmetric Buddhabrot" });
             _modeCombo.Location = new Point(6, 6);
             _modeCombo.Margin = new Padding(6, 6, 3, 3);
             _modeCombo.Name = "_modeCombo";

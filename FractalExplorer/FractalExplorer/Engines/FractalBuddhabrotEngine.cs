@@ -3,7 +3,8 @@ namespace FractalExplorer.Engines
     public enum BuddhabrotRenderMode
     {
         Buddhabrot = 0,
-        AntiBuddhabrot = 1
+        AntiBuddhabrot = 1,
+        SymmetricBuddhabrot = 2
     }
 
     /// <summary>
@@ -107,9 +108,17 @@ namespace FractalExplorer.Engines
                         }
                     }
 
-                    bool takeOrbit = RenderMode == BuddhabrotRenderMode.Buddhabrot ? escaped : !escaped;
+                    bool takeOrbit = RenderMode switch
+                    {
+                        BuddhabrotRenderMode.Buddhabrot => escaped,
+                        BuddhabrotRenderMode.AntiBuddhabrot => !escaped,
+                        BuddhabrotRenderMode.SymmetricBuddhabrot => escaped,
+                        _ => escaped
+                    };
+
                     if (takeOrbit)
                     {
+                        bool mirrorAcrossRealAxis = RenderMode == BuddhabrotRenderMode.SymmetricBuddhabrot;
                         foreach ((double ore, double oim) in local.orbit)
                         {
                             int px = (int)((ore - viewLeft) / viewScale * width);
@@ -118,6 +127,15 @@ namespace FractalExplorer.Engines
                             if ((uint)px < (uint)width && (uint)py < (uint)height)
                             {
                                 Interlocked.Increment(ref density[py * width + px]);
+                            }
+
+                            if (mirrorAcrossRealAxis)
+                            {
+                                int mirroredPy = (int)((viewTop + oim) / viewScaleY * height);
+                                if ((uint)px < (uint)width && (uint)mirroredPy < (uint)height)
+                                {
+                                    Interlocked.Increment(ref density[mirroredPy * width + px]);
+                                }
                             }
                         }
                     }
