@@ -48,6 +48,7 @@
             splitContainerMain.Panel2.SuspendLayout();
             splitContainerMain.SuspendLayout();
             pnlDetails.SuspendLayout();
+            headerPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBoxPreview).BeginInit();
             settingsPanel.SuspendLayout();
             SuspendLayout();
@@ -67,8 +68,8 @@
             // splitContainerMain.Panel2
             // 
             splitContainerMain.Panel2.Controls.Add(pnlDetails);
-            splitContainerMain.Size = new Size(844, 521);
-            splitContainerMain.SplitterDistance = 284;
+            splitContainerMain.Size = new Size(896, 521);
+            splitContainerMain.SplitterDistance = 301;
             splitContainerMain.SplitterWidth = 2;
             splitContainerMain.TabIndex = 0;
             // 
@@ -80,7 +81,7 @@
             treeViewFractals.Location = new Point(10, 10);
             treeViewFractals.Name = "treeViewFractals";
             treeViewFractals.ShowLines = false;
-            treeViewFractals.Size = new Size(264, 501);
+            treeViewFractals.Size = new Size(281, 501);
             treeViewFractals.TabIndex = 0;
             treeViewFractals.AfterSelect += treeViewFractals_AfterSelect;
             // 
@@ -101,15 +102,15 @@
             pnlDetails.RowStyles.Add(new RowStyle());
             pnlDetails.RowStyles.Add(new RowStyle(SizeType.Absolute, 202F));
             pnlDetails.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            pnlDetails.Size = new Size(558, 521);
+            pnlDetails.Size = new Size(593, 521);
             pnlDetails.TabIndex = 0;
             // 
             // headerPanel
             // 
             headerPanel.ColumnCount = 2;
+            pnlDetails.SetColumnSpan(headerPanel, 2);
             headerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             headerPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34F));
-            pnlDetails.SetColumnSpan(headerPanel, 2);
             headerPanel.Controls.Add(lblFractalName, 0, 0);
             headerPanel.Controls.Add(btnAboutInfo, 1, 0);
             headerPanel.Dock = DockStyle.Fill;
@@ -118,7 +119,7 @@
             headerPanel.Name = "headerPanel";
             headerPanel.RowCount = 1;
             headerPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            headerPanel.Size = new Size(528, 30);
+            headerPanel.Size = new Size(563, 30);
             headerPanel.TabIndex = 0;
             // 
             // lblFractalName
@@ -129,7 +130,7 @@
             lblFractalName.Location = new Point(0, 0);
             lblFractalName.Margin = new Padding(0);
             lblFractalName.Name = "lblFractalName";
-            lblFractalName.Size = new Size(494, 30);
+            lblFractalName.Size = new Size(529, 30);
             lblFractalName.TabIndex = 0;
             lblFractalName.Text = "Выберите фрактал";
             lblFractalName.TextAlign = ContentAlignment.MiddleLeft;
@@ -140,7 +141,7 @@
             btnAboutInfo.Cursor = Cursors.Hand;
             btnAboutInfo.FlatStyle = FlatStyle.Flat;
             btnAboutInfo.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
-            btnAboutInfo.Location = new Point(499, 1);
+            btnAboutInfo.Location = new Point(534, 1);
             btnAboutInfo.Margin = new Padding(0, 1, 0, 0);
             btnAboutInfo.Name = "btnAboutInfo";
             btnAboutInfo.Size = new Size(29, 29);
@@ -180,7 +181,7 @@
             settingsPanel.RowStyles.Add(new RowStyle());
             settingsPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             settingsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
-            settingsPanel.Size = new Size(308, 202);
+            settingsPanel.Size = new Size(343, 202);
             settingsPanel.TabIndex = 4;
             // 
             // lblRenderPatternType
@@ -191,7 +192,7 @@
             lblRenderPatternType.Location = new Point(0, 0);
             lblRenderPatternType.Margin = new Padding(0, 0, 0, 5);
             lblRenderPatternType.Name = "lblRenderPatternType";
-            lblRenderPatternType.Size = new Size(308, 19);
+            lblRenderPatternType.Size = new Size(343, 19);
             lblRenderPatternType.TabIndex = 1;
             lblRenderPatternType.Text = "Тип рендера:";
             // 
@@ -204,7 +205,7 @@
             cbRenderPattern.Location = new Point(0, 24);
             cbRenderPattern.Margin = new Padding(0);
             cbRenderPattern.Name = "cbRenderPattern";
-            cbRenderPattern.Size = new Size(308, 28);
+            cbRenderPattern.Size = new Size(343, 28);
             cbRenderPattern.TabIndex = 2;
             // 
             // lblTheme
@@ -215,7 +216,7 @@
             lblTheme.Location = new Point(0, 62);
             lblTheme.Margin = new Padding(0, 10, 0, 5);
             lblTheme.Name = "lblTheme";
-            lblTheme.Size = new Size(308, 19);
+            lblTheme.Size = new Size(343, 19);
             lblTheme.TabIndex = 3;
             lblTheme.Text = "Тема оформления приложения:";
             // 
@@ -228,7 +229,7 @@
             cbTheme.Location = new Point(0, 86);
             cbTheme.Margin = new Padding(0);
             cbTheme.Name = "cbTheme";
-            cbTheme.Size = new Size(308, 28);
+            cbTheme.Size = new Size(343, 28);
             cbTheme.TabIndex = 4;
             // 
             // btnLaunchSelected
@@ -238,7 +239,7 @@
             btnLaunchSelected.Location = new Point(0, 157);
             btnLaunchSelected.Margin = new Padding(0, 5, 0, 0);
             btnLaunchSelected.Name = "btnLaunchSelected";
-            btnLaunchSelected.Size = new Size(308, 45);
+            btnLaunchSelected.Size = new Size(343, 45);
             btnLaunchSelected.TabIndex = 6;
             btnLaunchSelected.Text = "Запустить";
             btnLaunchSelected.Visible = false;
@@ -254,7 +255,7 @@
             richTextBoxDescription.Margin = new Padding(0, 15, 0, 0);
             richTextBoxDescription.Name = "richTextBoxDescription";
             richTextBoxDescription.ReadOnly = true;
-            richTextBoxDescription.Size = new Size(528, 229);
+            richTextBoxDescription.Size = new Size(563, 229);
             richTextBoxDescription.TabIndex = 2;
             richTextBoxDescription.Text = "";
             // 
@@ -262,7 +263,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(844, 521);
+            ClientSize = new Size(896, 521);
             Controls.Add(splitContainerMain);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
@@ -275,7 +276,6 @@
             ((System.ComponentModel.ISupportInitialize)splitContainerMain).EndInit();
             splitContainerMain.ResumeLayout(false);
             pnlDetails.ResumeLayout(false);
-            pnlDetails.PerformLayout();
             headerPanel.ResumeLayout(false);
             headerPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBoxPreview).EndInit();
