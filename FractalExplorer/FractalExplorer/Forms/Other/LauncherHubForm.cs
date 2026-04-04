@@ -483,7 +483,7 @@ namespace FractalExplorer
                 Description = "Вместо прямого окрашивания точки по escape-time этот рендер накапливает плотность посещения орбит в отдельном буфере.\n\n" +
                               "Режим Buddhabrot учитывает только орбиты вышедших точек, а Anti-Buddhabrot — орбиты оставшихся ограниченными в заданном лимите итераций.\n\n" +
                               "Особенности: настройка числа случайных стартовых точек, максимума итераций и ограничений области выборки.",
-                PreviewImage = Properties.Resources.mandelbrot_preview_sq512
+                PreviewImage = Properties.Resources.buddhabrot_f_preview_sq512
             });
 
             _fractalCatalog.Add(new FractalInfo
