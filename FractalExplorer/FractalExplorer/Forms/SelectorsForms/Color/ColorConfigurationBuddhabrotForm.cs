@@ -9,15 +9,17 @@ namespace FractalExplorer.SelectorsForms
     {
         private readonly BuddhabrotPaletteManager _paletteManager;
         private readonly ColorSelectionService _colorSelectionService = ColorSelectionService.Default;
+        private readonly int _renderMaxIterations;
         private BuddhabrotColorPalette? _selectedPalette;
         private bool _isProgrammaticChange;
         private bool _hasUnsavedChanges;
 
         public event EventHandler? PaletteApplied;
 
-        public ColorConfigurationBuddhabrotForm(BuddhabrotPaletteManager paletteManager)
+        public ColorConfigurationBuddhabrotForm(BuddhabrotPaletteManager paletteManager, int renderMaxIterations)
         {
             _paletteManager = paletteManager;
+            _renderMaxIterations = Math.Max(2, renderMaxIterations);
             InitializeComponent();
             InitializeData();
             InitializeEventHandlers();
@@ -246,25 +248,73 @@ namespace FractalExplorer.SelectorsForms
             int w = Math.Max(1, _panelPreview.ClientSize.Width);
             int h = Math.Max(1, _panelPreview.ClientSize.Height);
             var colors = _selectedPalette.Colors.Count == 0 ? new List<Color> { Color.Black, Color.White } : _selectedPalette.Colors.ToList();
-            using var brush = new LinearGradientBrush(new Rectangle(0, 0, w, h), Color.Black, Color.White, 0f);
+            int cycleLength = _selectedPalette.AlignWithRenderIterations
+                ? _renderMaxIterations
+                : Math.Max(2, _selectedPalette.MaxColorIterations);
 
-            if (_selectedPalette.IsGradient && colors.Count > 1)
+            using var bitmap = new Bitmap(w, 1);
+            for (int x = 0; x < w; x++)
             {
-                var blend = new ColorBlend(colors.Count);
-                blend.Colors = colors.Select(c => ApplyGamma(c, (double)_nudGamma.Value)).ToArray();
-                blend.Positions = Enumerable.Range(0, colors.Count).Select(i => (float)i / (colors.Count - 1)).ToArray();
-                brush.InterpolationColors = blend;
-                g.FillRectangle(brush, 0, 0, w, h);
-                return;
+                double normalized = w <= 1 ? 0.0 : x / (double)(w - 1);
+                bitmap.SetPixel(x, 0, EvaluatePaletteColor(colors, _selectedPalette, cycleLength, normalized));
             }
 
-            int segments = Math.Max(1, colors.Count);
-            float segWidth = w / (float)segments;
-            for (int i = 0; i < segments; i++)
+            g.InterpolationMode = InterpolationMode.NearestNeighbor;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
+            g.DrawImage(bitmap, new Rectangle(0, 0, w, h));
+        }
+
+        private static Color EvaluatePaletteColor(IReadOnlyList<Color> colors, BuddhabrotColorPalette palette, int cycleLength, double normalized)
+        {
+            if (colors.Count == 1)
             {
-                using var sb = new SolidBrush(ApplyGamma(colors[i % colors.Count], (double)_nudGamma.Value));
-                g.FillRectangle(sb, i * segWidth, 0, segWidth + 1, h);
+                return ApplyGamma(colors[0], palette.Gamma);
             }
+
+            double mapped = MapNormalizedByMode(normalized, palette.ColoringMode);
+            if (palette.IsGradient)
+            {
+                double t = Math.Clamp(mapped, 0.0, 1.0);
+                double scaled = t * (colors.Count - 1);
+                int i0 = (int)Math.Floor(scaled);
+                int i1 = Math.Min(i0 + 1, colors.Count - 1);
+                double f = scaled - i0;
+                Color c0 = ApplyGamma(colors[i0], palette.Gamma);
+                Color c1 = ApplyGamma(colors[i1], palette.Gamma);
+                return Color.FromArgb(
+                    255,
+                    (int)(c0.R + (c1.R - c0.R) * f),
+                    (int)(c0.G + (c1.G - c0.G) * f),
+                    (int)(c0.B + (c1.B - c0.B) * f));
+            }
+
+            double mappedClamped = Math.Clamp(mapped, 0.0, 1.0);
+            double quant = mappedClamped >= 1.0
+                ? 1.0
+                : Math.Floor(mappedClamped * cycleLength) / (cycleLength - 1.0);
+            double tQuant = Math.Clamp(quant, 0.0, 1.0);
+            double scaledQuant = tQuant * (colors.Count - 1);
+            int q0 = Math.Min((int)Math.Floor(scaledQuant), colors.Count - 1);
+            int q1 = Math.Min(q0 + 1, colors.Count - 1);
+            double qf = scaledQuant - q0;
+            Color qc0 = ApplyGamma(colors[q0], palette.Gamma);
+            Color qc1 = ApplyGamma(colors[q1], palette.Gamma);
+            return Color.FromArgb(
+                255,
+                (int)(qc0.R + (qc1.R - qc0.R) * qf),
+                (int)(qc0.G + (qc1.G - qc0.G) * qf),
+                (int)(qc0.B + (qc1.B - qc0.B) * qf));
+        }
+
+        private static double MapNormalizedByMode(double normalized, BuddhabrotColoringMode mode)
+        {
+            normalized = Math.Clamp(normalized, 0.0, 1.0);
+            return mode switch
+            {
+                BuddhabrotColoringMode.Linear => normalized,
+                BuddhabrotColoringMode.Sqrt => Math.Sqrt(normalized),
+                _ => Math.Log(1 + normalized * 15.0) / Math.Log(16.0)
+            };
         }
 
         private void ColorsListMouseDown(object? sender, MouseEventArgs e)
@@ -366,6 +416,7 @@ namespace FractalExplorer.SelectorsForms
                 if (_isProgrammaticChange || !IsEditable()) return;
                 _selectedPalette!.ColoringMode = GetSelectedMode();
                 MarkUnsaved();
+                _panelPreview.Invalidate();
             };
 
             _checkIsGradient.CheckedChanged += (_, _) =>
@@ -382,6 +433,7 @@ namespace FractalExplorer.SelectorsForms
                 _selectedPalette!.AlignWithRenderIterations = _checkAlignSteps.Checked;
                 _nudMaxSteps.Enabled = !_checkAlignSteps.Checked;
                 MarkUnsaved();
+                _panelPreview.Invalidate();
             };
 
             _nudMaxSteps.ValueChanged += (_, _) =>
@@ -389,6 +441,7 @@ namespace FractalExplorer.SelectorsForms
                 if (_isProgrammaticChange || !IsEditable()) return;
                 _selectedPalette!.MaxColorIterations = (int)_nudMaxSteps.Value;
                 MarkUnsaved();
+                _panelPreview.Invalidate();
             };
 
             _nudGamma.ValueChanged += (_, _) =>

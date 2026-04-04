@@ -121,7 +121,7 @@ namespace FractalExplorer.Forms.Fractals
         {
             if (_buddhabrotColorConfigForm == null || _buddhabrotColorConfigForm.IsDisposed)
             {
-                _buddhabrotColorConfigForm = new ColorConfigurationBuddhabrotForm(_paletteManager);
+                _buddhabrotColorConfigForm = new ColorConfigurationBuddhabrotForm(_paletteManager, (int)_iterations.Value);
                 _buddhabrotColorConfigForm.PaletteApplied += (_, _) =>
                 {
                     EnsureActivePalette();
@@ -477,11 +477,10 @@ namespace FractalExplorer.Forms.Fractals
             return normalized =>
             {
                 double mapped = MapNormalizedByMode(normalized, palette.ColoringMode);
-                double stepped = mapped * cycleLength;
-                double t = (stepped % cycleLength) / cycleLength;
 
                 if (palette.IsGradient)
                 {
+                    double t = Math.Clamp(mapped, 0.0, 1.0);
                     double scaled = t * (colors.Count - 1);
                     int i0 = (int)Math.Floor(scaled);
                     int i1 = Math.Min(i0 + 1, colors.Count - 1);
@@ -496,8 +495,24 @@ namespace FractalExplorer.Forms.Fractals
                         (int)(c0.B + (c1.B - c0.B) * f));
                 }
 
-                int discreteIndex = (int)Math.Floor(t * colors.Count) % colors.Count;
-                return ApplyGamma(colors[discreteIndex], palette.Gamma);
+                // Quantization by cycleLength with explicit edge handling for mapped == 1.0.
+                double mappedClamped = Math.Clamp(mapped, 0.0, 1.0);
+                double quant = mappedClamped >= 1.0
+                    ? 1.0
+                    : Math.Floor(mappedClamped * cycleLength) / (cycleLength - 1.0);
+                double quantT = Math.Clamp(quant, 0.0, 1.0);
+                double quantScaled = quantT * (colors.Count - 1);
+                int quantI0 = Math.Min((int)Math.Floor(quantScaled), colors.Count - 1);
+                int quantI1 = Math.Min(quantI0 + 1, colors.Count - 1);
+                double quantF = quantScaled - quantI0;
+
+                Color quantC0 = ApplyGamma(colors[quantI0], palette.Gamma);
+                Color quantC1 = ApplyGamma(colors[quantI1], palette.Gamma);
+                return Color.FromArgb(
+                    255,
+                    (int)(quantC0.R + (quantC1.R - quantC0.R) * quantF),
+                    (int)(quantC0.G + (quantC1.G - quantC0.G) * quantF),
+                    (int)(quantC0.B + (quantC1.B - quantC0.B) * quantF));
             };
         }
 
