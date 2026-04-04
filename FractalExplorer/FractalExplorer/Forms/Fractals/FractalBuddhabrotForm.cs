@@ -46,10 +46,12 @@ namespace FractalExplorer.Forms.Fractals
         private decimal _renderedCenterX;
         private decimal _renderedCenterY;
         private decimal _renderedZoom = 1.0m;
+        private readonly string _baseTitle;
 
         public FractalBuddhabrotForm()
         {
             InitializeComponent();
+            _baseTitle = Text;
             ThemeManager.RegisterForm(this);
             InitializeUiState();
         }
@@ -611,6 +613,7 @@ namespace FractalExplorer.Forms.Fractals
             int width = _canvas.Width;
             int height = _canvas.Height;
             int totalSamples = _engine.SampleCount;
+            var renderStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             byte[] pixels = new byte[width * height * 4];
             try
@@ -657,6 +660,7 @@ namespace FractalExplorer.Forms.Fractals
                 _renderedCenterX = _centerX;
                 _renderedCenterY = _centerY;
                 _renderedZoom = _zoom.Value;
+                Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
             }
             catch (OperationCanceledException)
             {

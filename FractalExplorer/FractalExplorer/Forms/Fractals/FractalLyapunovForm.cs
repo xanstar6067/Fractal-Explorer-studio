@@ -52,6 +52,7 @@ namespace FractalExplorer.Forms.Fractals
         private decimal _renderedAMax = DefaultAMax;
         private decimal _renderedBMin = DefaultBMin;
         private decimal _renderedBMax = DefaultBMax;
+        private readonly string _baseTitle;
 
         public FractalLyapunovForm()
         {
@@ -60,6 +61,7 @@ namespace FractalExplorer.Forms.Fractals
             Height = 780;
             StartPosition = FormStartPosition.CenterScreen;
             InitializeComponent();
+            _baseTitle = Text;
             KeyPreview = true;
             ApplyDefaults();
             Shown += HandleFormShown;
@@ -642,6 +644,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 return;
             }
+            var renderStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             SyncEngine();
             CancellationTokenSource renderSession = StartNewPreviewRender();
@@ -743,6 +746,7 @@ namespace FractalExplorer.Forms.Fractals
                         _renderedAMax = renderTargetAMax;
                         _renderedBMin = renderTargetBMin;
                         _renderedBMax = renderTargetBMax;
+                        Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
                         previousStable?.Dispose();
                     }
                 }
