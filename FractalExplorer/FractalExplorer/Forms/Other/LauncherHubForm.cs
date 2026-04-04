@@ -488,6 +488,17 @@ namespace FractalExplorer
 
             _fractalCatalog.Add(new FractalInfo
             {
+                Family = "Итерируемые функции",
+                DisplayName = "Fractal Flame (stochastic)",
+                FormToLaunch = typeof(FractalFlameForm),
+                Description = "Стохастический итеративный рендер с накоплением HDR-гистограммы посещений.\n\n" +
+                              "Поддерживает минимальный набор вариаций linear/sinusoidal/spherical и список аффинных преобразований с весами.\n\n" +
+                              "Особенности: редактирование таблицы коэффициентов и весов, tone mapping + гамма-коррекция, поддержка save/load.",
+                PreviewImage = Properties.Resources.mandelbrot_preview_sq512
+            });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
                 Family = "Динамические системы",
                 DisplayName = "Экспонента Ляпунова",
                 FormToLaunch = typeof(FractalLyapunovForm),
