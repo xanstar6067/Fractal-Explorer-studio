@@ -72,7 +72,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             return new BuddhabrotColorPalette
             {
-                Name = "Классический Buddhabrot",
+                Name = "Классический Буддаброт",
                 Colors = new List<Color> { Color.Black, Color.DarkBlue, Color.Cyan, Color.White },
                 IsGradient = true,
                 MaxColorIterations = 500,
@@ -139,30 +139,10 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
             {
                 new()
                 {
-                    Name = "Fire",
-                    Colors = new List<Color> { Color.Black, Color.DarkRed, Color.OrangeRed, Color.Gold, Color.White },
+                    Name = "Стандартный серый",
+                    Colors = new List<Color> { Color.Black, Color.DimGray, Color.Silver, Color.White },
                     IsGradient = true,
-                    MaxColorIterations = 420,
-                    Gamma = 0.95,
-                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
-                    IsBuiltIn = true
-                },
-                new()
-                {
-                    Name = "Спектральная",
-                    Colors = new List<Color> { Color.Black, Color.DarkViolet, Color.Cyan, Color.Lime, Color.Yellow, Color.White },
-                    IsGradient = true,
-                    MaxColorIterations = 700,
-                    Gamma = 1.05,
-                    ColoringMode = BuddhabrotColoringMode.Sqrt,
-                    IsBuiltIn = true
-                },
-                new()
-                {
-                    Name = "Дискретная",
-                    Colors = new List<Color> { Color.Black, Color.DarkBlue, Color.Teal, Color.Olive, Color.DarkRed, Color.White },
-                    IsGradient = false,
-                    MaxColorIterations = 36,
+                    MaxColorIterations = 500,
                     Gamma = 1.0,
                     ColoringMode = BuddhabrotColoringMode.Linear,
                     IsBuiltIn = true
@@ -174,6 +154,16 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                     IsGradient = true,
                     MaxColorIterations = 520,
                     Gamma = 1.15,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Огонь",
+                    Colors = new List<Color> { Color.Black, Color.DarkRed, Color.OrangeRed, Color.Gold, Color.White },
+                    IsGradient = true,
+                    MaxColorIterations = 420,
+                    Gamma = 0.95,
                     ColoringMode = BuddhabrotColoringMode.Logarithmic,
                     IsBuiltIn = true
                 },
@@ -195,6 +185,96 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                     MaxColorIterations = 760,
                     Gamma = 1.0,
                     ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Психоделика",
+                    Colors = new List<Color> { Color.Red, Color.Yellow, Color.Lime, Color.Cyan, Color.Blue, Color.Magenta },
+                    IsGradient = false,
+                    MaxColorIterations = 24,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Linear,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Черно-белый",
+                    Colors = new List<Color> { Color.Black, Color.White },
+                    IsGradient = true,
+                    MaxColorIterations = 500,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Linear,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Зеленый",
+                    Colors = new List<Color> { Color.Black, Color.FromArgb(255, 0, 128, 0), Color.FromArgb(255, 0, 204, 0), Color.FromArgb(255, 60, 255, 60), Color.FromArgb(255, 213, 255, 213), Color.White },
+                    IsGradient = true,
+                    MaxColorIterations = 320,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Сепия",
+                    Colors = new List<Color> { Color.FromArgb(20, 10, 0), Color.FromArgb(255, 240, 192) },
+                    IsGradient = true,
+                    MaxColorIterations = 460,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Linear,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Белый ультрафиолет",
+                    Colors = new List<Color> { Color.White, Color.Lavender, Color.Violet, Color.DarkViolet, Color.Indigo, Color.Black },
+                    IsGradient = true,
+                    MaxColorIterations = 520,
+                    Gamma = 1.12,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Белый огонь",
+                    Colors = new List<Color> { Color.White, Color.LightYellow, Color.Yellow, Color.Orange, Color.Red, Color.DarkRed, Color.Maroon },
+                    IsGradient = true,
+                    MaxColorIterations = 420,
+                    Gamma = 0.95,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Белый лед",
+                    Colors = new List<Color> { Color.White, Color.LightCyan, Color.Cyan, Color.DeepSkyBlue, Color.Blue, Color.DarkBlue, Color.Navy },
+                    IsGradient = true,
+                    MaxColorIterations = 560,
+                    Gamma = 1.1,
+                    ColoringMode = BuddhabrotColoringMode.Sqrt,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Белый зеленый",
+                    Colors = new List<Color> { Color.White, Color.FromArgb(255, 180, 255, 180), Color.FromArgb(255, 60, 220, 60), Color.FromArgb(255, 0, 120, 0), Color.Black },
+                    IsGradient = true,
+                    MaxColorIterations = 340,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Бело-черный",
+                    Colors = new List<Color> { Color.White, Color.Black },
+                    IsGradient = true,
+                    MaxColorIterations = 500,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Linear,
                     IsBuiltIn = true
                 },
                 new()
@@ -225,6 +305,97 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                     MaxColorIterations = 540,
                     Gamma = 1.0,
                     ColoringMode = BuddhabrotColoringMode.Sqrt,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Золото",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 85, 65, 0), Color.FromArgb(255, 139, 115, 0),
+                        Color.FromArgb(255, 205, 173, 0), Color.FromArgb(255, 255, 215, 0),
+                        Color.FromArgb(255, 255, 248, 220), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 380,
+                    Gamma = 0.9,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Медь",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 72, 61, 20), Color.FromArgb(255, 138, 54, 15),
+                        Color.FromArgb(255, 184, 115, 51), Color.FromArgb(255, 240, 147, 43),
+                        Color.FromArgb(255, 255, 200, 124), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 360,
+                    Gamma = 0.95,
+                    ColoringMode = BuddhabrotColoringMode.Linear,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Неон",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 75, 0, 75), Color.FromArgb(255, 255, 0, 255),
+                        Color.FromArgb(255, 0, 255, 255), Color.FromArgb(255, 0, 255, 0),
+                        Color.FromArgb(255, 255, 255, 0), Color.FromArgb(255, 255, 100, 255), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 640,
+                    Gamma = 1.25,
+                    ColoringMode = BuddhabrotColoringMode.Sqrt,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Радуга",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 148, 0, 211), Color.FromArgb(255, 75, 0, 130),
+                        Color.FromArgb(255, 0, 0, 255), Color.FromArgb(255, 0, 255, 0),
+                        Color.FromArgb(255, 255, 255, 0), Color.FromArgb(255, 255, 127, 0),
+                        Color.FromArgb(255, 255, 0, 0), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 660,
+                    Gamma = 1.05,
+                    ColoringMode = BuddhabrotColoringMode.Sqrt,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Аметист",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 25, 25, 112), Color.FromArgb(255, 72, 61, 139),
+                        Color.FromArgb(255, 123, 104, 238), Color.FromArgb(255, 221, 160, 221),
+                        Color.FromArgb(255, 238, 203, 238), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 620,
+                    Gamma = 1.12,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Лес",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 0, 39, 0), Color.FromArgb(255, 0, 69, 0),
+                        Color.FromArgb(255, 34, 139, 34), Color.FromArgb(255, 50, 205, 50),
+                        Color.FromArgb(255, 173, 255, 47), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 500,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Logarithmic,
                     IsBuiltIn = true
                 },
                 new()
@@ -283,6 +454,21 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                     },
                     IsGradient = true,
                     MaxColorIterations = 600,
+                    Gamma = 1.0,
+                    ColoringMode = BuddhabrotColoringMode.Sqrt,
+                    IsBuiltIn = true
+                },
+                new()
+                {
+                    Name = "Монохром красный",
+                    Colors = new List<Color>
+                    {
+                        Color.Black, Color.FromArgb(255, 139, 0, 0), Color.FromArgb(255, 205, 0, 0),
+                        Color.FromArgb(255, 220, 20, 60), Color.FromArgb(255, 255, 105, 180),
+                        Color.FromArgb(255, 255, 182, 193), Color.White
+                    },
+                    IsGradient = true,
+                    MaxColorIterations = 560,
                     Gamma = 1.0,
                     ColoringMode = BuddhabrotColoringMode.Sqrt,
                     IsBuiltIn = true
