@@ -562,14 +562,17 @@ namespace FractalExplorer.Forms
         #endregion
 
         #region Rendering Logic
-        private void ScheduleRender(bool force = false)
+        private void ScheduleRender(bool force = false, bool cancelCurrentRender = true)
         {
             if (_isHighResRendering || WindowState == FormWindowState.Minimized)
             {
                 return;
             }
 
-            _previewRenderCts?.Cancel();
+            if (cancelCurrentRender && _isRenderingPreview)
+            {
+                _previewRenderCts?.Cancel();
+            }
             _renderDebounceTimer.Stop();
 
             if (force)
@@ -801,7 +804,7 @@ namespace FractalExplorer.Forms
                 return;
             }
 
-            ScheduleRender();
+            ScheduleRender(cancelCurrentRender: false);
         }
 
         private void btnToggleControls_Click(object sender, EventArgs e)

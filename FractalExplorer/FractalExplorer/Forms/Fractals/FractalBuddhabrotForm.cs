@@ -230,7 +230,7 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
-            QueueRenderRestart(immediate: true);
+            QueueRenderRestart();
         }
 
 

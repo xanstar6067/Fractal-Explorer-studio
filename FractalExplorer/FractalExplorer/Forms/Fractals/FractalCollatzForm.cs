@@ -399,7 +399,7 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
-            ScheduleRender();
+            ScheduleRender(cancelCurrentRender: false);
         }
 
         private void btnToggleControls_Click(object sender, EventArgs e)
@@ -595,10 +595,10 @@ namespace FractalExplorer.Forms.Fractals
         /// <summary>
         /// Планирует отложенный запуск рендеринга.
         /// </summary>
-        private void ScheduleRender()
+        private void ScheduleRender(bool cancelCurrentRender = true)
         {
             if (_isHighResRendering || WindowState == FormWindowState.Minimized) return;
-            if (_isRenderingPreview) _previewRenderCts?.Cancel();
+            if (cancelCurrentRender && _isRenderingPreview) _previewRenderCts?.Cancel();
             _renderDebounceTimer.Stop();
             _renderDebounceTimer.Start();
         }

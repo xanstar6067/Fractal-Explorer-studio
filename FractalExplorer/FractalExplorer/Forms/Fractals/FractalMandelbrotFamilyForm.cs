@@ -1190,10 +1190,10 @@ namespace FractalDraving
         /// <summary>
         /// Планирует запуск рендеринга с небольшой задержкой для предотвращения лишних перерисовок.
         /// </summary>
-        private void ScheduleRender()
+        private void ScheduleRender(bool cancelCurrentRender = true)
         {
             if (_isHighResRendering || WindowState == FormWindowState.Minimized) return;
-            if (_isRenderingPreview) _previewRenderCts?.Cancel();
+            if (cancelCurrentRender && _isRenderingPreview) _previewRenderCts?.Cancel();
             _renderDebounceTimer.Stop();
             _renderDebounceTimer.Start();
         }
@@ -1266,7 +1266,7 @@ namespace FractalDraving
                 return;
             }
 
-            ScheduleRender();
+            ScheduleRender(cancelCurrentRender: false);
         }
 
         private void btnToggleControls_Click(object sender, EventArgs e)
