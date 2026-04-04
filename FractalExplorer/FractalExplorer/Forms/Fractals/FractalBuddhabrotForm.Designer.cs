@@ -190,7 +190,8 @@ namespace FractalExplorer.Forms.Fractals
             _samples.Dock = DockStyle.Fill;
             _samples.Location = new Point(6, 64);
             _samples.Margin = new Padding(6, 3, 3, 3);
-            _samples.Maximum = new decimal(new int[] { 5000000, 0, 0, 0 });
+            int max_samples = int.MaxValue;
+            _samples.Maximum = new decimal(new int[] { max_samples, 0, 0, 0 });
             _samples.Minimum = new decimal(new int[] { 1000, 0, 0, 0 });
             _samples.Name = "_samples";
             _samples.Size = new Size(124, 23);
