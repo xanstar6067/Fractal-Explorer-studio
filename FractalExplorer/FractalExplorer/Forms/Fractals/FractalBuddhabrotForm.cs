@@ -18,7 +18,12 @@ namespace FractalExplorer.Forms.Fractals
     {
         private const decimal BaseScale = 4.0m;
         private const int ToggleButtonMargin = 12;
-        private const int ProgressiveRenderBatchSize = 50_000;
+        private const int ProgressiveUiUpdateIntervalMs = 200;
+        private const int AdaptiveBatchMinSize = 5_000;
+        private const int AdaptiveBatchMaxSize = 400_000;
+        private const int AdaptiveBatchTargetMinMs = 45;
+        private const int AdaptiveBatchTargetMaxMs = 140;
+        private const int ProgressiveUiTargetFrames = 24;
 
         private readonly FractalBuddhabrotEngine _engine = new();
         private readonly BuddhabrotPaletteManager _paletteManager = new();
@@ -611,32 +616,43 @@ namespace FractalExplorer.Forms.Fractals
             try
             {
                 SetRenderingState(isRendering: true);
-                for (int batchStart = 0; batchStart < totalSamples; batchStart += ProgressiveRenderBatchSize)
+                _engine.InitializeOrResetDensityBuffer(width, height);
+                var uiUpdateStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                int currentBatchSize = Math.Clamp(
+                    Math.Max(AdaptiveBatchMinSize, totalSamples / 120),
+                    AdaptiveBatchMinSize,
+                    Math.Min(AdaptiveBatchMaxSize, Math.Max(AdaptiveBatchMinSize, totalSamples)));
+                int minSamplesPerPresentedFrame = Math.Max(AdaptiveBatchMinSize, totalSamples / ProgressiveUiTargetFrames);
+                int lastPresentedSamples = 0;
+
+                while (_engine.ProcessedSamples < totalSamples)
                 {
                     token.ThrowIfCancellationRequested();
-
-                    int batchTargetSamples = Math.Min(totalSamples, batchStart + ProgressiveRenderBatchSize);
-                    int batchSampleCount = Math.Max(1, batchTargetSamples - batchStart);
-                    _engine.SampleCount = batchTargetSamples;
-
-                    await Task.Run(() => _engine.RenderToBuffer(
-                        pixels,
-                        width,
-                        height,
-                        width * 4,
-                        4,
-                        token,
-                        p =>
-                        {
-                            double batchProgress = Math.Clamp(p, 0, 100) / 100.0;
-                            double overallProgress = (batchStart + batchProgress * batchSampleCount) * 100.0 / Math.Max(1, totalSamples);
-                            UpdateRenderProgressSafe((int)Math.Round(Math.Clamp(overallProgress, 0, 100)));
-                        }), token);
+                    var batchStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    await Task.Run(() => _engine.AccumulateSamplesBatch(token, currentBatchSize), token);
+                    batchStopwatch.Stop();
                     token.ThrowIfCancellationRequested();
 
+                    int processedSamples = _engine.ProcessedSamples;
+                    int progress = (int)Math.Round(processedSamples * 100.0 / Math.Max(1, totalSamples));
+                    UpdateRenderProgressSafe(Math.Clamp(progress, 0, 100));
+                    currentBatchSize = CalculateAdaptiveBatchSize(currentBatchSize, totalSamples, processedSamples, batchStopwatch.ElapsedMilliseconds);
+
+                    bool shouldPresentIntermediate = processedSamples >= totalSamples
+                        || uiUpdateStopwatch.ElapsedMilliseconds >= ProgressiveUiUpdateIntervalMs
+                        || processedSamples - lastPresentedSamples >= minSamplesPerPresentedFrame;
+                    if (!shouldPresentIntermediate)
+                    {
+                        continue;
+                    }
+
+                    await Task.Run(() => _engine.ConvertCurrentDensityToColor(pixels, width, height, width * 4, 4), token);
                     PresentRenderedBitmap(pixels, width, height);
+                    uiUpdateStopwatch.Restart();
+                    lastPresentedSamples = processedSamples;
                 }
 
+                UpdateRenderProgressSafe(100);
                 EndInteractivePreview();
                 _renderedCenterX = _centerX;
                 _renderedCenterY = _centerY;
@@ -650,6 +666,31 @@ namespace FractalExplorer.Forms.Fractals
                 _engine.SampleCount = totalSamples;
                 SetRenderingState(isRendering: false);
             }
+        }
+
+        private static int CalculateAdaptiveBatchSize(int currentBatchSize, int totalSamples, int processedSamples, long elapsedMs)
+        {
+            int maxBatchByTotal = Math.Max(AdaptiveBatchMinSize, Math.Min(AdaptiveBatchMaxSize, Math.Max(AdaptiveBatchMinSize, totalSamples / 6)));
+            int nextBatch = currentBatchSize;
+
+            if (elapsedMs < AdaptiveBatchTargetMinMs)
+            {
+                nextBatch = (int)Math.Round(currentBatchSize * 1.5);
+            }
+            else if (elapsedMs > AdaptiveBatchTargetMaxMs)
+            {
+                nextBatch = (int)Math.Round(currentBatchSize * 0.7);
+            }
+
+            // На ранней стадии оставляем батчи меньше, чтобы чаще показывать "оживление" картинки.
+            double processedRatio = processedSamples / (double)Math.Max(1, totalSamples);
+            if (processedRatio < 0.12)
+            {
+                int earlyCap = Math.Max(AdaptiveBatchMinSize, totalSamples / 40);
+                nextBatch = Math.Min(nextBatch, earlyCap);
+            }
+
+            return Math.Clamp(nextBatch, AdaptiveBatchMinSize, maxBatchByTotal);
         }
 
         private void PresentRenderedBitmap(byte[] pixels, int width, int height)
