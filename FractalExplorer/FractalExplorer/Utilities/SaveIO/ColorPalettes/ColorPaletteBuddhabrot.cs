@@ -13,6 +13,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
 
     public sealed class BuddhabrotColorPalette
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = "Новая палитра";
         public List<Color> Colors { get; set; } = new();
         public bool IsGradient { get; set; } = true;
@@ -28,6 +29,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             return new BuddhabrotColorPalette
             {
+                Id = Guid.NewGuid(),
                 Name = name,
                 Colors = Colors.ToList(),
                 IsGradient = IsGradient,
@@ -57,6 +59,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             return new BuddhabrotColorPalette
             {
+                Id = CreateDeterministicBuiltInId("Стандартный Ч/Б"),
                 Name = "Стандартный Ч/Б",
                 Colors = new List<Color> { Color.Black, Color.White },
                 IsGradient = true,
@@ -72,6 +75,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         {
             return new BuddhabrotColorPalette
             {
+                Id = CreateDeterministicBuiltInId("Классический Буддаброт"),
                 Name = "Классический Буддаброт",
                 Colors = new List<Color> { Color.Black, Color.DarkBlue, Color.Cyan, Color.White },
                 IsGradient = true,
@@ -104,6 +108,13 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                 var loaded = JsonSerializer.Deserialize<List<BuddhabrotColorPalette>>(json, options);
                 if (loaded != null)
                 {
+                    foreach (BuddhabrotColorPalette palette in loaded.Where(p => p != null))
+                    {
+                        if (palette.Id == Guid.Empty)
+                        {
+                            palette.Id = Guid.NewGuid();
+                        }
+                    }
                     Palettes.AddRange(loaded.Where(p => p != null));
                 }
             }
@@ -135,7 +146,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
 
         private static IEnumerable<BuddhabrotColorPalette> CreateAdditionalBuiltInPalettes()
         {
-            return new List<BuddhabrotColorPalette>
+            var palettes = new List<BuddhabrotColorPalette>
             {
                 new()
                 {
@@ -474,6 +485,20 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                     IsBuiltIn = true
                 }
             };
+
+            foreach (BuddhabrotColorPalette palette in palettes)
+            {
+                palette.Id = CreateDeterministicBuiltInId(palette.Name);
+            }
+
+            return palettes;
+        }
+
+        private static Guid CreateDeterministicBuiltInId(string name)
+        {
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes($"builtin-buddhabrot:{name}");
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(bytes);
+            return new Guid(hash.AsSpan(0, 16));
         }
     }
 }

@@ -308,9 +308,39 @@ namespace FractalExplorer.Forms.Fractals
 
         private BuddhabrotColorPalette ResolvePaletteFromState(BuddhabrotSaveState state)
         {
+            if (state.PaletteId != Guid.Empty)
+            {
+                BuddhabrotColorPalette? byId = _paletteManager.Palettes.FirstOrDefault(p => p.Id == state.PaletteId);
+                if (byId is not null)
+                {
+                    return byId;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(state.PaletteName))
+            {
+                BuddhabrotColorPalette? byName = _paletteManager.Palettes.FirstOrDefault(p =>
+                    string.Equals(p.Name, state.PaletteName, StringComparison.OrdinalIgnoreCase));
+                if (byName is not null)
+                {
+                    return byName;
+                }
+            }
+
             if (state.Palette is not null)
             {
+                BuddhabrotColorPalette? byContent = _paletteManager.Palettes.FirstOrDefault(p => ArePalettesEquivalentByContent(p, state.Palette));
+                if (byContent is not null)
+                {
+                    return byContent;
+                }
+
                 BuddhabrotColorPalette imported = state.Palette.CloneAsCustom(state.Palette.Name);
+                if (state.PaletteId != Guid.Empty)
+                {
+                    imported.Id = state.PaletteId;
+                }
+
                 if (!string.IsNullOrWhiteSpace(state.PaletteName))
                 {
                     imported.Name = state.PaletteName;
@@ -325,18 +355,33 @@ namespace FractalExplorer.Forms.Fractals
 
                 imported.Name = uniqueName;
                 _paletteManager.Palettes.Add(imported);
-                _paletteManager.SavePalettes();
                 return imported;
             }
 
-            BuddhabrotColorPalette? byName = _paletteManager.Palettes.FirstOrDefault(p =>
-                string.Equals(p.Name, state.PaletteName, StringComparison.OrdinalIgnoreCase));
-            if (byName is not null)
+            return _paletteManager.Palettes.FirstOrDefault() ?? BuddhabrotPaletteManager.CreateDefaultBuiltInPalette();
+        }
+
+        private static bool ArePalettesEquivalentByContent(BuddhabrotColorPalette a, BuddhabrotColorPalette b)
+        {
+            if (a.ColoringMode != b.ColoringMode
+                || Math.Abs(a.Gamma - b.Gamma) > 0.0000001
+                || a.IsGradient != b.IsGradient
+                || a.AlignWithRenderIterations != b.AlignWithRenderIterations
+                || a.MaxColorIterations != b.MaxColorIterations
+                || a.Colors.Count != b.Colors.Count)
             {
-                return byName;
+                return false;
             }
 
-            return _paletteManager.Palettes.FirstOrDefault() ?? BuddhabrotPaletteManager.CreateDefaultBuiltInPalette();
+            for (int i = 0; i < a.Colors.Count; i++)
+            {
+                if (a.Colors[i].ToArgb() != b.Colors[i].ToArgb())
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void AttachAutoRenderControlTriggers()
@@ -700,6 +745,7 @@ namespace FractalExplorer.Forms.Fractals
                 Zoom = _zoom.Value,
                 MaxIterations = _engine.MaxIterations,
                 SampleCount = _engine.SampleCount,
+                PaletteId = _paletteManager.ActivePalette?.Id ?? Guid.Empty,
                 PaletteName = _paletteManager.ActivePalette?.Name ?? string.Empty,
                 Palette = _paletteManager.ActivePalette?.CloneAsCustom(_paletteManager.ActivePalette.Name),
                 RenderMode = (int)_engine.RenderMode,
@@ -956,9 +1002,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private FractalBuddhabrotEngine BuildEngineFromState(BuddhabrotSaveState s)
         {
-            BuddhabrotColorPalette palette = s.Palette
-                ?? _paletteManager.Palettes.FirstOrDefault(p => string.Equals(p.Name, s.PaletteName, StringComparison.OrdinalIgnoreCase))
-                ?? _paletteManager.ActivePalette;
+            BuddhabrotColorPalette palette = ResolvePaletteFromState(s);
             return new FractalBuddhabrotEngine
             {
                 CenterX = s.CenterX,
