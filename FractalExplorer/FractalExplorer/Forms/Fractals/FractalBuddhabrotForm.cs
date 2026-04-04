@@ -295,7 +295,7 @@ namespace FractalExplorer.Forms.Fractals
                 float newWidth = _canvas.Width * scaleRatio;
                 float newHeight = _canvas.Height * scaleRatio;
                 float offsetX = (float)((_interactionSourceCenterX - _centerX) / targetScale * _canvas.Width);
-                float offsetY = (float)(-(_interactionSourceCenterY - _centerY) / targetScale * _canvas.Width);
+                float offsetY = (float)(-(_interactionSourceCenterY - _centerY) / targetScale * _canvas.Height);
 
                 float drawX = (_canvas.Width - newWidth) * 0.5f + offsetX;
                 float drawY = (_canvas.Height - newHeight) * 0.5f + offsetY;
@@ -619,6 +619,12 @@ namespace FractalExplorer.Forms.Fractals
             int sessionVersion = Volatile.Read(ref _renderSessionVersion);
 
             ApplyUiToEngine();
+            decimal renderCenterX = _centerX;
+            decimal renderCenterY = _centerY;
+            decimal renderZoom = _zoom.Value;
+            _renderedCenterX = renderCenterX;
+            _renderedCenterY = renderCenterY;
+            _renderedZoom = renderZoom;
 
             int width = _canvas.Width;
             int height = _canvas.Height;
@@ -671,9 +677,9 @@ namespace FractalExplorer.Forms.Fractals
 
                 UpdateRenderProgressSafe(100);
                 EndInteractivePreview();
-                _renderedCenterX = _centerX;
-                _renderedCenterY = _centerY;
-                _renderedZoom = _zoom.Value;
+                _renderedCenterX = renderCenterX;
+                _renderedCenterY = renderCenterY;
+                _renderedZoom = renderZoom;
                 Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
             }
             catch (OperationCanceledException)
