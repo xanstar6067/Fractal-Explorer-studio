@@ -46,6 +46,7 @@ namespace FractalExplorer.Forms.Fractals
         private decimal _renderedCenterX;
         private decimal _renderedCenterY;
         private decimal _renderedZoom = 1.0m;
+        private int _renderSessionVersion;
         private readonly string _baseTitle;
 
         public FractalBuddhabrotForm()
@@ -244,6 +245,8 @@ namespace FractalExplorer.Forms.Fractals
 
         private void BeginInteractivePreview()
         {
+            InvalidateActiveRenderSession();
+
             if (_interactionSourceBitmap != null)
             {
                 return;
@@ -258,6 +261,12 @@ namespace FractalExplorer.Forms.Fractals
             _interactionSourceCenterX = _renderedCenterX;
             _interactionSourceCenterY = _renderedCenterY;
             _interactionSourceZoom = Math.Max(0.0000001m, _renderedZoom);
+        }
+
+        private void InvalidateActiveRenderSession()
+        {
+            Interlocked.Increment(ref _renderSessionVersion);
+            _renderCts?.Cancel();
         }
 
         private void EndInteractivePreview()
@@ -607,6 +616,7 @@ namespace FractalExplorer.Forms.Fractals
             _renderCts?.Cancel();
             _renderCts = new CancellationTokenSource();
             var token = _renderCts.Token;
+            int sessionVersion = Volatile.Read(ref _renderSessionVersion);
 
             ApplyUiToEngine();
 
@@ -650,6 +660,10 @@ namespace FractalExplorer.Forms.Fractals
                     }
 
                     await Task.Run(() => _engine.ConvertCurrentDensityToColor(pixels, width, height, width * 4, 4), token);
+                    if (sessionVersion != Volatile.Read(ref _renderSessionVersion))
+                    {
+                        throw new OperationCanceledException(token);
+                    }
                     PresentRenderedBitmap(pixels, width, height);
                     uiUpdateStopwatch.Restart();
                     lastPresentedSamples = processedSamples;
