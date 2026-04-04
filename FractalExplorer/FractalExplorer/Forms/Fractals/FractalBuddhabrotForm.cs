@@ -18,6 +18,7 @@ namespace FractalExplorer.Forms.Fractals
     {
         private const decimal BaseScale = 4.0m;
         private const int ToggleButtonMargin = 12;
+        private const int ProgressiveRenderBatchSize = 50_000;
 
         private readonly FractalBuddhabrotEngine _engine = new();
         private readonly BuddhabrotPaletteManager _paletteManager = new();
@@ -604,38 +605,36 @@ namespace FractalExplorer.Forms.Fractals
 
             int width = _canvas.Width;
             int height = _canvas.Height;
+            int totalSamples = _engine.SampleCount;
 
             byte[] pixels = new byte[width * height * 4];
             try
             {
                 SetRenderingState(isRendering: true);
-
-                await Task.Run(() => _engine.RenderToBuffer(
-                    pixels,
-                    width,
-                    height,
-                    width * 4,
-                    4,
-                    token,
-                    p => UpdateRenderProgressSafe(Math.Clamp(p, 0, 100))), token);
-                token.ThrowIfCancellationRequested();
-
-                using var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-                BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-                try
+                for (int batchStart = 0; batchStart < totalSamples; batchStart += ProgressiveRenderBatchSize)
                 {
-                    Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
-                }
-                finally
-                {
-                    bmp.UnlockBits(data);
-                }
+                    token.ThrowIfCancellationRequested();
 
-                Bitmap? old = _canvas.Image as Bitmap;
-                _canvas.Image = (Bitmap)bmp.Clone();
-                if (!ReferenceEquals(old, _interactionSourceBitmap))
-                {
-                    old?.Dispose();
+                    int batchTargetSamples = Math.Min(totalSamples, batchStart + ProgressiveRenderBatchSize);
+                    int batchSampleCount = Math.Max(1, batchTargetSamples - batchStart);
+                    _engine.SampleCount = batchTargetSamples;
+
+                    await Task.Run(() => _engine.RenderToBuffer(
+                        pixels,
+                        width,
+                        height,
+                        width * 4,
+                        4,
+                        token,
+                        p =>
+                        {
+                            double batchProgress = Math.Clamp(p, 0, 100) / 100.0;
+                            double overallProgress = (batchStart + batchProgress * batchSampleCount) * 100.0 / Math.Max(1, totalSamples);
+                            UpdateRenderProgressSafe((int)Math.Round(Math.Clamp(overallProgress, 0, 100)));
+                        }), token);
+                    token.ThrowIfCancellationRequested();
+
+                    PresentRenderedBitmap(pixels, width, height);
                 }
 
                 EndInteractivePreview();
@@ -648,7 +647,29 @@ namespace FractalExplorer.Forms.Fractals
             }
             finally
             {
+                _engine.SampleCount = totalSamples;
                 SetRenderingState(isRendering: false);
+            }
+        }
+
+        private void PresentRenderedBitmap(byte[] pixels, int width, int height)
+        {
+            using var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
+            }
+            finally
+            {
+                bmp.UnlockBits(data);
+            }
+
+            Bitmap? old = _canvas.Image as Bitmap;
+            _canvas.Image = (Bitmap)bmp.Clone();
+            if (!ReferenceEquals(old, _interactionSourceBitmap))
+            {
+                old?.Dispose();
             }
         }
 
