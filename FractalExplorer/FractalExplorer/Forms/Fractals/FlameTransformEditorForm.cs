@@ -3,9 +3,8 @@ using System.ComponentModel;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public sealed class FlameTransformEditorForm : Form
+    public sealed partial class FlameTransformEditorForm : Form
     {
-        private readonly DataGridView _grid = new();
         private readonly BindingSource _binding = new();
 
         public List<FlameTransform> ResultTransforms { get; private set; }
@@ -13,12 +12,12 @@ namespace FractalExplorer.Forms.Fractals
         public FlameTransformEditorForm(IEnumerable<FlameTransform> transforms)
         {
             ResultTransforms = transforms.Select(t => t.Clone()).ToList();
-            Text = "Редактор трансформаций";
-            Width = 1100;
-            Height = 440;
-            StartPosition = FormStartPosition.CenterParent;
+            InitializeComponent();
+            ConfigureGrid();
+        }
 
-            _grid.Dock = DockStyle.Fill;
+        private void ConfigureGrid()
+        {
             _grid.AutoGenerateColumns = false;
             _grid.AllowUserToAddRows = true;
             _grid.AllowUserToDeleteRows = true;
@@ -42,19 +41,7 @@ namespace FractalExplorer.Forms.Fractals
             _grid.DataSource = _binding;
             _grid.CellFormatting += Grid_CellFormatting;
             _grid.CellParsing += Grid_CellParsing;
-
-            var buttonsPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 44, FlowDirection = FlowDirection.RightToLeft };
-            var btnOk = new Button { Text = "OK", DialogResult = DialogResult.OK, Width = 100 };
-            var btnCancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Width = 100 };
-            btnOk.Click += (_, _) => CommitValues();
-            buttonsPanel.Controls.Add(btnOk);
-            buttonsPanel.Controls.Add(btnCancel);
-
-            Controls.Add(_grid);
-            Controls.Add(buttonsPanel);
-
-            AcceptButton = btnOk;
-            CancelButton = btnCancel;
+            _btnOk.Click += (_, _) => CommitValues();
         }
 
         private void Grid_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)

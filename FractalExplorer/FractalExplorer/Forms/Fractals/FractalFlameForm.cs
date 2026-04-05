@@ -10,81 +10,22 @@ using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public sealed class FractalFlameForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal, IHighResRenderable
+    public sealed partial class FractalFlameForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal, IHighResRenderable
     {
         private readonly FractalFlameEngine _engine = new();
-        private readonly PictureBox _canvas = new() { Dock = DockStyle.Fill, BackColor = Color.Black, SizeMode = PictureBoxSizeMode.Zoom };
-        private readonly NumericUpDown _samples = new() { Minimum = 1000, Maximum = 20_000_000, Increment = 1000, Value = 1_000_000 };
-        private readonly NumericUpDown _iterations = new() { Minimum = 1, Maximum = 300, Value = 20 };
-        private readonly NumericUpDown _warmup = new() { Minimum = 0, Maximum = 100, Value = 20 };
-        private readonly NumericUpDown _scale = new() { Minimum = 0.1m, Maximum = 20m, DecimalPlaces = 3, Increment = 0.05m, Value = 4m };
-        private readonly NumericUpDown _centerX = new() { Minimum = -10m, Maximum = 10m, DecimalPlaces = 4, Increment = 0.01m, Value = 0m };
-        private readonly NumericUpDown _centerY = new() { Minimum = -10m, Maximum = 10m, DecimalPlaces = 4, Increment = 0.01m, Value = 0m };
-        private readonly NumericUpDown _exposure = new() { Minimum = 0.1m, Maximum = 10m, DecimalPlaces = 2, Increment = 0.05m, Value = 1.35m };
-        private readonly NumericUpDown _gamma = new() { Minimum = 0.1m, Maximum = 5m, DecimalPlaces = 2, Increment = 0.05m, Value = 2.20m };
-        private readonly ComboBox _threads = new() { DropDownStyle = ComboBoxStyle.DropDownList };
-        private readonly Button _btnRender = new() { Text = "Render" };
-        private readonly Button _btnEditTransforms = new() { Text = "Трансформации" };
-        private readonly Label _status = new() { AutoSize = true, Text = "Готово" };
         private CancellationTokenSource? _cts;
 
         public FractalFlameForm()
         {
-            Text = "Fractal Flame";
-            Width = 1280;
-            Height = 820;
+            InitializeComponent();
             ThemeManager.RegisterForm(this);
-            BuildUi();
             InitializeDefaults();
-        }
-
-        private void BuildUi()
-        {
-            var panel = new Panel { Dock = DockStyle.Left, Width = 280, Padding = new Padding(8) };
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, AutoScroll = true };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
-
-            AddLabeled(layout, "Samples", _samples);
-            AddLabeled(layout, "Iter/Sample", _iterations);
-            AddLabeled(layout, "Warmup", _warmup);
-            AddLabeled(layout, "Scale", _scale);
-            AddLabeled(layout, "CenterX", _centerX);
-            AddLabeled(layout, "CenterY", _centerY);
-            AddLabeled(layout, "Exposure", _exposure);
-            AddLabeled(layout, "Gamma", _gamma);
-            AddLabeled(layout, "Threads", _threads);
-
-            _btnRender.Dock = DockStyle.Top;
-            _btnEditTransforms.Dock = DockStyle.Top;
             _btnRender.Click += async (_, _) => await RenderAsync();
             _btnEditTransforms.Click += BtnEditTransforms_Click;
-
-            var btnSaveLoad = new Button { Text = "Save/Load", Dock = DockStyle.Top };
-            btnSaveLoad.Click += (_, _) => { using var dlg = new SaveLoadDialogForm(this); dlg.ShowDialog(this); };
-            var btnSaveImage = new Button { Text = "Сохранить PNG", Dock = DockStyle.Top };
-            btnSaveImage.Click += (_, _) => { using var dlg = new SaveImageManagerForm(this); dlg.ShowDialog(this); };
-
-            panel.Controls.Add(_status);
-            panel.Controls.Add(btnSaveImage);
-            panel.Controls.Add(btnSaveLoad);
-            panel.Controls.Add(_btnEditTransforms);
-            panel.Controls.Add(_btnRender);
-            panel.Controls.Add(layout);
-
-            Controls.Add(_canvas);
-            Controls.Add(panel);
+            _btnSaveLoad.Click += (_, _) => { using var dlg = new SaveLoadDialogForm(this); dlg.ShowDialog(this); };
+            _btnSaveImage.Click += (_, _) => { using var dlg = new SaveImageManagerForm(this); dlg.ShowDialog(this); };
             Load += async (_, _) => await RenderAsync();
             FormClosing += (_, _) => _cts?.Cancel();
-        }
-
-        private void AddLabeled(TableLayoutPanel layout, string label, Control control)
-        {
-            int row = layout.RowCount++;
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            control.Dock = DockStyle.Top;
-            layout.Controls.Add(new Label { Text = label, AutoSize = true, Margin = new Padding(3, 8, 3, 3) }, 0, row);
-            layout.Controls.Add(control, 1, row);
         }
 
         private void InitializeDefaults()
