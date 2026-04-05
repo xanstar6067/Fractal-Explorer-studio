@@ -273,7 +273,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblPattern.Name = "_lblPattern";
             _lblPattern.Size = new Size(98, 29);
             _lblPattern.TabIndex = 9;
-            _lblPattern.Text = "Pattern (A/B)";
+            _lblPattern.Text = "Паттерн (A/B)";
             _lblPattern.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudIterations
