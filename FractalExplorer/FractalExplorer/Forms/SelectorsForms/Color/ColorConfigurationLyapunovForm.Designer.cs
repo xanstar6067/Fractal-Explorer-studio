@@ -119,7 +119,7 @@
             grpEditor.Size = new Size(385, 437);
             grpEditor.TabIndex = 1;
             grpEditor.TabStop = false;
-            grpEditor.Text = "Редактор палитры Lyapunov";
+            grpEditor.Text = "Редактор палитры Ляпунова";
             // 
             // _btnRemoveColor
             // 
@@ -202,7 +202,7 @@
             lblZero.Name = "lblZero";
             lblZero.Size = new Size(66, 15);
             lblZero.TabIndex = 6;
-            lblZero.Text = "Zero-band:";
+            lblZero.Text = "Нулевая зона:";
             // 
             // _nudRange
             // 
@@ -304,7 +304,7 @@
             MinimumSize = new Size(685, 540);
             Name = "ColorConfigurationLyapunovForm";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Настройка палитры (Lyapunov)";
+            Text = "Настройка палитры (Ляпунов)";
             grpPalettes.ResumeLayout(false);
             grpEditor.ResumeLayout(false);
             grpEditor.PerformLayout();

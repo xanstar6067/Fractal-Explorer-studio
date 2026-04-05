@@ -7,13 +7,13 @@ namespace FractalExplorer.SelectorsForms
 {
     public partial class ColorConfigurationLyapunovForm : Form
     {
-        private static readonly LyapunovColoringMode[] ModeUiOrder =
+        private static readonly (LyapunovColoringMode Mode, string DisplayName)[] ModeUiItems =
         {
-            LyapunovColoringMode.LegacyBuiltIn,
-            LyapunovColoringMode.Diverging,
-            LyapunovColoringMode.Absolute,
-            LyapunovColoringMode.ZeroBandHighlight,
-            LyapunovColoringMode.HistogramEqualized
+            (LyapunovColoringMode.LegacyBuiltIn, "Классический (встроенный)"),
+            (LyapunovColoringMode.Diverging, "Дивергентный"),
+            (LyapunovColoringMode.Absolute, "Абсолютный"),
+            (LyapunovColoringMode.ZeroBandHighlight, "Подсветка нулевой зоны"),
+            (LyapunovColoringMode.HistogramEqualized, "Гистограммное выравнивание")
         };
 
         private readonly LyapunovPaletteManager _paletteManager;
@@ -37,7 +37,7 @@ namespace FractalExplorer.SelectorsForms
 
         private void InitializeData()
         {
-            _cbMode.Items.AddRange(ModeUiOrder.Select(mode => mode.ToString()).ToArray());
+            _cbMode.Items.AddRange(ModeUiItems.Select(item => item.DisplayName).ToArray());
         }
 
         private void PopulatePaletteList()
@@ -69,7 +69,7 @@ namespace FractalExplorer.SelectorsForms
 
             _isProgrammaticChange = true;
             _txtName.Text = _selectedPalette.Name;
-            _cbMode.SelectedIndex = Array.IndexOf(ModeUiOrder, _selectedPalette.Mode);
+            _cbMode.SelectedIndex = Array.FindIndex(ModeUiItems, item => item.Mode == _selectedPalette.Mode);
             if (_cbMode.SelectedIndex < 0)
             {
                 _cbMode.SelectedIndex = 0;
@@ -406,8 +406,8 @@ namespace FractalExplorer.SelectorsForms
         private LyapunovColoringMode GetSelectedModeOrDefault()
         {
             int index = _cbMode.SelectedIndex;
-            return index >= 0 && index < ModeUiOrder.Length
-                ? ModeUiOrder[index]
+            return index >= 0 && index < ModeUiItems.Length
+                ? ModeUiItems[index].Mode
                 : LyapunovColoringMode.LegacyBuiltIn;
         }
     }

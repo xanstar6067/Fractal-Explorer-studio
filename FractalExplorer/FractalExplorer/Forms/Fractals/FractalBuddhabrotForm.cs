@@ -24,6 +24,7 @@ namespace FractalExplorer.Forms.Fractals
         private const int AdaptiveBatchTargetMinMs = 45;
         private const int AdaptiveBatchTargetMaxMs = 140;
         private const int ProgressiveUiTargetFrames = 24;
+        private const string AutoThreadOptionText = "Авто";
 
         private readonly FractalBuddhabrotEngine _engine = new();
         private readonly BuddhabrotPaletteManager _paletteManager = new();
@@ -62,12 +63,12 @@ namespace FractalExplorer.Forms.Fractals
             _modeCombo.SelectedIndex = 0;
             int cores = Environment.ProcessorCount;
             _threadsCombo.Items.Clear();
-            _threadsCombo.Items.Add("Auto");
+            _threadsCombo.Items.Add(AutoThreadOptionText);
             for (int i = 1; i <= cores; i++)
             {
                 _threadsCombo.Items.Add(i);
             }
-            _threadsCombo.SelectedItem = "Auto";
+            _threadsCombo.SelectedItem = AutoThreadOptionText;
 
             EnsureActivePalette();
 
@@ -507,7 +508,7 @@ namespace FractalExplorer.Forms.Fractals
             _engine.Scale = BaseScale / Math.Max(0.0000001m, _zoom.Value);
             _engine.MaxIterations = (int)_iterations.Value;
             _engine.SampleCount = (int)_samples.Value;
-            _engine.ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto"
+            _engine.ThreadCount = _threadsCombo.SelectedItem?.ToString() == AutoThreadOptionText
                 ? 0
                 : Convert.ToInt32(_threadsCombo.SelectedItem);
             _engine.RenderMode = ParseRenderMode(_modeCombo.SelectedIndex);
@@ -996,7 +997,7 @@ namespace FractalExplorer.Forms.Fractals
                 Scale = state.BaseScale / Math.Max(0.0000001m, state.Zoom),
                 MaxIterations = state.Iterations,
                 SampleCount = state.BuddhabrotSampleCount ?? _engine.SampleCount,
-                ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto" ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
+                ThreadCount = _threadsCombo.SelectedItem?.ToString() == AutoThreadOptionText ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
                 RenderMode = ParseRenderMode(state.BuddhabrotRenderMode ?? 0),
                 SampleMinRe = state.BuddhabrotSampleMinRe ?? _engine.SampleMinRe,
                 SampleMaxRe = state.BuddhabrotSampleMaxRe ?? _engine.SampleMaxRe,
@@ -1103,7 +1104,7 @@ namespace FractalExplorer.Forms.Fractals
                 Scale = BaseScale / Math.Max(0.0000001m, s.Zoom),
                 MaxIterations = s.MaxIterations,
                 SampleCount = s.SampleCount,
-                ThreadCount = _threadsCombo.SelectedItem?.ToString() == "Auto" ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
+                ThreadCount = _threadsCombo.SelectedItem?.ToString() == AutoThreadOptionText ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
                 RenderMode = ParseRenderMode(s.RenderMode),
                 SampleMinRe = s.SampleMinRe,
                 SampleMaxRe = s.SampleMaxRe,

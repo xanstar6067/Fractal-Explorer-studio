@@ -122,7 +122,7 @@
             grpEditor.Size = new Size(385, 437);
             grpEditor.TabIndex = 1;
             grpEditor.TabStop = false;
-            grpEditor.Text = "Редактор палитры Buddhabrot";
+            grpEditor.Text = "Редактор палитры Буддаброта";
             // 
             // _btnRemoveColor
             // 
@@ -204,7 +204,7 @@
             lblGamma.Name = "lblGamma";
             lblGamma.Size = new Size(52, 15);
             lblGamma.TabIndex = 8;
-            lblGamma.Text = "Gamma:";
+            lblGamma.Text = "Гамма:";
             // 
             // _nudMaxSteps
             // 
@@ -324,7 +324,7 @@
             MinimumSize = new Size(685, 540);
             Name = "ColorConfigurationBuddhabrotForm";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Настройка палитры (Buddhabrot)";
+            Text = "Настройка палитры (Буддаброт)";
             grpPalettes.ResumeLayout(false);
             grpEditor.ResumeLayout(false);
             grpEditor.PerformLayout();

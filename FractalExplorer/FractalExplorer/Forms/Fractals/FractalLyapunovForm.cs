@@ -19,6 +19,7 @@ namespace FractalExplorer.Forms.Fractals
     public partial class FractalLyapunovForm : Form, ISaveLoadCapableFractal, IHighResRenderable
     {
         private const int PreviewTileSize = 16;
+        private const string AutoThreadOptionText = "Авто";
         private const decimal DefaultAMin = 2.8m;
         private const decimal DefaultAMax = 4.0m;
         private const decimal DefaultBMin = 2.8m;
@@ -56,7 +57,7 @@ namespace FractalExplorer.Forms.Fractals
 
         public FractalLyapunovForm()
         {
-            Text = "Lyapunov Fractal";
+            Text = "Фрактал Ляпунова";
             Width = 1280;
             Height = 780;
             StartPosition = FormStartPosition.CenterScreen;
@@ -199,8 +200,8 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _cbThreads.Items.Add(i);
             }
-            _cbThreads.Items.Add("Auto");
-            _cbThreads.SelectedItem = "Auto";
+            _cbThreads.Items.Add(AutoThreadOptionText);
+            _cbThreads.SelectedItem = AutoThreadOptionText;
 
             ConfigureDecimal(_nudZoom, 4, 0.001m, 0.001m, 2000000m, 1.0m);
             _cbSSAA.Items.AddRange(new object[] { "Выкл (1x)", "Низкое (2x)", "Высокое (4x)" });
@@ -1058,7 +1059,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private int GetThreadCount()
         {
-            if (_cbThreads.SelectedItem?.ToString() == "Auto")
+            if (_cbThreads.SelectedItem?.ToString() == AutoThreadOptionText)
             {
                 return Environment.ProcessorCount;
             }

@@ -193,7 +193,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblAMin.Name = "_lblAMin";
             _lblAMin.Size = new Size(98, 32);
             _lblAMin.TabIndex = 1;
-            _lblAMin.Text = "A min";
+            _lblAMin.Text = "Мин. A";
             _lblAMin.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudAMax
@@ -213,7 +213,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblAMax.Name = "_lblAMax";
             _lblAMax.Size = new Size(98, 29);
             _lblAMax.TabIndex = 3;
-            _lblAMax.Text = "A max";
+            _lblAMax.Text = "Макс. A";
             _lblAMax.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudBMin
@@ -233,7 +233,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblBMin.Name = "_lblBMin";
             _lblBMin.Size = new Size(98, 29);
             _lblBMin.TabIndex = 5;
-            _lblBMin.Text = "B min";
+            _lblBMin.Text = "Мин. B";
             _lblBMin.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudBMax
@@ -253,7 +253,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblBMax.Name = "_lblBMax";
             _lblBMax.Size = new Size(98, 29);
             _lblBMax.TabIndex = 7;
-            _lblBMax.Text = "B max";
+            _lblBMax.Text = "Макс. B";
             _lblBMax.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _tbPattern
@@ -293,7 +293,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblIterations.Name = "_lblIterations";
             _lblIterations.Size = new Size(98, 29);
             _lblIterations.TabIndex = 11;
-            _lblIterations.Text = "Iterations";
+            _lblIterations.Text = "Итерации";
             _lblIterations.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudTransient
@@ -313,7 +313,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblTransient.Name = "_lblTransient";
             _lblTransient.Size = new Size(98, 29);
             _lblTransient.TabIndex = 13;
-            _lblTransient.Text = "Transient";
+            _lblTransient.Text = "Прогрев";
             _lblTransient.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _cbThreads

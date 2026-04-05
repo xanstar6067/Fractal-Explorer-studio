@@ -478,7 +478,7 @@ namespace FractalExplorer
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Итерируемые функции",
-                DisplayName = "Buddhabrot / Anti-Buddhabrot",
+                DisplayName = "Буддаброт / Анти-Буддаброт",
                 FormToLaunch = typeof(FractalBuddhabrotForm),
                 Description = "Вместо прямого окрашивания точки по escape-time этот рендер накапливает плотность посещения орбит в отдельном буфере.\n\n" +
                               "Режим Buddhabrot учитывает только орбиты вышедших точек, а Anti-Buddhabrot — орбиты оставшихся ограниченными в заданном лимите итераций.\n\n" +
@@ -504,7 +504,7 @@ namespace FractalExplorer
                 FormToLaunch = typeof(FractalLyapunovForm),
                 Description = "Карта экспонент Ляпунова для логистического отображения xₙ₊₁ = r·xₙ·(1-xₙ) при чередовании параметров A/B по строковому паттерну (например ABAB...).\n\n" +
                               "Отрицательная экспонента соответствует устойчивому режиму, положительная — хаотическому, а граница между ними формирует характерную фрактальную структуру.\n\n" +
-                              "Особенности: задайте диапазоны A и B, строку паттерна и число transient/основных итераций.",
+                              "Особенности: задайте диапазоны A и B, строку паттерна и число прогревочных/основных итераций.",
                 PreviewImage = Properties.Resources.lyapunov_preview_sq512
             });
         }
