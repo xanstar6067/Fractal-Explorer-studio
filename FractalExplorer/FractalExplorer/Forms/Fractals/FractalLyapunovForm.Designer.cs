@@ -54,6 +54,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FractalLyapunovForm));
             _canvasHost = new Panel();
             _controlsHost = new Panel();
             _pnlControls = new TableLayoutPanel();
@@ -486,6 +487,7 @@ namespace FractalExplorer.Forms.Fractals
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1086, 591);
             Controls.Add(_canvasHost);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(1102, 630);
             Name = "FractalLyapunovForm";
             Resize += FractalLyapunovForm_Resize;

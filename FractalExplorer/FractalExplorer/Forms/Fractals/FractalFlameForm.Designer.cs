@@ -60,30 +60,30 @@ namespace FractalExplorer.Forms.Fractals
         private void InitializeComponent()
         {
             _controlsPanel = new Panel();
+            _status = new Label();
+            _btnSaveImage = new Button();
+            _btnSaveLoad = new Button();
+            _btnEditTransforms = new Button();
+            _btnRender = new Button();
             _settingsLayout = new TableLayoutPanel();
             _samplesLabel = new Label();
-            _iterationsLabel = new Label();
-            _warmupLabel = new Label();
-            _scaleLabel = new Label();
-            _centerXLabel = new Label();
-            _centerYLabel = new Label();
-            _exposureLabel = new Label();
-            _gammaLabel = new Label();
-            _threadsLabel = new Label();
             _samples = new NumericUpDown();
+            _iterationsLabel = new Label();
             _iterations = new NumericUpDown();
+            _warmupLabel = new Label();
             _warmup = new NumericUpDown();
+            _scaleLabel = new Label();
             _scale = new NumericUpDown();
+            _centerXLabel = new Label();
             _centerX = new NumericUpDown();
+            _centerYLabel = new Label();
             _centerY = new NumericUpDown();
+            _exposureLabel = new Label();
             _exposure = new NumericUpDown();
+            _gammaLabel = new Label();
             _gamma = new NumericUpDown();
+            _threadsLabel = new Label();
             _threads = new ComboBox();
-            _btnRender = new Button();
-            _btnEditTransforms = new Button();
-            _btnSaveLoad = new Button();
-            _btnSaveImage = new Button();
-            _status = new Label();
             _canvas = new PictureBox();
             _controlsPanel.SuspendLayout();
             _settingsLayout.SuspendLayout();
@@ -113,6 +113,56 @@ namespace FractalExplorer.Forms.Fractals
             _controlsPanel.Size = new Size(280, 781);
             _controlsPanel.TabIndex = 0;
             // 
+            // _status
+            // 
+            _status.AutoSize = true;
+            _status.Dock = DockStyle.Bottom;
+            _status.Location = new Point(8, 598);
+            _status.Name = "_status";
+            _status.Size = new Size(45, 15);
+            _status.TabIndex = 5;
+            _status.Text = "Готово";
+            // 
+            // _btnSaveImage
+            // 
+            _btnSaveImage.Dock = DockStyle.Bottom;
+            _btnSaveImage.Location = new Point(8, 613);
+            _btnSaveImage.Name = "_btnSaveImage";
+            _btnSaveImage.Size = new Size(264, 40);
+            _btnSaveImage.TabIndex = 4;
+            _btnSaveImage.Text = "Сохранить PNG";
+            _btnSaveImage.UseVisualStyleBackColor = true;
+            // 
+            // _btnSaveLoad
+            // 
+            _btnSaveLoad.Dock = DockStyle.Bottom;
+            _btnSaveLoad.Location = new Point(8, 653);
+            _btnSaveLoad.Name = "_btnSaveLoad";
+            _btnSaveLoad.Size = new Size(264, 40);
+            _btnSaveLoad.TabIndex = 3;
+            _btnSaveLoad.Text = "Save/Load";
+            _btnSaveLoad.UseVisualStyleBackColor = true;
+            // 
+            // _btnEditTransforms
+            // 
+            _btnEditTransforms.Dock = DockStyle.Bottom;
+            _btnEditTransforms.Location = new Point(8, 693);
+            _btnEditTransforms.Name = "_btnEditTransforms";
+            _btnEditTransforms.Size = new Size(264, 40);
+            _btnEditTransforms.TabIndex = 2;
+            _btnEditTransforms.Text = "Трансформации";
+            _btnEditTransforms.UseVisualStyleBackColor = true;
+            // 
+            // _btnRender
+            // 
+            _btnRender.Dock = DockStyle.Bottom;
+            _btnRender.Location = new Point(8, 733);
+            _btnRender.Name = "_btnRender";
+            _btnRender.Size = new Size(264, 40);
+            _btnRender.TabIndex = 1;
+            _btnRender.Text = "Render";
+            _btnRender.UseVisualStyleBackColor = true;
+            // 
             // _settingsLayout
             // 
             _settingsLayout.AutoScroll = true;
@@ -141,103 +191,31 @@ namespace FractalExplorer.Forms.Fractals
             _settingsLayout.Location = new Point(8, 8);
             _settingsLayout.Name = "_settingsLayout";
             _settingsLayout.RowCount = 10;
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
+            _settingsLayout.RowStyles.Add(new RowStyle());
             _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _settingsLayout.Size = new Size(264, 584);
+            _settingsLayout.Size = new Size(264, 765);
             _settingsLayout.TabIndex = 0;
             // 
             // _samplesLabel
             // 
             _samplesLabel.AutoSize = true;
+            _samplesLabel.Location = new Point(3, 8);
             _samplesLabel.Margin = new Padding(3, 8, 3, 3);
             _samplesLabel.Name = "_samplesLabel";
-            _samplesLabel.Size = new Size(52, 15);
+            _samplesLabel.Size = new Size(51, 15);
             _samplesLabel.TabIndex = 0;
             _samplesLabel.Text = "Samples";
             // 
-            // _iterationsLabel
-            // 
-            _iterationsLabel.AutoSize = true;
-            _iterationsLabel.Margin = new Padding(3, 8, 3, 3);
-            _iterationsLabel.Name = "_iterationsLabel";
-            _iterationsLabel.Size = new Size(65, 15);
-            _iterationsLabel.TabIndex = 2;
-            _iterationsLabel.Text = "Iter/Sample";
-            // 
-            // _warmupLabel
-            // 
-            _warmupLabel.AutoSize = true;
-            _warmupLabel.Margin = new Padding(3, 8, 3, 3);
-            _warmupLabel.Name = "_warmupLabel";
-            _warmupLabel.Size = new Size(52, 15);
-            _warmupLabel.TabIndex = 4;
-            _warmupLabel.Text = "Warmup";
-            // 
-            // _scaleLabel
-            // 
-            _scaleLabel.AutoSize = true;
-            _scaleLabel.Margin = new Padding(3, 8, 3, 3);
-            _scaleLabel.Name = "_scaleLabel";
-            _scaleLabel.Size = new Size(35, 15);
-            _scaleLabel.TabIndex = 6;
-            _scaleLabel.Text = "Scale";
-            // 
-            // _centerXLabel
-            // 
-            _centerXLabel.AutoSize = true;
-            _centerXLabel.Margin = new Padding(3, 8, 3, 3);
-            _centerXLabel.Name = "_centerXLabel";
-            _centerXLabel.Size = new Size(50, 15);
-            _centerXLabel.TabIndex = 8;
-            _centerXLabel.Text = "CenterX";
-            // 
-            // _centerYLabel
-            // 
-            _centerYLabel.AutoSize = true;
-            _centerYLabel.Margin = new Padding(3, 8, 3, 3);
-            _centerYLabel.Name = "_centerYLabel";
-            _centerYLabel.Size = new Size(50, 15);
-            _centerYLabel.TabIndex = 10;
-            _centerYLabel.Text = "CenterY";
-            // 
-            // _exposureLabel
-            // 
-            _exposureLabel.AutoSize = true;
-            _exposureLabel.Margin = new Padding(3, 8, 3, 3);
-            _exposureLabel.Name = "_exposureLabel";
-            _exposureLabel.Size = new Size(53, 15);
-            _exposureLabel.TabIndex = 12;
-            _exposureLabel.Text = "Exposure";
-            // 
-            // _gammaLabel
-            // 
-            _gammaLabel.AutoSize = true;
-            _gammaLabel.Margin = new Padding(3, 8, 3, 3);
-            _gammaLabel.Name = "_gammaLabel";
-            _gammaLabel.Size = new Size(46, 15);
-            _gammaLabel.TabIndex = 14;
-            _gammaLabel.Text = "Gamma";
-            // 
-            // _threadsLabel
-            // 
-            _threadsLabel.AutoSize = true;
-            _threadsLabel.Margin = new Padding(3, 8, 3, 3);
-            _threadsLabel.Name = "_threadsLabel";
-            _threadsLabel.Size = new Size(48, 15);
-            _threadsLabel.TabIndex = 16;
-            _threadsLabel.Text = "Threads";
-            // 
             // _samples
             // 
-            _samples.DecimalPlaces = 0;
             _samples.Dock = DockStyle.Top;
             _samples.Increment = new decimal(new int[] { 1000, 0, 0, 0 });
             _samples.Location = new Point(148, 3);
@@ -247,6 +225,16 @@ namespace FractalExplorer.Forms.Fractals
             _samples.Size = new Size(113, 23);
             _samples.TabIndex = 1;
             _samples.Value = new decimal(new int[] { 1000000, 0, 0, 0 });
+            // 
+            // _iterationsLabel
+            // 
+            _iterationsLabel.AutoSize = true;
+            _iterationsLabel.Location = new Point(3, 37);
+            _iterationsLabel.Margin = new Padding(3, 8, 3, 3);
+            _iterationsLabel.Name = "_iterationsLabel";
+            _iterationsLabel.Size = new Size(68, 15);
+            _iterationsLabel.TabIndex = 2;
+            _iterationsLabel.Text = "Iter/Sample";
             // 
             // _iterations
             // 
@@ -259,15 +247,34 @@ namespace FractalExplorer.Forms.Fractals
             _iterations.TabIndex = 3;
             _iterations.Value = new decimal(new int[] { 20, 0, 0, 0 });
             // 
+            // _warmupLabel
+            // 
+            _warmupLabel.AutoSize = true;
+            _warmupLabel.Location = new Point(3, 66);
+            _warmupLabel.Margin = new Padding(3, 8, 3, 3);
+            _warmupLabel.Name = "_warmupLabel";
+            _warmupLabel.Size = new Size(53, 15);
+            _warmupLabel.TabIndex = 4;
+            _warmupLabel.Text = "Warmup";
+            // 
             // _warmup
             // 
             _warmup.Dock = DockStyle.Top;
             _warmup.Location = new Point(148, 61);
-            _warmup.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
             _warmup.Name = "_warmup";
             _warmup.Size = new Size(113, 23);
             _warmup.TabIndex = 5;
             _warmup.Value = new decimal(new int[] { 20, 0, 0, 0 });
+            // 
+            // _scaleLabel
+            // 
+            _scaleLabel.AutoSize = true;
+            _scaleLabel.Location = new Point(3, 95);
+            _scaleLabel.Margin = new Padding(3, 8, 3, 3);
+            _scaleLabel.Name = "_scaleLabel";
+            _scaleLabel.Size = new Size(34, 15);
+            _scaleLabel.TabIndex = 6;
+            _scaleLabel.Text = "Scale";
             // 
             // _scale
             // 
@@ -282,6 +289,16 @@ namespace FractalExplorer.Forms.Fractals
             _scale.TabIndex = 7;
             _scale.Value = new decimal(new int[] { 4, 0, 0, 0 });
             // 
+            // _centerXLabel
+            // 
+            _centerXLabel.AutoSize = true;
+            _centerXLabel.Location = new Point(3, 124);
+            _centerXLabel.Margin = new Padding(3, 8, 3, 3);
+            _centerXLabel.Name = "_centerXLabel";
+            _centerXLabel.Size = new Size(49, 15);
+            _centerXLabel.TabIndex = 8;
+            _centerXLabel.Text = "CenterX";
+            // 
             // _centerX
             // 
             _centerX.DecimalPlaces = 4;
@@ -294,6 +311,16 @@ namespace FractalExplorer.Forms.Fractals
             _centerX.Size = new Size(113, 23);
             _centerX.TabIndex = 9;
             // 
+            // _centerYLabel
+            // 
+            _centerYLabel.AutoSize = true;
+            _centerYLabel.Location = new Point(3, 153);
+            _centerYLabel.Margin = new Padding(3, 8, 3, 3);
+            _centerYLabel.Name = "_centerYLabel";
+            _centerYLabel.Size = new Size(49, 15);
+            _centerYLabel.TabIndex = 10;
+            _centerYLabel.Text = "CenterY";
+            // 
             // _centerY
             // 
             _centerY.DecimalPlaces = 4;
@@ -305,6 +332,16 @@ namespace FractalExplorer.Forms.Fractals
             _centerY.Name = "_centerY";
             _centerY.Size = new Size(113, 23);
             _centerY.TabIndex = 11;
+            // 
+            // _exposureLabel
+            // 
+            _exposureLabel.AutoSize = true;
+            _exposureLabel.Location = new Point(3, 182);
+            _exposureLabel.Margin = new Padding(3, 8, 3, 3);
+            _exposureLabel.Name = "_exposureLabel";
+            _exposureLabel.Size = new Size(54, 15);
+            _exposureLabel.TabIndex = 12;
+            _exposureLabel.Text = "Exposure";
             // 
             // _exposure
             // 
@@ -319,6 +356,16 @@ namespace FractalExplorer.Forms.Fractals
             _exposure.TabIndex = 13;
             _exposure.Value = new decimal(new int[] { 135, 0, 0, 131072 });
             // 
+            // _gammaLabel
+            // 
+            _gammaLabel.AutoSize = true;
+            _gammaLabel.Location = new Point(3, 211);
+            _gammaLabel.Margin = new Padding(3, 8, 3, 3);
+            _gammaLabel.Name = "_gammaLabel";
+            _gammaLabel.Size = new Size(49, 15);
+            _gammaLabel.TabIndex = 14;
+            _gammaLabel.Text = "Gamma";
+            // 
             // _gamma
             // 
             _gamma.DecimalPlaces = 2;
@@ -332,6 +379,16 @@ namespace FractalExplorer.Forms.Fractals
             _gamma.TabIndex = 15;
             _gamma.Value = new decimal(new int[] { 220, 0, 0, 131072 });
             // 
+            // _threadsLabel
+            // 
+            _threadsLabel.AutoSize = true;
+            _threadsLabel.Location = new Point(3, 240);
+            _threadsLabel.Margin = new Padding(3, 8, 3, 3);
+            _threadsLabel.Name = "_threadsLabel";
+            _threadsLabel.Size = new Size(49, 15);
+            _threadsLabel.TabIndex = 16;
+            _threadsLabel.Text = "Threads";
+            // 
             // _threads
             // 
             _threads.Dock = DockStyle.Top;
@@ -341,56 +398,6 @@ namespace FractalExplorer.Forms.Fractals
             _threads.Name = "_threads";
             _threads.Size = new Size(113, 23);
             _threads.TabIndex = 17;
-            // 
-            // _btnRender
-            // 
-            _btnRender.Dock = DockStyle.Bottom;
-            _btnRender.Location = new Point(8, 592);
-            _btnRender.Name = "_btnRender";
-            _btnRender.Size = new Size(264, 40);
-            _btnRender.TabIndex = 1;
-            _btnRender.Text = "Render";
-            _btnRender.UseVisualStyleBackColor = true;
-            // 
-            // _btnEditTransforms
-            // 
-            _btnEditTransforms.Dock = DockStyle.Bottom;
-            _btnEditTransforms.Location = new Point(8, 632);
-            _btnEditTransforms.Name = "_btnEditTransforms";
-            _btnEditTransforms.Size = new Size(264, 40);
-            _btnEditTransforms.TabIndex = 2;
-            _btnEditTransforms.Text = "Трансформации";
-            _btnEditTransforms.UseVisualStyleBackColor = true;
-            // 
-            // _btnSaveLoad
-            // 
-            _btnSaveLoad.Dock = DockStyle.Bottom;
-            _btnSaveLoad.Location = new Point(8, 672);
-            _btnSaveLoad.Name = "_btnSaveLoad";
-            _btnSaveLoad.Size = new Size(264, 40);
-            _btnSaveLoad.TabIndex = 3;
-            _btnSaveLoad.Text = "Save/Load";
-            _btnSaveLoad.UseVisualStyleBackColor = true;
-            // 
-            // _btnSaveImage
-            // 
-            _btnSaveImage.Dock = DockStyle.Bottom;
-            _btnSaveImage.Location = new Point(8, 712);
-            _btnSaveImage.Name = "_btnSaveImage";
-            _btnSaveImage.Size = new Size(264, 40);
-            _btnSaveImage.TabIndex = 4;
-            _btnSaveImage.Text = "Сохранить PNG";
-            _btnSaveImage.UseVisualStyleBackColor = true;
-            // 
-            // _status
-            // 
-            _status.AutoSize = true;
-            _status.Dock = DockStyle.Bottom;
-            _status.Location = new Point(8, 752);
-            _status.Name = "_status";
-            _status.Size = new Size(45, 15);
-            _status.TabIndex = 5;
-            _status.Text = "Готово";
             // 
             // _canvas
             // 
