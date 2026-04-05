@@ -32,6 +32,7 @@ namespace FractalExplorer.Forms.Fractals
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FractalBuddhabrotForm));
             _contentPanel = new Panel();
             _canvasHost = new Panel();
             _controlsHost = new Panel();
@@ -188,10 +189,9 @@ namespace FractalExplorer.Forms.Fractals
             // _samples
             // 
             _samples.Dock = DockStyle.Fill;
-            _samples.Location = new Point(6, 64);
+            _samples.Location = new Point(6, 35);
             _samples.Margin = new Padding(6, 3, 3, 3);
-            int max_samples = int.MaxValue;
-            _samples.Maximum = new decimal(new int[] { max_samples, 0, 0, 0 });
+            _samples.Maximum = new decimal(new int[] { int.MaxValue, 0, 0, 0 });
             _samples.Minimum = new decimal(new int[] { 1000, 0, 0, 0 });
             _samples.Name = "_samples";
             _samples.Size = new Size(124, 23);
@@ -202,7 +202,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _samplesLabel.AutoSize = true;
             _samplesLabel.Dock = DockStyle.Fill;
-            _samplesLabel.Location = new Point(136, 61);
+            _samplesLabel.Location = new Point(136, 32);
             _samplesLabel.Name = "_samplesLabel";
             _samplesLabel.Size = new Size(103, 29);
             _samplesLabel.TabIndex = 5;
@@ -214,7 +214,7 @@ namespace FractalExplorer.Forms.Fractals
             _threadsCombo.Dock = DockStyle.Fill;
             _threadsCombo.DropDownStyle = ComboBoxStyle.DropDownList;
             _threadsCombo.FormattingEnabled = true;
-            _threadsCombo.Location = new Point(6, 93);
+            _threadsCombo.Location = new Point(6, 64);
             _threadsCombo.Margin = new Padding(6, 3, 3, 3);
             _threadsCombo.Name = "_threadsCombo";
             _threadsCombo.Size = new Size(124, 23);
@@ -224,7 +224,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _threadsLabel.AutoSize = true;
             _threadsLabel.Dock = DockStyle.Fill;
-            _threadsLabel.Location = new Point(136, 90);
+            _threadsLabel.Location = new Point(136, 61);
             _threadsLabel.Name = "_threadsLabel";
             _threadsLabel.Size = new Size(103, 29);
             _threadsLabel.TabIndex = 7;
@@ -234,7 +234,7 @@ namespace FractalExplorer.Forms.Fractals
             // _iterations
             // 
             _iterations.Dock = DockStyle.Fill;
-            _iterations.Location = new Point(6, 122);
+            _iterations.Location = new Point(6, 93);
             _iterations.Margin = new Padding(6, 3, 3, 3);
             _iterations.Maximum = new decimal(new int[] { 10000, 0, 0, 0 });
             _iterations.Minimum = new decimal(new int[] { 10, 0, 0, 0 });
@@ -247,7 +247,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _iterationsLabel.AutoSize = true;
             _iterationsLabel.Dock = DockStyle.Fill;
-            _iterationsLabel.Location = new Point(136, 119);
+            _iterationsLabel.Location = new Point(136, 90);
             _iterationsLabel.Name = "_iterationsLabel";
             _iterationsLabel.Size = new Size(103, 29);
             _iterationsLabel.TabIndex = 9;
@@ -258,7 +258,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _zoomLabel.AutoSize = true;
             _zoomLabel.Dock = DockStyle.Fill;
-            _zoomLabel.Location = new Point(3, 148);
+            _zoomLabel.Location = new Point(3, 119);
             _zoomLabel.Name = "_zoomLabel";
             _zoomLabel.Size = new Size(127, 15);
             _zoomLabel.TabIndex = 8;
@@ -270,7 +270,7 @@ namespace FractalExplorer.Forms.Fractals
             _zoom.DecimalPlaces = 6;
             _zoom.Dock = DockStyle.Fill;
             _zoom.Increment = new decimal(new int[] { 1, 0, 0, 65536 });
-            _zoom.Location = new Point(6, 166);
+            _zoom.Location = new Point(6, 137);
             _zoom.Margin = new Padding(6, 3, 3, 3);
             _zoom.Maximum = new decimal(new int[] { 100000, 0, 0, 0 });
             _zoom.Minimum = new decimal(new int[] { 1, 0, 0, 458752 });
@@ -284,7 +284,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMinRe.DecimalPlaces = 4;
             _sampleMinRe.Dock = DockStyle.Fill;
             _sampleMinRe.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
-            _sampleMinRe.Location = new Point(6, 195);
+            _sampleMinRe.Location = new Point(6, 166);
             _sampleMinRe.Margin = new Padding(6, 3, 3, 3);
             _sampleMinRe.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
             _sampleMinRe.Name = "_sampleMinRe";
@@ -296,7 +296,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _sampleMinReLabel.AutoSize = true;
             _sampleMinReLabel.Dock = DockStyle.Fill;
-            _sampleMinReLabel.Location = new Point(136, 192);
+            _sampleMinReLabel.Location = new Point(136, 163);
             _sampleMinReLabel.Name = "_sampleMinReLabel";
             _sampleMinReLabel.Size = new Size(103, 29);
             _sampleMinReLabel.TabIndex = 12;
@@ -308,7 +308,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxRe.DecimalPlaces = 4;
             _sampleMaxRe.Dock = DockStyle.Fill;
             _sampleMaxRe.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
-            _sampleMaxRe.Location = new Point(6, 224);
+            _sampleMaxRe.Location = new Point(6, 195);
             _sampleMaxRe.Margin = new Padding(6, 3, 3, 3);
             _sampleMaxRe.Maximum = new decimal(new int[] { 4, 0, 0, 0 });
             _sampleMaxRe.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
@@ -321,7 +321,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _sampleMaxReLabel.AutoSize = true;
             _sampleMaxReLabel.Dock = DockStyle.Fill;
-            _sampleMaxReLabel.Location = new Point(136, 221);
+            _sampleMaxReLabel.Location = new Point(136, 192);
             _sampleMaxReLabel.Name = "_sampleMaxReLabel";
             _sampleMaxReLabel.Size = new Size(103, 29);
             _sampleMaxReLabel.TabIndex = 14;
@@ -333,7 +333,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMinIm.DecimalPlaces = 4;
             _sampleMinIm.Dock = DockStyle.Fill;
             _sampleMinIm.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
-            _sampleMinIm.Location = new Point(6, 253);
+            _sampleMinIm.Location = new Point(6, 224);
             _sampleMinIm.Margin = new Padding(6, 3, 3, 3);
             _sampleMinIm.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
             _sampleMinIm.Name = "_sampleMinIm";
@@ -345,7 +345,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _sampleMinImLabel.AutoSize = true;
             _sampleMinImLabel.Dock = DockStyle.Fill;
-            _sampleMinImLabel.Location = new Point(136, 250);
+            _sampleMinImLabel.Location = new Point(136, 221);
             _sampleMinImLabel.Name = "_sampleMinImLabel";
             _sampleMinImLabel.Size = new Size(103, 29);
             _sampleMinImLabel.TabIndex = 16;
@@ -357,7 +357,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxIm.DecimalPlaces = 4;
             _sampleMaxIm.Dock = DockStyle.Fill;
             _sampleMaxIm.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
-            _sampleMaxIm.Location = new Point(6, 282);
+            _sampleMaxIm.Location = new Point(6, 253);
             _sampleMaxIm.Margin = new Padding(6, 3, 3, 3);
             _sampleMaxIm.Maximum = new decimal(new int[] { 4, 0, 0, 0 });
             _sampleMaxIm.Minimum = new decimal(new int[] { 4, 0, 0, int.MinValue });
@@ -370,7 +370,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _sampleMaxImLabel.AutoSize = true;
             _sampleMaxImLabel.Dock = DockStyle.Fill;
-            _sampleMaxImLabel.Location = new Point(136, 279);
+            _sampleMaxImLabel.Location = new Point(136, 250);
             _sampleMaxImLabel.Name = "_sampleMaxImLabel";
             _sampleMaxImLabel.Size = new Size(103, 29);
             _sampleMaxImLabel.TabIndex = 18;
@@ -381,7 +381,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _controlsPanel.SetColumnSpan(_btnSaveImage, 2);
             _btnSaveImage.Dock = DockStyle.Fill;
-            _btnSaveImage.Location = new Point(6, 311);
+            _btnSaveImage.Location = new Point(6, 282);
             _btnSaveImage.Margin = new Padding(6, 3, 6, 3);
             _btnSaveImage.Name = "_btnSaveImage";
             _btnSaveImage.Size = new Size(230, 39);
@@ -393,7 +393,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _controlsPanel.SetColumnSpan(_btnPalette, 2);
             _btnPalette.Dock = DockStyle.Fill;
-            _btnPalette.Location = new Point(6, 356);
+            _btnPalette.Location = new Point(6, 327);
             _btnPalette.Margin = new Padding(6, 3, 6, 3);
             _btnPalette.Name = "_btnPalette";
             _btnPalette.Size = new Size(230, 39);
@@ -406,7 +406,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _controlsPanel.SetColumnSpan(_btnRender, 2);
             _btnRender.Dock = DockStyle.Fill;
-            _btnRender.Location = new Point(6, 401);
+            _btnRender.Location = new Point(6, 372);
             _btnRender.Margin = new Padding(6, 3, 6, 3);
             _btnRender.Name = "_btnRender";
             _btnRender.Size = new Size(230, 39);
@@ -419,7 +419,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _controlsPanel.SetColumnSpan(_btnSaveLoad, 2);
             _btnSaveLoad.Dock = DockStyle.Fill;
-            _btnSaveLoad.Location = new Point(6, 446);
+            _btnSaveLoad.Location = new Point(6, 417);
             _btnSaveLoad.Margin = new Padding(6, 3, 6, 3);
             _btnSaveLoad.Name = "_btnSaveLoad";
             _btnSaveLoad.Size = new Size(230, 39);
@@ -433,7 +433,7 @@ namespace FractalExplorer.Forms.Fractals
             _progressLabel.AutoSize = true;
             _controlsPanel.SetColumnSpan(_progressLabel, 2);
             _progressLabel.Dock = DockStyle.Fill;
-            _progressLabel.Location = new Point(3, 488);
+            _progressLabel.Location = new Point(3, 459);
             _progressLabel.Name = "_progressLabel";
             _progressLabel.Size = new Size(236, 20);
             _progressLabel.TabIndex = 23;
@@ -444,7 +444,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _controlsPanel.SetColumnSpan(_renderProgress, 2);
             _renderProgress.Dock = DockStyle.Fill;
-            _renderProgress.Location = new Point(6, 511);
+            _renderProgress.Location = new Point(6, 482);
             _renderProgress.Margin = new Padding(6, 3, 6, 3);
             _renderProgress.Name = "_renderProgress";
             _renderProgress.Size = new Size(230, 24);
@@ -482,6 +482,7 @@ namespace FractalExplorer.Forms.Fractals
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1029, 561);
             Controls.Add(_contentPanel);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
             MinimumSize = new Size(1045, 600);
             Name = "FractalBuddhabrotForm";
