@@ -5,6 +5,7 @@ using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using FractalExplorer.Utilities.Theme;
+using FractalExplorer.Utilities.UI;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
@@ -37,10 +38,15 @@ namespace FractalExplorer.Forms.Fractals
         private double _activeRenderCenterX;
         private double _activeRenderCenterY;
         private double _activeRenderScale;
+        private readonly FullscreenToggleController _fullscreenController = new();
+        private const int ToggleButtonMargin = 12;
+        private bool _controlsPanelVisible = true;
+        private bool _suppressResizeRender;
 
         public FractalFlameForm()
         {
             InitializeComponent();
+            KeyPreview = true;
             ThemeManager.RegisterForm(this);
             _baseTitle = Text;
             InitializeDefaults();
@@ -51,6 +57,7 @@ namespace FractalExplorer.Forms.Fractals
             Load += async (_, _) => await RenderAsync();
             FormClosing += (_, _) =>
             {
+                ExitFullscreenSafely();
                 _cts?.Cancel();
                 _renderRestartTimer.Stop();
                 _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
@@ -70,6 +77,10 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
             _canvas.Paint += Canvas_Paint;
             _canvas.SizeChanged += Canvas_SizeChanged;
+            _canvasHost.Resize += CanvasHost_Resize;
+            _controlsPanel.SizeChanged += ControlsPanel_SizeChanged;
+            _btnToggleControls.Click += BtnToggleControls_Click;
+            KeyDown += Form_KeyDown;
             ResizeBegin += (_, _) => _isUserResizingWindow = true;
             ResizeEnd += (_, _) =>
             {
@@ -82,6 +93,7 @@ namespace FractalExplorer.Forms.Fractals
             };
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
             AttachAutoRenderControlTriggers();
+            UpdateToggleControlsPosition();
         }
 
         private void InitializeDefaults()
@@ -159,6 +171,12 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
+            if (_suppressResizeRender)
+            {
+                _canvas.Invalidate();
+                return;
+            }
+
             if (_isUserResizingWindow)
             {
                 _hasPendingCanvasResizeRender = true;
@@ -200,6 +218,8 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
+            _cts?.Cancel();
+            _renderRestartTimer.Stop();
             _isPanning = true;
             _panStartPoint = e.Location;
             _panStartCenterX = (double)_centerX.Value;
@@ -249,6 +269,102 @@ namespace FractalExplorer.Forms.Fractals
             _isPanning = false;
             _canvas.Cursor = Cursors.Default;
             QueueRenderRestart(immediate: true);
+        }
+
+        private void BtnToggleControls_Click(object? sender, EventArgs e)
+        {
+            ToggleControlsPanel();
+        }
+
+        private void CanvasHost_Resize(object? sender, EventArgs e)
+        {
+            UpdateToggleControlsPosition();
+        }
+
+        private void ControlsPanel_SizeChanged(object? sender, EventArgs e)
+        {
+            UpdateToggleControlsPosition();
+        }
+
+        private void UpdateToggleControlsPosition()
+        {
+            int targetX = ToggleButtonMargin;
+            if (_controlsPanelVisible)
+            {
+                targetX = _controlsPanel.Right + ToggleButtonMargin;
+            }
+
+            int maxX = Math.Max(ToggleButtonMargin, _canvasHost.ClientSize.Width - _btnToggleControls.Width - ToggleButtonMargin);
+            _btnToggleControls.Location = new Point(Math.Min(targetX, maxX), ToggleButtonMargin);
+            _btnToggleControls.BringToFront();
+        }
+
+        private void ToggleControlsPanel()
+        {
+            _controlsPanelVisible = !_controlsPanelVisible;
+            _btnToggleControls.Text = _controlsPanelVisible ? "✕" : "☰";
+            _suppressResizeRender = true;
+            try
+            {
+                _controlsPanel.Visible = _controlsPanelVisible;
+                UpdateToggleControlsPosition();
+                _canvas.Invalidate();
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void ToggleFullscreenSafely()
+        {
+            _suppressResizeRender = true;
+            try
+            {
+                _fullscreenController.Toggle(this);
+                UpdateToggleControlsPosition();
+                QueueRenderRestart(immediate: true);
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void ExitFullscreenSafely()
+        {
+            if (!_fullscreenController.IsFullscreen(this))
+            {
+                return;
+            }
+
+            _suppressResizeRender = true;
+            try
+            {
+                _fullscreenController.ExitFullscreen(this);
+                UpdateToggleControlsPosition();
+                QueueRenderRestart(immediate: true);
+            }
+            finally
+            {
+                _suppressResizeRender = false;
+            }
+        }
+
+        private void Form_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                ToggleFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == Keys.Escape && _fullscreenController.IsFullscreen(this))
+            {
+                ExitFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
         }
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
@@ -492,6 +608,11 @@ namespace FractalExplorer.Forms.Fractals
                 _btnRender.Enabled = true;
                 _isRenderInProgress = false;
                 ClearCoverageOverlay();
+                bool hasNewerRenderRequest = !IsDisposed && _cts != null && _cts.Token != token;
+                if (hasNewerRenderRequest && !_isPanning)
+                {
+                    QueueRenderRestart(immediate: true);
+                }
             }
         }
 

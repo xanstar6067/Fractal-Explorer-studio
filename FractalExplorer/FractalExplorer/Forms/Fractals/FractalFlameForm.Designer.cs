@@ -8,6 +8,8 @@ namespace FractalExplorer.Forms.Fractals
         private System.ComponentModel.IContainer? components = null;
 
         private Panel _controlsPanel;
+        private Panel _contentPanel;
+        private Panel _canvasHost;
         private TableLayoutPanel _settingsLayout;
         private Label _samplesLabel;
         private Label _iterationsLabel;
@@ -36,6 +38,7 @@ namespace FractalExplorer.Forms.Fractals
         private Label _status;
         private Label _lastRenderTime;
         private CheckBox _showCoverageMap;
+        private Button _btnToggleControls;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -63,6 +66,8 @@ namespace FractalExplorer.Forms.Fractals
         private void InitializeComponent()
         {
             _controlsPanel = new Panel();
+            _contentPanel = new Panel();
+            _canvasHost = new Panel();
             _settingsLayout = new TableLayoutPanel();
             _samples = new NumericUpDown();
             _samplesLabel = new Label();
@@ -91,7 +96,10 @@ namespace FractalExplorer.Forms.Fractals
             _status = new Label();
             _lastRenderTime = new Label();
             _canvas = new PictureBox();
+            _btnToggleControls = new Button();
             _controlsPanel.SuspendLayout();
+            _contentPanel.SuspendLayout();
+            _canvasHost.SuspendLayout();
             _settingsLayout.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)_samples).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_iterations).BeginInit();
@@ -106,13 +114,34 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // _controlsPanel
             // 
+            _controlsPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            _controlsPanel.BorderStyle = BorderStyle.FixedSingle;
             _controlsPanel.Controls.Add(_settingsLayout);
-            _controlsPanel.Dock = DockStyle.Left;
             _controlsPanel.Location = new Point(0, 0);
             _controlsPanel.Name = "_controlsPanel";
             _controlsPanel.Padding = new Padding(8);
             _controlsPanel.Size = new Size(280, 781);
             _controlsPanel.TabIndex = 0;
+            // 
+            // _contentPanel
+            // 
+            _contentPanel.Controls.Add(_canvasHost);
+            _contentPanel.Dock = DockStyle.Fill;
+            _contentPanel.Location = new Point(0, 0);
+            _contentPanel.Name = "_contentPanel";
+            _contentPanel.Size = new Size(1264, 781);
+            _contentPanel.TabIndex = 0;
+            // 
+            // _canvasHost
+            // 
+            _canvasHost.Controls.Add(_controlsPanel);
+            _canvasHost.Controls.Add(_btnToggleControls);
+            _canvasHost.Controls.Add(_canvas);
+            _canvasHost.Dock = DockStyle.Fill;
+            _canvasHost.Location = new Point(0, 0);
+            _canvasHost.Name = "_canvasHost";
+            _canvasHost.Size = new Size(1264, 781);
+            _canvasHost.TabIndex = 0;
             // 
             // _settingsLayout
             // 
@@ -487,24 +516,39 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _canvas.BackColor = Color.Black;
             _canvas.Dock = DockStyle.Fill;
-            _canvas.Location = new Point(280, 0);
+            _canvas.Location = new Point(0, 0);
             _canvas.Name = "_canvas";
-            _canvas.Size = new Size(984, 781);
+            _canvas.Size = new Size(1264, 781);
             _canvas.SizeMode = PictureBoxSizeMode.Zoom;
             _canvas.TabIndex = 1;
             _canvas.TabStop = false;
+            // 
+            // _btnToggleControls
+            // 
+            _btnToggleControls.AutoSize = true;
+            _btnToggleControls.BackColor = Color.FromArgb(235, 32, 32, 32);
+            _btnToggleControls.FlatStyle = FlatStyle.Popup;
+            _btnToggleControls.ForeColor = Color.White;
+            _btnToggleControls.Location = new Point(292, 12);
+            _btnToggleControls.Name = "_btnToggleControls";
+            _btnToggleControls.Size = new Size(44, 32);
+            _btnToggleControls.TabIndex = 2;
+            _btnToggleControls.Text = "✕";
+            _btnToggleControls.UseVisualStyleBackColor = true;
             // 
             // FractalFlameForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1264, 781);
-            Controls.Add(_canvas);
-            Controls.Add(_controlsPanel);
+            Controls.Add(_contentPanel);
             MinimumSize = new Size(1120, 680);
             Name = "FractalFlameForm";
             Text = "Fractal Flame";
             _controlsPanel.ResumeLayout(false);
+            _contentPanel.ResumeLayout(false);
+            _canvasHost.ResumeLayout(false);
+            _canvasHost.PerformLayout();
             _settingsLayout.ResumeLayout(false);
             _settingsLayout.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)_samples).EndInit();
