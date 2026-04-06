@@ -560,6 +560,9 @@ namespace FractalExplorer.Forms.Fractals
                 _status.Text = $"Рендер: {clamped}%";
                 _pbRenderProgress.Value = clamped;
             });
+            Action<byte[]>? coverageCallback = _showCoverageMap.Checked
+                ? heatmap => UpdateCoverageOverlay(heatmap, bmp.Width, bmp.Height, data.Stride)
+                : null;
 
             try
             {
@@ -571,7 +574,7 @@ namespace FractalExplorer.Forms.Fractals
                     4,
                     token,
                     p => ((IProgress<int>)progress).Report(p),
-                    reportCoverageHeatmap: heatmap => UpdateCoverageOverlay(heatmap, bmp.Width, bmp.Height, data.Stride),
+                    reportCoverageHeatmap: coverageCallback,
                     coverageUpdateIntervalMs: 200), token);
                 Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
                 renderStopwatch.Stop();

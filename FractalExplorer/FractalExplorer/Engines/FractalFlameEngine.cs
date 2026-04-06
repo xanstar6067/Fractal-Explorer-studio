@@ -100,10 +100,6 @@ namespace FractalExplorer.Engines
             int warmup = Math.Max(0, WarmupIterations);
             int totalIterations = (int)Math.Min(int.MaxValue, (long)warmup + iterations);
             int threadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
-            int batchSize = Math.Max(1_000, totalSamples / 24);
-            int coverageIntervalMs = Math.Clamp(coverageUpdateIntervalMs, 50, 2_000);
-            var coverageTimer = Stopwatch.StartNew();
-
             int processed = 0;
             object mergeLock = new();
             var options = new ParallelOptions
@@ -112,11 +108,10 @@ namespace FractalExplorer.Engines
                 MaxDegreeOfParallelism = Math.Max(1, threadCount)
             };
 
-            for (int batchStart = 0; batchStart < totalSamples; batchStart += batchSize)
+            if (reportCoverageHeatmap == null)
             {
-                int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
-                Parallel.For(batchStart, batchEnd, options,
-                    () => new LocalAccumulator(),
+                Parallel.For(0, totalSamples, options,
+                    () => new LocalDenseAccumulator(width * height),
                     (sampleIndex, _, local) =>
                     {
                         token.ThrowIfCancellationRequested();
@@ -149,11 +144,10 @@ namespace FractalExplorer.Engines
                             }
 
                             int idx = py * width + px;
-                            ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
-                            pixel.Hit += 1.0;
-                            pixel.R += cr;
-                            pixel.G += cg;
-                            pixel.B += cb;
+                            local.Hit[idx] += 1.0;
+                            local.R[idx] += cr;
+                            local.G[idx] += cg;
+                            local.B[idx] += cb;
                         }
 
                         int done = Interlocked.Increment(ref processed);
@@ -168,20 +162,93 @@ namespace FractalExplorer.Engines
                     {
                         lock (mergeLock)
                         {
-                            foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
+                            for (int i = 0; i < hdrHit.Length; i++)
                             {
-                                hdrHit[idx] += pixel.Hit;
-                                hdrR[idx] += pixel.R;
-                                hdrG[idx] += pixel.G;
-                                hdrB[idx] += pixel.B;
+                                hdrHit[i] += local.Hit[i];
+                                hdrR[i] += local.R[i];
+                                hdrG[i] += local.G[i];
+                                hdrB[i] += local.B[i];
                             }
                         }
                     });
+            }
+            else
+            {
+                int batchSize = Math.Max(1_000, totalSamples / 24);
+                int coverageIntervalMs = Math.Clamp(coverageUpdateIntervalMs, 50, 2_000);
+                var coverageTimer = Stopwatch.StartNew();
 
-                if (reportCoverageHeatmap != null && coverageTimer.ElapsedMilliseconds >= coverageIntervalMs)
+                for (int batchStart = 0; batchStart < totalSamples; batchStart += batchSize)
                 {
-                    reportCoverageHeatmap(ConvertHitToHeatmapBuffer(width, height, stride, bytesPerPixel, hdrHit));
-                    coverageTimer.Restart();
+                    int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
+                    Parallel.For(batchStart, batchEnd, options,
+                        () => new LocalAccumulator(),
+                        (sampleIndex, _, local) =>
+                        {
+                            token.ThrowIfCancellationRequested();
+                            ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
+                            double x = NextUnitSigned(ref seed);
+                            double y = NextUnitSigned(ref seed);
+                            double cr = 0.5;
+                            double cg = 0.5;
+                            double cb = 0.5;
+
+                            for (int i = 0; i < totalIterations; i++)
+                            {
+                                FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
+                                ApplyTransform(transform, ref x, ref y);
+
+                                cr = (cr + transform.Color.R / 255.0) * 0.5;
+                                cg = (cg + transform.Color.G / 255.0) * 0.5;
+                                cb = (cb + transform.Color.B / 255.0) * 0.5;
+
+                                if (i < warmup)
+                                {
+                                    continue;
+                                }
+
+                                int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
+                                int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
+                                if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+                                {
+                                    continue;
+                                }
+
+                                int idx = py * width + px;
+                                ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
+                                pixel.Hit += 1.0;
+                                pixel.R += cr;
+                                pixel.G += cg;
+                                pixel.B += cb;
+                            }
+
+                            int done = Interlocked.Increment(ref processed);
+                            if (done % Math.Max(1, totalSamples / 100) == 0)
+                            {
+                                reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
+                            }
+
+                            return local;
+                        },
+                        local =>
+                        {
+                            lock (mergeLock)
+                            {
+                                foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
+                                {
+                                    hdrHit[idx] += pixel.Hit;
+                                    hdrR[idx] += pixel.R;
+                                    hdrG[idx] += pixel.G;
+                                    hdrB[idx] += pixel.B;
+                                }
+                            }
+                        });
+
+                    if (coverageTimer.ElapsedMilliseconds >= coverageIntervalMs)
+                    {
+                        reportCoverageHeatmap(ConvertHitToHeatmapBuffer(width, height, stride, bytesPerPixel, hdrHit));
+                        coverageTimer.Restart();
+                    }
                 }
             }
 
@@ -365,6 +432,22 @@ namespace FractalExplorer.Engines
             {
                 return ref CollectionsMarshal.GetValueRefOrAddDefault(Pixels, pixelIndex, out _);
             }
+        }
+
+        private sealed class LocalDenseAccumulator
+        {
+            public LocalDenseAccumulator(int size)
+            {
+                Hit = new double[size];
+                R = new double[size];
+                G = new double[size];
+                B = new double[size];
+            }
+
+            public double[] Hit { get; }
+            public double[] R { get; }
+            public double[] G { get; }
+            public double[] B { get; }
         }
 
         private struct PixelAccumulation
