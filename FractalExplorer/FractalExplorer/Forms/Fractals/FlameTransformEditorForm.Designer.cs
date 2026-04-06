@@ -157,6 +157,7 @@ namespace FractalExplorer.Forms.Fractals
             _split.IsSplitterFixed = true;
             _split.Location = new Point(0, 0);
             _split.Name = "_split";
+            _split.Panel1MinSize = 210;
             // 
             // _split.Panel1
             // 
@@ -166,7 +167,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _split.Panel2.Controls.Add(_rightPanel);
             _split.Size = new Size(780, 434);
-            _split.SplitterDistance = 121;
+            _split.SplitterDistance = 220;
             _split.TabIndex = 0;
             // 
             // _leftPanel
@@ -177,17 +178,17 @@ namespace FractalExplorer.Forms.Fractals
             _leftPanel.Dock = DockStyle.Fill;
             _leftPanel.Location = new Point(0, 0);
             _leftPanel.Name = "_leftPanel";
-            _leftPanel.Size = new Size(121, 434);
+            _leftPanel.Size = new Size(220, 434);
             _leftPanel.TabIndex = 0;
             // 
             // _listContainer
             // 
             _listContainer.AutoScroll = true;
             _listContainer.Dock = DockStyle.Fill;
-            _listContainer.Location = new Point(0, 40);
+            _listContainer.Location = new Point(0, 44);
             _listContainer.Name = "_listContainer";
-            _listContainer.Padding = new Padding(8, 6, 8, 0);
-            _listContainer.Size = new Size(121, 366);
+            _listContainer.Padding = new Padding(8, 6, 6, 0);
+            _listContainer.Size = new Size(220, 362);
             _listContainer.TabIndex = 0;
             // 
             // _listFooter
@@ -197,7 +198,7 @@ namespace FractalExplorer.Forms.Fractals
             _listFooter.Location = new Point(0, 406);
             _listFooter.Name = "_listFooter";
             _listFooter.Padding = new Padding(10, 0, 10, 0);
-            _listFooter.Size = new Size(121, 28);
+            _listFooter.Size = new Size(220, 28);
             _listFooter.TabIndex = 1;
             // 
             // _lblTotalWeight
@@ -206,7 +207,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblTotalWeight.Font = new Font("Segoe UI", 8F);
             _lblTotalWeight.Location = new Point(10, 0);
             _lblTotalWeight.Name = "_lblTotalWeight";
-            _lblTotalWeight.Size = new Size(101, 28);
+            _lblTotalWeight.Size = new Size(200, 28);
             _lblTotalWeight.TabIndex = 0;
             _lblTotalWeight.Text = "Суммарный вес: 0.00";
             _lblTotalWeight.TextAlign = ContentAlignment.MiddleCenter;
@@ -218,18 +219,18 @@ namespace FractalExplorer.Forms.Fractals
             _listHeader.Dock = DockStyle.Top;
             _listHeader.Location = new Point(0, 0);
             _listHeader.Name = "_listHeader";
-            _listHeader.Padding = new Padding(10, 0, 6, 0);
-            _listHeader.Size = new Size(121, 40);
+            _listHeader.Padding = new Padding(10, 0, 10, 0);
+            _listHeader.Size = new Size(220, 44);
             _listHeader.TabIndex = 2;
             // 
             // _btnAdd
             // 
-            _btnAdd.AutoSize = true;
+            _btnAdd.AutoSize = false;
             _btnAdd.Dock = DockStyle.Right;
             _btnAdd.FlatStyle = FlatStyle.Flat;
-            _btnAdd.Location = new Point(33, 0);
+            _btnAdd.Location = new Point(118, 0);
             _btnAdd.Name = "_btnAdd";
-            _btnAdd.Size = new Size(82, 40);
+            _btnAdd.Size = new Size(92, 44);
             _btnAdd.TabIndex = 0;
             _btnAdd.Text = "+ Добавить";
             // 
@@ -241,7 +242,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblListTitle.Location = new Point(10, 0);
             _lblListTitle.Name = "_lblListTitle";
             _lblListTitle.Padding = new Padding(0, 0, 8, 0);
-            _lblListTitle.Size = new Size(105, 40);
+            _lblListTitle.Size = new Size(200, 44);
             _lblListTitle.TabIndex = 1;
             _lblListTitle.Text = "Трансформации";
             _lblListTitle.TextAlign = ContentAlignment.MiddleLeft;
