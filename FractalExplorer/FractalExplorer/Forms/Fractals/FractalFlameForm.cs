@@ -10,6 +10,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.Threading;
 
 namespace FractalExplorer.Forms.Fractals
 {
@@ -23,6 +24,7 @@ namespace FractalExplorer.Forms.Fractals
         private double _panStartCenterX;
         private double _panStartCenterY;
         private readonly System.Windows.Forms.Timer _renderRestartTimer = new() { Interval = 350 };
+        private readonly System.Windows.Forms.Timer _wheelDebounceTimer = new() { Interval = 500 };
         private bool _isQueuingRenderRestart;
         private bool _isUserResizingWindow;
         private bool _hasPendingCanvasResizeRender;
@@ -42,6 +44,10 @@ namespace FractalExplorer.Forms.Fractals
         private const int ToggleButtonMargin = 12;
         private bool _controlsPanelVisible = true;
         private bool _suppressResizeRender;
+        private bool _suppressAutoRenderQueue;
+        private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
+        private bool _isProcessingRenderQueue;
+        private bool _isWheelZoomInProgress;
 
         public FractalFlameForm()
         {
@@ -60,7 +66,9 @@ namespace FractalExplorer.Forms.Fractals
                 ExitFullscreenSafely();
                 _cts?.Cancel();
                 _renderRestartTimer.Stop();
+                _wheelDebounceTimer.Stop();
                 _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
+                _wheelDebounceTimer.Tick -= WheelDebounceTimer_Tick;
                 lock (_previewLock)
                 {
                     _previewBitmap?.Dispose();
@@ -92,6 +100,7 @@ namespace FractalExplorer.Forms.Fractals
                 }
             };
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
+            _wheelDebounceTimer.Tick += WheelDebounceTimer_Tick;
             AttachAutoRenderControlTriggers();
             UpdateToggleControlsPosition();
         }
@@ -116,16 +125,26 @@ namespace FractalExplorer.Forms.Fractals
 
         private void AttachAutoRenderControlTriggers()
         {
-            _samples.ValueChanged += (_, _) => QueueRenderRestart();
-            _iterations.ValueChanged += (_, _) => QueueRenderRestart();
-            _warmup.ValueChanged += (_, _) => QueueRenderRestart();
-            _scale.ValueChanged += (_, _) => QueueRenderRestart();
-            _centerX.ValueChanged += (_, _) => QueueRenderRestart();
-            _centerY.ValueChanged += (_, _) => QueueRenderRestart();
-            _exposure.ValueChanged += (_, _) => QueueRenderRestart();
-            _gamma.ValueChanged += (_, _) => QueueRenderRestart();
-            _threads.SelectedIndexChanged += (_, _) => QueueRenderRestart();
+            _samples.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _iterations.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _warmup.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _scale.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _centerX.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _centerY.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _exposure.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _gamma.ValueChanged += (_, _) => QueueRenderRestartIfAllowed();
+            _threads.SelectedIndexChanged += (_, _) => QueueRenderRestartIfAllowed();
             _showCoverageMap.CheckedChanged += (_, _) => _canvas.Invalidate();
+        }
+
+        private void QueueRenderRestartIfAllowed()
+        {
+            if (_suppressAutoRenderQueue)
+            {
+                return;
+            }
+
+            QueueRenderRestart();
         }
 
         private void QueueRenderRestart(bool immediate = false)
@@ -155,13 +174,28 @@ namespace FractalExplorer.Forms.Fractals
 
         private async Task TriggerQueuedRenderRestartAsync()
         {
-            if (!_isQueuingRenderRestart || _isPanning)
+            if (_isPanning || _isWheelZoomInProgress || _isProcessingRenderQueue)
             {
                 return;
             }
 
-            _isQueuingRenderRestart = false;
-            await RenderAsync();
+            _isProcessingRenderQueue = true;
+            try
+            {
+                while (_isQueuingRenderRestart && !_isPanning)
+                {
+                    _isQueuingRenderRestart = false;
+                    await RenderAsync();
+                }
+            }
+            finally
+            {
+                _isProcessingRenderQueue = false;
+                if (_isQueuingRenderRestart && !_isPanning)
+                {
+                    _ = TriggerQueuedRenderRestartAsync();
+                }
+            }
         }
 
         private void Canvas_SizeChanged(object? sender, EventArgs e)
@@ -204,11 +238,28 @@ namespace FractalExplorer.Forms.Fractals
             double newCenterX = worldXBefore - (e.X / (double)_canvas.Width - 0.5) * newScale;
             double newCenterY = worldYBefore + (e.Y / (double)_canvas.Height - 0.5) * newScale * _canvas.Height / (double)_canvas.Width;
 
-            _scale.Value = (decimal)newScale;
-            _centerX.Value = (decimal)Math.Clamp(newCenterX, (double)_centerX.Minimum, (double)_centerX.Maximum);
-            _centerY.Value = (decimal)Math.Clamp(newCenterY, (double)_centerY.Minimum, (double)_centerY.Maximum);
+            _suppressAutoRenderQueue = true;
+            try
+            {
+                _scale.Value = (decimal)newScale;
+                _centerX.Value = (decimal)Math.Clamp(newCenterX, (double)_centerX.Minimum, (double)_centerX.Maximum);
+                _centerY.Value = (decimal)Math.Clamp(newCenterY, (double)_centerY.Minimum, (double)_centerY.Maximum);
+            }
+            finally
+            {
+                _suppressAutoRenderQueue = false;
+            }
             _canvas.Invalidate();
-            QueueRenderRestart();
+            _isWheelZoomInProgress = true;
+            _wheelDebounceTimer.Stop();
+            _wheelDebounceTimer.Start();
+        }
+
+        private void WheelDebounceTimer_Tick(object? sender, EventArgs e)
+        {
+            _wheelDebounceTimer.Stop();
+            _isWheelZoomInProgress = false;
+            QueueRenderRestart(immediate: true);
         }
 
         private void Canvas_MouseDown(object? sender, MouseEventArgs e)
@@ -242,8 +293,16 @@ namespace FractalExplorer.Forms.Fractals
             double newCenterX = _panStartCenterX - dx * (scale / _canvas.Width);
             double newCenterY = _panStartCenterY + dy * (aspectScaleY / _canvas.Height);
 
-            _centerX.Value = (decimal)Math.Clamp(newCenterX, (double)_centerX.Minimum, (double)_centerX.Maximum);
-            _centerY.Value = (decimal)Math.Clamp(newCenterY, (double)_centerY.Minimum, (double)_centerY.Maximum);
+            _suppressAutoRenderQueue = true;
+            try
+            {
+                _centerX.Value = (decimal)Math.Clamp(newCenterX, (double)_centerX.Minimum, (double)_centerX.Maximum);
+                _centerY.Value = (decimal)Math.Clamp(newCenterY, (double)_centerY.Minimum, (double)_centerY.Maximum);
+            }
+            finally
+            {
+                _suppressAutoRenderQueue = false;
+            }
             _canvas.Invalidate();
         }
 
@@ -528,6 +587,9 @@ namespace FractalExplorer.Forms.Fractals
 
         private async Task RenderAsync()
         {
+            await _renderExecutionLock.WaitAsync();
+            try
+            {
             if (_canvas.Width <= 1 || _canvas.Height <= 1)
             {
                 return;
@@ -611,11 +673,11 @@ namespace FractalExplorer.Forms.Fractals
                 _btnRender.Enabled = true;
                 _isRenderInProgress = false;
                 ClearCoverageOverlay();
-                bool hasNewerRenderRequest = !IsDisposed && _cts != null && _cts.Token != token;
-                if (hasNewerRenderRequest && !_isPanning)
-                {
-                    QueueRenderRestart(immediate: true);
-                }
+            }
+            }
+            finally
+            {
+                _renderExecutionLock.Release();
             }
         }
 
