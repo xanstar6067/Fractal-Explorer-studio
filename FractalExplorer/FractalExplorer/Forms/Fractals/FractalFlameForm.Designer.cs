@@ -199,7 +199,7 @@ namespace FractalExplorer.Forms.Fractals
             _iterations.Dock = DockStyle.Fill;
             _iterations.Location = new Point(6, 35);
             _iterations.Margin = new Padding(6, 3, 3, 3);
-            _iterations.Maximum = new decimal(new int[] { 2147483647, 0, 0, 0 });
+            _iterations.Maximum = new decimal(new int[] { int.MaxValue, 0, 0, 0 });
             _iterations.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             _iterations.Name = "_iterations";
             _iterations.Size = new Size(136, 23);
@@ -246,7 +246,7 @@ namespace FractalExplorer.Forms.Fractals
             _scale.Location = new Point(6, 93);
             _scale.Margin = new Padding(6, 3, 3, 3);
             _scale.Maximum = new decimal(new int[] { 200000, 0, 0, 0 });
-            _scale.Minimum = new decimal(new int[] { 20, 0, 0, -2147483648 });
+            _scale.Minimum = new decimal(new int[] { 20, 0, 0, int.MinValue });
             _scale.Name = "_scale";
             _scale.Size = new Size(136, 23);
             _scale.TabIndex = 6;
@@ -386,12 +386,14 @@ namespace FractalExplorer.Forms.Fractals
             // _showCoverageMap
             // 
             _showCoverageMap.AutoSize = true;
+            _showCoverageMap.Checked = true;
+            _showCoverageMap.CheckState = CheckState.Checked;
             _settingsLayout.SetColumnSpan(_showCoverageMap, 2);
             _showCoverageMap.Dock = DockStyle.Fill;
-            _showCoverageMap.Location = new Point(6, 267);
+            _showCoverageMap.Location = new Point(6, 264);
             _showCoverageMap.Margin = new Padding(6, 0, 3, 0);
             _showCoverageMap.Name = "_showCoverageMap";
-            _showCoverageMap.Size = new Size(255, 29);
+            _showCoverageMap.Size = new Size(255, 19);
             _showCoverageMap.TabIndex = 18;
             _showCoverageMap.Text = "Показывать карту покрытия";
             _showCoverageMap.UseVisualStyleBackColor = true;
@@ -400,7 +402,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _settingsLayout.SetColumnSpan(_btnSaveImage, 2);
             _btnSaveImage.Dock = DockStyle.Fill;
-            _btnSaveImage.Location = new Point(6, 299);
+            _btnSaveImage.Location = new Point(6, 286);
             _btnSaveImage.Margin = new Padding(6, 3, 6, 3);
             _btnSaveImage.Name = "_btnSaveImage";
             _btnSaveImage.Size = new Size(252, 36);
@@ -412,7 +414,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _settingsLayout.SetColumnSpan(_btnSaveLoad, 2);
             _btnSaveLoad.Dock = DockStyle.Fill;
-            _btnSaveLoad.Location = new Point(6, 341);
+            _btnSaveLoad.Location = new Point(6, 328);
             _btnSaveLoad.Margin = new Padding(6, 3, 6, 3);
             _btnSaveLoad.Name = "_btnSaveLoad";
             _btnSaveLoad.Size = new Size(252, 36);
@@ -424,7 +426,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _settingsLayout.SetColumnSpan(_btnEditTransforms, 2);
             _btnEditTransforms.Dock = DockStyle.Fill;
-            _btnEditTransforms.Location = new Point(6, 383);
+            _btnEditTransforms.Location = new Point(6, 370);
             _btnEditTransforms.Margin = new Padding(6, 3, 6, 3);
             _btnEditTransforms.Name = "_btnEditTransforms";
             _btnEditTransforms.Size = new Size(252, 36);
@@ -436,7 +438,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _settingsLayout.SetColumnSpan(_btnRender, 2);
             _btnRender.Dock = DockStyle.Fill;
-            _btnRender.Location = new Point(6, 425);
+            _btnRender.Location = new Point(6, 412);
             _btnRender.Margin = new Padding(6, 3, 6, 3);
             _btnRender.Name = "_btnRender";
             _btnRender.Size = new Size(252, 36);
@@ -448,7 +450,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _settingsLayout.SetColumnSpan(_pbRenderProgress, 2);
             _pbRenderProgress.Dock = DockStyle.Fill;
-            _pbRenderProgress.Location = new Point(6, 467);
+            _pbRenderProgress.Location = new Point(6, 454);
             _pbRenderProgress.Margin = new Padding(6, 3, 6, 3);
             _pbRenderProgress.Name = "_pbRenderProgress";
             _pbRenderProgress.Size = new Size(252, 20);
@@ -460,7 +462,7 @@ namespace FractalExplorer.Forms.Fractals
             _status.AutoSize = true;
             _settingsLayout.SetColumnSpan(_status, 2);
             _status.Dock = DockStyle.Fill;
-            _status.Location = new Point(6, 490);
+            _status.Location = new Point(6, 477);
             _status.Margin = new Padding(6, 0, 3, 0);
             _status.Name = "_status";
             _status.Size = new Size(255, 22);
@@ -473,7 +475,7 @@ namespace FractalExplorer.Forms.Fractals
             _lastRenderTime.AutoSize = true;
             _settingsLayout.SetColumnSpan(_lastRenderTime, 2);
             _lastRenderTime.Dock = DockStyle.Fill;
-            _lastRenderTime.Location = new Point(6, 512);
+            _lastRenderTime.Location = new Point(6, 499);
             _lastRenderTime.Margin = new Padding(6, 0, 3, 0);
             _lastRenderTime.Name = "_lastRenderTime";
             _lastRenderTime.Size = new Size(255, 30);
