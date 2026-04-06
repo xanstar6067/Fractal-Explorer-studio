@@ -41,12 +41,33 @@ namespace FractalExplorer.Engines
 
         public List<FlameTransform> Transforms { get; } = new();
 
-        public void RenderToBuffer(byte[] buffer, int width, int height, int stride, int bytesPerPixel, CancellationToken token, Action<int>? reportProgress = null)
+        public void RenderToBuffer(
+            byte[] buffer,
+            int width,
+            int height,
+            int stride,
+            int bytesPerPixel,
+            CancellationToken token,
+            Action<int>? reportProgress = null,
+            int viewportOffsetX = 0,
+            int viewportOffsetY = 0,
+            int viewportTotalWidth = 0,
+            int viewportTotalHeight = 0)
         {
             if (bytesPerPixel < 4)
             {
                 throw new ArgumentOutOfRangeException(nameof(bytesPerPixel));
             }
+
+            int projectionWidth = viewportTotalWidth > 0 ? viewportTotalWidth : width;
+            int projectionHeight = viewportTotalHeight > 0 ? viewportTotalHeight : height;
+            int projectionOffsetX = viewportOffsetX;
+            int projectionOffsetY = viewportOffsetY;
+
+            double worldWidth = Scale;
+            double worldHeight = Scale * projectionHeight / (double)projectionWidth;
+            double worldLeft = CenterX - worldWidth * 0.5;
+            double worldTop = CenterY + worldHeight * 0.5;
 
             double[] hdrHit = new double[width * height];
             double[] hdrR = new double[width * height];
@@ -106,8 +127,8 @@ namespace FractalExplorer.Engines
                             continue;
                         }
 
-                        int px = (int)((x - (CenterX - Scale * 0.5)) / Scale * width);
-                        int py = (int)(((CenterY + Scale * height / (double)width * 0.5) - y) / (Scale * height / (double)width) * height);
+                        int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
+                        int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
                         if ((uint)px >= (uint)width || (uint)py >= (uint)height)
                         {
                             continue;

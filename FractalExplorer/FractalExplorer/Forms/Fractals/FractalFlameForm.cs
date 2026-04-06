@@ -463,10 +463,25 @@ namespace FractalExplorer.Forms.Fractals
                 return Array.Empty<byte>();
             }
 
+            Rectangle fullRect = new(0, 0, Math.Max(1, totalWidth), Math.Max(1, totalHeight));
+            Rectangle tileRect = Rectangle.Intersect(fullRect, tile.Bounds);
+            if (tileRect.Width <= 0 || tileRect.Height <= 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            if (tileSize > 0)
+            {
+                int maxTileDimension = Math.Max(tileRect.Width, tileRect.Height);
+                if (maxTileDimension > tileSize)
+                {
+                    tileRect = new Rectangle(tileRect.X, tileRect.Y, Math.Min(tileRect.Width, tileSize), Math.Min(tileRect.Height, tileSize));
+                }
+            }
+
             using CancellationTokenSource cts = new();
-            using Bitmap bmp = RenderPreviewCore(state, totalWidth, totalHeight, cts.Token, null);
-            Rectangle tileRect = tile.Bounds;
-            BitmapData data = bmp.LockBits(tileRect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            using Bitmap bmp = RenderPreviewTileCore(state, tileRect, fullRect.Width, fullRect.Height, cts.Token, null);
+            BitmapData data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             byte[] bytes = new byte[Math.Abs(data.Stride) * data.Height];
             Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
             bmp.UnlockBits(data);
@@ -489,6 +504,45 @@ namespace FractalExplorer.Forms.Fractals
             Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
             bmp.UnlockBits(data);
             return bytes;
+        }
+
+
+        private Bitmap RenderPreviewTileCore(FractalSaveStateBase state, Rectangle tileRect, int totalWidth, int totalHeight, CancellationToken token, IProgress<int>? progress)
+        {
+            FlameFractalSaveState? save = state as FlameFractalSaveState;
+            var engine = new FractalFlameEngine
+            {
+                CenterX = save?.CenterX ?? _engine.CenterX,
+                CenterY = save?.CenterY ?? _engine.CenterY,
+                Scale = NormalizeScale(save?.Scale ?? _engine.Scale),
+                Samples = Math.Max(50_000, (save?.Samples ?? _engine.Samples) / 10),
+                IterationsPerSample = save?.IterationsPerSample ?? _engine.IterationsPerSample,
+                WarmupIterations = save?.WarmupIterations ?? _engine.WarmupIterations,
+                Exposure = save?.Exposure ?? _engine.Exposure,
+                Gamma = save?.Gamma ?? _engine.Gamma,
+                ThreadCount = 0
+            };
+
+            engine.Transforms.AddRange((save?.Transforms ?? _engine.Transforms).Select(t => t.Clone()));
+            Bitmap bmp = new(tileRect.Width, tileRect.Height, PixelFormat.Format32bppArgb);
+            Rectangle rect = new(0, 0, tileRect.Width, tileRect.Height);
+            BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+            byte[] buffer = new byte[Math.Abs(data.Stride) * data.Height];
+            engine.RenderToBuffer(
+                buffer,
+                tileRect.Width,
+                tileRect.Height,
+                data.Stride,
+                4,
+                token,
+                p => progress?.Report(p),
+                tileRect.X,
+                tileRect.Y,
+                totalWidth,
+                totalHeight);
+            Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
+            bmp.UnlockBits(data);
+            return bmp;
         }
 
         private Bitmap RenderPreviewCore(FractalSaveStateBase state, int width, int height, CancellationToken token, IProgress<int>? progress)
