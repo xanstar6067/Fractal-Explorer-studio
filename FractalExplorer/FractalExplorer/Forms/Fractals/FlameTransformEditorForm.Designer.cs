@@ -608,7 +608,7 @@ namespace FractalExplorer.Forms.Fractals
             _tabMatrix.Location = new Point(4, 24);
             _tabMatrix.Name = "_tabMatrix";
             _tabMatrix.Padding = new Padding(12);
-            _tabMatrix.Size = new Size(17, 36);
+            _tabMatrix.Size = new Size(647, 370);
             _tabMatrix.TabIndex = 1;
             _tabMatrix.Text = "Матрица";
             // 
