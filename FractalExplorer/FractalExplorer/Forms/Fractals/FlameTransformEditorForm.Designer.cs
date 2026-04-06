@@ -74,202 +74,212 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
-            // ── корневые контейнеры ───────────────────────────────────────────
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FlameTransformEditorForm));
             _split = new SplitContainer();
             _leftPanel = new Panel();
-            _listHeader = new Panel();
-            _lblListTitle = new Label();
-            _btnAdd = new Button();
             _listContainer = new Panel();
             _listFooter = new Panel();
             _lblTotalWeight = new Label();
-
+            _listHeader = new Panel();
+            _btnAdd = new Button();
+            _lblListTitle = new Label();
             _rightPanel = new Panel();
-            _editorHeader = new Panel();
-            _lblEditorTitle = new Label();
             _tabs = new TabControl();
             _tabMain = new TabPage();
-            _tabMatrix = new TabPage();
-
-            // ── вкладка «Основное» ────────────────────────────────────────────
             _tblMain = new TableLayoutPanel();
-
             _lblVariationCaption = new Label();
             _tblVariationRow = new TableLayoutPanel();
             _cmbVariation = new ComboBox();
             _pnlColorPreview = new Panel();
             _btnPickColor = new Button();
-
             _lblWeightCaption = new Label();
             _tblWeightRow = new TableLayoutPanel();
             _trkWeight = new TrackBar();
             _lblWeightValue = new Label();
             _lblWeightPercent = new Label();
-
             _divider = new Panel();
-
             _lblAffineCaption = new Label();
             _lblAffineFormula = new Label();
             _tblAffineGrid = new TableLayoutPanel();
-
-            _lblA = new Label(); _nudA = new NumericUpDown();
-            _lblB = new Label(); _nudB = new NumericUpDown();
-            _lblC = new Label(); _nudC = new NumericUpDown();
-            _lblD = new Label(); _nudD = new NumericUpDown();
-            _lblE = new Label(); _nudE = new NumericUpDown();
-            _lblF = new Label(); _nudF = new NumericUpDown();
-
+            _lblA = new Label();
+            _lblB = new Label();
+            _lblC = new Label();
+            _lblD = new Label();
+            _lblE = new Label();
+            _lblF = new Label();
+            _nudA = new NumericUpDown();
+            _nudB = new NumericUpDown();
+            _nudC = new NumericUpDown();
+            _nudD = new NumericUpDown();
+            _nudE = new NumericUpDown();
+            _nudF = new NumericUpDown();
             _pnlHint = new Panel();
             _lblHint = new Label();
-
-            // ── вкладка «Матрица» ─────────────────────────────────────────────
+            _tabMatrix = new TabPage();
             _lblMatrixInfo = new Label();
-
-            // ── подвал ────────────────────────────────────────────────────────
+            _editorHeader = new Panel();
+            _lblEditorTitle = new Label();
             _footerPanel = new Panel();
-            _btnDelete = new Button();
-            _btnCancel = new Button();
             _btnOk = new Button();
-
-            // ──────────────────────────────────────────────────────────────────
+            _btnCancel = new Button();
+            _btnDelete = new Button();
             ((System.ComponentModel.ISupportInitialize)_split).BeginInit();
             _split.Panel1.SuspendLayout();
             _split.Panel2.SuspendLayout();
             _split.SuspendLayout();
             _leftPanel.SuspendLayout();
-            _listHeader.SuspendLayout();
             _listFooter.SuspendLayout();
+            _listHeader.SuspendLayout();
             _rightPanel.SuspendLayout();
-            _editorHeader.SuspendLayout();
             _tabs.SuspendLayout();
             _tabMain.SuspendLayout();
-            _tabMatrix.SuspendLayout();
             _tblMain.SuspendLayout();
             _tblVariationRow.SuspendLayout();
             _tblWeightRow.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)_trkWeight).BeginInit();
             _tblAffineGrid.SuspendLayout();
-            foreach (NumericUpDown n in new[] { _nudA, _nudB, _nudC, _nudD, _nudE, _nudF })
-                ((System.ComponentModel.ISupportInitialize)n).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_nudA).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_nudB).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_nudC).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_nudD).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_nudE).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)_nudF).BeginInit();
             _pnlHint.SuspendLayout();
+            _tabMatrix.SuspendLayout();
+            _editorHeader.SuspendLayout();
             _footerPanel.SuspendLayout();
             SuspendLayout();
-
-            // ══════════════════════════════════════════════════════════════════
+            // 
             // _split
-            // ══════════════════════════════════════════════════════════════════
+            // 
             _split.Dock = DockStyle.Fill;
             _split.FixedPanel = FixedPanel.Panel1;
             _split.IsSplitterFixed = true;
-            _split.SplitterDistance = 240;
-            _split.SplitterWidth = 1;
-            _split.Panel1.Controls.Add(_leftPanel);
-            _split.Panel2.Controls.Add(_rightPanel);
+            _split.Location = new Point(0, 0);
             _split.Name = "_split";
+            // 
+            // _split.Panel1
+            // 
+            _split.Panel1.Controls.Add(_leftPanel);
+            // 
+            // _split.Panel2
+            // 
+            _split.Panel2.Controls.Add(_rightPanel);
+            _split.Size = new Size(780, 434);
+            _split.SplitterDistance = 121;
             _split.TabIndex = 0;
-
-            // ══════════════════════════════════════════════════════════════════
+            // 
             // _leftPanel
-            // ══════════════════════════════════════════════════════════════════
-            _leftPanel.Dock = DockStyle.Fill;
+            // 
             _leftPanel.Controls.Add(_listContainer);
             _leftPanel.Controls.Add(_listFooter);
             _leftPanel.Controls.Add(_listHeader);
+            _leftPanel.Dock = DockStyle.Fill;
+            _leftPanel.Location = new Point(0, 0);
             _leftPanel.Name = "_leftPanel";
-
-            // _listHeader
-            _listHeader.Dock = DockStyle.Top;
-            _listHeader.Height = 40;
-            _listHeader.Padding = new Padding(10, 0, 6, 0);
-            _listHeader.Controls.Add(_lblListTitle);
-            _listHeader.Controls.Add(_btnAdd);
-            _listHeader.Name = "_listHeader";
-
-            _lblListTitle.AutoSize = true;
-            _lblListTitle.Text = "Трансформации";
-            _lblListTitle.Font = new Font(Font.FontFamily, 9f, FontStyle.Bold);
-            _lblListTitle.Dock = DockStyle.Left;
-            _lblListTitle.TextAlign = ContentAlignment.MiddleLeft;
-            _lblListTitle.Name = "_lblListTitle";
-
-            _btnAdd.Text = "+ Добавить";
-            _btnAdd.Dock = DockStyle.Right;
-            _btnAdd.AutoSize = true;
-            _btnAdd.FlatStyle = FlatStyle.Flat;
-            _btnAdd.Name = "_btnAdd";
-            _btnAdd.TabIndex = 0;
-
-            // _listContainer — прокручиваемый список карточек
-            _listContainer.Dock = DockStyle.Fill;
+            _leftPanel.Size = new Size(121, 434);
+            _leftPanel.TabIndex = 0;
+            // 
+            // _listContainer
+            // 
             _listContainer.AutoScroll = true;
-            _listContainer.Padding = new Padding(8, 6, 8, 0);
+            _listContainer.Dock = DockStyle.Fill;
+            _listContainer.Location = new Point(0, 40);
             _listContainer.Name = "_listContainer";
-
+            _listContainer.Padding = new Padding(8, 6, 8, 0);
+            _listContainer.Size = new Size(121, 366);
+            _listContainer.TabIndex = 0;
+            // 
             // _listFooter
-            _listFooter.Dock = DockStyle.Bottom;
-            _listFooter.Height = 28;
-            _listFooter.Padding = new Padding(10, 0, 10, 0);
+            // 
             _listFooter.Controls.Add(_lblTotalWeight);
+            _listFooter.Dock = DockStyle.Bottom;
+            _listFooter.Location = new Point(0, 406);
             _listFooter.Name = "_listFooter";
-
+            _listFooter.Padding = new Padding(10, 0, 10, 0);
+            _listFooter.Size = new Size(121, 28);
+            _listFooter.TabIndex = 1;
+            // 
+            // _lblTotalWeight
+            // 
             _lblTotalWeight.Dock = DockStyle.Fill;
-            _lblTotalWeight.TextAlign = ContentAlignment.MiddleCenter;
-            _lblTotalWeight.Font = new Font(Font.FontFamily, 8f);
-            _lblTotalWeight.Text = "Суммарный вес: 0.00";
+            _lblTotalWeight.Font = new Font("Segoe UI", 8F);
+            _lblTotalWeight.Location = new Point(10, 0);
             _lblTotalWeight.Name = "_lblTotalWeight";
-
-            // ══════════════════════════════════════════════════════════════════
+            _lblTotalWeight.Size = new Size(101, 28);
+            _lblTotalWeight.TabIndex = 0;
+            _lblTotalWeight.Text = "Суммарный вес: 0.00";
+            _lblTotalWeight.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // _listHeader
+            // 
+            _listHeader.Controls.Add(_btnAdd);
+            _listHeader.Controls.Add(_lblListTitle);
+            _listHeader.Dock = DockStyle.Top;
+            _listHeader.Location = new Point(0, 0);
+            _listHeader.Name = "_listHeader";
+            _listHeader.Padding = new Padding(10, 0, 6, 0);
+            _listHeader.Size = new Size(121, 40);
+            _listHeader.TabIndex = 2;
+            // 
+            // _btnAdd
+            // 
+            _btnAdd.AutoSize = true;
+            _btnAdd.Dock = DockStyle.Right;
+            _btnAdd.FlatStyle = FlatStyle.Flat;
+            _btnAdd.Location = new Point(33, 0);
+            _btnAdd.Name = "_btnAdd";
+            _btnAdd.Size = new Size(82, 40);
+            _btnAdd.TabIndex = 0;
+            _btnAdd.Text = "+ Добавить";
+            // 
+            // _lblListTitle
+            // 
+            _lblListTitle.AutoEllipsis = true;
+            _lblListTitle.Dock = DockStyle.Fill;
+            _lblListTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _lblListTitle.Location = new Point(10, 0);
+            _lblListTitle.Name = "_lblListTitle";
+            _lblListTitle.Padding = new Padding(0, 0, 8, 0);
+            _lblListTitle.Size = new Size(105, 40);
+            _lblListTitle.TabIndex = 1;
+            _lblListTitle.Text = "Трансформации";
+            _lblListTitle.TextAlign = ContentAlignment.MiddleLeft;
+            // 
             // _rightPanel
-            // ══════════════════════════════════════════════════════════════════
-            _rightPanel.Dock = DockStyle.Fill;
+            // 
             _rightPanel.Controls.Add(_tabs);
             _rightPanel.Controls.Add(_editorHeader);
+            _rightPanel.Dock = DockStyle.Fill;
+            _rightPanel.Location = new Point(0, 0);
             _rightPanel.Name = "_rightPanel";
-
-            // _editorHeader
-            _editorHeader.Dock = DockStyle.Top;
-            _editorHeader.Height = 36;
-            _editorHeader.Padding = new Padding(12, 0, 12, 0);
-            _editorHeader.Controls.Add(_lblEditorTitle);
-            _editorHeader.Name = "_editorHeader";
-
-            _lblEditorTitle.Dock = DockStyle.Fill;
-            _lblEditorTitle.TextAlign = ContentAlignment.MiddleLeft;
-            _lblEditorTitle.Font = new Font(Font.FontFamily, 9f, FontStyle.Bold);
-            _lblEditorTitle.Text = "Редактор трансформации";
-            _lblEditorTitle.Name = "_lblEditorTitle";
-
-            // ── TabControl ────────────────────────────────────────────────────
+            _rightPanel.Size = new Size(655, 434);
+            _rightPanel.TabIndex = 0;
+            // 
+            // _tabs
+            // 
+            _tabs.Controls.Add(_tabMain);
+            _tabs.Controls.Add(_tabMatrix);
             _tabs.Dock = DockStyle.Fill;
-            _tabs.TabPages.Add(_tabMain);
-            _tabs.TabPages.Add(_tabMatrix);
+            _tabs.Location = new Point(0, 36);
             _tabs.Name = "_tabs";
+            _tabs.SelectedIndex = 0;
+            _tabs.Size = new Size(655, 398);
             _tabs.TabIndex = 0;
-
-            // ── TabPage «Основное» ────────────────────────────────────────────
-            _tabMain.Text = "Основное";
-            _tabMain.Padding = new Padding(0);
+            // 
+            // _tabMain
+            // 
             _tabMain.Controls.Add(_tblMain);
+            _tabMain.Location = new Point(4, 24);
             _tabMain.Name = "_tabMain";
-
-            // ── _tblMain: вертикальная компоновка редактора ───────────────────
-            _tblMain.Dock = DockStyle.Fill;
+            _tabMain.Size = new Size(647, 370);
+            _tabMain.TabIndex = 0;
+            _tabMain.Text = "Основное";
+            // 
+            // _tblMain
+            // 
             _tblMain.ColumnCount = 1;
             _tblMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            _tblMain.RowCount = 8;
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));   // row 0 — подпись «Вариация»
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));   // row 1 — variation row
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));   // row 2 — подпись «Вес»
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));   // row 3 — weight row
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 10F));   // row 4 — divider
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));   // row 5 — подпись «Коэффициенты»
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));   // row 6 — формула
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 102F));  // row 7 — сетка 2×3
-            _tblMain.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));   // row 8 — hint + fill
-            _tblMain.RowCount = 9;
-            _tblMain.Padding = new Padding(12, 8, 12, 8);
-            _tblMain.Name = "_tblMain";
-
             _tblMain.Controls.Add(_lblVariationCaption, 0, 0);
             _tblMain.Controls.Add(_tblVariationRow, 0, 1);
             _tblMain.Controls.Add(_lblWeightCaption, 0, 2);
@@ -279,245 +289,455 @@ namespace FractalExplorer.Forms.Fractals
             _tblMain.Controls.Add(_lblAffineFormula, 0, 6);
             _tblMain.Controls.Add(_tblAffineGrid, 0, 7);
             _tblMain.Controls.Add(_pnlHint, 0, 8);
-
-            // -- подпись «Вариация и цвет» ------------------------------------
-            _lblVariationCaption.Text = "ВАРИАЦИЯ И ЦВЕТ";
-            _lblVariationCaption.Font = new Font(Font.FontFamily, 7.5f, FontStyle.Bold);
+            _tblMain.Dock = DockStyle.Fill;
+            _tblMain.Location = new Point(0, 0);
+            _tblMain.Name = "_tblMain";
+            _tblMain.Padding = new Padding(12, 8, 12, 8);
+            _tblMain.RowCount = 9;
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 10F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 102F));
+            _tblMain.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            _tblMain.Size = new Size(647, 370);
+            _tblMain.TabIndex = 0;
+            // 
+            // _lblVariationCaption
+            // 
             _lblVariationCaption.Dock = DockStyle.Fill;
-            _lblVariationCaption.TextAlign = ContentAlignment.BottomLeft;
+            _lblVariationCaption.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+            _lblVariationCaption.Location = new Point(15, 8);
             _lblVariationCaption.Name = "_lblVariationCaption";
-
-            // -- строка: ComboBox вариации + превью цвета + кнопка выбора цвета
-            _tblVariationRow.Dock = DockStyle.Fill;
+            _lblVariationCaption.Size = new Size(617, 22);
+            _lblVariationCaption.TabIndex = 0;
+            _lblVariationCaption.Text = "ВАРИАЦИЯ И ЦВЕТ";
+            _lblVariationCaption.TextAlign = ContentAlignment.BottomLeft;
+            // 
+            // _tblVariationRow
+            // 
             _tblVariationRow.ColumnCount = 3;
             _tblVariationRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             _tblVariationRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34F));
             _tblVariationRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));
-            _tblVariationRow.RowCount = 1;
-            _tblVariationRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             _tblVariationRow.Controls.Add(_cmbVariation, 0, 0);
             _tblVariationRow.Controls.Add(_pnlColorPreview, 1, 0);
             _tblVariationRow.Controls.Add(_btnPickColor, 2, 0);
+            _tblVariationRow.Dock = DockStyle.Fill;
+            _tblVariationRow.Location = new Point(12, 30);
+            _tblVariationRow.Margin = new Padding(0);
             _tblVariationRow.Name = "_tblVariationRow";
-            _tblVariationRow.Margin = Padding.Empty;
-
+            _tblVariationRow.RowCount = 1;
+            _tblVariationRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            _tblVariationRow.Size = new Size(623, 36);
+            _tblVariationRow.TabIndex = 1;
+            // 
+            // _cmbVariation
+            // 
+            _cmbVariation.DataSource = new Engines.FlameVariation[]
+    {
+    Engines.FlameVariation.Linear,
+    Engines.FlameVariation.Sinusoidal,
+    Engines.FlameVariation.Spherical
+    };
             _cmbVariation.Dock = DockStyle.Fill;
             _cmbVariation.DropDownStyle = ComboBoxStyle.DropDownList;
-            _cmbVariation.DataSource = Enum.GetValues(typeof(Engines.FlameVariation));
+            _cmbVariation.Items.AddRange(new object[] { Engines.FlameVariation.Linear, Engines.FlameVariation.Sinusoidal, Engines.FlameVariation.Spherical });
+            _cmbVariation.Location = new Point(0, 0);
             _cmbVariation.Margin = new Padding(0, 0, 6, 0);
             _cmbVariation.Name = "_cmbVariation";
+            _cmbVariation.Size = new Size(493, 23);
             _cmbVariation.TabIndex = 1;
-
-            _pnlColorPreview.Dock = DockStyle.Fill;
+            // 
+            // _pnlColorPreview
+            // 
             _pnlColorPreview.BorderStyle = BorderStyle.FixedSingle;
-            _pnlColorPreview.Margin = new Padding(0, 0, 4, 0);
             _pnlColorPreview.Cursor = Cursors.Hand;
+            _pnlColorPreview.Dock = DockStyle.Fill;
+            _pnlColorPreview.Location = new Point(499, 0);
+            _pnlColorPreview.Margin = new Padding(0, 0, 4, 0);
             _pnlColorPreview.Name = "_pnlColorPreview";
+            _pnlColorPreview.Size = new Size(30, 36);
+            _pnlColorPreview.TabIndex = 2;
             _pnlColorPreview.Tag = "preserve-backcolor";
-
-            _btnPickColor.Text = "Цвет...";
+            // 
+            // _btnPickColor
+            // 
             _btnPickColor.Dock = DockStyle.Fill;
             _btnPickColor.FlatStyle = FlatStyle.Flat;
-            _btnPickColor.Margin = Padding.Empty;
+            _btnPickColor.Location = new Point(533, 0);
+            _btnPickColor.Margin = new Padding(0);
             _btnPickColor.Name = "_btnPickColor";
+            _btnPickColor.Size = new Size(90, 36);
             _btnPickColor.TabIndex = 2;
-
-            // -- подпись «Вес» ------------------------------------------------
-            _lblWeightCaption.Text = "ВЕС ТРАНСФОРМАЦИИ";
-            _lblWeightCaption.Font = new Font(Font.FontFamily, 7.5f, FontStyle.Bold);
+            _btnPickColor.Text = "Цвет...";
+            // 
+            // _lblWeightCaption
+            // 
             _lblWeightCaption.Dock = DockStyle.Fill;
-            _lblWeightCaption.TextAlign = ContentAlignment.BottomLeft;
+            _lblWeightCaption.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+            _lblWeightCaption.Location = new Point(15, 66);
             _lblWeightCaption.Name = "_lblWeightCaption";
-
-            // -- строка: слайдер + значение + процент -------------------------
-            _tblWeightRow.Dock = DockStyle.Fill;
+            _lblWeightCaption.Size = new Size(617, 22);
+            _lblWeightCaption.TabIndex = 2;
+            _lblWeightCaption.Text = "ВЕС ТРАНСФОРМАЦИИ";
+            _lblWeightCaption.TextAlign = ContentAlignment.BottomLeft;
+            // 
+            // _tblWeightRow
+            // 
             _tblWeightRow.ColumnCount = 3;
             _tblWeightRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             _tblWeightRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48F));
             _tblWeightRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44F));
-            _tblWeightRow.RowCount = 1;
-            _tblWeightRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             _tblWeightRow.Controls.Add(_trkWeight, 0, 0);
             _tblWeightRow.Controls.Add(_lblWeightValue, 1, 0);
             _tblWeightRow.Controls.Add(_lblWeightPercent, 2, 0);
-            _tblWeightRow.Margin = Padding.Empty;
+            _tblWeightRow.Dock = DockStyle.Fill;
+            _tblWeightRow.Location = new Point(12, 88);
+            _tblWeightRow.Margin = new Padding(0);
             _tblWeightRow.Name = "_tblWeightRow";
-
-            _trkWeight.Dock = DockStyle.Fill;
-            _trkWeight.Minimum = 1;
-            _trkWeight.Maximum = 100;
-            _trkWeight.Value = 10;
-            _trkWeight.TickFrequency = 10;
+            _tblWeightRow.RowCount = 1;
+            _tblWeightRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            _tblWeightRow.Size = new Size(623, 38);
+            _tblWeightRow.TabIndex = 3;
+            // 
+            // _trkWeight
+            // 
             _trkWeight.AutoSize = false;
+            _trkWeight.Dock = DockStyle.Fill;
+            _trkWeight.Location = new Point(0, 4);
             _trkWeight.Margin = new Padding(0, 4, 4, 4);
+            _trkWeight.Maximum = 100;
+            _trkWeight.Minimum = 1;
             _trkWeight.Name = "_trkWeight";
+            _trkWeight.Size = new Size(527, 30);
             _trkWeight.TabIndex = 3;
-
+            _trkWeight.TickFrequency = 10;
+            _trkWeight.Value = 10;
+            // 
+            // _lblWeightValue
+            // 
             _lblWeightValue.Dock = DockStyle.Fill;
-            _lblWeightValue.TextAlign = ContentAlignment.MiddleRight;
-            _lblWeightValue.Font = new Font(Font.FontFamily, 9f, FontStyle.Bold);
-            _lblWeightValue.Text = "1.0";
+            _lblWeightValue.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _lblWeightValue.Location = new Point(534, 0);
             _lblWeightValue.Name = "_lblWeightValue";
-
+            _lblWeightValue.Size = new Size(42, 38);
+            _lblWeightValue.TabIndex = 4;
+            _lblWeightValue.Text = "1.0";
+            _lblWeightValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // _lblWeightPercent
+            // 
             _lblWeightPercent.Dock = DockStyle.Fill;
-            _lblWeightPercent.TextAlign = ContentAlignment.MiddleRight;
-            _lblWeightPercent.Font = new Font(Font.FontFamily, 8f);
-            _lblWeightPercent.Text = "100%";
+            _lblWeightPercent.Font = new Font("Segoe UI", 8F);
+            _lblWeightPercent.Location = new Point(582, 0);
             _lblWeightPercent.Name = "_lblWeightPercent";
-
-            // -- разделитель --------------------------------------------------
+            _lblWeightPercent.Size = new Size(38, 38);
+            _lblWeightPercent.TabIndex = 5;
+            _lblWeightPercent.Text = "100%";
+            _lblWeightPercent.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // _divider
+            // 
             _divider.Dock = DockStyle.Fill;
-            _divider.Height = 1;
+            _divider.Location = new Point(12, 130);
             _divider.Margin = new Padding(0, 4, 0, 4);
             _divider.Name = "_divider";
-
-            // -- подпись «Аффинные коэффициенты» ------------------------------
-            _lblAffineCaption.Text = "АФФИННЫЕ КОЭФФИЦИЕНТЫ";
-            _lblAffineCaption.Font = new Font(Font.FontFamily, 7.5f, FontStyle.Bold);
+            _divider.Size = new Size(623, 2);
+            _divider.TabIndex = 4;
+            // 
+            // _lblAffineCaption
+            // 
             _lblAffineCaption.Dock = DockStyle.Fill;
-            _lblAffineCaption.TextAlign = ContentAlignment.BottomLeft;
+            _lblAffineCaption.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+            _lblAffineCaption.Location = new Point(15, 136);
             _lblAffineCaption.Name = "_lblAffineCaption";
-
-            _lblAffineFormula.Text = "x' = a·x + b·y + c        y' = d·x + e·y + f";
-            _lblAffineFormula.Font = new Font(Font.FontFamily, 8f, FontStyle.Italic);
+            _lblAffineCaption.Size = new Size(617, 22);
+            _lblAffineCaption.TabIndex = 5;
+            _lblAffineCaption.Text = "АФФИННЫЕ КОЭФФИЦИЕНТЫ";
+            _lblAffineCaption.TextAlign = ContentAlignment.BottomLeft;
+            // 
+            // _lblAffineFormula
+            // 
             _lblAffineFormula.Dock = DockStyle.Fill;
-            _lblAffineFormula.TextAlign = ContentAlignment.MiddleLeft;
+            _lblAffineFormula.Font = new Font("Segoe UI", 8F, FontStyle.Italic);
+            _lblAffineFormula.Location = new Point(15, 158);
             _lblAffineFormula.Name = "_lblAffineFormula";
-
-            // -- сетка 2×3 для нудов a–f -------------------------------------
-            _tblAffineGrid.Dock = DockStyle.Fill;
+            _lblAffineFormula.Size = new Size(617, 18);
+            _lblAffineFormula.TabIndex = 6;
+            _lblAffineFormula.Text = "x' = a·x + b·y + c        y' = d·x + e·y + f";
+            _lblAffineFormula.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _tblAffineGrid
+            // 
             _tblAffineGrid.ColumnCount = 6;
-            for (int i = 0; i < 6; i++)
-                _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66F));
+            _tblAffineGrid.Controls.Add(_lblA, 0, 0);
+            _tblAffineGrid.Controls.Add(_lblB, 1, 0);
+            _tblAffineGrid.Controls.Add(_lblC, 2, 0);
+            _tblAffineGrid.Controls.Add(_lblD, 3, 0);
+            _tblAffineGrid.Controls.Add(_lblE, 4, 0);
+            _tblAffineGrid.Controls.Add(_lblF, 5, 0);
+            _tblAffineGrid.Controls.Add(_nudA, 0, 1);
+            _tblAffineGrid.Controls.Add(_nudB, 1, 1);
+            _tblAffineGrid.Controls.Add(_nudC, 2, 1);
+            _tblAffineGrid.Controls.Add(_nudD, 3, 1);
+            _tblAffineGrid.Controls.Add(_nudE, 4, 1);
+            _tblAffineGrid.Controls.Add(_nudF, 5, 1);
+            _tblAffineGrid.Dock = DockStyle.Fill;
+            _tblAffineGrid.Location = new Point(12, 176);
+            _tblAffineGrid.Margin = new Padding(0);
+            _tblAffineGrid.Name = "_tblAffineGrid";
             _tblAffineGrid.RowCount = 2;
             _tblAffineGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
             _tblAffineGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
-            _tblAffineGrid.Margin = Padding.Empty;
-            _tblAffineGrid.Name = "_tblAffineGrid";
-
-            // labels
-            ConfigureAffineLabel(_lblA, "a"); _tblAffineGrid.Controls.Add(_lblA, 0, 0);
-            ConfigureAffineLabel(_lblB, "b"); _tblAffineGrid.Controls.Add(_lblB, 1, 0);
-            ConfigureAffineLabel(_lblC, "c"); _tblAffineGrid.Controls.Add(_lblC, 2, 0);
-            ConfigureAffineLabel(_lblD, "d"); _tblAffineGrid.Controls.Add(_lblD, 3, 0);
-            ConfigureAffineLabel(_lblE, "e"); _tblAffineGrid.Controls.Add(_lblE, 4, 0);
-            ConfigureAffineLabel(_lblF, "f"); _tblAffineGrid.Controls.Add(_lblF, 5, 0);
-
-            // NUDs
-            int nudTab = 10;
-            ConfigureAffineNud(_nudA, nudTab++); _tblAffineGrid.Controls.Add(_nudA, 0, 1);
-            ConfigureAffineNud(_nudB, nudTab++); _tblAffineGrid.Controls.Add(_nudB, 1, 1);
-            ConfigureAffineNud(_nudC, nudTab++); _tblAffineGrid.Controls.Add(_nudC, 2, 1);
-            ConfigureAffineNud(_nudD, nudTab++); _tblAffineGrid.Controls.Add(_nudD, 3, 1);
-            ConfigureAffineNud(_nudE, nudTab++); _tblAffineGrid.Controls.Add(_nudE, 4, 1);
-            ConfigureAffineNud(_nudF, nudTab++); _tblAffineGrid.Controls.Add(_nudF, 5, 1);
-
-            // -- подсказка ---------------------------------------------------
-            _pnlHint.Dock = DockStyle.Top;
+            _tblAffineGrid.Size = new Size(623, 102);
+            _tblAffineGrid.TabIndex = 7;
+            // 
+            // _lblA
+            // 
+            _lblA.Location = new Point(3, 0);
+            _lblA.Name = "_lblA";
+            _lblA.Size = new Size(97, 18);
+            _lblA.TabIndex = 0;
+            // 
+            // _lblB
+            // 
+            _lblB.Location = new Point(106, 0);
+            _lblB.Name = "_lblB";
+            _lblB.Size = new Size(97, 18);
+            _lblB.TabIndex = 1;
+            // 
+            // _lblC
+            // 
+            _lblC.Location = new Point(209, 0);
+            _lblC.Name = "_lblC";
+            _lblC.Size = new Size(97, 18);
+            _lblC.TabIndex = 2;
+            // 
+            // _lblD
+            // 
+            _lblD.Location = new Point(312, 0);
+            _lblD.Name = "_lblD";
+            _lblD.Size = new Size(97, 18);
+            _lblD.TabIndex = 3;
+            // 
+            // _lblE
+            // 
+            _lblE.Location = new Point(415, 0);
+            _lblE.Name = "_lblE";
+            _lblE.Size = new Size(97, 18);
+            _lblE.TabIndex = 4;
+            // 
+            // _lblF
+            // 
+            _lblF.Location = new Point(518, 0);
+            _lblF.Name = "_lblF";
+            _lblF.Size = new Size(100, 18);
+            _lblF.TabIndex = 5;
+            // 
+            // _nudA
+            // 
+            _nudA.Location = new Point(3, 21);
+            _nudA.Name = "_nudA";
+            _nudA.Size = new Size(97, 23);
+            _nudA.TabIndex = 6;
+            // 
+            // _nudB
+            // 
+            _nudB.Location = new Point(106, 21);
+            _nudB.Name = "_nudB";
+            _nudB.Size = new Size(97, 23);
+            _nudB.TabIndex = 7;
+            // 
+            // _nudC
+            // 
+            _nudC.Location = new Point(209, 21);
+            _nudC.Name = "_nudC";
+            _nudC.Size = new Size(97, 23);
+            _nudC.TabIndex = 8;
+            // 
+            // _nudD
+            // 
+            _nudD.Location = new Point(312, 21);
+            _nudD.Name = "_nudD";
+            _nudD.Size = new Size(97, 23);
+            _nudD.TabIndex = 9;
+            // 
+            // _nudE
+            // 
+            _nudE.Location = new Point(415, 21);
+            _nudE.Name = "_nudE";
+            _nudE.Size = new Size(97, 23);
+            _nudE.TabIndex = 10;
+            // 
+            // _nudF
+            // 
+            _nudF.Location = new Point(518, 21);
+            _nudF.Name = "_nudF";
+            _nudF.Size = new Size(102, 23);
+            _nudF.TabIndex = 11;
+            // 
+            // _pnlHint
+            // 
             _pnlHint.AutoSize = true;
-            _pnlHint.Padding = new Padding(8, 6, 8, 6);
             _pnlHint.Controls.Add(_lblHint);
-            _pnlHint.Name = "_pnlHint";
+            _pnlHint.Dock = DockStyle.Top;
+            _pnlHint.Location = new Point(12, 284);
             _pnlHint.Margin = new Padding(0, 6, 0, 0);
-
-            _lblHint.Dock = DockStyle.Fill;
+            _pnlHint.Name = "_pnlHint";
+            _pnlHint.Padding = new Padding(8, 6, 8, 6);
+            _pnlHint.Size = new Size(623, 24);
+            _pnlHint.TabIndex = 8;
+            // 
+            // _lblHint
+            // 
             _lblHint.AutoSize = true;
-            _lblHint.Font = new Font(Font.FontFamily, 7.5f, FontStyle.Italic);
-            _lblHint.Text = "Совет: a=e=0.5, b=d=0 — равномерное сжатие. Поворот: a=cos θ, b=−sin θ, d=sin θ, e=cos θ.";
+            _lblHint.Dock = DockStyle.Fill;
+            _lblHint.Font = new Font("Segoe UI", 7.5F, FontStyle.Italic);
+            _lblHint.Location = new Point(8, 6);
             _lblHint.Name = "_lblHint";
-
-            // ── TabPage «Матрица» ─────────────────────────────────────────────
-            _tabMatrix.Text = "Матрица";
-            _tabMatrix.Padding = new Padding(12);
+            _lblHint.Size = new Size(435, 12);
+            _lblHint.TabIndex = 0;
+            _lblHint.Text = "Совет: a=e=0.5, b=d=0 — равномерное сжатие. Поворот: a=cos θ, b=−sin θ, d=sin θ, e=cos θ.";
+            // 
+            // _tabMatrix
+            // 
             _tabMatrix.Controls.Add(_lblMatrixInfo);
+            _tabMatrix.Location = new Point(4, 24);
             _tabMatrix.Name = "_tabMatrix";
-
-            _lblMatrixInfo.Dock = DockStyle.Top;
+            _tabMatrix.Padding = new Padding(12);
+            _tabMatrix.Size = new Size(17, 36);
+            _tabMatrix.TabIndex = 1;
+            _tabMatrix.Text = "Матрица";
+            // 
+            // _lblMatrixInfo
+            // 
             _lblMatrixInfo.AutoSize = true;
-            _lblMatrixInfo.Font = new Font(Font.FontFamily, 8.5f, FontStyle.Italic);
-            _lblMatrixInfo.Text =
-                "Аффинное преобразование задаётся матрицей:\r\n\r\n" +
-                "  | a  b |   | x |   | c |\r\n" +
-                "  | d  e | × | y | + | f |\r\n\r\n" +
-                "a, e — масштаб по осям X и Y\r\n" +
-                "b, d — сдвиг (поворот/скос)\r\n" +
-                "c, f — смещение (трансляция)\r\n\r\n" +
-                "Нелинейная вариация применяется поверх аффинного преобразования.";
+            _lblMatrixInfo.Dock = DockStyle.Top;
+            _lblMatrixInfo.Font = new Font("Segoe UI", 8.5F, FontStyle.Italic);
+            _lblMatrixInfo.Location = new Point(12, 12);
             _lblMatrixInfo.Name = "_lblMatrixInfo";
-
-            // ══════════════════════════════════════════════════════════════════
+            _lblMatrixInfo.Size = new Size(413, 150);
+            _lblMatrixInfo.TabIndex = 0;
+            _lblMatrixInfo.Text = resources.GetString("_lblMatrixInfo.Text");
+            // 
+            // _editorHeader
+            // 
+            _editorHeader.Controls.Add(_lblEditorTitle);
+            _editorHeader.Dock = DockStyle.Top;
+            _editorHeader.Location = new Point(0, 0);
+            _editorHeader.Name = "_editorHeader";
+            _editorHeader.Padding = new Padding(12, 0, 12, 0);
+            _editorHeader.Size = new Size(655, 36);
+            _editorHeader.TabIndex = 1;
+            // 
+            // _lblEditorTitle
+            // 
+            _lblEditorTitle.Dock = DockStyle.Fill;
+            _lblEditorTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _lblEditorTitle.Location = new Point(12, 0);
+            _lblEditorTitle.Name = "_lblEditorTitle";
+            _lblEditorTitle.Size = new Size(631, 36);
+            _lblEditorTitle.TabIndex = 0;
+            _lblEditorTitle.Text = "Редактор трансформации";
+            _lblEditorTitle.TextAlign = ContentAlignment.MiddleLeft;
+            // 
             // _footerPanel
-            // ══════════════════════════════════════════════════════════════════
-            _footerPanel.Dock = DockStyle.Bottom;
-            _footerPanel.Height = 46;
-            _footerPanel.Padding = new Padding(10, 6, 10, 6);
+            // 
             _footerPanel.Controls.Add(_btnOk);
             _footerPanel.Controls.Add(_btnCancel);
             _footerPanel.Controls.Add(_btnDelete);
+            _footerPanel.Dock = DockStyle.Bottom;
+            _footerPanel.Location = new Point(0, 434);
             _footerPanel.Name = "_footerPanel";
-
+            _footerPanel.Padding = new Padding(10, 6, 10, 6);
+            _footerPanel.Size = new Size(780, 46);
+            _footerPanel.TabIndex = 1;
+            // 
+            // _btnOk
+            // 
             _btnOk.DialogResult = DialogResult.OK;
-            _btnOk.Text = "Применить";
-            _btnOk.Size = new Size(100, 30);
             _btnOk.Dock = DockStyle.Right;
             _btnOk.FlatStyle = FlatStyle.Flat;
+            _btnOk.Location = new Point(586, 6);
             _btnOk.Name = "_btnOk";
+            _btnOk.Size = new Size(100, 34);
             _btnOk.TabIndex = 50;
-
+            _btnOk.Text = "Применить";
+            // 
+            // _btnCancel
+            // 
             _btnCancel.DialogResult = DialogResult.Cancel;
-            _btnCancel.Text = "Отмена";
-            _btnCancel.Size = new Size(84, 30);
             _btnCancel.Dock = DockStyle.Right;
             _btnCancel.FlatStyle = FlatStyle.Flat;
+            _btnCancel.Location = new Point(686, 6);
             _btnCancel.Margin = new Padding(0, 0, 4, 0);
             _btnCancel.Name = "_btnCancel";
+            _btnCancel.Size = new Size(84, 34);
             _btnCancel.TabIndex = 51;
-
-            _btnDelete.Text = "Удалить выбранную";
-            _btnDelete.Size = new Size(148, 30);
+            _btnCancel.Text = "Отмена";
+            // 
+            // _btnDelete
+            // 
             _btnDelete.Dock = DockStyle.Left;
-            _btnDelete.FlatStyle = FlatStyle.Flat;
             _btnDelete.Enabled = false;
+            _btnDelete.FlatStyle = FlatStyle.Flat;
+            _btnDelete.Location = new Point(10, 6);
             _btnDelete.Name = "_btnDelete";
+            _btnDelete.Size = new Size(148, 34);
             _btnDelete.TabIndex = 52;
-
-            // ══════════════════════════════════════════════════════════════════
+            _btnDelete.Text = "Удалить выбранную";
+            // 
             // FlameTransformEditorForm
-            // ══════════════════════════════════════════════════════════════════
+            // 
             AcceptButton = _btnOk;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = _btnCancel;
             ClientSize = new Size(780, 480);
-            MinimumSize = new Size(680, 420);
             Controls.Add(_split);
             Controls.Add(_footerPanel);
+            MinimumSize = new Size(680, 420);
             Name = "FlameTransformEditorForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Редактор трансформаций";
-
-            // ── ResumeLayout ──────────────────────────────────────────────────
-            _pnlHint.ResumeLayout(false);
-            _pnlHint.PerformLayout();
-            foreach (NumericUpDown n in new[] { _nudA, _nudB, _nudC, _nudD, _nudE, _nudF })
-                ((System.ComponentModel.ISupportInitialize)n).EndInit();
-            _tblAffineGrid.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)_trkWeight).EndInit();
-            _tblWeightRow.ResumeLayout(false);
-            _tblVariationRow.ResumeLayout(false);
-            _tblMain.ResumeLayout(false);
-            _tabMatrix.ResumeLayout(false);
-            _tabMatrix.PerformLayout();
-            _tabMain.ResumeLayout(false);
-            _tabs.ResumeLayout(false);
-            _editorHeader.ResumeLayout(false);
-            _rightPanel.ResumeLayout(false);
-            _listFooter.ResumeLayout(false);
-            _listHeader.ResumeLayout(false);
-            _leftPanel.ResumeLayout(false);
             _split.Panel1.ResumeLayout(false);
             _split.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)_split).EndInit();
             _split.ResumeLayout(false);
+            _leftPanel.ResumeLayout(false);
+            _listFooter.ResumeLayout(false);
+            _listHeader.ResumeLayout(false);
+            _listHeader.PerformLayout();
+            _rightPanel.ResumeLayout(false);
+            _tabs.ResumeLayout(false);
+            _tabMain.ResumeLayout(false);
+            _tblMain.ResumeLayout(false);
+            _tblMain.PerformLayout();
+            _tblVariationRow.ResumeLayout(false);
+            _tblWeightRow.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)_trkWeight).EndInit();
+            _tblAffineGrid.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)_nudA).EndInit();
+            ((System.ComponentModel.ISupportInitialize)_nudB).EndInit();
+            ((System.ComponentModel.ISupportInitialize)_nudC).EndInit();
+            ((System.ComponentModel.ISupportInitialize)_nudD).EndInit();
+            ((System.ComponentModel.ISupportInitialize)_nudE).EndInit();
+            ((System.ComponentModel.ISupportInitialize)_nudF).EndInit();
+            _pnlHint.ResumeLayout(false);
+            _pnlHint.PerformLayout();
+            _tabMatrix.ResumeLayout(false);
+            _tabMatrix.PerformLayout();
+            _editorHeader.ResumeLayout(false);
             _footerPanel.ResumeLayout(false);
             ResumeLayout(false);
         }
