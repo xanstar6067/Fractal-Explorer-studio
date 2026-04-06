@@ -1366,6 +1366,155 @@ namespace FractalExplorer.Utilities
                 }
             });
 
+            // Пресет 5: Симметричный кристалл.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Симметричный кристалл",
+                CenterX = 0.0,
+                CenterY = 0.0,
+                Scale = 4.6,
+                Samples = 2_200_000,
+                IterationsPerSample = 24,
+                WarmupIterations = 26,
+                Exposure = 1.34,
+                Gamma = 2.18,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 1.00, A = 0.64, B = -0.14, C = -0.32, D = 0.14, E = 0.64, F = 0.00, Variation = FlameVariation.Linear, Color = Color.AliceBlue },
+                    new() { Weight = 1.00, A = 0.64, B = 0.14, C = 0.32, D = -0.14, E = 0.64, F = 0.00, Variation = FlameVariation.Linear, Color = Color.SkyBlue },
+                    new() { Weight = 0.62, A = 0.44, B = 0.00, C = 0.00, D = 0.00, E = 0.44, F = 0.50, Variation = FlameVariation.Sinusoidal, Color = Color.Plum }
+                }
+            });
+
+            // Пресет 6: Туманность Андромеды.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Туманность Андромеды",
+                CenterX = 0.03,
+                CenterY = -0.08,
+                Scale = 5.3,
+                Samples = 2_800_000,
+                IterationsPerSample = 27,
+                WarmupIterations = 30,
+                Exposure = 1.18,
+                Gamma = 2.34,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 0.86, A = 0.81, B = -0.24, C = -0.07, D = 0.24, E = 0.81, F = 0.03, Variation = FlameVariation.Sinusoidal, Color = Color.MediumPurple },
+                    new() { Weight = 0.86, A = 0.81, B = 0.24, C = 0.07, D = -0.24, E = 0.81, F = 0.03, Variation = FlameVariation.Sinusoidal, Color = Color.DeepPink },
+                    new() { Weight = 0.40, A = 0.28, B = 0.00, C = 0.02, D = 0.00, E = 0.28, F = -0.66, Variation = FlameVariation.Spherical, Color = Color.LightCyan }
+                }
+            });
+
+            // Пресет 7: Папоротник Рассвета.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Папоротник рассвета",
+                CenterX = -0.01,
+                CenterY = -0.22,
+                Scale = 3.4,
+                Samples = 2_100_000,
+                IterationsPerSample = 23,
+                WarmupIterations = 26,
+                Exposure = 1.50,
+                Gamma = 2.08,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 1.12, A = 0.83, B = 0.04, C = 0.00, D = -0.04, E = 0.86, F = 0.18, Variation = FlameVariation.Linear, Color = Color.ForestGreen },
+                    new() { Weight = 0.74, A = 0.32, B = -0.30, C = -0.21, D = 0.26, E = 0.30, F = 0.24, Variation = FlameVariation.Sinusoidal, Color = Color.LawnGreen },
+                    new() { Weight = 0.66, A = 0.32, B = 0.30, C = 0.21, D = -0.26, E = 0.30, F = 0.24, Variation = FlameVariation.Sinusoidal, Color = Color.Gold },
+                    new() { Weight = 0.24, A = 0.14, B = 0.00, C = 0.00, D = 0.00, E = 0.16, F = -0.56, Variation = FlameVariation.Spherical, Color = Color.LightSkyBlue }
+                }
+            });
+
+            // Пресет 8: Неоновый контур.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Контрастный неон",
+                CenterX = 0.0,
+                CenterY = 0.0,
+                Scale = 4.0,
+                Samples = 2_500_000,
+                IterationsPerSample = 25,
+                WarmupIterations = 28,
+                Exposure = 1.65,
+                Gamma = 1.95,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 1.00, A = 0.60, B = -0.26, C = -0.28, D = 0.26, E = 0.60, F = -0.01, Variation = FlameVariation.Linear, Color = Color.Fuchsia },
+                    new() { Weight = 1.00, A = 0.60, B = 0.26, C = 0.28, D = -0.26, E = 0.60, F = -0.01, Variation = FlameVariation.Sinusoidal, Color = Color.Cyan },
+                    new() { Weight = 0.54, A = 0.40, B = 0.00, C = 0.00, D = 0.00, E = 0.40, F = 0.56, Variation = FlameVariation.Spherical, Color = Color.Yellow }
+                }
+            });
+
+            // Пресет 9: Храмовая мандала.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Храмовая мандала",
+                CenterX = 0.0,
+                CenterY = 0.03,
+                Scale = 4.8,
+                Samples = 2_400_000,
+                IterationsPerSample = 25,
+                WarmupIterations = 27,
+                Exposure = 1.30,
+                Gamma = 2.20,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 0.96, A = 0.70, B = -0.12, C = -0.24, D = 0.12, E = 0.70, F = 0.00, Variation = FlameVariation.Linear, Color = Color.Goldenrod },
+                    new() { Weight = 0.96, A = 0.70, B = 0.12, C = 0.24, D = -0.12, E = 0.70, F = 0.00, Variation = FlameVariation.Linear, Color = Color.OrangeRed },
+                    new() { Weight = 0.52, A = 0.36, B = 0.00, C = 0.00, D = 0.00, E = 0.36, F = 0.52, Variation = FlameVariation.Sinusoidal, Color = Color.LightGoldenrodYellow },
+                    new() { Weight = 0.30, A = 0.28, B = 0.00, C = 0.00, D = 0.00, E = 0.28, F = -0.64, Variation = FlameVariation.Spherical, Color = Color.MediumPurple }
+                }
+            });
+
+            // Пресет 10: Полярное сияние.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Полярное сияние",
+                CenterX = -0.02,
+                CenterY = -0.04,
+                Scale = 4.4,
+                Samples = 2_300_000,
+                IterationsPerSample = 24,
+                WarmupIterations = 27,
+                Exposure = 1.38,
+                Gamma = 2.16,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 0.92, A = 0.66, B = -0.21, C = -0.22, D = 0.18, E = 0.69, F = -0.04, Variation = FlameVariation.Sinusoidal, Color = Color.Aquamarine },
+                    new() { Weight = 0.92, A = 0.66, B = 0.21, C = 0.22, D = -0.18, E = 0.69, F = -0.04, Variation = FlameVariation.Sinusoidal, Color = Color.SpringGreen },
+                    new() { Weight = 0.44, A = 0.34, B = 0.00, C = 0.00, D = 0.00, E = 0.34, F = 0.62, Variation = FlameVariation.Spherical, Color = Color.DeepSkyBlue }
+                }
+            });
+
+            // Пресет 11: Ртутный вихрь.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Ртутный вихрь",
+                CenterX = 0.01,
+                CenterY = -0.01,
+                Scale = 5.1,
+                Samples = 2_700_000,
+                IterationsPerSample = 27,
+                WarmupIterations = 30,
+                Exposure = 1.22,
+                Gamma = 2.28,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 0.90, A = 0.79, B = -0.19, C = -0.04, D = 0.19, E = 0.79, F = 0.05, Variation = FlameVariation.Linear, Color = Color.Silver },
+                    new() { Weight = 0.90, A = 0.79, B = 0.19, C = 0.04, D = -0.19, E = 0.79, F = 0.05, Variation = FlameVariation.Sinusoidal, Color = Color.LightSteelBlue },
+                    new() { Weight = 0.38, A = 0.30, B = 0.00, C = 0.00, D = 0.00, E = 0.30, F = -0.68, Variation = FlameVariation.Spherical, Color = Color.WhiteSmoke }
+                }
+            });
+
             return presets;
         }
 
