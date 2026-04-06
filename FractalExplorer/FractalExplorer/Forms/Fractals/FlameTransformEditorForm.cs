@@ -32,6 +32,7 @@ namespace FractalExplorer.Forms.Fractals
             ThemeManager.ThemeChanged += ThemeManager_ThemeChanged;
             Disposed += (_, _) => ThemeManager.ThemeChanged -= ThemeManager_ThemeChanged;
 
+            WireVariationCombo();
             WireEvents();
             RebuildList();
 
@@ -39,6 +40,26 @@ namespace FractalExplorer.Forms.Fractals
                 SelectTransform(0);
             else
                 SetEditorEnabled(false);
+        }
+
+        private void WireVariationCombo()
+        {
+            _cmbVariation.BeginUpdate();
+            try
+            {
+                _cmbVariation.DataSource = null;
+                _cmbVariation.Items.Clear();
+                _cmbVariation.Items.AddRange(new object[]
+                {
+                    FlameVariation.Linear,
+                    FlameVariation.Sinusoidal,
+                    FlameVariation.Spherical
+                });
+            }
+            finally
+            {
+                _cmbVariation.EndUpdate();
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════════

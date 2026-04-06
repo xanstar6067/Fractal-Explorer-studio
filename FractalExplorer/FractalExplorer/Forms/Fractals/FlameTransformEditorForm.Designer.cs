@@ -337,12 +337,6 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // _cmbVariation
             // 
-            _cmbVariation.DataSource = new Engines.FlameVariation[]
-    {
-    Engines.FlameVariation.Linear,
-    Engines.FlameVariation.Sinusoidal,
-    Engines.FlameVariation.Spherical
-    };
             _cmbVariation.Dock = DockStyle.Fill;
             _cmbVariation.DropDownStyle = ComboBoxStyle.DropDownList;
             _cmbVariation.Location = new Point(0, 0);
