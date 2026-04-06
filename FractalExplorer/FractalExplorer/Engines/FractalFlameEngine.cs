@@ -1,4 +1,5 @@
 using FractalExplorer.Utilities;
+using System.Diagnostics;
 
 namespace FractalExplorer.Engines
 {
@@ -52,7 +53,9 @@ namespace FractalExplorer.Engines
             int viewportOffsetX = 0,
             int viewportOffsetY = 0,
             int viewportTotalWidth = 0,
-            int viewportTotalHeight = 0)
+            int viewportTotalHeight = 0,
+            Action<byte[]>? reportCoverageHeatmap = null,
+            int coverageUpdateIntervalMs = 200)
         {
             if (bytesPerPixel < 4)
             {
@@ -96,75 +99,149 @@ namespace FractalExplorer.Engines
             int warmup = Math.Max(0, WarmupIterations);
             int totalIterations = (int)Math.Min(int.MaxValue, (long)warmup + iterations);
             int threadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
+            int batchSize = Math.Max(1_000, totalSamples / 24);
+            int coverageIntervalMs = Math.Clamp(coverageUpdateIntervalMs, 50, 2_000);
+            var coverageTimer = Stopwatch.StartNew();
 
             int processed = 0;
             object mergeLock = new();
-            var options = new ParallelOptions { CancellationToken = token, MaxDegreeOfParallelism = Math.Max(1, threadCount) };
+            var options = new ParallelOptions
+            {
+                CancellationToken = token,
+                MaxDegreeOfParallelism = Math.Max(1, threadCount)
+            };
 
-            Parallel.For(0, totalSamples, options,
-                () => new LocalAccumulator(width * height),
-                (sampleIndex, _, local) =>
+            for (int batchStart = 0; batchStart < totalSamples; batchStart += batchSize)
+            {
+                int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
+                Parallel.For(batchStart, batchEnd, options,
+                    () => new LocalAccumulator(width * height),
+                    (sampleIndex, _, local) =>
+                    {
+                        token.ThrowIfCancellationRequested();
+                        ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
+                        double x = NextUnitSigned(ref seed);
+                        double y = NextUnitSigned(ref seed);
+                        double cr = 0.5;
+                        double cg = 0.5;
+                        double cb = 0.5;
+
+                        for (int i = 0; i < totalIterations; i++)
+                        {
+                            FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
+                            ApplyTransform(transform, ref x, ref y);
+
+                            cr = (cr + transform.Color.R / 255.0) * 0.5;
+                            cg = (cg + transform.Color.G / 255.0) * 0.5;
+                            cb = (cb + transform.Color.B / 255.0) * 0.5;
+
+                            if (i < warmup)
+                            {
+                                continue;
+                            }
+
+                            int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
+                            int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
+                            if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+                            {
+                                continue;
+                            }
+
+                            int idx = py * width + px;
+                            local.Hit[idx] += 1.0;
+                            local.R[idx] += cr;
+                            local.G[idx] += cg;
+                            local.B[idx] += cb;
+                        }
+
+                        int done = Interlocked.Increment(ref processed);
+                        if (done % Math.Max(1, totalSamples / 100) == 0)
+                        {
+                            reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
+                        }
+
+                        return local;
+                    },
+                    local =>
+                    {
+                        lock (mergeLock)
+                        {
+                            for (int i = 0; i < hdrHit.Length; i++)
+                            {
+                                hdrHit[i] += local.Hit[i];
+                                hdrR[i] += local.R[i];
+                                hdrG[i] += local.G[i];
+                                hdrB[i] += local.B[i];
+                            }
+                        }
+                    });
+
+                if (reportCoverageHeatmap != null && coverageTimer.ElapsedMilliseconds >= coverageIntervalMs)
                 {
-                    token.ThrowIfCancellationRequested();
-                    ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
-                    double x = NextUnitSigned(ref seed);
-                    double y = NextUnitSigned(ref seed);
-                    double cr = 0.5;
-                    double cg = 0.5;
-                    double cb = 0.5;
-
-                    for (int i = 0; i < totalIterations; i++)
-                    {
-                        FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
-                        ApplyTransform(transform, ref x, ref y);
-
-                        cr = (cr + transform.Color.R / 255.0) * 0.5;
-                        cg = (cg + transform.Color.G / 255.0) * 0.5;
-                        cb = (cb + transform.Color.B / 255.0) * 0.5;
-
-                        if (i < warmup)
-                        {
-                            continue;
-                        }
-
-                        int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
-                        int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
-                        if ((uint)px >= (uint)width || (uint)py >= (uint)height)
-                        {
-                            continue;
-                        }
-
-                        int idx = py * width + px;
-                        local.Hit[idx] += 1.0;
-                        local.R[idx] += cr;
-                        local.G[idx] += cg;
-                        local.B[idx] += cb;
-                    }
-
-                    int done = Interlocked.Increment(ref processed);
-                    if (done % Math.Max(1, totalSamples / 100) == 0)
-                    {
-                        reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
-                    }
-
-                    return local;
-                },
-                local =>
-                {
-                    lock (mergeLock)
-                    {
-                        for (int i = 0; i < hdrHit.Length; i++)
-                        {
-                            hdrHit[i] += local.Hit[i];
-                            hdrR[i] += local.R[i];
-                            hdrG[i] += local.G[i];
-                            hdrB[i] += local.B[i];
-                        }
-                    }
-                });
+                    reportCoverageHeatmap(ConvertHitToHeatmapBuffer(width, height, stride, bytesPerPixel, hdrHit));
+                    coverageTimer.Restart();
+                }
+            }
 
             ConvertHdrToBitmap(buffer, width, height, stride, bytesPerPixel, hdrHit, hdrR, hdrG, hdrB);
             reportProgress?.Invoke(100);
+        }
+
+        private static byte[] ConvertHitToHeatmapBuffer(int width, int height, int stride, int bytesPerPixel, double[] hit)
+        {
+            byte[] heatmap = new byte[Math.Abs(stride) * height];
+            double maxHit = hit.Max();
+            if (maxHit <= 0)
+            {
+                return heatmap;
+            }
+
+            double denom = Math.Log(1.0 + maxHit);
+            for (int y = 0; y < height; y++)
+            {
+                int row = y * stride;
+                for (int x = 0; x < width; x++)
+                {
+                    int idx = y * width + x;
+                    int px = row + x * bytesPerPixel;
+                    double h = hit[idx];
+                    if (h <= 0)
+                    {
+                        heatmap[px + 3] = 0;
+                        continue;
+                    }
+
+                    double mapped = Math.Log(1.0 + h) / Math.Max(1e-12, denom);
+                    Color color = MapHeatColor(mapped);
+                    heatmap[px + 0] = color.B;
+                    heatmap[px + 1] = color.G;
+                    heatmap[px + 2] = color.R;
+                    heatmap[px + 3] = 255;
+                }
+            }
+
+            return heatmap;
+        }
+
+        private static Color MapHeatColor(double intensity)
+        {
+            double t = Math.Clamp(intensity, 0.0, 1.0);
+            if (t < 0.33)
+            {
+                double k = t / 0.33;
+                return Color.FromArgb(255, (int)(k * 90), (int)(k * 255), 255);
+            }
+
+            if (t < 0.66)
+            {
+                double k = (t - 0.33) / 0.33;
+                return Color.FromArgb(255, (int)(90 + k * 165), 255, (int)(255 - k * 255));
+            }
+
+            {
+                double k = (t - 0.66) / 0.34;
+                return Color.FromArgb(255, 255, (int)(255 - k * 255), (int)(k * 120));
+            }
         }
 
         private void ConvertHdrToBitmap(byte[] buffer, int width, int height, int stride, int bytesPerPixel, double[] hit, double[] r, double[] g, double[] b)

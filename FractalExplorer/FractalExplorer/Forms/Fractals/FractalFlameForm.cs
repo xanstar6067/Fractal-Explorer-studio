@@ -29,8 +29,14 @@ namespace FractalExplorer.Forms.Fractals
         private double _renderedCenterY;
         private double _renderedScale = -1;
         private Bitmap? _previewBitmap;
+        private Bitmap? _coverageOverlayBitmap;
         private readonly object _previewLock = new();
         private readonly string _baseTitle;
+        private volatile bool _isRenderInProgress;
+        private bool _hasIntermediateFrame;
+        private double _activeRenderCenterX;
+        private double _activeRenderCenterY;
+        private double _activeRenderScale;
 
         public FractalFlameForm()
         {
@@ -52,6 +58,8 @@ namespace FractalExplorer.Forms.Fractals
                 {
                     _previewBitmap?.Dispose();
                     _previewBitmap = null;
+                    _coverageOverlayBitmap?.Dispose();
+                    _coverageOverlayBitmap = null;
                 }
             };
             _canvas.MouseWheel += Canvas_MouseWheel;
@@ -105,6 +113,7 @@ namespace FractalExplorer.Forms.Fractals
             _exposure.ValueChanged += (_, _) => QueueRenderRestart();
             _gamma.ValueChanged += (_, _) => QueueRenderRestart();
             _threads.SelectedIndexChanged += (_, _) => QueueRenderRestart();
+            _showCoverageMap.CheckedChanged += (_, _) => _canvas.Invalidate();
         }
 
         private void QueueRenderRestart(bool immediate = false)
@@ -246,15 +255,23 @@ namespace FractalExplorer.Forms.Fractals
         {
             e.Graphics.Clear(Color.Black);
             Bitmap? preview;
+            Bitmap? coverageOverlay;
             double renderedCenterX;
             double renderedCenterY;
             double renderedScale;
+            double activeRenderCenterX;
+            double activeRenderCenterY;
+            double activeRenderScale;
             lock (_previewLock)
             {
                 preview = _previewBitmap;
+                coverageOverlay = _coverageOverlayBitmap;
                 renderedCenterX = _renderedCenterX;
                 renderedCenterY = _renderedCenterY;
                 renderedScale = _renderedScale;
+                activeRenderCenterX = _activeRenderCenterX;
+                activeRenderCenterY = _activeRenderCenterY;
+                activeRenderScale = _activeRenderScale;
             }
 
             if (preview == null || Math.Abs(renderedScale) < MinScaleMagnitude)
@@ -269,42 +286,94 @@ namespace FractalExplorer.Forms.Fractals
                 Math.Abs(renderedCenterX - currentCenterX) < 1e-12 &&
                 Math.Abs(renderedCenterY - currentCenterY) < 1e-12 &&
                 Math.Abs(renderedScale - currentScale) < 1e-12;
-
-            e.Graphics.InterpolationMode = sameViewport
-                ? InterpolationMode.HighQualityBicubic
-                : InterpolationMode.NearestNeighbor;
+            e.Graphics.InterpolationMode = sameViewport ? InterpolationMode.HighQualityBicubic : InterpolationMode.NearestNeighbor;
             e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
 
-            if (sameViewport)
+            if (!TryComputeDestinationRectForViewport(
+                renderedCenterX,
+                renderedCenterY,
+                renderedScale,
+                preview.Width,
+                preview.Height,
+                out RectangleF previewDestRect))
             {
-                e.Graphics.DrawImage(preview, _canvas.ClientRectangle);
                 return;
             }
 
+            e.Graphics.DrawImage(preview, previewDestRect);
+            DrawCoverageOverlay(e.Graphics, coverageOverlay, activeRenderCenterX, activeRenderCenterY, activeRenderScale);
+        }
+
+        private void DrawCoverageOverlay(
+            Graphics graphics,
+            Bitmap? coverageOverlay,
+            double activeRenderCenterX,
+            double activeRenderCenterY,
+            double activeRenderScale)
+        {
+            if (!_isRenderInProgress || !_showCoverageMap.Checked || coverageOverlay == null)
+            {
+                return;
+            }
+
+            if (!TryComputeDestinationRectForViewport(
+                activeRenderCenterX,
+                activeRenderCenterY,
+                activeRenderScale,
+                coverageOverlay.Width,
+                coverageOverlay.Height,
+                out RectangleF coverageDestRect))
+            {
+                return;
+            }
+
+            using ImageAttributes attributes = new();
+            var matrix = new ColorMatrix
+            {
+                Matrix33 = 0.42f
+            };
+            attributes.SetColorMatrix(matrix, ColorMatrixFlag.Default, ColorAdjustType.Bitmap);
+            graphics.DrawImage(
+                coverageOverlay,
+                Rectangle.Round(coverageDestRect),
+                0,
+                0,
+                coverageOverlay.Width,
+                coverageOverlay.Height,
+                GraphicsUnit.Pixel,
+                attributes);
+        }
+
+        private bool TryComputeDestinationRectForViewport(double viewportCenterX, double viewportCenterY, double viewportScale, int bitmapWidth, int bitmapHeight, out RectangleF destinationRect)
+        {
+            destinationRect = RectangleF.Empty;
+            if (_canvas.Width <= 1 || _canvas.Height <= 1 || Math.Abs(viewportScale) < MinScaleMagnitude)
+            {
+                return false;
+            }
+
+            double currentCenterX = (double)_centerX.Value;
+            double currentCenterY = (double)_centerY.Value;
+            double currentScale = NormalizeScale((double)_scale.Value);
             double currentWidthWorld = Math.Abs(currentScale);
             double currentHeightWorld = currentWidthWorld * _canvas.Height / (double)_canvas.Width;
             double currentLeft = currentCenterX - currentWidthWorld * 0.5;
             double currentTop = currentCenterY + currentHeightWorld * 0.5;
 
-            double renderedWidthWorld = Math.Abs(renderedScale);
-            double renderedHeightWorld = renderedWidthWorld * preview.Height / (double)preview.Width;
-            double renderedLeft = renderedCenterX - renderedWidthWorld * 0.5;
-            double renderedRight = renderedCenterX + renderedWidthWorld * 0.5;
-            double renderedTop = renderedCenterY + renderedHeightWorld * 0.5;
-            double renderedBottom = renderedCenterY - renderedHeightWorld * 0.5;
+            double renderedWidthWorld = Math.Abs(viewportScale);
+            double renderedHeightWorld = renderedWidthWorld * bitmapHeight / (double)bitmapWidth;
+            double renderedLeft = viewportCenterX - renderedWidthWorld * 0.5;
+            double renderedRight = viewportCenterX + renderedWidthWorld * 0.5;
+            double renderedTop = viewportCenterY + renderedHeightWorld * 0.5;
+            double renderedBottom = viewportCenterY - renderedHeightWorld * 0.5;
 
             float destLeft = (float)((renderedLeft - currentLeft) / currentWidthWorld * _canvas.Width);
             float destRight = (float)((renderedRight - currentLeft) / currentWidthWorld * _canvas.Width);
             float destTop = (float)((currentTop - renderedTop) / currentHeightWorld * _canvas.Height);
             float destBottom = (float)((currentTop - renderedBottom) / currentHeightWorld * _canvas.Height);
 
-            RectangleF destRect = RectangleF.FromLTRB(destLeft, destTop, destRight, destBottom);
-            if (destRect.Width <= 0 || destRect.Height <= 0)
-            {
-                return;
-            }
-
-            e.Graphics.DrawImage(preview, destRect);
+            destinationRect = RectangleF.FromLTRB(destLeft, destTop, destRight, destBottom);
+            return destinationRect.Width > 0 && destinationRect.Height > 0;
         }
 
         private double ScreenToWorldX(int x, double scale, double centerX)
@@ -354,8 +423,16 @@ namespace FractalExplorer.Forms.Fractals
             CancellationToken token = _cts.Token;
 
             _btnRender.Enabled = false;
+            _isRenderInProgress = true;
             _status.Text = "Рендер...";
             _pbRenderProgress.Value = 0;
+            lock (_previewLock)
+            {
+                _activeRenderCenterX = (double)_centerX.Value;
+                _activeRenderCenterY = (double)_centerY.Value;
+                _activeRenderScale = NormalizeScale((double)_scale.Value);
+                _hasIntermediateFrame = false;
+            }
             var renderStopwatch = Stopwatch.StartNew();
             var bmp = new Bitmap(_canvas.Width, _canvas.Height, PixelFormat.Format32bppArgb);
             Rectangle rect = new(0, 0, bmp.Width, bmp.Height);
@@ -370,7 +447,16 @@ namespace FractalExplorer.Forms.Fractals
 
             try
             {
-                await Task.Run(() => _engine.RenderToBuffer(buffer, bmp.Width, bmp.Height, data.Stride, 4, token, p => ((IProgress<int>)progress).Report(p)), token);
+                await Task.Run(() => _engine.RenderToBuffer(
+                    buffer,
+                    bmp.Width,
+                    bmp.Height,
+                    data.Stride,
+                    4,
+                    token,
+                    p => ((IProgress<int>)progress).Report(p),
+                    reportCoverageHeatmap: heatmap => UpdateCoverageOverlay(heatmap, bmp.Width, bmp.Height, data.Stride),
+                    coverageUpdateIntervalMs: 200), token);
                 Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
                 renderStopwatch.Stop();
                 _status.Text = "Готово";
@@ -394,7 +480,7 @@ namespace FractalExplorer.Forms.Fractals
                         _previewBitmap = bmp;
                         _renderedCenterX = (double)_centerX.Value;
                         _renderedCenterY = (double)_centerY.Value;
-                        _renderedScale = (double)_scale.Value;
+                        _renderedScale = NormalizeScale((double)_scale.Value);
                         old?.Dispose();
                     }
                     _canvas.Invalidate();
@@ -404,8 +490,69 @@ namespace FractalExplorer.Forms.Fractals
                     bmp.Dispose();
                 }
                 _btnRender.Enabled = true;
+                _isRenderInProgress = false;
+                ClearCoverageOverlay();
             }
         }
+
+        private void UpdateCoverageOverlay(byte[] heatmapBuffer, int width, int height, int stride)
+        {
+            if (!_showCoverageMap.Checked || tokenSafeIsDisposed())
+            {
+                return;
+            }
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => UpdateCoverageOverlay(heatmapBuffer, width, height, stride)));
+                return;
+            }
+
+            Bitmap overlay = new(width, height, PixelFormat.Format32bppArgb);
+            BitmapData overlayData = overlay.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, overlay.PixelFormat);
+            Marshal.Copy(heatmapBuffer, 0, overlayData.Scan0, heatmapBuffer.Length);
+            overlay.UnlockBits(overlayData);
+
+            lock (_previewLock)
+            {
+                Bitmap? old = _coverageOverlayBitmap;
+                _coverageOverlayBitmap = overlay;
+                old?.Dispose();
+
+                if (!_hasIntermediateFrame)
+                {
+                    Bitmap? previousPreview = _previewBitmap;
+                    _previewBitmap = (Bitmap)overlay.Clone();
+                    _renderedCenterX = _activeRenderCenterX;
+                    _renderedCenterY = _activeRenderCenterY;
+                    _renderedScale = _activeRenderScale;
+                    _hasIntermediateFrame = true;
+                    previousPreview?.Dispose();
+                }
+            }
+
+            _canvas.Invalidate();
+        }
+
+        private void ClearCoverageOverlay()
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(ClearCoverageOverlay));
+                return;
+            }
+
+            lock (_previewLock)
+            {
+                Bitmap? old = _coverageOverlayBitmap;
+                _coverageOverlayBitmap = null;
+                old?.Dispose();
+            }
+
+            _canvas.Invalidate();
+        }
+
+        private bool tokenSafeIsDisposed() => IsDisposed || !IsHandleCreated;
 
         public string FractalTypeIdentifier => "Flame";
         public Type ConcreteSaveStateType => typeof(FlameFractalSaveState);
