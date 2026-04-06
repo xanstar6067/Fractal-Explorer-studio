@@ -10,7 +10,6 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
-using System.Threading;
 
 namespace FractalExplorer.Forms.Fractals
 {
@@ -590,90 +589,90 @@ namespace FractalExplorer.Forms.Fractals
             await _renderExecutionLock.WaitAsync();
             try
             {
-            if (_canvas.Width <= 1 || _canvas.Height <= 1)
-            {
-                return;
-            }
+                if (_canvas.Width <= 1 || _canvas.Height <= 1)
+                {
+                    return;
+                }
 
-            ApplyUiToEngine();
-            _cts?.Cancel();
-            _cts = new CancellationTokenSource();
-            CancellationToken token = _cts.Token;
+                ApplyUiToEngine();
+                _cts?.Cancel();
+                _cts = new CancellationTokenSource();
+                CancellationToken token = _cts.Token;
 
-            _btnRender.Enabled = false;
-            _isRenderInProgress = true;
-            _status.Text = "Рендер...";
-            _pbRenderProgress.Value = 0;
-            lock (_previewLock)
-            {
-                _activeRenderCenterX = (double)_centerX.Value;
-                _activeRenderCenterY = (double)_centerY.Value;
-                _activeRenderScale = NormalizeScale((double)_scale.Value);
-                _hasIntermediateFrame = false;
-            }
-            var renderStopwatch = Stopwatch.StartNew();
-            var bmp = new Bitmap(_canvas.Width, _canvas.Height, PixelFormat.Format32bppArgb);
-            Rectangle rect = new(0, 0, bmp.Width, bmp.Height);
-            BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
-            byte[] buffer = new byte[Math.Abs(data.Stride) * data.Height];
-            var progress = new Progress<int>(p =>
-            {
-                int clamped = Math.Clamp(p, 0, 100);
-                _status.Text = $"Рендер: {clamped}%";
-                _pbRenderProgress.Value = clamped;
-            });
-            Action<byte[]>? coverageCallback = _showCoverageMap.Checked
-                ? heatmap => UpdateCoverageOverlay(heatmap, bmp.Width, bmp.Height, data.Stride)
-                : null;
-
-            try
-            {
-                await Task.Run(() => _engine.RenderToBuffer(
-                    buffer,
-                    bmp.Width,
-                    bmp.Height,
-                    data.Stride,
-                    4,
-                    token,
-                    p => ((IProgress<int>)progress).Report(p),
-                    reportCoverageHeatmap: coverageCallback,
-                    coverageUpdateIntervalMs: 200), token);
-                Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
-                renderStopwatch.Stop();
-                _status.Text = "Готово";
-                _pbRenderProgress.Value = 100;
-                _lastRenderTime.Text = $"Последний рендер: {DateTime.Now:HH:mm:ss} ({renderStopwatch.Elapsed.TotalSeconds:F2} сек.)";
-                Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
-            }
-            catch (OperationCanceledException)
-            {
-                _status.Text = "Отменено";
+                _btnRender.Enabled = false;
+                _isRenderInProgress = true;
+                _status.Text = "Рендер...";
                 _pbRenderProgress.Value = 0;
-            }
-            finally
-            {
-                bmp.UnlockBits(data);
-                if (!token.IsCancellationRequested)
+                lock (_previewLock)
                 {
-                    lock (_previewLock)
+                    _activeRenderCenterX = (double)_centerX.Value;
+                    _activeRenderCenterY = (double)_centerY.Value;
+                    _activeRenderScale = NormalizeScale((double)_scale.Value);
+                    _hasIntermediateFrame = false;
+                }
+                var renderStopwatch = Stopwatch.StartNew();
+                var bmp = new Bitmap(_canvas.Width, _canvas.Height, PixelFormat.Format32bppArgb);
+                Rectangle rect = new(0, 0, bmp.Width, bmp.Height);
+                BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+                byte[] buffer = new byte[Math.Abs(data.Stride) * data.Height];
+                var progress = new Progress<int>(p =>
+                {
+                    int clamped = Math.Clamp(p, 0, 100);
+                    _status.Text = $"Рендер: {clamped}%";
+                    _pbRenderProgress.Value = clamped;
+                });
+                Action<byte[]>? coverageCallback = _showCoverageMap.Checked
+                    ? heatmap => UpdateCoverageOverlay(heatmap, bmp.Width, bmp.Height, data.Stride)
+                    : null;
+
+                try
+                {
+                    await Task.Run(() => _engine.RenderToBuffer(
+                        buffer,
+                        bmp.Width,
+                        bmp.Height,
+                        data.Stride,
+                        4,
+                        token,
+                        p => ((IProgress<int>)progress).Report(p),
+                        reportCoverageHeatmap: coverageCallback,
+                        coverageUpdateIntervalMs: 200), token);
+                    Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
+                    renderStopwatch.Stop();
+                    _status.Text = "Готово";
+                    _pbRenderProgress.Value = 100;
+                    _lastRenderTime.Text = $"Последний рендер: {DateTime.Now:HH:mm:ss} ({renderStopwatch.Elapsed.TotalSeconds:F2} сек.)";
+                    Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
+                }
+                catch (OperationCanceledException)
+                {
+                    _status.Text = "Отменено";
+                    _pbRenderProgress.Value = 0;
+                }
+                finally
+                {
+                    bmp.UnlockBits(data);
+                    if (!token.IsCancellationRequested)
                     {
-                        Bitmap? old = _previewBitmap;
-                        _previewBitmap = bmp;
-                        _renderedCenterX = (double)_centerX.Value;
-                        _renderedCenterY = (double)_centerY.Value;
-                        _renderedScale = NormalizeScale((double)_scale.Value);
-                        old?.Dispose();
+                        lock (_previewLock)
+                        {
+                            Bitmap? old = _previewBitmap;
+                            _previewBitmap = bmp;
+                            _renderedCenterX = (double)_centerX.Value;
+                            _renderedCenterY = (double)_centerY.Value;
+                            _renderedScale = NormalizeScale((double)_scale.Value);
+                            old?.Dispose();
+                        }
+                        _canvas.Invalidate();
                     }
-                    _canvas.Invalidate();
+                    else
+                    {
+                        bmp.Dispose();
+                    }
+                    _btnRender.Enabled = true;
+                    _isRenderInProgress = false;
+                    ClearCoverageOverlay();
                 }
-                else
-                {
-                    bmp.Dispose();
-                }
-                _btnRender.Enabled = true;
-                _isRenderInProgress = false;
-                ClearCoverageOverlay();
-            }
             }
             finally
             {
