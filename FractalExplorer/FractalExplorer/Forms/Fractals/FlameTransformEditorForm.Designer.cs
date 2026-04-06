@@ -345,7 +345,6 @@ namespace FractalExplorer.Forms.Fractals
     };
             _cmbVariation.Dock = DockStyle.Fill;
             _cmbVariation.DropDownStyle = ComboBoxStyle.DropDownList;
-            _cmbVariation.Items.AddRange(new object[] { Engines.FlameVariation.Linear, Engines.FlameVariation.Sinusoidal, Engines.FlameVariation.Spherical });
             _cmbVariation.Location = new Point(0, 0);
             _cmbVariation.Margin = new Padding(0, 0, 6, 0);
             _cmbVariation.Name = "_cmbVariation";
