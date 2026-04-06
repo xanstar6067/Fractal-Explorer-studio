@@ -1,5 +1,6 @@
 using FractalExplorer.Utilities;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Engines
 {
@@ -115,7 +116,7 @@ namespace FractalExplorer.Engines
             {
                 int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
                 Parallel.For(batchStart, batchEnd, options,
-                    () => new LocalAccumulator(width * height),
+                    () => new LocalAccumulator(),
                     (sampleIndex, _, local) =>
                     {
                         token.ThrowIfCancellationRequested();
@@ -148,10 +149,11 @@ namespace FractalExplorer.Engines
                             }
 
                             int idx = py * width + px;
-                            local.Hit[idx] += 1.0;
-                            local.R[idx] += cr;
-                            local.G[idx] += cg;
-                            local.B[idx] += cb;
+                            ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
+                            pixel.Hit += 1.0;
+                            pixel.R += cr;
+                            pixel.G += cg;
+                            pixel.B += cb;
                         }
 
                         int done = Interlocked.Increment(ref processed);
@@ -166,12 +168,12 @@ namespace FractalExplorer.Engines
                     {
                         lock (mergeLock)
                         {
-                            for (int i = 0; i < hdrHit.Length; i++)
+                            foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
                             {
-                                hdrHit[i] += local.Hit[i];
-                                hdrR[i] += local.R[i];
-                                hdrG[i] += local.G[i];
-                                hdrB[i] += local.B[i];
+                                hdrHit[idx] += pixel.Hit;
+                                hdrR[idx] += pixel.R;
+                                hdrG[idx] += pixel.G;
+                                hdrB[idx] += pixel.B;
                             }
                         }
                     });
@@ -357,18 +359,20 @@ namespace FractalExplorer.Engines
 
         private sealed class LocalAccumulator
         {
-            public LocalAccumulator(int size)
-            {
-                Hit = new double[size];
-                R = new double[size];
-                G = new double[size];
-                B = new double[size];
-            }
+            public Dictionary<int, PixelAccumulation> Pixels { get; } = new();
 
-            public double[] Hit { get; }
-            public double[] R { get; }
-            public double[] G { get; }
-            public double[] B { get; }
+            public ref PixelAccumulation GetOrAddPixel(int pixelIndex)
+            {
+                return ref CollectionsMarshal.GetValueRefOrAddDefault(Pixels, pixelIndex, out _);
+            }
+        }
+
+        private struct PixelAccumulation
+        {
+            public double Hit;
+            public double R;
+            public double G;
+            public double B;
         }
     }
 }
