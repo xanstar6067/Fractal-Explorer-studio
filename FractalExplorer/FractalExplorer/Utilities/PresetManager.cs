@@ -91,6 +91,8 @@ namespace FractalExplorer.Utilities
                     return GetCollatzPresets();
                 case "Lyapunov":
                     return GetLyapunovPresets();
+                case "Flame":
+                    return GetFlamePresets();
                 default:
                     return new List<FractalSaveStateBase>();
             }
@@ -1268,6 +1270,101 @@ namespace FractalExplorer.Utilities
                 TransientIterations = preset2.TransientIterations
             }, jsonOptions);
             presets.Add(preset2);
+
+            return presets;
+        }
+
+        #endregion
+
+        #region Flame Presets
+
+        private static List<FractalSaveStateBase> GetFlamePresets()
+        {
+            var presets = new List<FractalSaveStateBase>();
+
+            // Пресет 1: Классический огненный лист.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Огненный лист",
+                CenterX = 0.0,
+                CenterY = 0.1,
+                Scale = 4.2,
+                Samples = 1_500_000,
+                IterationsPerSample = 22,
+                WarmupIterations = 24,
+                Exposure = 1.42,
+                Gamma = 2.15,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 1.00, A = 0.53, B = 0.03, C = -0.34, D = -0.02, E = 0.55, F = -0.03, Variation = FlameVariation.Linear, Color = Color.OrangeRed },
+                    new() { Weight = 0.94, A = 0.51, B = -0.03, C = 0.33, D = 0.02, E = 0.50, F = 0.00, Variation = FlameVariation.Sinusoidal, Color = Color.Gold },
+                    new() { Weight = 0.66, A = 0.47, B = 0.00, C = 0.01, D = 0.00, E = 0.44, F = 0.39, Variation = FlameVariation.Spherical, Color = Color.DeepSkyBlue }
+                }
+            });
+
+            // Пресет 2: Холодная бабочка.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Ледяная бабочка",
+                CenterX = -0.05,
+                CenterY = 0.0,
+                Scale = 3.7,
+                Samples = 1_800_000,
+                IterationsPerSample = 24,
+                WarmupIterations = 26,
+                Exposure = 1.35,
+                Gamma = 2.30,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 1.00, A = 0.62, B = -0.08, C = -0.36, D = 0.08, E = 0.62, F = -0.03, Variation = FlameVariation.Sinusoidal, Color = Color.Cyan },
+                    new() { Weight = 1.00, A = 0.62, B = 0.08, C = 0.36, D = -0.08, E = 0.62, F = -0.03, Variation = FlameVariation.Sinusoidal, Color = Color.MediumPurple },
+                    new() { Weight = 0.55, A = 0.45, B = 0.00, C = 0.00, D = 0.00, E = 0.45, F = 0.45, Variation = FlameVariation.Spherical, Color = Color.WhiteSmoke }
+                }
+            });
+
+            // Пресет 3: Вихрь галактики.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Галактический вихрь",
+                CenterX = 0.0,
+                CenterY = -0.05,
+                Scale = 5.0,
+                Samples = 2_200_000,
+                IterationsPerSample = 26,
+                WarmupIterations = 28,
+                Exposure = 1.28,
+                Gamma = 2.25,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 0.92, A = 0.78, B = -0.18, C = -0.05, D = 0.18, E = 0.78, F = 0.04, Variation = FlameVariation.Linear, Color = Color.MediumOrchid },
+                    new() { Weight = 0.92, A = 0.78, B = 0.18, C = 0.05, D = -0.18, E = 0.78, F = 0.04, Variation = FlameVariation.Sinusoidal, Color = Color.DeepPink },
+                    new() { Weight = 0.40, A = 0.31, B = 0.00, C = 0.00, D = 0.00, E = 0.31, F = -0.62, Variation = FlameVariation.Spherical, Color = Color.LightSkyBlue }
+                }
+            });
+
+            // Пресет 4: Лепестки света.
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Световые лепестки",
+                CenterX = 0.02,
+                CenterY = 0.08,
+                Scale = 3.6,
+                Samples = 1_700_000,
+                IterationsPerSample = 23,
+                WarmupIterations = 24,
+                Exposure = 1.45,
+                Gamma = 2.10,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    new() { Weight = 0.95, A = 0.58, B = -0.22, C = -0.21, D = 0.22, E = 0.58, F = -0.02, Variation = FlameVariation.Linear, Color = Color.HotPink },
+                    new() { Weight = 0.95, A = 0.58, B = 0.22, C = 0.21, D = -0.22, E = 0.58, F = -0.02, Variation = FlameVariation.Sinusoidal, Color = Color.Orange },
+                    new() { Weight = 0.58, A = 0.39, B = 0.00, C = 0.00, D = 0.00, E = 0.39, F = 0.51, Variation = FlameVariation.Spherical, Color = Color.Aqua }
+                }
+            });
 
             return presets;
         }
