@@ -241,7 +241,7 @@ namespace FractalExplorer.Forms.Fractals
             _scale.Increment = new decimal(new int[] { 5, 0, 0, 131072 });
             _scale.Location = new Point(6, 93);
             _scale.Margin = new Padding(6, 3, 3, 3);
-            _scale.Maximum = new decimal(new int[] { 20, 0, 0, 0 });
+            _scale.Maximum = new decimal(new int[] { 200000, 0, 0, 0 });
             _scale.Minimum = new decimal(new int[] { 20, 0, 0, -2147483648 });
             _scale.Name = "_scale";
             _scale.Size = new Size(136, 23);
@@ -266,8 +266,8 @@ namespace FractalExplorer.Forms.Fractals
             _centerX.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
             _centerX.Location = new Point(6, 122);
             _centerX.Margin = new Padding(6, 3, 3, 3);
-            _centerX.Maximum = new decimal(new int[] { 10, 0, 0, 0 });
-            _centerX.Minimum = new decimal(new int[] { 10, 0, 0, int.MinValue });
+            _centerX.Maximum = new decimal(new int[] { 100000, 0, 0, 0 });
+            _centerX.Minimum = new decimal(new int[] { 100000, 0, 0, int.MinValue });
             _centerX.Name = "_centerX";
             _centerX.Size = new Size(136, 23);
             _centerX.TabIndex = 8;
@@ -290,8 +290,8 @@ namespace FractalExplorer.Forms.Fractals
             _centerY.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
             _centerY.Location = new Point(6, 151);
             _centerY.Margin = new Padding(6, 3, 3, 3);
-            _centerY.Maximum = new decimal(new int[] { 10, 0, 0, 0 });
-            _centerY.Minimum = new decimal(new int[] { 10, 0, 0, int.MinValue });
+            _centerY.Maximum = new decimal(new int[] { 100000, 0, 0, 0 });
+            _centerY.Minimum = new decimal(new int[] { 100000, 0, 0, int.MinValue });
             _centerY.Name = "_centerY";
             _centerY.Size = new Size(136, 23);
             _centerY.TabIndex = 10;
