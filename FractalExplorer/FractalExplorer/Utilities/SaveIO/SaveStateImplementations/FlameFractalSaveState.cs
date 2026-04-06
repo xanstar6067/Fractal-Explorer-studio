@@ -1,4 +1,5 @@
 using FractalExplorer.Engines;
+using System.Text.Json.Serialization;
 
 namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
 {
@@ -13,6 +14,32 @@ namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
         public double Exposure { get; set; }
         public double Gamma { get; set; }
         public List<FlameTransform> Transforms { get; set; } = new();
+
+        // Совместимость со старыми сохранениями (до переименования полей).
+        // Эти свойства нужны только для десериализации и не записываются обратно в JSON.
+        [JsonPropertyName("Iterations")]
+        public int LegacyIterations
+        {
+            set
+            {
+                if (value > 0 && IterationsPerSample <= 0)
+                {
+                    IterationsPerSample = value;
+                }
+            }
+        }
+
+        [JsonPropertyName("Warmup")]
+        public int LegacyWarmup
+        {
+            set
+            {
+                if (value >= 0 && WarmupIterations <= 0)
+                {
+                    WarmupIterations = value;
+                }
+            }
+        }
 
         public FlameFractalSaveState() { }
 
