@@ -157,17 +157,17 @@ namespace FractalExplorer.Forms.Fractals
             _split.IsSplitterFixed = true;
             _split.Location = new Point(0, 0);
             _split.Name = "_split";
-            _split.Panel1MinSize = 210;
             // 
             // _split.Panel1
             // 
             _split.Panel1.Controls.Add(_leftPanel);
+            _split.Panel1MinSize = 250;
             // 
             // _split.Panel2
             // 
             _split.Panel2.Controls.Add(_rightPanel);
-            _split.Size = new Size(780, 434);
-            _split.SplitterDistance = 220;
+            _split.Size = new Size(883, 434);
+            _split.SplitterDistance = 250;
             _split.TabIndex = 0;
             // 
             // _leftPanel
@@ -178,7 +178,7 @@ namespace FractalExplorer.Forms.Fractals
             _leftPanel.Dock = DockStyle.Fill;
             _leftPanel.Location = new Point(0, 0);
             _leftPanel.Name = "_leftPanel";
-            _leftPanel.Size = new Size(220, 434);
+            _leftPanel.Size = new Size(250, 434);
             _leftPanel.TabIndex = 0;
             // 
             // _listContainer
@@ -188,7 +188,7 @@ namespace FractalExplorer.Forms.Fractals
             _listContainer.Location = new Point(0, 44);
             _listContainer.Name = "_listContainer";
             _listContainer.Padding = new Padding(8, 6, 6, 0);
-            _listContainer.Size = new Size(220, 362);
+            _listContainer.Size = new Size(250, 362);
             _listContainer.TabIndex = 0;
             // 
             // _listFooter
@@ -198,7 +198,7 @@ namespace FractalExplorer.Forms.Fractals
             _listFooter.Location = new Point(0, 406);
             _listFooter.Name = "_listFooter";
             _listFooter.Padding = new Padding(10, 0, 10, 0);
-            _listFooter.Size = new Size(220, 28);
+            _listFooter.Size = new Size(250, 28);
             _listFooter.TabIndex = 1;
             // 
             // _lblTotalWeight
@@ -207,7 +207,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblTotalWeight.Font = new Font("Segoe UI", 8F);
             _lblTotalWeight.Location = new Point(10, 0);
             _lblTotalWeight.Name = "_lblTotalWeight";
-            _lblTotalWeight.Size = new Size(200, 28);
+            _lblTotalWeight.Size = new Size(230, 28);
             _lblTotalWeight.TabIndex = 0;
             _lblTotalWeight.Text = "Суммарный вес: 0.00";
             _lblTotalWeight.TextAlign = ContentAlignment.MiddleCenter;
@@ -220,15 +220,14 @@ namespace FractalExplorer.Forms.Fractals
             _listHeader.Location = new Point(0, 0);
             _listHeader.Name = "_listHeader";
             _listHeader.Padding = new Padding(10, 0, 10, 0);
-            _listHeader.Size = new Size(220, 44);
+            _listHeader.Size = new Size(250, 44);
             _listHeader.TabIndex = 2;
             // 
             // _btnAdd
             // 
-            _btnAdd.AutoSize = false;
             _btnAdd.Dock = DockStyle.Right;
             _btnAdd.FlatStyle = FlatStyle.Flat;
-            _btnAdd.Location = new Point(118, 0);
+            _btnAdd.Location = new Point(148, 0);
             _btnAdd.Name = "_btnAdd";
             _btnAdd.Size = new Size(92, 44);
             _btnAdd.TabIndex = 0;
@@ -242,7 +241,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblListTitle.Location = new Point(10, 0);
             _lblListTitle.Name = "_lblListTitle";
             _lblListTitle.Padding = new Padding(0, 0, 8, 0);
-            _lblListTitle.Size = new Size(200, 44);
+            _lblListTitle.Size = new Size(230, 44);
             _lblListTitle.TabIndex = 1;
             _lblListTitle.Text = "Трансформации";
             _lblListTitle.TextAlign = ContentAlignment.MiddleLeft;
@@ -254,7 +253,7 @@ namespace FractalExplorer.Forms.Fractals
             _rightPanel.Dock = DockStyle.Fill;
             _rightPanel.Location = new Point(0, 0);
             _rightPanel.Name = "_rightPanel";
-            _rightPanel.Size = new Size(655, 434);
+            _rightPanel.Size = new Size(629, 434);
             _rightPanel.TabIndex = 0;
             // 
             // _tabs
@@ -265,7 +264,7 @@ namespace FractalExplorer.Forms.Fractals
             _tabs.Location = new Point(0, 36);
             _tabs.Name = "_tabs";
             _tabs.SelectedIndex = 0;
-            _tabs.Size = new Size(655, 398);
+            _tabs.Size = new Size(629, 398);
             _tabs.TabIndex = 0;
             // 
             // _tabMain
@@ -273,7 +272,7 @@ namespace FractalExplorer.Forms.Fractals
             _tabMain.Controls.Add(_tblMain);
             _tabMain.Location = new Point(4, 24);
             _tabMain.Name = "_tabMain";
-            _tabMain.Size = new Size(647, 370);
+            _tabMain.Size = new Size(621, 370);
             _tabMain.TabIndex = 0;
             _tabMain.Text = "Основное";
             // 
@@ -304,7 +303,7 @@ namespace FractalExplorer.Forms.Fractals
             _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
             _tblMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 102F));
             _tblMain.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _tblMain.Size = new Size(647, 370);
+            _tblMain.Size = new Size(621, 370);
             _tblMain.TabIndex = 0;
             // 
             // _lblVariationCaption
@@ -313,7 +312,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblVariationCaption.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
             _lblVariationCaption.Location = new Point(15, 8);
             _lblVariationCaption.Name = "_lblVariationCaption";
-            _lblVariationCaption.Size = new Size(617, 22);
+            _lblVariationCaption.Size = new Size(591, 22);
             _lblVariationCaption.TabIndex = 0;
             _lblVariationCaption.Text = "ВАРИАЦИЯ И ЦВЕТ";
             _lblVariationCaption.TextAlign = ContentAlignment.BottomLeft;
@@ -333,7 +332,7 @@ namespace FractalExplorer.Forms.Fractals
             _tblVariationRow.Name = "_tblVariationRow";
             _tblVariationRow.RowCount = 1;
             _tblVariationRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _tblVariationRow.Size = new Size(623, 36);
+            _tblVariationRow.Size = new Size(597, 36);
             _tblVariationRow.TabIndex = 1;
             // 
             // _cmbVariation
@@ -343,7 +342,7 @@ namespace FractalExplorer.Forms.Fractals
             _cmbVariation.Location = new Point(0, 0);
             _cmbVariation.Margin = new Padding(0, 0, 6, 0);
             _cmbVariation.Name = "_cmbVariation";
-            _cmbVariation.Size = new Size(493, 23);
+            _cmbVariation.Size = new Size(467, 23);
             _cmbVariation.TabIndex = 1;
             // 
             // _pnlColorPreview
@@ -351,7 +350,7 @@ namespace FractalExplorer.Forms.Fractals
             _pnlColorPreview.BorderStyle = BorderStyle.FixedSingle;
             _pnlColorPreview.Cursor = Cursors.Hand;
             _pnlColorPreview.Dock = DockStyle.Fill;
-            _pnlColorPreview.Location = new Point(499, 0);
+            _pnlColorPreview.Location = new Point(473, 0);
             _pnlColorPreview.Margin = new Padding(0, 0, 4, 0);
             _pnlColorPreview.Name = "_pnlColorPreview";
             _pnlColorPreview.Size = new Size(30, 36);
@@ -362,7 +361,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _btnPickColor.Dock = DockStyle.Fill;
             _btnPickColor.FlatStyle = FlatStyle.Flat;
-            _btnPickColor.Location = new Point(533, 0);
+            _btnPickColor.Location = new Point(507, 0);
             _btnPickColor.Margin = new Padding(0);
             _btnPickColor.Name = "_btnPickColor";
             _btnPickColor.Size = new Size(90, 36);
@@ -375,7 +374,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblWeightCaption.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
             _lblWeightCaption.Location = new Point(15, 66);
             _lblWeightCaption.Name = "_lblWeightCaption";
-            _lblWeightCaption.Size = new Size(617, 22);
+            _lblWeightCaption.Size = new Size(591, 22);
             _lblWeightCaption.TabIndex = 2;
             _lblWeightCaption.Text = "ВЕС ТРАНСФОРМАЦИИ";
             _lblWeightCaption.TextAlign = ContentAlignment.BottomLeft;
@@ -395,7 +394,7 @@ namespace FractalExplorer.Forms.Fractals
             _tblWeightRow.Name = "_tblWeightRow";
             _tblWeightRow.RowCount = 1;
             _tblWeightRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _tblWeightRow.Size = new Size(623, 38);
+            _tblWeightRow.Size = new Size(597, 38);
             _tblWeightRow.TabIndex = 3;
             // 
             // _trkWeight
@@ -407,7 +406,7 @@ namespace FractalExplorer.Forms.Fractals
             _trkWeight.Maximum = 100;
             _trkWeight.Minimum = 1;
             _trkWeight.Name = "_trkWeight";
-            _trkWeight.Size = new Size(527, 30);
+            _trkWeight.Size = new Size(501, 30);
             _trkWeight.TabIndex = 3;
             _trkWeight.TickFrequency = 10;
             _trkWeight.Value = 10;
@@ -416,7 +415,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _lblWeightValue.Dock = DockStyle.Fill;
             _lblWeightValue.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            _lblWeightValue.Location = new Point(534, 0);
+            _lblWeightValue.Location = new Point(508, 0);
             _lblWeightValue.Name = "_lblWeightValue";
             _lblWeightValue.Size = new Size(42, 38);
             _lblWeightValue.TabIndex = 4;
@@ -427,7 +426,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _lblWeightPercent.Dock = DockStyle.Fill;
             _lblWeightPercent.Font = new Font("Segoe UI", 8F);
-            _lblWeightPercent.Location = new Point(582, 0);
+            _lblWeightPercent.Location = new Point(556, 0);
             _lblWeightPercent.Name = "_lblWeightPercent";
             _lblWeightPercent.Size = new Size(38, 38);
             _lblWeightPercent.TabIndex = 5;
@@ -440,7 +439,7 @@ namespace FractalExplorer.Forms.Fractals
             _divider.Location = new Point(12, 130);
             _divider.Margin = new Padding(0, 4, 0, 4);
             _divider.Name = "_divider";
-            _divider.Size = new Size(623, 2);
+            _divider.Size = new Size(597, 2);
             _divider.TabIndex = 4;
             // 
             // _lblAffineCaption
@@ -449,7 +448,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblAffineCaption.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
             _lblAffineCaption.Location = new Point(15, 136);
             _lblAffineCaption.Name = "_lblAffineCaption";
-            _lblAffineCaption.Size = new Size(617, 22);
+            _lblAffineCaption.Size = new Size(591, 22);
             _lblAffineCaption.TabIndex = 5;
             _lblAffineCaption.Text = "АФФИННЫЕ КОЭФФИЦИЕНТЫ";
             _lblAffineCaption.TextAlign = ContentAlignment.BottomLeft;
@@ -460,7 +459,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblAffineFormula.Font = new Font("Segoe UI", 8F, FontStyle.Italic);
             _lblAffineFormula.Location = new Point(15, 158);
             _lblAffineFormula.Name = "_lblAffineFormula";
-            _lblAffineFormula.Size = new Size(617, 18);
+            _lblAffineFormula.Size = new Size(591, 18);
             _lblAffineFormula.TabIndex = 6;
             _lblAffineFormula.Text = "x' = a·x + b·y + c        y' = d·x + e·y + f";
             _lblAffineFormula.TextAlign = ContentAlignment.MiddleLeft;
@@ -493,91 +492,91 @@ namespace FractalExplorer.Forms.Fractals
             _tblAffineGrid.RowCount = 2;
             _tblAffineGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
             _tblAffineGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
-            _tblAffineGrid.Size = new Size(623, 102);
+            _tblAffineGrid.Size = new Size(597, 102);
             _tblAffineGrid.TabIndex = 7;
             // 
             // _lblA
             // 
             _lblA.Location = new Point(3, 0);
             _lblA.Name = "_lblA";
-            _lblA.Size = new Size(97, 18);
+            _lblA.Size = new Size(81, 18);
             _lblA.TabIndex = 0;
             // 
             // _lblB
             // 
-            _lblB.Location = new Point(106, 0);
+            _lblB.Location = new Point(102, 0);
             _lblB.Name = "_lblB";
-            _lblB.Size = new Size(97, 18);
+            _lblB.Size = new Size(81, 18);
             _lblB.TabIndex = 1;
             // 
             // _lblC
             // 
-            _lblC.Location = new Point(209, 0);
+            _lblC.Location = new Point(201, 0);
             _lblC.Name = "_lblC";
-            _lblC.Size = new Size(97, 18);
+            _lblC.Size = new Size(81, 18);
             _lblC.TabIndex = 2;
             // 
             // _lblD
             // 
-            _lblD.Location = new Point(312, 0);
+            _lblD.Location = new Point(300, 0);
             _lblD.Name = "_lblD";
-            _lblD.Size = new Size(97, 18);
+            _lblD.Size = new Size(81, 18);
             _lblD.TabIndex = 3;
             // 
             // _lblE
             // 
-            _lblE.Location = new Point(415, 0);
+            _lblE.Location = new Point(399, 0);
             _lblE.Name = "_lblE";
-            _lblE.Size = new Size(97, 18);
+            _lblE.Size = new Size(81, 18);
             _lblE.TabIndex = 4;
             // 
             // _lblF
             // 
-            _lblF.Location = new Point(518, 0);
+            _lblF.Location = new Point(498, 0);
             _lblF.Name = "_lblF";
-            _lblF.Size = new Size(100, 18);
+            _lblF.Size = new Size(83, 18);
             _lblF.TabIndex = 5;
             // 
             // _nudA
             // 
             _nudA.Location = new Point(3, 21);
             _nudA.Name = "_nudA";
-            _nudA.Size = new Size(97, 23);
+            _nudA.Size = new Size(81, 23);
             _nudA.TabIndex = 6;
             // 
             // _nudB
             // 
-            _nudB.Location = new Point(106, 21);
+            _nudB.Location = new Point(102, 21);
             _nudB.Name = "_nudB";
-            _nudB.Size = new Size(97, 23);
+            _nudB.Size = new Size(81, 23);
             _nudB.TabIndex = 7;
             // 
             // _nudC
             // 
-            _nudC.Location = new Point(209, 21);
+            _nudC.Location = new Point(201, 21);
             _nudC.Name = "_nudC";
-            _nudC.Size = new Size(97, 23);
+            _nudC.Size = new Size(81, 23);
             _nudC.TabIndex = 8;
             // 
             // _nudD
             // 
-            _nudD.Location = new Point(312, 21);
+            _nudD.Location = new Point(300, 21);
             _nudD.Name = "_nudD";
-            _nudD.Size = new Size(97, 23);
+            _nudD.Size = new Size(81, 23);
             _nudD.TabIndex = 9;
             // 
             // _nudE
             // 
-            _nudE.Location = new Point(415, 21);
+            _nudE.Location = new Point(399, 21);
             _nudE.Name = "_nudE";
-            _nudE.Size = new Size(97, 23);
+            _nudE.Size = new Size(81, 23);
             _nudE.TabIndex = 10;
             // 
             // _nudF
             // 
-            _nudF.Location = new Point(518, 21);
+            _nudF.Location = new Point(498, 21);
             _nudF.Name = "_nudF";
-            _nudF.Size = new Size(102, 23);
+            _nudF.Size = new Size(83, 23);
             _nudF.TabIndex = 11;
             // 
             // _pnlHint
@@ -589,7 +588,7 @@ namespace FractalExplorer.Forms.Fractals
             _pnlHint.Margin = new Padding(0, 6, 0, 0);
             _pnlHint.Name = "_pnlHint";
             _pnlHint.Padding = new Padding(8, 6, 8, 6);
-            _pnlHint.Size = new Size(623, 24);
+            _pnlHint.Size = new Size(597, 24);
             _pnlHint.TabIndex = 8;
             // 
             // _lblHint
@@ -609,7 +608,7 @@ namespace FractalExplorer.Forms.Fractals
             _tabMatrix.Location = new Point(4, 24);
             _tabMatrix.Name = "_tabMatrix";
             _tabMatrix.Padding = new Padding(12);
-            _tabMatrix.Size = new Size(647, 370);
+            _tabMatrix.Size = new Size(621, 370);
             _tabMatrix.TabIndex = 1;
             _tabMatrix.Text = "Матрица";
             // 
@@ -631,7 +630,7 @@ namespace FractalExplorer.Forms.Fractals
             _editorHeader.Location = new Point(0, 0);
             _editorHeader.Name = "_editorHeader";
             _editorHeader.Padding = new Padding(12, 0, 12, 0);
-            _editorHeader.Size = new Size(655, 36);
+            _editorHeader.Size = new Size(629, 36);
             _editorHeader.TabIndex = 1;
             // 
             // _lblEditorTitle
@@ -640,7 +639,7 @@ namespace FractalExplorer.Forms.Fractals
             _lblEditorTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             _lblEditorTitle.Location = new Point(12, 0);
             _lblEditorTitle.Name = "_lblEditorTitle";
-            _lblEditorTitle.Size = new Size(631, 36);
+            _lblEditorTitle.Size = new Size(605, 36);
             _lblEditorTitle.TabIndex = 0;
             _lblEditorTitle.Text = "Редактор трансформации";
             _lblEditorTitle.TextAlign = ContentAlignment.MiddleLeft;
@@ -654,7 +653,7 @@ namespace FractalExplorer.Forms.Fractals
             _footerPanel.Location = new Point(0, 434);
             _footerPanel.Name = "_footerPanel";
             _footerPanel.Padding = new Padding(10, 6, 10, 6);
-            _footerPanel.Size = new Size(780, 46);
+            _footerPanel.Size = new Size(883, 46);
             _footerPanel.TabIndex = 1;
             // 
             // _btnOk
@@ -662,7 +661,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnOk.DialogResult = DialogResult.OK;
             _btnOk.Dock = DockStyle.Right;
             _btnOk.FlatStyle = FlatStyle.Flat;
-            _btnOk.Location = new Point(586, 6);
+            _btnOk.Location = new Point(689, 6);
             _btnOk.Name = "_btnOk";
             _btnOk.Size = new Size(100, 34);
             _btnOk.TabIndex = 50;
@@ -673,7 +672,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnCancel.DialogResult = DialogResult.Cancel;
             _btnCancel.Dock = DockStyle.Right;
             _btnCancel.FlatStyle = FlatStyle.Flat;
-            _btnCancel.Location = new Point(686, 6);
+            _btnCancel.Location = new Point(789, 6);
             _btnCancel.Margin = new Padding(0, 0, 4, 0);
             _btnCancel.Name = "_btnCancel";
             _btnCancel.Size = new Size(84, 34);
@@ -697,9 +696,11 @@ namespace FractalExplorer.Forms.Fractals
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             CancelButton = _btnCancel;
-            ClientSize = new Size(780, 480);
+            ClientSize = new Size(883, 480);
             Controls.Add(_split);
             Controls.Add(_footerPanel);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             MinimumSize = new Size(680, 420);
             Name = "FlameTransformEditorForm";
             StartPosition = FormStartPosition.CenterParent;
@@ -711,7 +712,6 @@ namespace FractalExplorer.Forms.Fractals
             _leftPanel.ResumeLayout(false);
             _listFooter.ResumeLayout(false);
             _listHeader.ResumeLayout(false);
-            _listHeader.PerformLayout();
             _rightPanel.ResumeLayout(false);
             _tabs.ResumeLayout(false);
             _tabMain.ResumeLayout(false);
