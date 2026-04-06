@@ -14,6 +14,7 @@ namespace FractalExplorer.Forms.Fractals
 {
     public sealed partial class FractalFlameForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal, IHighResRenderable
     {
+        private const double MinScaleMagnitude = 1e-9;
         private readonly FractalFlameEngine _engine = new();
         private CancellationTokenSource? _cts;
         private bool _isPanning;
@@ -166,8 +167,9 @@ namespace FractalExplorer.Forms.Fractals
             }
 
             double zoomFactor = e.Delta > 0 ? 0.85 : 1.18;
-            double oldScale = Math.Max(0.0001, (double)_scale.Value);
+            double oldScale = NormalizeScale((double)_scale.Value);
             double newScale = Math.Clamp(oldScale * zoomFactor, (double)_scale.Minimum, (double)_scale.Maximum);
+            newScale = NormalizeScale(newScale);
 
             double worldXBefore = ScreenToWorldX(e.X, oldScale, (double)_centerX.Value);
             double worldYBefore = ScreenToWorldY(e.Y, oldScale, (double)_centerY.Value);
@@ -255,14 +257,14 @@ namespace FractalExplorer.Forms.Fractals
                 renderedScale = _renderedScale;
             }
 
-            if (preview == null || renderedScale <= 0)
+            if (preview == null || Math.Abs(renderedScale) < MinScaleMagnitude)
             {
                 return;
             }
 
             double currentCenterX = (double)_centerX.Value;
             double currentCenterY = (double)_centerY.Value;
-            double currentScale = Math.Max(0.0001, (double)_scale.Value);
+            double currentScale = NormalizeScale((double)_scale.Value);
             bool sameViewport =
                 Math.Abs(renderedCenterX - currentCenterX) < 1e-12 &&
                 Math.Abs(renderedCenterY - currentCenterY) < 1e-12 &&
@@ -279,13 +281,13 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
-            double currentWidthWorld = currentScale;
-            double currentHeightWorld = currentScale * _canvas.Height / (double)_canvas.Width;
+            double currentWidthWorld = Math.Abs(currentScale);
+            double currentHeightWorld = currentWidthWorld * _canvas.Height / (double)_canvas.Width;
             double currentLeft = currentCenterX - currentWidthWorld * 0.5;
             double currentTop = currentCenterY + currentHeightWorld * 0.5;
 
-            double renderedWidthWorld = renderedScale;
-            double renderedHeightWorld = renderedScale * preview.Height / (double)preview.Width;
+            double renderedWidthWorld = Math.Abs(renderedScale);
+            double renderedHeightWorld = renderedWidthWorld * preview.Height / (double)preview.Width;
             double renderedLeft = renderedCenterX - renderedWidthWorld * 0.5;
             double renderedRight = renderedCenterX + renderedWidthWorld * 0.5;
             double renderedTop = renderedCenterY + renderedHeightWorld * 0.5;
@@ -331,7 +333,7 @@ namespace FractalExplorer.Forms.Fractals
             _engine.Samples = (int)_samples.Value;
             _engine.IterationsPerSample = (int)_iterations.Value;
             _engine.WarmupIterations = (int)_warmup.Value;
-            _engine.Scale = (double)_scale.Value;
+            _engine.Scale = NormalizeScale((double)_scale.Value);
             _engine.CenterX = (double)_centerX.Value;
             _engine.CenterY = (double)_centerY.Value;
             _engine.Exposure = (double)_exposure.Value;
@@ -436,7 +438,7 @@ namespace FractalExplorer.Forms.Fractals
 
             _centerX.Value = (decimal)s.CenterX;
             _centerY.Value = (decimal)s.CenterY;
-            _scale.Value = (decimal)Math.Clamp(s.Scale, (double)_scale.Minimum, (double)_scale.Maximum);
+            _scale.Value = (decimal)NormalizeScale(Math.Clamp(s.Scale, (double)_scale.Minimum, (double)_scale.Maximum));
             _samples.Value = Math.Clamp(s.Samples, (int)_samples.Minimum, (int)_samples.Maximum);
             _iterations.Value = Math.Clamp(s.IterationsPerSample, (int)_iterations.Minimum, (int)_iterations.Maximum);
             _warmup.Value = Math.Clamp(s.WarmupIterations, (int)_warmup.Minimum, (int)_warmup.Maximum);
@@ -496,7 +498,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 CenterX = save?.CenterX ?? _engine.CenterX,
                 CenterY = save?.CenterY ?? _engine.CenterY,
-                Scale = save?.Scale ?? _engine.Scale,
+                Scale = NormalizeScale(save?.Scale ?? _engine.Scale),
                 Samples = Math.Max(50_000, (save?.Samples ?? _engine.Samples) / 10),
                 IterationsPerSample = save?.IterationsPerSample ?? _engine.IterationsPerSample,
                 WarmupIterations = save?.WarmupIterations ?? _engine.WarmupIterations,
@@ -541,7 +543,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 CenterX = (double)state.CenterX,
                 CenterY = (double)state.CenterY,
-                Scale = state.Scale == 0 ? _engine.Scale : (double)state.Scale,
+                Scale = NormalizeScale(state.Scale == 0 ? _engine.Scale : (double)state.Scale),
                 IterationsPerSample = state.Iterations > 0 ? state.Iterations : _engine.IterationsPerSample,
                 Samples = state.BuddhabrotSampleCount ?? _engine.Samples,
                 Exposure = state.OrbitTrapStrength > 0 ? state.OrbitTrapStrength : _engine.Exposure,
@@ -577,7 +579,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 CenterX = (double)state.CenterX,
                 CenterY = (double)state.CenterY,
-                Scale = state.Scale == 0 ? _engine.Scale : (double)state.Scale,
+                Scale = NormalizeScale(state.Scale == 0 ? _engine.Scale : (double)state.Scale),
                 IterationsPerSample = state.Iterations > 0 ? state.Iterations : _engine.IterationsPerSample,
                 Samples = Math.Max(20_000, (state.BuddhabrotSampleCount ?? _engine.Samples) / 8),
                 Exposure = state.OrbitTrapStrength > 0 ? state.OrbitTrapStrength : _engine.Exposure,
@@ -593,5 +595,15 @@ namespace FractalExplorer.Forms.Fractals
 
         public void SaveAllSavesForThisType(List<FractalSaveStateBase> saves) =>
             SaveFileManager.SaveSaves(FractalTypeIdentifier, saves.Cast<FlameFractalSaveState>().ToList());
+
+        private static double NormalizeScale(double scale)
+        {
+            if (Math.Abs(scale) >= MinScaleMagnitude)
+            {
+                return scale;
+            }
+
+            return scale < 0 ? -MinScaleMagnitude : MinScaleMagnitude;
+        }
     }
 }

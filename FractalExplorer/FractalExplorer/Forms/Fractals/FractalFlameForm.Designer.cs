@@ -195,7 +195,7 @@ namespace FractalExplorer.Forms.Fractals
             _iterations.Dock = DockStyle.Fill;
             _iterations.Location = new Point(6, 35);
             _iterations.Margin = new Padding(6, 3, 3, 3);
-            _iterations.Maximum = new decimal(new int[] { 300, 0, 0, 0 });
+            _iterations.Maximum = new decimal(new int[] { 2147483647, 0, 0, 0 });
             _iterations.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             _iterations.Name = "_iterations";
             _iterations.Size = new Size(136, 23);
@@ -242,7 +242,7 @@ namespace FractalExplorer.Forms.Fractals
             _scale.Location = new Point(6, 93);
             _scale.Margin = new Padding(6, 3, 3, 3);
             _scale.Maximum = new decimal(new int[] { 20, 0, 0, 0 });
-            _scale.Minimum = new decimal(new int[] { 1, 0, 0, 65536 });
+            _scale.Minimum = new decimal(new int[] { 20, 0, 0, -2147483648 });
             _scale.Name = "_scale";
             _scale.Size = new Size(136, 23);
             _scale.TabIndex = 6;

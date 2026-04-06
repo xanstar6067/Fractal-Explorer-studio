@@ -73,6 +73,7 @@ namespace FractalExplorer.Engines
             int totalSamples = Math.Max(1, Samples);
             int iterations = Math.Max(1, IterationsPerSample);
             int warmup = Math.Max(0, WarmupIterations);
+            int totalIterations = (int)Math.Min(int.MaxValue, (long)warmup + iterations);
             int threadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
 
             int processed = 0;
@@ -91,7 +92,7 @@ namespace FractalExplorer.Engines
                     double cg = 0.5;
                     double cb = 0.5;
 
-                    for (int i = 0; i < warmup + iterations; i++)
+                    for (int i = 0; i < totalIterations; i++)
                     {
                         FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
                         ApplyTransform(transform, ref x, ref y);
