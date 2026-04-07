@@ -60,7 +60,7 @@ namespace FractalExplorer.Projects
             Text = "Фрактал Жюлиа";
         }
 
-#endregion
+        #endregion
 
 
         /// <summary>
