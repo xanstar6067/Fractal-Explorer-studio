@@ -39,6 +39,8 @@ namespace FractalExplorer.Forms.Fractals
         private bool _isPanning;
         private bool _suppressAutoRender;
         private bool _isQueuingRenderRestart;
+        private bool _isProcessingRenderQueue;
+        private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
         private Point _panStartPoint;
         private Bitmap? _interactionSourceBitmap;
         private decimal _interactionSourceCenterX;
@@ -84,11 +86,11 @@ namespace FractalExplorer.Forms.Fractals
             AttachAutoRenderControlTriggers();
         }
 
-        private async void FractalBuddhabrotForm_Load(object? sender, EventArgs e)
+        private void FractalBuddhabrotForm_Load(object? sender, EventArgs e)
         {
             UpdateToggleControlsPosition();
             ApplyUiToEngine();
-            await RenderAsync();
+            QueueRenderRestart(immediate: true);
         }
 
         private void FractalBuddhabrotForm_FormClosing(object? sender, FormClosingEventArgs e)
@@ -104,9 +106,9 @@ namespace FractalExplorer.Forms.Fractals
             _interactionSourceBitmap = null;
         }
 
-        private async void BtnRender_Click(object? sender, EventArgs e)
+        private void BtnRender_Click(object? sender, EventArgs e)
         {
-            await RenderAsync();
+            QueueRenderRestart(immediate: true);
         }
 
         private void BtnSaveLoad_Click(object? sender, EventArgs e)
@@ -450,13 +452,33 @@ namespace FractalExplorer.Forms.Fractals
 
         private async Task TriggerQueuedRenderRestartAsync()
         {
-            if (!_isQueuingRenderRestart || _isPanning)
+            if (_isProcessingRenderQueue || !_isQueuingRenderRestart)
             {
                 return;
             }
 
-            _isQueuingRenderRestart = false;
-            await RenderAsync();
+            _isProcessingRenderQueue = true;
+            try
+            {
+                while (_isQueuingRenderRestart && !IsDisposed)
+                {
+                    if (_isPanning)
+                    {
+                        break;
+                    }
+
+                    _isQueuingRenderRestart = false;
+                    await RenderAsync();
+                }
+            }
+            finally
+            {
+                _isProcessingRenderQueue = false;
+                if (_isQueuingRenderRestart && !_isPanning && !IsDisposed)
+                {
+                    _ = TriggerQueuedRenderRestartAsync();
+                }
+            }
         }
 
         private void ToggleFullscreenSafely()
@@ -612,84 +634,92 @@ namespace FractalExplorer.Forms.Fractals
 
         private async Task RenderAsync()
         {
-            if (_canvas.Width <= 0 || _canvas.Height <= 0) return;
-
-            _renderCts?.Cancel();
-            _renderCts = new CancellationTokenSource();
-            var token = _renderCts.Token;
-            int sessionVersion = Volatile.Read(ref _renderSessionVersion);
-
-            ApplyUiToEngine();
-            decimal renderCenterX = _centerX;
-            decimal renderCenterY = _centerY;
-            decimal renderZoom = _zoom.Value;
-            _renderedCenterX = renderCenterX;
-            _renderedCenterY = renderCenterY;
-            _renderedZoom = renderZoom;
-
-            int width = _canvas.Width;
-            int height = _canvas.Height;
-            int totalSamples = _engine.SampleCount;
-            var renderStopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            byte[] pixels = new byte[width * height * 4];
+            await _renderExecutionLock.WaitAsync();
             try
             {
-                SetRenderingState(isRendering: true);
-                _engine.InitializeOrResetDensityBuffer(width, height);
-                var uiUpdateStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                int currentBatchSize = Math.Clamp(
-                    Math.Max(AdaptiveBatchMinSize, totalSamples / 120),
-                    AdaptiveBatchMinSize,
-                    Math.Min(AdaptiveBatchMaxSize, Math.Max(AdaptiveBatchMinSize, totalSamples)));
-                int minSamplesPerPresentedFrame = Math.Max(AdaptiveBatchMinSize, totalSamples / ProgressiveUiTargetFrames);
-                int lastPresentedSamples = 0;
+                if (_canvas.Width <= 0 || _canvas.Height <= 0) return;
 
-                while (_engine.ProcessedSamples < totalSamples)
-                {
-                    token.ThrowIfCancellationRequested();
-                    var batchStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                    await Task.Run(() => _engine.AccumulateSamplesBatch(token, currentBatchSize), token);
-                    batchStopwatch.Stop();
-                    token.ThrowIfCancellationRequested();
+                _renderCts?.Cancel();
+                _renderCts = new CancellationTokenSource();
+                var token = _renderCts.Token;
+                int sessionVersion = Volatile.Read(ref _renderSessionVersion);
 
-                    int processedSamples = _engine.ProcessedSamples;
-                    int progress = (int)Math.Round(processedSamples * 100.0 / Math.Max(1, totalSamples));
-                    UpdateRenderProgressSafe(Math.Clamp(progress, 0, 100));
-                    currentBatchSize = CalculateAdaptiveBatchSize(currentBatchSize, totalSamples, processedSamples, batchStopwatch.ElapsedMilliseconds);
-
-                    bool shouldPresentIntermediate = processedSamples >= totalSamples
-                        || uiUpdateStopwatch.ElapsedMilliseconds >= ProgressiveUiUpdateIntervalMs
-                        || processedSamples - lastPresentedSamples >= minSamplesPerPresentedFrame;
-                    if (!shouldPresentIntermediate)
-                    {
-                        continue;
-                    }
-
-                    await Task.Run(() => _engine.ConvertCurrentDensityToColor(pixels, width, height, width * 4, 4), token);
-                    if (sessionVersion != Volatile.Read(ref _renderSessionVersion))
-                    {
-                        throw new OperationCanceledException(token);
-                    }
-                    PresentRenderedBitmap(pixels, width, height);
-                    uiUpdateStopwatch.Restart();
-                    lastPresentedSamples = processedSamples;
-                }
-
-                UpdateRenderProgressSafe(100);
-                EndInteractivePreview();
+                ApplyUiToEngine();
+                decimal renderCenterX = _centerX;
+                decimal renderCenterY = _centerY;
+                decimal renderZoom = _zoom.Value;
                 _renderedCenterX = renderCenterX;
                 _renderedCenterY = renderCenterY;
                 _renderedZoom = renderZoom;
-                Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
-            }
-            catch (OperationCanceledException)
-            {
+
+                int width = _canvas.Width;
+                int height = _canvas.Height;
+                int totalSamples = _engine.SampleCount;
+                var renderStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                byte[] pixels = new byte[width * height * 4];
+                try
+                {
+                    SetRenderingState(isRendering: true);
+                    _engine.InitializeOrResetDensityBuffer(width, height);
+                    var uiUpdateStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    int currentBatchSize = Math.Clamp(
+                        Math.Max(AdaptiveBatchMinSize, totalSamples / 120),
+                        AdaptiveBatchMinSize,
+                        Math.Min(AdaptiveBatchMaxSize, Math.Max(AdaptiveBatchMinSize, totalSamples)));
+                    int minSamplesPerPresentedFrame = Math.Max(AdaptiveBatchMinSize, totalSamples / ProgressiveUiTargetFrames);
+                    int lastPresentedSamples = 0;
+
+                    while (_engine.ProcessedSamples < totalSamples)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var batchStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                        await Task.Run(() => _engine.AccumulateSamplesBatch(token, currentBatchSize), token);
+                        batchStopwatch.Stop();
+                        token.ThrowIfCancellationRequested();
+
+                        int processedSamples = _engine.ProcessedSamples;
+                        int progress = (int)Math.Round(processedSamples * 100.0 / Math.Max(1, totalSamples));
+                        UpdateRenderProgressSafe(Math.Clamp(progress, 0, 100));
+                        currentBatchSize = CalculateAdaptiveBatchSize(currentBatchSize, totalSamples, processedSamples, batchStopwatch.ElapsedMilliseconds);
+
+                        bool shouldPresentIntermediate = processedSamples >= totalSamples
+                            || uiUpdateStopwatch.ElapsedMilliseconds >= ProgressiveUiUpdateIntervalMs
+                            || processedSamples - lastPresentedSamples >= minSamplesPerPresentedFrame;
+                        if (!shouldPresentIntermediate)
+                        {
+                            continue;
+                        }
+
+                        await Task.Run(() => _engine.ConvertCurrentDensityToColor(pixels, width, height, width * 4, 4), token);
+                        if (sessionVersion != Volatile.Read(ref _renderSessionVersion))
+                        {
+                            throw new OperationCanceledException(token);
+                        }
+                        PresentRenderedBitmap(pixels, width, height);
+                        uiUpdateStopwatch.Restart();
+                        lastPresentedSamples = processedSamples;
+                    }
+
+                    UpdateRenderProgressSafe(100);
+                    EndInteractivePreview();
+                    _renderedCenterX = renderCenterX;
+                    _renderedCenterY = renderCenterY;
+                    _renderedZoom = renderZoom;
+                    Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                finally
+                {
+                    _engine.SampleCount = totalSamples;
+                    SetRenderingState(isRendering: false);
+                }
             }
             finally
             {
-                _engine.SampleCount = totalSamples;
-                SetRenderingState(isRendering: false);
+                _renderExecutionLock.Release();
             }
         }
 
@@ -866,7 +896,7 @@ namespace FractalExplorer.Forms.Fractals
             _sampleMaxIm.Value = Math.Clamp(s.SampleMaxIm, _sampleMaxIm.Minimum, _sampleMaxIm.Maximum);
             _paletteManager.ActivePalette = ResolvePaletteFromState(s);
 
-            _ = RenderAsync();
+            QueueRenderRestart(immediate: true);
         }
 
         public Bitmap RenderPreview(FractalSaveStateBase state, int previewWidth, int previewHeight)

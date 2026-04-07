@@ -46,7 +46,9 @@ namespace FractalExplorer.Forms.Fractals
         private bool _isUserResizingWindow;
         private bool _hasPendingCanvasResizeRender;
         private bool _isQueuingRenderRestart;
+        private bool _isProcessingRenderQueue;
         private bool _isHighResRendering;
+        private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
         private readonly FullscreenToggleController _fullscreenController = new();
         private Point _panStartPoint;
         private decimal _renderedAMin = DefaultAMin;
@@ -108,10 +110,10 @@ namespace FractalExplorer.Forms.Fractals
             AttachAutoRenderControlTriggers();
         }
 
-        private async void HandleFormShown(object? sender, EventArgs e)
+        private void HandleFormShown(object? sender, EventArgs e)
         {
             Shown -= HandleFormShown;
-            await RenderAsync();
+            QueueRenderRestart(immediate: true);
             _canvas.SizeChanged += Canvas_SizeChanged;
         }
 
@@ -269,13 +271,33 @@ namespace FractalExplorer.Forms.Fractals
 
         private async Task TriggerQueuedRenderRestartAsync()
         {
-            if (!_isQueuingRenderRestart || _isPanning)
+            if (_isProcessingRenderQueue || !_isQueuingRenderRestart)
             {
                 return;
             }
 
-            _isQueuingRenderRestart = false;
-            await RenderAsync();
+            _isProcessingRenderQueue = true;
+            try
+            {
+                while (_isQueuingRenderRestart && !IsDisposed)
+                {
+                    if (_isPanning)
+                    {
+                        break;
+                    }
+
+                    _isQueuingRenderRestart = false;
+                    await RenderAsync();
+                }
+            }
+            finally
+            {
+                _isProcessingRenderQueue = false;
+                if (_isQueuingRenderRestart && !_isPanning && !IsDisposed)
+                {
+                    _ = TriggerQueuedRenderRestartAsync();
+                }
+            }
         }
 
         private void Canvas_SizeChanged(object? sender, EventArgs e)
@@ -641,138 +663,146 @@ namespace FractalExplorer.Forms.Fractals
 
         private async Task RenderAsync()
         {
-            if (_canvas.Width <= 1 || _canvas.Height <= 1)
-            {
-                return;
-            }
-            var renderStopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            SyncEngine();
-            CancellationTokenSource renderSession = StartNewPreviewRender();
-            CancellationToken token = renderSession.Token;
-
-            int width = _canvas.Width;
-            int height = _canvas.Height;
-            int threads = GetThreadCount();
-            int ssaaFactor = GetSelectedSsaaFactor();
-            var tiles = GenerateTiles(width, height, PreviewTileSize);
-            decimal renderTargetAMin = _nudAMin.Value;
-            decimal renderTargetAMax = _nudAMax.Value;
-            decimal renderTargetBMin = _nudBMin.Value;
-            decimal renderTargetBMax = _nudBMax.Value;
-
-            var engine = new FractalLyapunovEngine
-            {
-                AMin = _engine.AMin,
-                AMax = _engine.AMax,
-                BMin = _engine.BMin,
-                BMax = _engine.BMax,
-                Pattern = _engine.Pattern,
-                Iterations = _engine.Iterations,
-                TransientIterations = _engine.TransientIterations,
-                ColorPalette = _engine.ColorPalette
-            };
-
-            LyapunovColoringContext? coloringContext = await Task.Run(() => engine.PrepareColoringContext(width, height, token), token);
-
-            Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            lock (_frameBufferLock)
-            {
-                _currentRenderingFrameBuffer?.Dispose();
-                _currentRenderingFrameBuffer = frame;
-                _currentRenderedTiles.Clear();
-            }
-            _canvas.Invalidate();
-
-            if (_pbRenderProgress.IsHandleCreated)
-            {
-                _pbRenderProgress.Maximum = Math.Max(1, tiles.Count);
-                _pbRenderProgress.Value = 0;
-            }
-
-            int completedTiles = 0;
-            var dispatcher = new TileRenderDispatcher(tiles, threads, RenderPatternSettings.SelectedPattern);
-            _renderVisualizer.NotifyRenderSessionStart();
-            _isRenderingPreview = true;
-
+            await _renderExecutionLock.WaitAsync();
             try
             {
-                await dispatcher.RenderAsync(async (tile, ct) =>
+                if (_canvas.Width <= 1 || _canvas.Height <= 1)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    _renderVisualizer.NotifyTileRenderStart(tile.Bounds);
+                    return;
+                }
+                var renderStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-                    byte[] tileBuffer = RenderTileWithSsaa(engine, tile, width, height, ssaaFactor, out int bytesPerPixel, coloringContext);
-                    ct.ThrowIfCancellationRequested();
+                SyncEngine();
+                CancellationTokenSource renderSession = StartNewPreviewRender();
+                CancellationToken token = renderSession.Token;
+
+                int width = _canvas.Width;
+                int height = _canvas.Height;
+                int threads = GetThreadCount();
+                int ssaaFactor = GetSelectedSsaaFactor();
+                var tiles = GenerateTiles(width, height, PreviewTileSize);
+                decimal renderTargetAMin = _nudAMin.Value;
+                decimal renderTargetAMax = _nudAMax.Value;
+                decimal renderTargetBMin = _nudBMin.Value;
+                decimal renderTargetBMax = _nudBMax.Value;
+
+                var engine = new FractalLyapunovEngine
+                {
+                    AMin = _engine.AMin,
+                    AMax = _engine.AMax,
+                    BMin = _engine.BMin,
+                    BMax = _engine.BMax,
+                    Pattern = _engine.Pattern,
+                    Iterations = _engine.Iterations,
+                    TransientIterations = _engine.TransientIterations,
+                    ColorPalette = _engine.ColorPalette
+                };
+
+                LyapunovColoringContext? coloringContext = await Task.Run(() => engine.PrepareColoringContext(width, height, token), token);
+
+                Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+                lock (_frameBufferLock)
+                {
+                    _currentRenderingFrameBuffer?.Dispose();
+                    _currentRenderingFrameBuffer = frame;
+                    _currentRenderedTiles.Clear();
+                }
+                _canvas.Invalidate();
+
+                if (_pbRenderProgress.IsHandleCreated)
+                {
+                    _pbRenderProgress.Maximum = Math.Max(1, tiles.Count);
+                    _pbRenderProgress.Value = 0;
+                }
+
+                int completedTiles = 0;
+                var dispatcher = new TileRenderDispatcher(tiles, threads, RenderPatternSettings.SelectedPattern);
+                _renderVisualizer.NotifyRenderSessionStart();
+                _isRenderingPreview = true;
+
+                try
+                {
+                    await dispatcher.RenderAsync(async (tile, ct) =>
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        _renderVisualizer.NotifyTileRenderStart(tile.Bounds);
+
+                        byte[] tileBuffer = RenderTileWithSsaa(engine, tile, width, height, ssaaFactor, out int bytesPerPixel, coloringContext);
+                        ct.ThrowIfCancellationRequested();
+
+                        lock (_frameBufferLock)
+                        {
+                            if (ct.IsCancellationRequested || _currentRenderingFrameBuffer != frame)
+                            {
+                                return;
+                            }
+
+                            WriteTileToBitmap(frame, tile, tileBuffer, bytesPerPixel);
+                            _currentRenderedTiles.Add(tile.Bounds);
+                        }
+
+                        int done = Interlocked.Increment(ref completedTiles);
+                        if (IsHandleCreated && !IsDisposed)
+                        {
+                            BeginInvoke((Action)(() =>
+                            {
+                                if (_pbRenderProgress.IsHandleCreated)
+                                {
+                                    _pbRenderProgress.Value = Math.Min(_pbRenderProgress.Maximum, done);
+                                }
+                                _canvas.Invalidate(tile.Bounds);
+                            }));
+                        }
+
+                        _renderVisualizer.NotifyTileRenderComplete(tile.Bounds);
+                        await Task.Yield();
+                    }, token);
+
+                    token.ThrowIfCancellationRequested();
 
                     lock (_frameBufferLock)
                     {
-                        if (ct.IsCancellationRequested || _currentRenderingFrameBuffer != frame)
+                        if (_currentRenderingFrameBuffer == frame)
                         {
-                            return;
+                            Bitmap? previousStable = _previewFrameBuffer;
+                            _previewFrameBuffer = frame;
+                            _currentRenderingFrameBuffer = null;
+                            _currentRenderedTiles.Clear();
+                            _renderedAMin = renderTargetAMin;
+                            _renderedAMax = renderTargetAMax;
+                            _renderedBMin = renderTargetBMin;
+                            _renderedBMax = renderTargetBMax;
+                            Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
+                            previousStable?.Dispose();
                         }
-
-                        WriteTileToBitmap(frame, tile, tileBuffer, bytesPerPixel);
-                        _currentRenderedTiles.Add(tile.Bounds);
                     }
-
-                    int done = Interlocked.Increment(ref completedTiles);
-                    if (IsHandleCreated && !IsDisposed)
+                }
+                catch (OperationCanceledException)
+                {
+                    lock (_frameBufferLock)
                     {
-                        BeginInvoke((Action)(() =>
+                        if (_currentRenderingFrameBuffer == frame)
                         {
-                            if (_pbRenderProgress.IsHandleCreated)
-                            {
-                                _pbRenderProgress.Value = Math.Min(_pbRenderProgress.Maximum, done);
-                            }
-                            _canvas.Invalidate(tile.Bounds);
-                        }));
+                            _currentRenderingFrameBuffer = null;
+                            _currentRenderedTiles.Clear();
+                        }
                     }
-
-                    _renderVisualizer.NotifyTileRenderComplete(tile.Bounds);
-                    await Task.Yield();
-                }, token);
-
-                token.ThrowIfCancellationRequested();
-
-                lock (_frameBufferLock)
+                    frame.Dispose();
+                }
+                finally
                 {
-                    if (_currentRenderingFrameBuffer == frame)
+                    if (ReferenceEquals(_previewRenderCts, renderSession))
                     {
-                        Bitmap? previousStable = _previewFrameBuffer;
-                        _previewFrameBuffer = frame;
-                        _currentRenderingFrameBuffer = null;
-                        _currentRenderedTiles.Clear();
-                        _renderedAMin = renderTargetAMin;
-                        _renderedAMax = renderTargetAMax;
-                        _renderedBMin = renderTargetBMin;
-                        _renderedBMax = renderTargetBMax;
-                        Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
-                        previousStable?.Dispose();
+                        _isRenderingPreview = false;
+                        _renderVisualizer.NotifyRenderSessionComplete();
+                        ClearPreviewRenderToken();
+                        _canvas.Invalidate();
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                lock (_frameBufferLock)
-                {
-                    if (_currentRenderingFrameBuffer == frame)
-                    {
-                        _currentRenderingFrameBuffer = null;
-                        _currentRenderedTiles.Clear();
-                    }
-                }
-                frame.Dispose();
             }
             finally
             {
-                if (ReferenceEquals(_previewRenderCts, renderSession))
-                {
-                    _isRenderingPreview = false;
-                    _renderVisualizer.NotifyRenderSessionComplete();
-                    ClearPreviewRenderToken();
-                    _canvas.Invalidate();
-                }
+                _renderExecutionLock.Release();
             }
         }
 
@@ -919,9 +949,9 @@ namespace FractalExplorer.Forms.Fractals
             }
         }
 
-        private async void btnRender_Click(object sender, EventArgs e)
+        private void btnRender_Click(object sender, EventArgs e)
         {
-            await RenderAsync();
+            QueueRenderRestart(immediate: true);
         }
 
         private void btnPresets_Click(object sender, EventArgs e)
@@ -1134,7 +1164,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == lyapunov.PaletteName) ?? _paletteManager.ActivePalette;
             }
-            _ = RenderAsync();
+            QueueRenderRestart(immediate: true);
         }
 
         public Bitmap RenderPreview(FractalSaveStateBase state, int previewWidth, int previewHeight)
