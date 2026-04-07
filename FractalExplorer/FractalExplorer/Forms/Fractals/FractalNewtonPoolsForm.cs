@@ -27,7 +27,7 @@ namespace FractalExplorer
         /// <summary>
         /// Экземпляр движка для рендеринга фрактала Ньютона.
         /// </summary>
-        private readonly FractalNewtonEngine _engine;
+        private readonly FractalNewtonIterativeEngine _engine;
 
         /// <summary>
         /// Таймер для отложенного запуска рендеринга, чтобы избежать частых перерисовок.
@@ -198,7 +198,7 @@ namespace FractalExplorer
             InitializeComponent();
             KeyPreview = true;
             ThemeManager.RegisterForm(this);
-            _engine = new FractalNewtonEngine();
+            _engine = new FractalNewtonIterativeEngine();
             _renderDebounceTimer = new System.Windows.Forms.Timer { Interval = 350 };
             _paletteManager = new NewtonPaletteManager();
             InitializeForm();
@@ -237,6 +237,19 @@ namespace FractalExplorer
 
             nudIterations.ValueChanged += (s, e) => ScheduleRender();
             cbThreads.SelectedIndexChanged += (s, e) => ScheduleRender();
+            cbMethod.SelectedIndex = 0;
+            nudHouseholderOrder.Minimum = 2;
+            nudHouseholderOrder.Maximum = 12;
+            nudHouseholderOrder.Value = 3;
+
+            cbMethod.SelectedIndexChanged += (s, e) =>
+            {
+                bool isHouseholder = GetSelectedIterationMethod() == NewtonIterationMethod.Householder;
+                nudHouseholderOrder.Enabled = isHouseholder;
+                lblHouseholderOrder.Enabled = isHouseholder;
+                ScheduleRender();
+            };
+            nudHouseholderOrder.ValueChanged += (s, e) => ScheduleRender();
             nudZoom.ValueChanged += (s, e) => { _zoom = (double)nudZoom.Value; ScheduleRender(); };
             cbSelector.SelectedIndexChanged += cbSelector_SelectedIndexChanged;
             richTextInput.TextChanged += (s, e) => UpdateFormulaAccentState();
@@ -937,7 +950,19 @@ namespace FractalExplorer
             _engine.CenterX = _centerX;
             _engine.CenterY = _centerY;
             _engine.Scale = BASE_SCALE / _zoom;
+            _engine.IterationMethod = GetSelectedIterationMethod();
+            _engine.HouseholderOrder = (int)nudHouseholderOrder.Value;
             ApplyActivePalette();
+        }
+
+        private NewtonIterationMethod GetSelectedIterationMethod()
+        {
+            return cbMethod.SelectedIndex switch
+            {
+                1 => NewtonIterationMethod.Halley,
+                2 => NewtonIterationMethod.Householder,
+                _ => NewtonIterationMethod.Newton
+            };
         }
 
         /// <summary>
@@ -1042,6 +1067,8 @@ namespace FractalExplorer
             /// Снимок палитры.
             /// </summary>
             public NewtonColorPalette PaletteSnapshot { get; set; }
+            public NewtonIterationMethod IterationMethod { get; set; } = NewtonIterationMethod.Newton;
+            public int HouseholderOrder { get; set; } = 3;
         }
 
         /// <inheritdoc />
@@ -1060,7 +1087,9 @@ namespace FractalExplorer
                 CenterY = (decimal)_centerY,
                 Zoom = (decimal)_zoom,
                 Iterations = (int)nudIterations.Value,
-                PaletteSnapshot = _paletteManager.ActivePalette
+                PaletteSnapshot = _paletteManager.ActivePalette,
+                IterationMethod = GetSelectedIterationMethod(),
+                HouseholderOrder = (int)nudHouseholderOrder.Value
             };
 
             var previewParams = new NewtonPreviewParams
@@ -1070,7 +1099,9 @@ namespace FractalExplorer
                 CenterY = state.CenterY,
                 Zoom = state.Zoom,
                 Iterations = Math.Min(state.Iterations, 50),
-                PaletteSnapshot = state.PaletteSnapshot
+                PaletteSnapshot = state.PaletteSnapshot,
+                IterationMethod = state.IterationMethod,
+                HouseholderOrder = state.HouseholderOrder
             };
 
             var jsonOptions = new JsonSerializerOptions();
@@ -1098,6 +1129,14 @@ namespace FractalExplorer
                 nudIterations.Value = state.Iterations;
 
                 _paletteManager.ActivePalette = state.PaletteSnapshot;
+
+                cbMethod.SelectedIndex = state.IterationMethod switch
+                {
+                    NewtonIterationMethod.Halley => 1,
+                    NewtonIterationMethod.Householder => 2,
+                    _ => 0
+                };
+                nudHouseholderOrder.Value = Math.Max(nudHouseholderOrder.Minimum, Math.Min(nudHouseholderOrder.Maximum, state.HouseholderOrder));
 
                 UpdateEngineParameters();
 
@@ -1135,13 +1174,15 @@ namespace FractalExplorer
                 }
                 catch { return new byte[tile.Bounds.Width * tile.Bounds.Height * 4]; }
 
-                var previewEngine = new FractalNewtonEngine();
+                var previewEngine = new FractalNewtonIterativeEngine();
                 if (!previewEngine.SetFormula(previewParams.Formula, out _)) return new byte[tile.Bounds.Width * tile.Bounds.Height * 4];
 
                 previewEngine.CenterX = (double)previewParams.CenterX;
                 previewEngine.CenterY = (double)previewParams.CenterY;
                 previewEngine.Scale = 3.0 / (double)previewParams.Zoom;
                 previewEngine.MaxIterations = 150;
+                previewEngine.IterationMethod = previewParams.IterationMethod;
+                previewEngine.HouseholderOrder = previewParams.HouseholderOrder;
 
                 var palette = previewParams.PaletteSnapshot;
                 previewEngine.BackgroundColor = palette.BackgroundColor;
@@ -1176,7 +1217,7 @@ namespace FractalExplorer
                 return bmpError;
             }
 
-            var previewEngine = new FractalNewtonEngine();
+            var previewEngine = new FractalNewtonIterativeEngine();
             if (!previewEngine.SetFormula(previewParams.Formula, out _))
             {
                 var bmpError = new Bitmap(previewWidth, previewHeight);
@@ -1189,6 +1230,8 @@ namespace FractalExplorer
             if (previewParams.Zoom == 0) previewParams.Zoom = 0.001m;
             previewEngine.Scale = 3.0 / (double)previewParams.Zoom;
             previewEngine.MaxIterations = previewParams.Iterations;
+            previewEngine.IterationMethod = previewParams.IterationMethod;
+            previewEngine.HouseholderOrder = previewParams.HouseholderOrder;
 
             var palette = previewParams.PaletteSnapshot;
             previewEngine.BackgroundColor = palette.BackgroundColor;
@@ -1245,7 +1288,7 @@ namespace FractalExplorer
                 Zoom = (decimal)_zoom,
                 BaseScale = (decimal)BASE_SCALE,
                 Iterations = (int)nudIterations.Value,
-                FileNameDetails = "newton_fractal",
+                FileNameDetails = $"newton_{GetSelectedIterationMethod().ToString().ToLowerInvariant()}",
             };
             return state;
         }
@@ -1257,9 +1300,9 @@ namespace FractalExplorer
         /// <param name="forPreview">Указывает, создается ли движок для предпросмотра (с меньшим числом итераций).</param>
         /// <returns>Настроенный экземпляр <see cref="FractalNewtonEngine"/>.</returns>
         /// <exception cref="InvalidOperationException">Вызывается, если формула некорректна.</exception>
-        private FractalNewtonEngine CreateEngineFromState(HighResRenderState state, bool forPreview)
+        private FractalNewtonIterativeEngine CreateEngineFromState(HighResRenderState state, bool forPreview)
         {
-            var engine = new FractalNewtonEngine();
+            var engine = new FractalNewtonIterativeEngine();
 
             if (!engine.SetFormula(richTextInput.Text, out _))
             {
@@ -1269,6 +1312,8 @@ namespace FractalExplorer
             engine.CenterX = (double)state.CenterX;
             engine.CenterY = (double)state.CenterY;
             engine.Scale = (double)state.BaseScale / (double)state.Zoom;
+            engine.IterationMethod = GetSelectedIterationMethod();
+            engine.HouseholderOrder = (int)nudHouseholderOrder.Value;
 
             if (forPreview)
             {
@@ -1295,7 +1340,7 @@ namespace FractalExplorer
             _isHighResRendering = true;
             try
             {
-                FractalNewtonEngine renderEngine = CreateEngineFromState(state, forPreview: false);
+                FractalNewtonIterativeEngine renderEngine = CreateEngineFromState(state, forPreview: false);
                 int threadCount = GetThreadCount();
 
                 Action<int> progressCallback = p => progress.Report(new RenderProgress { Percentage = p, Status = "Рендеринг..." });

@@ -1,4 +1,5 @@
-﻿using FractalExplorer.Utilities.SaveIO.ColorPalettes;
+﻿using FractalExplorer.Engines;
+using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 
 namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
 {
@@ -40,6 +41,16 @@ namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
         /// Это позволяет точно воспроизвести цвета, даже если исходная палитра изменится или будет удалена.
         /// </summary>
         public NewtonColorPalette PaletteSnapshot { get; set; }
+
+        /// <summary>
+        /// Выбранный метод итерации для построения бассейнов.
+        /// </summary>
+        public NewtonIterationMethod IterationMethod { get; set; } = NewtonIterationMethod.Newton;
+
+        /// <summary>
+        /// Порядок метода Householder (используется только для Householder-режима).
+        /// </summary>
+        public int HouseholderOrder { get; set; } = 3;
 
         /// <summary>
         /// Инициализирует новый экземпляр класса <see cref="NewtonSaveState"/>.

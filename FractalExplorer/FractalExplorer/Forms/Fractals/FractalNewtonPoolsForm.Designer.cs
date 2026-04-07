@@ -48,6 +48,10 @@
             lblZoom = new Label();
             cbThreads = new ComboBox();
             lblThreads = new Label();
+            cbMethod = new ComboBox();
+            lblMethod = new Label();
+            nudHouseholderOrder = new NumericUpDown();
+            lblHouseholderOrder = new Label();
             btnSave = new Button();
             btnConfigurePalette = new Button();
             btnRender = new Button();
@@ -66,6 +70,7 @@
             pnlFormulaInput.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)nudIterations).BeginInit();
             ((System.ComponentModel.ISupportInitialize)nudZoom).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)nudHouseholderOrder).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fractal_bitmap).BeginInit();
             SuspendLayout();
             // 
@@ -130,21 +135,27 @@
             pnlControls.Controls.Add(lblZoom, 1, 5);
             pnlControls.Controls.Add(cbThreads, 0, 6);
             pnlControls.Controls.Add(lblThreads, 1, 6);
-            pnlControls.Controls.Add(btnSave, 0, 7);
-            pnlControls.Controls.Add(btnConfigurePalette, 0, 8);
-            pnlControls.Controls.Add(btnRender, 0, 9);
-            pnlControls.Controls.Add(btnStateManager, 0, 10);
-            pnlControls.Controls.Add(lblProgress, 0, 11);
-            pnlControls.Controls.Add(progressBar, 0, 12);
-            pnlControls.Controls.Add(lblDebug, 0, 13);
-            pnlControls.Controls.Add(richTextDebugOutput, 0, 14);
+            pnlControls.Controls.Add(cbMethod, 0, 7);
+            pnlControls.Controls.Add(lblMethod, 1, 7);
+            pnlControls.Controls.Add(nudHouseholderOrder, 0, 8);
+            pnlControls.Controls.Add(lblHouseholderOrder, 1, 8);
+            pnlControls.Controls.Add(btnSave, 0, 9);
+            pnlControls.Controls.Add(btnConfigurePalette, 0, 10);
+            pnlControls.Controls.Add(btnRender, 0, 11);
+            pnlControls.Controls.Add(btnStateManager, 0, 12);
+            pnlControls.Controls.Add(lblProgress, 0, 13);
+            pnlControls.Controls.Add(progressBar, 0, 14);
+            pnlControls.Controls.Add(lblDebug, 0, 15);
+            pnlControls.Controls.Add(richTextDebugOutput, 0, 16);
             pnlControls.Dock = DockStyle.Fill;
             pnlControls.Location = new Point(0, 0);
             pnlControls.Name = "pnlControls";
-            pnlControls.RowCount = 16;
+            pnlControls.RowCount = 18;
             pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F));
             pnlControls.RowStyles.Add(new RowStyle());
             pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 115F));
+            pnlControls.RowStyles.Add(new RowStyle());
+            pnlControls.RowStyles.Add(new RowStyle());
             pnlControls.RowStyles.Add(new RowStyle());
             pnlControls.RowStyles.Add(new RowStyle());
             pnlControls.RowStyles.Add(new RowStyle());
@@ -310,15 +321,61 @@
             lblThreads.Text = "Потоки ЦП";
             lblThreads.TextAlign = ContentAlignment.MiddleLeft;
             // 
+            // 
+            // cbMethod
+            // 
+            cbMethod.Dock = DockStyle.Fill;
+            cbMethod.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbMethod.FormattingEnabled = true;
+            cbMethod.Items.AddRange(new object[] { "Newton", "Halley", "Householder" });
+            cbMethod.Location = new Point(6, 288);
+            cbMethod.Margin = new Padding(6, 3, 3, 3);
+            cbMethod.Name = "cbMethod";
+            cbMethod.Size = new Size(118, 23);
+            cbMethod.TabIndex = 10;
+            // 
+            // lblMethod
+            // 
+            lblMethod.AutoSize = true;
+            lblMethod.Dock = DockStyle.Fill;
+            lblMethod.Location = new Point(130, 285);
+            lblMethod.Name = "lblMethod";
+            lblMethod.Size = new Size(98, 29);
+            lblMethod.TabIndex = 11;
+            lblMethod.Text = "Метод";
+            lblMethod.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // nudHouseholderOrder
+            // 
+            nudHouseholderOrder.Dock = DockStyle.Fill;
+            nudHouseholderOrder.Location = new Point(6, 317);
+            nudHouseholderOrder.Margin = new Padding(6, 3, 3, 3);
+            nudHouseholderOrder.Minimum = new decimal(new int[] { 2, 0, 0, 0 });
+            nudHouseholderOrder.Name = "nudHouseholderOrder";
+            nudHouseholderOrder.Size = new Size(118, 23);
+            nudHouseholderOrder.TabIndex = 12;
+            nudHouseholderOrder.Value = new decimal(new int[] { 3, 0, 0, 0 });
+            // 
+            // lblHouseholderOrder
+            // 
+            lblHouseholderOrder.AutoSize = true;
+            lblHouseholderOrder.Dock = DockStyle.Fill;
+            lblHouseholderOrder.Location = new Point(130, 314);
+            lblHouseholderOrder.Name = "lblHouseholderOrder";
+            lblHouseholderOrder.Size = new Size(98, 29);
+            lblHouseholderOrder.TabIndex = 13;
+            lblHouseholderOrder.Text = "Порядок";
+            lblHouseholderOrder.TextAlign = ContentAlignment.MiddleLeft;
+            // 
             // btnSave
             // 
             pnlControls.SetColumnSpan(btnSave, 2);
             btnSave.Dock = DockStyle.Fill;
-            btnSave.Location = new Point(6, 288);
+            btnSave.Location = new Point(6, 346);
             btnSave.Margin = new Padding(6, 3, 6, 3);
             btnSave.Name = "btnSave";
             btnSave.Size = new Size(219, 39);
-            btnSave.TabIndex = 10;
+            btnSave.TabIndex = 14;
             btnSave.Text = "Сохранить изображение";
             btnSave.UseVisualStyleBackColor = true;
             btnSave.Click += btnOpenSaveManager_Click;
@@ -327,11 +384,11 @@
             // 
             pnlControls.SetColumnSpan(btnConfigurePalette, 2);
             btnConfigurePalette.Dock = DockStyle.Fill;
-            btnConfigurePalette.Location = new Point(6, 333);
+            btnConfigurePalette.Location = new Point(6, 391);
             btnConfigurePalette.Margin = new Padding(6, 3, 6, 3);
             btnConfigurePalette.Name = "btnConfigurePalette";
             btnConfigurePalette.Size = new Size(219, 39);
-            btnConfigurePalette.TabIndex = 11;
+            btnConfigurePalette.TabIndex = 15;
             btnConfigurePalette.Text = "Настроить палитру";
             btnConfigurePalette.UseVisualStyleBackColor = true;
             // 
@@ -339,11 +396,11 @@
             // 
             pnlControls.SetColumnSpan(btnRender, 2);
             btnRender.Dock = DockStyle.Fill;
-            btnRender.Location = new Point(6, 378);
+            btnRender.Location = new Point(6, 436);
             btnRender.Margin = new Padding(6, 3, 6, 3);
             btnRender.Name = "btnRender";
             btnRender.Size = new Size(219, 39);
-            btnRender.TabIndex = 12;
+            btnRender.TabIndex = 16;
             btnRender.Text = "Запустить рендер";
             btnRender.UseVisualStyleBackColor = true;
             // 
@@ -351,11 +408,11 @@
             // 
             pnlControls.SetColumnSpan(btnStateManager, 2);
             btnStateManager.Dock = DockStyle.Fill;
-            btnStateManager.Location = new Point(6, 423);
+            btnStateManager.Location = new Point(6, 481);
             btnStateManager.Margin = new Padding(6, 3, 6, 3);
             btnStateManager.Name = "btnStateManager";
             btnStateManager.Size = new Size(219, 39);
-            btnStateManager.TabIndex = 13;
+            btnStateManager.TabIndex = 17;
             btnStateManager.Text = "Менеджер сохранений";
             btnStateManager.UseVisualStyleBackColor = true;
             btnStateManager.Click += btnStateManager_Click;
@@ -365,10 +422,10 @@
             lblProgress.AutoSize = true;
             pnlControls.SetColumnSpan(lblProgress, 2);
             lblProgress.Dock = DockStyle.Fill;
-            lblProgress.Location = new Point(3, 465);
+            lblProgress.Location = new Point(3, 523);
             lblProgress.Name = "lblProgress";
             lblProgress.Size = new Size(225, 20);
-            lblProgress.TabIndex = 14;
+            lblProgress.TabIndex = 18;
             lblProgress.Text = "Обработка";
             lblProgress.TextAlign = ContentAlignment.BottomCenter;
             // 
@@ -376,21 +433,21 @@
             // 
             pnlControls.SetColumnSpan(progressBar, 2);
             progressBar.Dock = DockStyle.Fill;
-            progressBar.Location = new Point(6, 488);
+            progressBar.Location = new Point(6, 546);
             progressBar.Margin = new Padding(6, 3, 6, 3);
             progressBar.Name = "progressBar";
             progressBar.Size = new Size(219, 24);
-            progressBar.TabIndex = 15;
+            progressBar.TabIndex = 19;
             // 
             // lblDebug
             // 
             lblDebug.AutoSize = true;
             pnlControls.SetColumnSpan(lblDebug, 2);
             lblDebug.Dock = DockStyle.Fill;
-            lblDebug.Location = new Point(3, 515);
+            lblDebug.Location = new Point(3, 573);
             lblDebug.Name = "lblDebug";
             lblDebug.Size = new Size(225, 20);
-            lblDebug.TabIndex = 16;
+            lblDebug.TabIndex = 20;
             lblDebug.Text = "Отладка";
             lblDebug.TextAlign = ContentAlignment.BottomCenter;
             // 
@@ -398,12 +455,12 @@
             // 
             pnlControls.SetColumnSpan(richTextDebugOutput, 2);
             richTextDebugOutput.Dock = DockStyle.Fill;
-            richTextDebugOutput.Location = new Point(6, 538);
+            richTextDebugOutput.Location = new Point(6, 596);
             richTextDebugOutput.Margin = new Padding(6, 3, 6, 3);
             richTextDebugOutput.Name = "richTextDebugOutput";
             richTextDebugOutput.ReadOnly = true;
             richTextDebugOutput.Size = new Size(219, 87);
-            richTextDebugOutput.TabIndex = 17;
+            richTextDebugOutput.TabIndex = 21;
             richTextDebugOutput.Text = "";
             // 
             // fractal_bitmap
@@ -435,6 +492,7 @@
             pnlFormulaInput.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)nudIterations).EndInit();
             ((System.ComponentModel.ISupportInitialize)nudZoom).EndInit();
+            ((System.ComponentModel.ISupportInitialize)nudHouseholderOrder).EndInit();
             ((System.ComponentModel.ISupportInitialize)fractal_bitmap).EndInit();
             ResumeLayout(false);
         }
@@ -459,6 +517,10 @@
         private System.Windows.Forms.Label lblZoom;
         private System.Windows.Forms.ComboBox cbThreads;
         private System.Windows.Forms.Label lblThreads;
+        private System.Windows.Forms.ComboBox cbMethod;
+        private System.Windows.Forms.Label lblMethod;
+        private System.Windows.Forms.NumericUpDown nudHouseholderOrder;
+        private System.Windows.Forms.Label lblHouseholderOrder;
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnConfigurePalette;
         private System.Windows.Forms.Button btnRender;
