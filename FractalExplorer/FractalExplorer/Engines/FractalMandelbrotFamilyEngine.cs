@@ -265,20 +265,24 @@ namespace FractalExplorer.Engines
         {
             if (iter >= MaxIterations)
             {
-                return Color.FromArgb(7, 10, 18);
+                return ResolveInteriorColor();
             }
 
             double t = smoothValue / Math.Max(1.0, MaxIterations);
             t = Math.Max(0.0, Math.Min(1.0, t));
 
-            int r = (int)Math.Round(9.0 * (1.0 - t) * t * t * t * 255.0);
-            int g = (int)Math.Round(15.0 * (1.0 - t) * (1.0 - t) * t * t * 255.0);
-            int b = (int)Math.Round(8.5 * (1.0 - t) * (1.0 - t) * (1.0 - t) * t * 255.0);
+            double polynomialMapped = 9.0 * (1.0 - t) * t * t * t
+                + 15.0 * (1.0 - t) * (1.0 - t) * t * t
+                + 8.5 * (1.0 - t) * (1.0 - t) * (1.0 - t) * t;
+            polynomialMapped = Math.Max(0.0, Math.Min(1.0, polynomialMapped));
 
-            r = Math.Max(0, Math.Min(255, r));
-            g = Math.Max(0, Math.Min(255, g));
-            b = Math.Max(0, Math.Min(255, b));
-            return Color.FromArgb(r, g, b);
+            if (SmoothPalette != null)
+            {
+                return SmoothPalette(polynomialMapped * MaxColorIterations);
+            }
+
+            int paletteIter = (int)Math.Round(polynomialMapped * MaxColorIterations);
+            return Palette(paletteIter, MaxIterations, MaxColorIterations);
         }
 
         private void ComputePixelMetricsDecimal(decimal re, decimal im, out int iter, out ComplexDecimal z, out double orbitTrapMetric, out double stripeMetric)
