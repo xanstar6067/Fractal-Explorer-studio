@@ -52,7 +52,7 @@ namespace FractalExplorer.Forms.Fractals
 
                 _canvasBitmap?.Dispose();
                 _canvasBitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-                pictureBoxGrid.Image = _canvasBitmap;
+                ReplacePreviewImage((Bitmap)_canvasBitmap.Clone());
 
                 progressBar.Minimum = 0;
                 progressBar.Maximum = tiles.Count;
@@ -78,7 +78,7 @@ namespace FractalExplorer.Forms.Fractals
                     {
                         progressBar.Value = Math.Min(progressBar.Maximum, current);
                         lblStatus.Text = $"Отрисовано {current}/{tiles.Count} клеток";
-                        pictureBoxGrid.Invalidate();
+                        UpdatePreviewImage();
                     });
 
                     await Task.CompletedTask;
@@ -150,14 +150,14 @@ namespace FractalExplorer.Forms.Fractals
             BitmapData? canvasData = null;
             try
             {
-                tileData = tileBitmap.LockBits(new Rectangle(0, 0, tileBitmap.Width, tileBitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                canvasData = _canvasBitmap.LockBits(tileRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-
-                int rowBytes = tileRect.Width * 4;
-                byte[] rowBuffer = new byte[rowBytes];
-
                 lock (_bitmapLock)
                 {
+                    tileData = tileBitmap.LockBits(new Rectangle(0, 0, tileBitmap.Width, tileBitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                    canvasData = _canvasBitmap.LockBits(tileRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+                    int rowBytes = tileRect.Width * 4;
+                    byte[] rowBuffer = new byte[rowBytes];
+
                     for (int y = 0; y < tileRect.Height; y++)
                     {
                         IntPtr src = tileData.Scan0 + (y * tileData.Stride);
@@ -206,6 +206,29 @@ namespace FractalExplorer.Forms.Fractals
 
         private static int ClampByte(int value) => Math.Max(0, Math.Min(255, value));
 
+        private void UpdatePreviewImage()
+        {
+            if (_canvasBitmap == null)
+            {
+                return;
+            }
+
+            Bitmap preview;
+            lock (_bitmapLock)
+            {
+                preview = (Bitmap)_canvasBitmap.Clone();
+            }
+
+            ReplacePreviewImage(preview);
+        }
+
+        private void ReplacePreviewImage(Bitmap newImage)
+        {
+            Image? oldImage = pictureBoxGrid.Image;
+            pictureBoxGrid.Image = newImage;
+            oldImage?.Dispose();
+        }
+
         private void btnExportCanvas_Click(object sender, EventArgs e)
         {
             if (_canvasBitmap == null)
@@ -229,8 +252,22 @@ namespace FractalExplorer.Forms.Fractals
                 ? ImageFormat.Jpeg
                 : ImageFormat.Png;
 
-            _canvasBitmap.Save(sfd.FileName, format);
+            using Bitmap exportBitmap = CloneCanvasBitmap();
+            exportBitmap.Save(sfd.FileName, format);
             lblStatus.Text = $"Экспортировано: {sfd.FileName}";
+        }
+
+        private Bitmap CloneCanvasBitmap()
+        {
+            if (_canvasBitmap == null)
+            {
+                throw new InvalidOperationException("Холст не инициализирован.");
+            }
+
+            lock (_bitmapLock)
+            {
+                return (Bitmap)_canvasBitmap.Clone();
+            }
         }
 
         private void pictureBoxGrid_MouseClick(object sender, MouseEventArgs e)
