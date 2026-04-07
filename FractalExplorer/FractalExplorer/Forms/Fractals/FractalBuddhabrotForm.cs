@@ -24,6 +24,7 @@ namespace FractalExplorer.Forms.Fractals
         private const int AdaptiveBatchTargetMinMs = 45;
         private const int AdaptiveBatchTargetMaxMs = 140;
         private const int ProgressiveUiTargetFrames = 24;
+        private const int InteractivePreviewFrameIntervalMs = 16;
         private const string AutoThreadOptionText = "Авто";
 
         private readonly FractalBuddhabrotEngine _engine = new();
@@ -43,6 +44,11 @@ namespace FractalExplorer.Forms.Fractals
         private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
         private Point _panStartPoint;
         private Bitmap? _interactionSourceBitmap;
+        private Bitmap? _interactivePreviewBitmap;
+        private Bitmap? _displayBitmap;
+        private readonly System.Windows.Forms.Timer _interactivePreviewTimer = new() { Interval = InteractivePreviewFrameIntervalMs };
+        private long _lastInstantPreviewTimestamp;
+        private bool _instantPreviewQueued;
         private decimal _interactionSourceCenterX;
         private decimal _interactionSourceCenterY;
         private decimal _interactionSourceZoom = 1.0m;
@@ -82,6 +88,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
             _canvas.SizeChanged += Canvas_SizeChanged;
             _renderRestartTimer.Tick += RenderRestartTimer_Tick;
+            _interactivePreviewTimer.Tick += InteractivePreviewTimer_Tick;
             _btnSaveImage.Click += BtnSaveImage_Click;
             KeyDown += Form_KeyDown;
             AttachAutoRenderControlTriggers();
@@ -101,10 +108,17 @@ namespace FractalExplorer.Forms.Fractals
             _renderRestartTimer.Stop();
             _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
             _renderRestartTimer.Dispose();
+            _interactivePreviewTimer.Stop();
+            _interactivePreviewTimer.Tick -= InteractivePreviewTimer_Tick;
+            _interactivePreviewTimer.Dispose();
             _buddhabrotColorConfigForm?.Dispose();
             _buddhabrotColorConfigForm = null;
             _interactionSourceBitmap?.Dispose();
             _interactionSourceBitmap = null;
+            _interactivePreviewBitmap?.Dispose();
+            _interactivePreviewBitmap = null;
+            _displayBitmap?.Dispose();
+            _displayBitmap = null;
         }
 
         private void BtnRender_Click(object? sender, EventArgs e)
@@ -287,12 +301,29 @@ namespace FractalExplorer.Forms.Fractals
 
         private void ApplyInstantViewportPreview()
         {
+            long now = Environment.TickCount64;
+            long elapsed = now - _lastInstantPreviewTimestamp;
+            if (elapsed < InteractivePreviewFrameIntervalMs)
+            {
+                _instantPreviewQueued = true;
+                int nextInterval = (int)Math.Max(1, InteractivePreviewFrameIntervalMs - elapsed);
+                _interactivePreviewTimer.Interval = nextInterval;
+                _interactivePreviewTimer.Start();
+                return;
+            }
+
+            ApplyInstantViewportPreviewCore();
+            _lastInstantPreviewTimestamp = Environment.TickCount64;
+        }
+
+        private void ApplyInstantViewportPreviewCore()
+        {
             if (_canvas.Width <= 0 || _canvas.Height <= 0 || _interactionSourceBitmap == null)
             {
                 return;
             }
 
-            using var preview = new Bitmap(_canvas.Width, _canvas.Height, PixelFormat.Format32bppArgb);
+            Bitmap preview = GetOrCreatePreviewBitmap(_canvas.Width, _canvas.Height);
             using (Graphics g = Graphics.FromImage(preview))
             {
                 g.Clear(Color.Black);
@@ -313,12 +344,73 @@ namespace FractalExplorer.Forms.Fractals
                 g.DrawImage(_interactionSourceBitmap, drawX, drawY, newWidth, newHeight);
             }
 
-            Bitmap? old = _canvas.Image as Bitmap;
-            _canvas.Image = (Bitmap)preview.Clone();
-            if (!ReferenceEquals(old, _interactionSourceBitmap))
+            Bitmap display = GetOrCreateDisplayBitmap(_canvas.Width, _canvas.Height);
+            using Graphics displayGraphics = Graphics.FromImage(display);
+            displayGraphics.CompositingMode = CompositingMode.SourceCopy;
+            displayGraphics.DrawImageUnscaled(preview, 0, 0);
+            _canvas.Invalidate();
+        }
+
+        private void InteractivePreviewTimer_Tick(object? sender, EventArgs e)
+        {
+            _interactivePreviewTimer.Stop();
+            if (!_instantPreviewQueued || IsDisposed)
             {
-                old?.Dispose();
+                return;
             }
+
+            _instantPreviewQueued = false;
+            ApplyInstantViewportPreviewCore();
+            _lastInstantPreviewTimestamp = Environment.TickCount64;
+        }
+
+        private Bitmap GetOrCreatePreviewBitmap(int width, int height)
+        {
+            if (_interactivePreviewBitmap != null
+                && _interactivePreviewBitmap.Width == width
+                && _interactivePreviewBitmap.Height == height)
+            {
+                return _interactivePreviewBitmap;
+            }
+
+            _interactivePreviewBitmap?.Dispose();
+            _interactivePreviewBitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            return _interactivePreviewBitmap;
+        }
+
+        private Bitmap GetOrCreateDisplayBitmap(int width, int height)
+        {
+            if (_displayBitmap != null
+                && _displayBitmap.Width == width
+                && _displayBitmap.Height == height)
+            {
+                if (!ReferenceEquals(_canvas.Image, _displayBitmap))
+                {
+                    Bitmap? old = _canvas.Image as Bitmap;
+                    _canvas.Image = _displayBitmap;
+                    if (!ReferenceEquals(old, _interactionSourceBitmap) && !ReferenceEquals(old, _displayBitmap))
+                    {
+                        old?.Dispose();
+                    }
+                }
+
+                return _displayBitmap;
+            }
+
+            Bitmap? oldDisplay = _displayBitmap;
+            Bitmap? oldCanvasImage = _canvas.Image as Bitmap;
+            _displayBitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            _canvas.Image = _displayBitmap;
+
+            if (!ReferenceEquals(oldCanvasImage, _interactionSourceBitmap)
+                && !ReferenceEquals(oldCanvasImage, oldDisplay)
+                && !ReferenceEquals(oldCanvasImage, _displayBitmap))
+            {
+                oldCanvasImage?.Dispose();
+            }
+
+            oldDisplay?.Dispose();
+            return _displayBitmap;
         }
 
         private void EnsureActivePalette()
@@ -778,23 +870,18 @@ namespace FractalExplorer.Forms.Fractals
 
         private void PresentRenderedBitmap(byte[] pixels, int width, int height)
         {
-            using var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            Bitmap display = GetOrCreateDisplayBitmap(width, height);
+            BitmapData data = display.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
             try
             {
                 Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
             }
             finally
             {
-                bmp.UnlockBits(data);
+                display.UnlockBits(data);
             }
 
-            Bitmap? old = _canvas.Image as Bitmap;
-            _canvas.Image = (Bitmap)bmp.Clone();
-            if (!ReferenceEquals(old, _interactionSourceBitmap))
-            {
-                old?.Dispose();
-            }
+            _canvas.Invalidate();
         }
 
         private void UpdateRenderProgressSafe(int value)
