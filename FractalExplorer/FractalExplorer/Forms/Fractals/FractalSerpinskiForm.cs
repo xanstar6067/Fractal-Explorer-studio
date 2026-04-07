@@ -99,6 +99,7 @@ namespace FractalExplorer
         private bool _suppressResizeRender = false;
         private readonly FullscreenToggleController _fullscreenController = new();
         private bool _controlsPanelVisible = true;
+        private bool _pendingRenderRestart = false;
         #endregion
 
         #region Constructor
@@ -429,6 +430,7 @@ namespace FractalExplorer
         private void ScheduleRender()
         {
             if (isHighResRendering || WindowState == FormWindowState.Minimized) return;
+            _pendingRenderRestart = true;
             previewRenderCts?.Cancel();
             renderTimer.Stop();
             renderTimer.Start();
@@ -442,7 +444,19 @@ namespace FractalExplorer
         private async void RenderTimer_Tick(object sender, EventArgs e)
         {
             renderTimer.Stop();
-            if (isHighResRendering || isRenderingPreview) return;
+            if (isHighResRendering || WindowState == FormWindowState.Minimized)
+            {
+                return;
+            }
+
+            if (isRenderingPreview)
+            {
+                _pendingRenderRestart = true;
+                renderTimer.Start();
+                return;
+            }
+
+            _pendingRenderRestart = false;
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -507,6 +521,13 @@ namespace FractalExplorer
                 if (!isHighResRendering) SetMainControlsEnabled(true);
                 UpdateAbortButtonState();
                 UpdateProgressBar(progressBarSerpinsky, 0);
+
+                if (_pendingRenderRestart && !isHighResRendering && WindowState != FormWindowState.Minimized)
+                {
+                    _pendingRenderRestart = false;
+                    renderTimer.Stop();
+                    renderTimer.Start();
+                }
             }
         }
         #endregion
