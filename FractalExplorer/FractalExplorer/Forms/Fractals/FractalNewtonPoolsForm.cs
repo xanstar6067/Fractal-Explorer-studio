@@ -820,6 +820,7 @@ namespace FractalExplorer
             {
                 _panning = true;
                 _panStart = e.Location;
+                fractal_bitmap.Cursor = Cursors.SizeAll;
             }
         }
 
@@ -849,6 +850,7 @@ namespace FractalExplorer
             if (e.Button == MouseButtons.Left)
             {
                 _panning = false;
+                fractal_bitmap.Cursor = Cursors.Default;
                 ScheduleRender();
             }
         }

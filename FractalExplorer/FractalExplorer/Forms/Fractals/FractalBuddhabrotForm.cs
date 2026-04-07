@@ -187,7 +187,7 @@ namespace FractalExplorer.Forms.Fractals
             _isPanning = true;
             _panStartPoint = e.Location;
             ApplyInstantViewportPreview();
-            _canvas.Cursor = Cursors.Hand;
+            _canvas.Cursor = Cursors.SizeAll;
         }
 
         private void Canvas_MouseMove(object? sender, MouseEventArgs e)

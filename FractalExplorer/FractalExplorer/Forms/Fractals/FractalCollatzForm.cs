@@ -485,7 +485,7 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _panning = true;
                 _panStart = e.Location;
-                canvas.Cursor = Cursors.Hand;
+                canvas.Cursor = Cursors.SizeAll;
             }
         }
 

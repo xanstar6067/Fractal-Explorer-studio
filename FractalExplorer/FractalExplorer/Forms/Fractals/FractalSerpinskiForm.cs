@@ -577,6 +577,7 @@ namespace FractalExplorer
             {
                 panning = true;
                 panStart = e.Location;
+                canvasSerpinsky.Cursor = Cursors.SizeAll;
             }
         }
 
@@ -607,6 +608,7 @@ namespace FractalExplorer
             if (e.Button == MouseButtons.Left)
             {
                 panning = false;
+                canvasSerpinsky.Cursor = Cursors.Default;
                 ScheduleRender();
             }
         }

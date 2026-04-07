@@ -35,8 +35,6 @@ namespace FractalExplorer.Forms.Fractals
         private Button _btnSaveLoad;
         private Button _btnSaveImage;
         private ProgressBar _pbRenderProgress;
-        private Label _status;
-        private Label _lastRenderTime;
         private CheckBox _showCoverageMap;
         private Button _btnToggleControls;
 
@@ -93,8 +91,6 @@ namespace FractalExplorer.Forms.Fractals
             _btnEditTransforms = new Button();
             _btnRender = new Button();
             _pbRenderProgress = new ProgressBar();
-            _status = new Label();
-            _lastRenderTime = new Label();
             _canvas = new PictureBox();
             _btnToggleControls = new Button();
             _controlsPanel.SuspendLayout();
@@ -172,12 +168,10 @@ namespace FractalExplorer.Forms.Fractals
             _settingsLayout.Controls.Add(_btnEditTransforms, 0, 12);
             _settingsLayout.Controls.Add(_btnRender, 0, 13);
             _settingsLayout.Controls.Add(_pbRenderProgress, 0, 14);
-            _settingsLayout.Controls.Add(_status, 0, 15);
-            _settingsLayout.Controls.Add(_lastRenderTime, 0, 16);
             _settingsLayout.Dock = DockStyle.Fill;
             _settingsLayout.Location = new Point(8, 8);
             _settingsLayout.Name = "_settingsLayout";
-            _settingsLayout.RowCount = 18;
+            _settingsLayout.RowCount = 16;
             _settingsLayout.RowStyles.Add(new RowStyle());
             _settingsLayout.RowStyles.Add(new RowStyle());
             _settingsLayout.RowStyles.Add(new RowStyle());
@@ -193,8 +187,6 @@ namespace FractalExplorer.Forms.Fractals
             _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
-            _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
             _settingsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             _settingsLayout.Size = new Size(264, 765);
             _settingsLayout.TabIndex = 0;
@@ -485,32 +477,6 @@ namespace FractalExplorer.Forms.Fractals
             _pbRenderProgress.Size = new Size(252, 20);
             _pbRenderProgress.Style = ProgressBarStyle.Continuous;
             _pbRenderProgress.TabIndex = 23;
-            // 
-            // _status
-            // 
-            _status.AutoSize = true;
-            _settingsLayout.SetColumnSpan(_status, 2);
-            _status.Dock = DockStyle.Fill;
-            _status.Location = new Point(6, 477);
-            _status.Margin = new Padding(6, 0, 3, 0);
-            _status.Name = "_status";
-            _status.Size = new Size(255, 22);
-            _status.TabIndex = 24;
-            _status.Text = "Готово";
-            _status.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _lastRenderTime
-            // 
-            _lastRenderTime.AutoSize = true;
-            _settingsLayout.SetColumnSpan(_lastRenderTime, 2);
-            _lastRenderTime.Dock = DockStyle.Fill;
-            _lastRenderTime.Location = new Point(6, 499);
-            _lastRenderTime.Margin = new Padding(6, 0, 3, 0);
-            _lastRenderTime.Name = "_lastRenderTime";
-            _lastRenderTime.Size = new Size(255, 30);
-            _lastRenderTime.TabIndex = 25;
-            _lastRenderTime.Text = "Последний рендер: —";
-            _lastRenderTime.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _canvas
             // 

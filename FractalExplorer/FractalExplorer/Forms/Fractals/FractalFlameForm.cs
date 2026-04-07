@@ -622,7 +622,6 @@ namespace FractalExplorer.Forms.Fractals
 
                 _btnRender.Enabled = false;
                 _isRenderInProgress = true;
-                _status.Text = "Рендер...";
                 _pbRenderProgress.Value = 0;
                 lock (_previewLock)
                 {
@@ -639,7 +638,6 @@ namespace FractalExplorer.Forms.Fractals
                 var progress = new Progress<int>(p =>
                 {
                     int clamped = Math.Clamp(p, 0, 100);
-                    _status.Text = $"Рендер: {clamped}%";
                     _pbRenderProgress.Value = clamped;
                 });
                 Action<byte[]>? coverageCallback = _showCoverageMap.Checked
@@ -660,14 +658,11 @@ namespace FractalExplorer.Forms.Fractals
                         coverageUpdateIntervalMs: 200), token);
                     Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
                     renderStopwatch.Stop();
-                    _status.Text = "Готово";
                     _pbRenderProgress.Value = 100;
-                    _lastRenderTime.Text = $"Последний рендер: {DateTime.Now:HH:mm:ss} ({renderStopwatch.Elapsed.TotalSeconds:F2} сек.)";
                     Text = $"{_baseTitle} - Время последнего рендера: {renderStopwatch.Elapsed.TotalSeconds:F3} сек.";
                 }
                 catch (OperationCanceledException)
                 {
-                    _status.Text = "Отменено";
                     _pbRenderProgress.Value = 0;
                 }
                 finally
