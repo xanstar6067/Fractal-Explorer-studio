@@ -50,6 +50,7 @@ namespace FractalExplorer.Forms.Fractals
         private decimal _renderedCenterY;
         private decimal _renderedZoom = 1.0m;
         private int _renderSessionVersion;
+        private long _lastCancellationRequestTimestamp;
         private readonly string _baseTitle;
 
         public FractalBuddhabrotForm()
@@ -268,8 +269,14 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InvalidateActiveRenderSession()
         {
+            long now = Environment.TickCount64;
+            Interlocked.Exchange(ref _lastCancellationRequestTimestamp, now);
             Interlocked.Increment(ref _renderSessionVersion);
             _renderCts?.Cancel();
+
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"[Buddhabrot] Cancel requested for active render session at t={now}ms.");
+#endif
         }
 
         private void EndInteractivePreview()
@@ -639,7 +646,12 @@ namespace FractalExplorer.Forms.Fractals
             {
                 if (_canvas.Width <= 0 || _canvas.Height <= 0) return;
 
+                long restartCancellationAt = Environment.TickCount64;
+                Interlocked.Exchange(ref _lastCancellationRequestTimestamp, restartCancellationAt);
                 _renderCts?.Cancel();
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"[Buddhabrot] Render restart requested. Previous session cancellation at t={restartCancellationAt}ms.");
+#endif
                 _renderCts = new CancellationTokenSource();
                 var token = _renderCts.Token;
                 int sessionVersion = Volatile.Read(ref _renderSessionVersion);
@@ -691,7 +703,13 @@ namespace FractalExplorer.Forms.Fractals
                             continue;
                         }
 
+                        token.ThrowIfCancellationRequested();
+                        if (sessionVersion != Volatile.Read(ref _renderSessionVersion))
+                        {
+                            throw new OperationCanceledException(token);
+                        }
                         await Task.Run(() => _engine.ConvertCurrentDensityToColor(pixels, width, height, width * 4, 4), token);
+                        token.ThrowIfCancellationRequested();
                         if (sessionVersion != Volatile.Read(ref _renderSessionVersion))
                         {
                             throw new OperationCanceledException(token);
@@ -710,6 +728,16 @@ namespace FractalExplorer.Forms.Fractals
                 }
                 catch (OperationCanceledException)
                 {
+#if DEBUG
+                    long cancelAt = Interlocked.Read(ref _lastCancellationRequestTimestamp);
+                    if (cancelAt > 0)
+                    {
+                        long elapsed = Math.Max(0, Environment.TickCount64 - cancelAt);
+                        const long targetMs = 150;
+                        string marker = elapsed <= targetMs ? "OK" : "SLOW";
+                        System.Diagnostics.Debug.WriteLine($"[Buddhabrot] Cancellation reaction: {elapsed} ms (target <={targetMs} ms) [{marker}].");
+                    }
+#endif
                 }
                 finally
                 {

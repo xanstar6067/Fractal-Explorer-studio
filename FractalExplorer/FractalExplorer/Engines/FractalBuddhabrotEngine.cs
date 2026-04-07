@@ -158,6 +158,11 @@ namespace FractalExplorer.Engines
 
                     for (int i = 0; i < MaxIterations; i++)
                     {
+                        if ((i & 63) == 0)
+                        {
+                            token.ThrowIfCancellationRequested();
+                        }
+
                         double nextRe = zre * zre - zim * zim + cre;
                         double nextIm = 2.0 * zre * zim + cim;
                         zre = nextRe;
@@ -185,6 +190,7 @@ namespace FractalExplorer.Engines
 
                     if (takeOrbit)
                     {
+                        token.ThrowIfCancellationRequested();
                         bool mirrorAcrossRealAxis = RenderMode == BuddhabrotRenderMode.SymmetricBuddhabrot;
                         foreach ((double ore, double oim) in local)
                         {
