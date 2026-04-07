@@ -466,6 +466,17 @@ namespace FractalExplorer
 
             _fractalCatalog.Add(new FractalInfo
             {
+                Family = "Геометрические",
+                DisplayName = "IFS: Barnsley/Heighway",
+                FormToLaunch = typeof(FractalIFSForm),
+                Description = "Стохастический IFS-рендер на базе набора аффинных преобразований с вероятностями выбора.\n\n" +
+                              "Доступны готовые пресеты Barnsley Fern и Heighway Dragon, а также выбор числа итераций и базовых цветов.\n\n" +
+                              "Особенности: быстрый предпросмотр, поддержка сохранения/загрузки параметров и удобный запуск из каталога 'Геометрические'.",
+                PreviewImage = Properties.Resources.serpinski_preview_sq512
+            });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
                 Family = "Итерируемые функции",
                 DisplayName = "Фрактал Нова (Жюлиа)",
                 FormToLaunch = typeof(FractalNovaJuliaForm), // Используем нашу новую форму
