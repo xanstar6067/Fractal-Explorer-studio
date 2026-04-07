@@ -40,6 +40,7 @@ namespace FractalExplorer.Forms.Fractals
         private bool _isPanning;
         private bool _suppressAutoRender;
         private bool _isQueuingRenderRestart;
+        private bool _queuedRenderImmediate;
         private bool _isProcessingRenderQueue;
         private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
         private Point _panStartPoint;
@@ -532,7 +533,25 @@ namespace FractalExplorer.Forms.Fractals
             }
 
             _isQueuingRenderRestart = true;
-            if (immediate)
+            _queuedRenderImmediate |= immediate;
+
+            if (_isPanning)
+            {
+                return;
+            }
+
+            if (_isProcessingRenderQueue)
+            {
+                if (!_queuedRenderImmediate)
+                {
+                    _renderRestartTimer.Stop();
+                    _renderRestartTimer.Start();
+                }
+
+                return;
+            }
+
+            if (_queuedRenderImmediate)
             {
                 _renderRestartTimer.Stop();
                 _ = TriggerQueuedRenderRestartAsync();
@@ -559,23 +578,30 @@ namespace FractalExplorer.Forms.Fractals
             _isProcessingRenderQueue = true;
             try
             {
-                while (_isQueuingRenderRestart && !IsDisposed)
+                if (_isPanning || IsDisposed)
                 {
-                    if (_isPanning)
-                    {
-                        break;
-                    }
-
-                    _isQueuingRenderRestart = false;
-                    await RenderAsync();
+                    return;
                 }
+
+                _isQueuingRenderRestart = false;
+                _queuedRenderImmediate = false;
+                await RenderAsync();
             }
             finally
             {
                 _isProcessingRenderQueue = false;
                 if (_isQueuingRenderRestart && !_isPanning && !IsDisposed)
                 {
-                    _ = TriggerQueuedRenderRestartAsync();
+                    if (_queuedRenderImmediate)
+                    {
+                        _renderRestartTimer.Stop();
+                        _ = TriggerQueuedRenderRestartAsync();
+                    }
+                    else
+                    {
+                        _renderRestartTimer.Stop();
+                        _renderRestartTimer.Start();
+                    }
                 }
             }
         }
