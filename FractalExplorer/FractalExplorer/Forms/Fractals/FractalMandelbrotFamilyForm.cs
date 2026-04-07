@@ -622,6 +622,7 @@ namespace FractalDraving
             cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.Histogram, "Гистограмма"));
             cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.OrbitTrap, "Орбитальная ловушка"));
             cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.StripeAverage, "Полосатое усреднение"));
+            cbQuickColoringMode.Items.Add(new ColoringModeOption(ColoringModeType.SmoothEscapePolynomial, "Smooth Escape (Poly)"));
             SyncQuickColoringModeSelection();
         }
 
@@ -2078,7 +2079,8 @@ namespace FractalDraving
             Smooth = 1,
             Histogram = 2,
             OrbitTrap = 3,
-            StripeAverage = 4
+            StripeAverage = 4,
+            SmoothEscapePolynomial = 5
         }
 
         public sealed class ColoringModeRuntime
@@ -2088,6 +2090,7 @@ namespace FractalDraving
             public static readonly ColoringModeRuntime Histogram = new(ColoringModeType.Histogram);
             public static readonly ColoringModeRuntime OrbitTrap = new(ColoringModeType.OrbitTrap);
             public static readonly ColoringModeRuntime StripeAverage = new(ColoringModeType.StripeAverage);
+            public static readonly ColoringModeRuntime SmoothEscapePolynomial = new(ColoringModeType.SmoothEscapePolynomial);
 
             public ColoringModeType ModeType { get; }
             public bool HasCustomParameters => ModeType != ColoringModeType.Discrete;
@@ -2105,6 +2108,7 @@ namespace FractalDraving
                     ColoringModeType.Histogram => Histogram,
                     ColoringModeType.OrbitTrap => OrbitTrap,
                     ColoringModeType.StripeAverage => StripeAverage,
+                    ColoringModeType.SmoothEscapePolynomial => SmoothEscapePolynomial,
                     _ => Discrete
                 };
             }

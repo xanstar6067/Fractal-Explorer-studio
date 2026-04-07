@@ -12,7 +12,8 @@ namespace FractalExplorer.Engines
         Smooth = 1,
         Histogram = 2,
         OrbitTrap = 3,
-        StripeAverage = 4
+        StripeAverage = 4,
+        SmoothEscapePolynomial = 5
     }
 
     /// <summary>
@@ -195,6 +196,7 @@ namespace FractalExplorer.Engines
                     : GetHistogramMappedColor((HistogramInputUseSmooth ? smoothValue : iter) / Math.Max(1.0, MaxIterations)),
                 ColoringModeType.OrbitTrap => GetOrbitTrapMappedColor(iter, orbitTrapMetric),
                 ColoringModeType.StripeAverage => GetStripeAverageMappedColor(iter, smoothValue, stripeMetric),
+                ColoringModeType.SmoothEscapePolynomial => GetSmoothEscapePolynomialColor(iter, smoothValue),
                 _ => Palette(iter, MaxIterations, MaxColorIterations)
             };
         }
@@ -257,6 +259,26 @@ namespace FractalExplorer.Engines
 
             int paletteIter = (int)Math.Round(combined * MaxColorIterations);
             return Palette(paletteIter, MaxIterations, MaxColorIterations);
+        }
+
+        private Color GetSmoothEscapePolynomialColor(int iter, double smoothValue)
+        {
+            if (iter >= MaxIterations)
+            {
+                return Color.FromArgb(7, 10, 18);
+            }
+
+            double t = smoothValue / Math.Max(1.0, MaxIterations);
+            t = Math.Max(0.0, Math.Min(1.0, t));
+
+            int r = (int)Math.Round(9.0 * (1.0 - t) * t * t * t * 255.0);
+            int g = (int)Math.Round(15.0 * (1.0 - t) * (1.0 - t) * t * t * 255.0);
+            int b = (int)Math.Round(8.5 * (1.0 - t) * (1.0 - t) * (1.0 - t) * t * 255.0);
+
+            r = Math.Max(0, Math.Min(255, r));
+            g = Math.Max(0, Math.Min(255, g));
+            b = Math.Max(0, Math.Min(255, b));
+            return Color.FromArgb(r, g, b);
         }
 
         private void ComputePixelMetricsDecimal(decimal re, decimal im, out int iter, out ComplexDecimal z, out double orbitTrapMetric, out double stripeMetric)

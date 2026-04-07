@@ -92,6 +92,7 @@ namespace FractalExplorer.Utilities
             (FractalMandelbrotFamilyForm.ColoringModeType.Histogram,    "Гистограмма"),
             (FractalMandelbrotFamilyForm.ColoringModeType.OrbitTrap,    "Орбитальная ловушка"),
             (FractalMandelbrotFamilyForm.ColoringModeType.StripeAverage,"Полосатое усреднение"),
+            (FractalMandelbrotFamilyForm.ColoringModeType.SmoothEscapePolynomial,"Smooth Escape (Poly)"),
         };
 
         private void PopulateModeChips()
