@@ -47,6 +47,7 @@ namespace FractalExplorer.Forms.Fractals
         private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
         private bool _isProcessingRenderQueue;
         private bool _isWheelZoomInProgress;
+        private bool _isRenderCancelRequested;
 
         public FractalFlameForm()
         {
@@ -226,6 +227,8 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
+            RequestActiveRenderCancellationOnce();
+
             double zoomFactor = e.Delta > 0 ? 0.85 : 1.18;
             double oldScale = NormalizeScale((double)_scale.Value);
             double newScale = Math.Clamp(oldScale * zoomFactor, (double)_scale.Minimum, (double)_scale.Maximum);
@@ -259,6 +262,23 @@ namespace FractalExplorer.Forms.Fractals
             _wheelDebounceTimer.Stop();
             _isWheelZoomInProgress = false;
             QueueRenderRestart(immediate: true);
+        }
+
+        private void RequestActiveRenderCancellationOnce()
+        {
+            if (_isRenderCancelRequested || !_isRenderInProgress)
+            {
+                return;
+            }
+
+            CancellationTokenSource? activeCts = _cts;
+            if (activeCts == null || activeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _isRenderCancelRequested = true;
+            activeCts.Cancel();
         }
 
         private void Canvas_MouseDown(object? sender, MouseEventArgs e)
@@ -597,6 +617,7 @@ namespace FractalExplorer.Forms.Fractals
                 ApplyUiToEngine();
                 _cts?.Cancel();
                 _cts = new CancellationTokenSource();
+                _isRenderCancelRequested = false;
                 CancellationToken token = _cts.Token;
 
                 _btnRender.Enabled = false;
