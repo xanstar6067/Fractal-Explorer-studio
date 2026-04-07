@@ -1,4 +1,5 @@
 ﻿using FractalExplorer.Engines;
+using FractalExplorer.Resources;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Drawing.Imaging;
