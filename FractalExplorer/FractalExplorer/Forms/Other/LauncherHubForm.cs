@@ -408,6 +408,17 @@ namespace FractalExplorer
 
             _fractalCatalog.Add(new FractalInfo
             {
+                Family = "Инструменты исследования",
+                DisplayName = "Сетка параметров Julia C",
+                FormToLaunch = typeof(FractalJuliaGridForm),
+                Description = "Инструмент для пакетного исследования множества Жюлиа по сетке значений C.\n\n" +
+                              "Задайте диапазоны Re(C)/Im(C), размеры сетки и получите общее полотно миниатюр, рассчитанных параллельно.\n\n" +
+                              "Особенности: экспорт итогового полотна и быстрый переход кликом из клетки в обычный рендер FractalJulia с выбранной константой.",
+                PreviewImage = Properties.Resources.julia_preview_sq512
+            });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
                 Family = "Итерируемые функции",
                 DisplayName = "Бассейны Ньютона+",
                 FormToLaunch = typeof(NewtonPools),

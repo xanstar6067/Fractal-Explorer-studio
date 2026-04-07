@@ -60,7 +60,17 @@ namespace FractalExplorer.Projects
             Text = "Фрактал Жюлиа";
         }
 
-        #endregion
+#endregion
+
+
+        /// <summary>
+        /// Применяет значения константы C для множества Жюлиа и обновляет интерфейс.
+        /// </summary>
+        public void ApplyJuliaConstant(decimal real, decimal imaginary)
+        {
+            nudRe.Value = Math.Max(nudRe.Minimum, Math.Min(nudRe.Maximum, real));
+            nudIm.Value = Math.Max(nudIm.Minimum, Math.Min(nudIm.Maximum, imaginary));
+        }
 
         #region Fractal Engine Overrides
 
