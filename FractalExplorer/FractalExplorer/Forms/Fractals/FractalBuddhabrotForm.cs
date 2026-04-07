@@ -296,6 +296,9 @@ namespace FractalExplorer.Forms.Fractals
 
         private void EndInteractivePreview()
         {
+            _interactivePreviewTimer.Stop();
+            _instantPreviewQueued = false;
+            _lastInstantPreviewTimestamp = 0;
             _interactionSourceBitmap?.Dispose();
             _interactionSourceBitmap = null;
         }
