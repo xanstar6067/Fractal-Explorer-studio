@@ -698,9 +698,9 @@ namespace FractalExplorer.Forms.Fractals
             _btnUndo.FlatStyle = FlatStyle.Flat;
             _btnUndo.Location = new Point(10, 6);
             _btnUndo.Name = "_btnUndo";
-            _btnUndo.Size = new Size(112, 34);
+            _btnUndo.Size = new Size(147, 34);
             _btnUndo.TabIndex = 52;
-            _btnUndo.Text = "Отменить";
+            _btnUndo.Text = "Отменить действие";
             // 
             // FlameTransformEditorForm
             // 
