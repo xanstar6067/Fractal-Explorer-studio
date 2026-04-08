@@ -46,6 +46,10 @@ namespace FractalExplorer.Projects
         /// Окно выбора константы 'C' на основе множества "Пылающий корабль".
         /// </summary>
         private BurningShipCSelectorForm _burningShipCSelectorWindow;
+        private bool _isPostInitialized;
+        private bool _hasPendingJuliaConstant;
+        private decimal _pendingJuliaReal;
+        private decimal _pendingJuliaImaginary;
 
         #endregion
 
@@ -60,6 +64,36 @@ namespace FractalExplorer.Projects
         }
 
         #endregion
+
+        /// <summary>
+        /// Применяет значения константы C для множества Жюлиа Burning Ship и обновляет интерфейс.
+        /// </summary>
+        public void ApplyJuliaConstant(decimal real, decimal imaginary)
+        {
+            _pendingJuliaReal = real;
+            _pendingJuliaImaginary = imaginary;
+            _hasPendingJuliaConstant = true;
+
+            if (_isPostInitialized)
+            {
+                ApplyPendingJuliaConstantIfNeeded();
+            }
+        }
+
+        private void ApplyPendingJuliaConstantIfNeeded()
+        {
+            if (!_hasPendingJuliaConstant)
+            {
+                return;
+            }
+
+            decimal clampedReal = Math.Max(nudRe.Minimum, Math.Min(nudRe.Maximum, _pendingJuliaReal));
+            decimal clampedImaginary = Math.Max(nudIm.Minimum, Math.Min(nudIm.Maximum, _pendingJuliaImaginary));
+
+            nudRe.Value = clampedReal;
+            nudIm.Value = clampedImaginary;
+            _hasPendingJuliaConstant = false;
+        }
 
         #region Fractal Engine Overrides
 
@@ -92,6 +126,7 @@ namespace FractalExplorer.Projects
         /// </summary>
         protected override void OnPostInitialize()
         {
+            _isPostInitialized = true;
             mandelbrotPreviewPanel.Visible = true;
             SetMandelbrotPreviewInteractive(true);
             lblRe.Visible = true;
@@ -101,6 +136,7 @@ namespace FractalExplorer.Projects
 
             nudRe.Value = -1.7551867961883m;
             nudIm.Value = 0.01068m;
+            ApplyPendingJuliaConstantIfNeeded();
 
             var previewCanvas = Controls.Find("mandelbrotPreviewCanvas", true).FirstOrDefault() as PictureBox;
             if (previewCanvas != null)

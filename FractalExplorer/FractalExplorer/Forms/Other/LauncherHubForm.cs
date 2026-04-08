@@ -419,6 +419,17 @@ namespace FractalExplorer
 
             _fractalCatalog.Add(new FractalInfo
             {
+                Family = "Множество Жюлиа",
+                DisplayName = "Галерея констант C (Julia Burning Ship Grid)",
+                FormToLaunch = typeof(FractalJuliaBurningShipGridForm),
+                Description = "Режим пакетного исследования множества Жюлиа для варианта 'Горящий корабль' по сетке значений константы C.\n\n" +
+                              "Задайте диапазоны Re(C)/Im(C), размер и плотность сетки, чтобы получить цельную галерею миниатюр Burning Ship Julia.\n\n" +
+                              "Особенности: экспорт единого полотна и переход кликом из ячейки в FractalJuliaBurningShip с автоматически подставленной константой.",
+                PreviewImage = Properties.Resources.julia_burningship_preview_sq512
+            });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
                 Family = "Итерируемые функции",
                 DisplayName = "Бассейны Ньютона+",
                 FormToLaunch = typeof(NewtonPools),
