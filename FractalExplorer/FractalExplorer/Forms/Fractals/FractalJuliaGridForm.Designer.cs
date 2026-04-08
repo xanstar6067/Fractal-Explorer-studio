@@ -171,7 +171,7 @@ namespace FractalExplorer.Forms.Fractals
             nudImMin.Name = "nudImMin";
             nudImMin.Size = new Size(149, 23);
             nudImMin.TabIndex = 4;
-            nudImMin.Value = new decimal(new int[] { 12, 0, 0, int.MinValue });
+            nudImMin.Value = new decimal(new int[] { 2, 0, 0, int.MinValue });
             // 
             // nudImMax
             // 
