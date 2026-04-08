@@ -17,6 +17,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FractalJuliaGridForm));
             splitContainerMain = new SplitContainer();
             panelControls = new TableLayoutPanel();
             lblReRange = new Label();
@@ -406,6 +407,8 @@ namespace FractalExplorer.Forms.Fractals
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1400, 900);
             Controls.Add(splitContainerMain);
+            Icon = (Icon)resources.GetObject("$this.Icon");
+            MinimumSize = new Size(984, 619);
             Name = "FractalJuliaGridForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Исследователь сетки Жюлиа";
