@@ -1515,6 +1515,32 @@ namespace FractalExplorer.Utilities
                 }
             });
 
+            // Пресет 12: Пламя (высокая центральная струя + боковые языки).
+            presets.Add(new FlameFractalSaveState("Flame")
+            {
+                SaveName = "Пламя",
+                CenterX = 0.0,
+                CenterY = -0.16,
+                Scale = 3.25,
+                Samples = 2_900_000,
+                IterationsPerSample = 27,
+                WarmupIterations = 31,
+                Exposure = 1.74,
+                Gamma = 1.92,
+                Timestamp = DateTime.MinValue,
+                Transforms = new List<FlameTransform>
+                {
+                    // Центральное восходящее пламя (вертикальный стебель).
+                    new() { Weight = 1.26, A = 0.84, B = 0.00, C = 0.00, D = 0.00, E = 0.46, F = 0.34, Variation = FlameVariation.Linear, Color = Color.OrangeRed },
+                    // Левый горячий язык.
+                    new() { Weight = 0.95, A = 0.57, B = -0.27, C = -0.20, D = 0.23, E = 0.56, F = 0.07, Variation = FlameVariation.Sinusoidal, Color = Color.Gold },
+                    // Правый горячий язык.
+                    new() { Weight = 0.95, A = 0.57, B = 0.27, C = 0.20, D = -0.23, E = 0.56, F = 0.07, Variation = FlameVariation.Sinusoidal, Color = Color.Orange },
+                    // Прохладное ядро/дымчатый хвост у основания.
+                    new() { Weight = 0.33, A = 0.28, B = 0.00, C = 0.00, D = 0.00, E = 0.30, F = -0.73, Variation = FlameVariation.Spherical, Color = Color.DodgerBlue }
+                }
+            });
+
             return presets;
         }
 
