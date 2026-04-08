@@ -146,11 +146,11 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
-            BitmapData? tileData = null;
-            BitmapData? canvasData = null;
-            try
+            lock (_bitmapLock)
             {
-                lock (_bitmapLock)
+                BitmapData? tileData = null;
+                BitmapData? canvasData = null;
+                try
                 {
                     tileData = tileBitmap.LockBits(new Rectangle(0, 0, tileBitmap.Width, tileBitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
                     canvasData = _canvasBitmap.LockBits(tileRect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
@@ -166,17 +166,17 @@ namespace FractalExplorer.Forms.Fractals
                         Marshal.Copy(rowBuffer, 0, dst, rowBytes);
                     }
                 }
-            }
-            finally
-            {
-                if (canvasData != null)
+                finally
                 {
-                    _canvasBitmap.UnlockBits(canvasData);
-                }
+                    if (canvasData != null)
+                    {
+                        _canvasBitmap.UnlockBits(canvasData);
+                    }
 
-                if (tileData != null)
-                {
-                    tileBitmap.UnlockBits(tileData);
+                    if (tileData != null)
+                    {
+                        tileBitmap.UnlockBits(tileData);
+                    }
                 }
             }
         }
