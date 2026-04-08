@@ -12,10 +12,24 @@ namespace FractalExplorer.Forms.Fractals
         private readonly object _bitmapLock = new();
         private List<GridCellInfo> _cells = new();
         private bool _isRendering;
+        private readonly System.Windows.Forms.Timer _autoRenderTimer = new();
+        private bool _renderRestartRequested;
+        private bool _isColsTrackBarDragging;
+        private bool _isRowsTrackBarDragging;
+        private bool _isTileSizeTrackBarDragging;
+        private bool _suspendAutoRenderScheduling;
+        private bool _isClosing;
+        private CancellationTokenSource? _renderCts;
+        private int _activeRenderVersion;
 
         public FractalJuliaGridForm()
         {
             InitializeComponent();
+            ConfigureAutoRender();
+            WireAutoRenderHandlers();
+            SyncTrackBarsWithNumericControls();
+            Shown += (_, _) => ScheduleAutoRender();
+            FormClosing += FractalJuliaGridForm_FormClosing;
         }
 
         private async void btnRender_Click(object sender, EventArgs e)
@@ -37,6 +51,12 @@ namespace FractalExplorer.Forms.Fractals
         private async Task RenderGridAsync()
         {
             _isRendering = true;
+            _renderCts?.Cancel();
+            _renderCts?.Dispose();
+            _renderCts = new CancellationTokenSource();
+            var cancellationToken = _renderCts.Token;
+            int renderVersion = Interlocked.Increment(ref _activeRenderVersion);
+
             btnRender.Enabled = false;
             try
             {
@@ -64,6 +84,15 @@ namespace FractalExplorer.Forms.Fractals
 
                 await dispatcher.RenderAsync(async (tile, ct) =>
                 {
+                    if (cancellationToken.IsCancellationRequested || _isClosing)
+                    {
+                        return;
+                    }
+                    if (renderVersion != _activeRenderVersion)
+                    {
+                        return;
+                    }
+
                     GridCellInfo? cell = _cells.FirstOrDefault(c => c.Tile.Bounds == tile.Bounds);
                     if (cell == null)
                     {
@@ -74,23 +103,221 @@ namespace FractalExplorer.Forms.Fractals
                     WriteTileToCanvas(tile.Bounds, tileBitmap);
 
                     int current = Interlocked.Increment(ref renderedCount);
-                    BeginInvoke(() =>
+                    if (!IsDisposed && IsHandleCreated)
                     {
-                        progressBar.Value = Math.Min(progressBar.Maximum, current);
-                        lblStatus.Text = $"Отрисовано {current}/{tiles.Count} клеток";
-                        UpdatePreviewImage();
-                    });
+                        try
+                        {
+                            BeginInvoke(() =>
+                            {
+                                if (IsDisposed || _isClosing)
+                                {
+                                    return;
+                                }
+
+                                progressBar.Value = Math.Min(progressBar.Maximum, current);
+                                lblStatus.Text = $"Отрисовано {current}/{tiles.Count} клеток";
+                                UpdatePreviewImage();
+                            });
+                        }
+                        catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                        {
+                            // Окно уже закрывается/закрыто.
+                        }
+                    }
 
                     await Task.CompletedTask;
-                }, CancellationToken.None);
+                }, cancellationToken);
 
-                lblStatus.Text = $"Готово. Размер полотна: {_canvasBitmap.Width}x{_canvasBitmap.Height}px.";
+                if (!cancellationToken.IsCancellationRequested && !_isClosing)
+                {
+                    lblStatus.Text = $"Готово. Размер полотна: {_canvasBitmap.Width}x{_canvasBitmap.Height}px.";
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                lblStatus.Text = "Рендер отменен.";
             }
             finally
             {
                 _isRendering = false;
-                btnRender.Enabled = true;
+                if (!IsDisposed)
+                {
+                    btnRender.Enabled = true;
+                }
+
+                if (_renderRestartRequested && !_isClosing)
+                {
+                    _renderRestartRequested = false;
+                    ScheduleAutoRender();
+                }
             }
+        }
+
+        private void ConfigureAutoRender()
+        {
+            _autoRenderTimer.Interval = 400;
+            _autoRenderTimer.Tick += AutoRenderTimer_Tick;
+        }
+
+        private void WireAutoRenderHandlers()
+        {
+            nudReMin.ValueChanged += ParameterControl_ValueChanged;
+            nudReMax.ValueChanged += ParameterControl_ValueChanged;
+            nudImMin.ValueChanged += ParameterControl_ValueChanged;
+            nudImMax.ValueChanged += ParameterControl_ValueChanged;
+            nudCols.ValueChanged += ParameterControl_ValueChanged;
+            nudRows.ValueChanged += ParameterControl_ValueChanged;
+            nudTileSize.ValueChanged += ParameterControl_ValueChanged;
+
+            trackBarCols.ValueChanged += TrackBarCols_ValueChanged;
+            trackBarRows.ValueChanged += TrackBarRows_ValueChanged;
+            trackBarTileSize.ValueChanged += TrackBarTileSize_ValueChanged;
+
+            trackBarCols.MouseDown += (_, _) => _isColsTrackBarDragging = true;
+            trackBarRows.MouseDown += (_, _) => _isRowsTrackBarDragging = true;
+            trackBarTileSize.MouseDown += (_, _) => _isTileSizeTrackBarDragging = true;
+
+            trackBarCols.MouseUp += (_, _) =>
+            {
+                _isColsTrackBarDragging = false;
+                ScheduleAutoRender();
+            };
+            trackBarRows.MouseUp += (_, _) =>
+            {
+                _isRowsTrackBarDragging = false;
+                ScheduleAutoRender();
+            };
+            trackBarTileSize.MouseUp += (_, _) =>
+            {
+                _isTileSizeTrackBarDragging = false;
+                ScheduleAutoRender();
+            };
+        }
+
+        private void ParameterControl_ValueChanged(object? sender, EventArgs e)
+        {
+            if (_suspendAutoRenderScheduling)
+            {
+                return;
+            }
+
+            SyncTrackBarsWithNumericControls();
+            ScheduleAutoRender();
+        }
+
+        private void TrackBarCols_ValueChanged(object? sender, EventArgs e)
+        {
+            if (nudCols.Value != trackBarCols.Value)
+            {
+                _suspendAutoRenderScheduling = true;
+                nudCols.Value = trackBarCols.Value;
+                _suspendAutoRenderScheduling = false;
+            }
+
+            lblColsValue.Text = trackBarCols.Value.ToString();
+            if (!_isColsTrackBarDragging)
+            {
+                ScheduleAutoRender();
+            }
+        }
+
+        private void TrackBarRows_ValueChanged(object? sender, EventArgs e)
+        {
+            if (nudRows.Value != trackBarRows.Value)
+            {
+                _suspendAutoRenderScheduling = true;
+                nudRows.Value = trackBarRows.Value;
+                _suspendAutoRenderScheduling = false;
+            }
+
+            lblRowsValue.Text = trackBarRows.Value.ToString();
+            if (!_isRowsTrackBarDragging)
+            {
+                ScheduleAutoRender();
+            }
+        }
+
+        private void TrackBarTileSize_ValueChanged(object? sender, EventArgs e)
+        {
+            if (nudTileSize.Value != trackBarTileSize.Value)
+            {
+                _suspendAutoRenderScheduling = true;
+                nudTileSize.Value = trackBarTileSize.Value;
+                _suspendAutoRenderScheduling = false;
+            }
+
+            lblTileSizeValue.Text = $"{trackBarTileSize.Value}px";
+            if (!_isTileSizeTrackBarDragging)
+            {
+                ScheduleAutoRender();
+            }
+        }
+
+        private void SyncTrackBarsWithNumericControls()
+        {
+            _suspendAutoRenderScheduling = true;
+            if (trackBarCols.Value != (int)nudCols.Value)
+            {
+                trackBarCols.Value = (int)nudCols.Value;
+            }
+
+            if (trackBarRows.Value != (int)nudRows.Value)
+            {
+                trackBarRows.Value = (int)nudRows.Value;
+            }
+
+            if (trackBarTileSize.Value != (int)nudTileSize.Value)
+            {
+                trackBarTileSize.Value = (int)nudTileSize.Value;
+            }
+            _suspendAutoRenderScheduling = false;
+
+            lblColsValue.Text = nudCols.Value.ToString();
+            lblRowsValue.Text = nudRows.Value.ToString();
+            lblTileSizeValue.Text = $"{nudTileSize.Value}px";
+        }
+
+        private void ScheduleAutoRender()
+        {
+            if (_isClosing || IsDisposed)
+            {
+                return;
+            }
+
+            _autoRenderTimer.Stop();
+            _autoRenderTimer.Start();
+            lblStatus.Text = "Параметры изменены. Ожидание автоперерендера...";
+        }
+
+        private async void AutoRenderTimer_Tick(object? sender, EventArgs e)
+        {
+            _autoRenderTimer.Stop();
+            if (_isClosing || IsDisposed)
+            {
+                return;
+            }
+
+            if (_isRendering)
+            {
+                _renderRestartRequested = true;
+                return;
+            }
+
+            if (nudReMin.Value >= nudReMax.Value || nudImMin.Value >= nudImMax.Value)
+            {
+                lblStatus.Text = "Некорректный диапазон: min должно быть меньше max.";
+                return;
+            }
+
+            await RenderGridAsync();
+        }
+
+        private void FractalJuliaGridForm_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            _isClosing = true;
+            Interlocked.Increment(ref _activeRenderVersion);
+            _autoRenderTimer.Stop();
+            _renderCts?.Cancel();
         }
 
         private List<GridCellInfo> BuildGridCells(int cols, int rows, int tileSize)
@@ -166,6 +393,10 @@ namespace FractalExplorer.Forms.Fractals
                         Marshal.Copy(rowBuffer, 0, dst, rowBytes);
                     }
                 }
+                catch (ArgumentException) when (_isClosing || IsDisposed)
+                {
+                    return;
+                }
                 finally
                 {
                     if (canvasData != null)
@@ -216,7 +447,14 @@ namespace FractalExplorer.Forms.Fractals
             Bitmap preview;
             lock (_bitmapLock)
             {
-                preview = (Bitmap)_canvasBitmap.Clone();
+                try
+                {
+                    preview = (Bitmap)_canvasBitmap.Clone();
+                }
+                catch (ArgumentException) when (_isClosing || IsDisposed)
+                {
+                    return;
+                }
             }
 
             ReplacePreviewImage(preview);
@@ -224,9 +462,22 @@ namespace FractalExplorer.Forms.Fractals
 
         private void ReplacePreviewImage(Bitmap newImage)
         {
-            Image? oldImage = pictureBoxGrid.Image;
-            pictureBoxGrid.Image = newImage;
-            oldImage?.Dispose();
+            if (_isClosing || IsDisposed)
+            {
+                newImage.Dispose();
+                return;
+            }
+
+            try
+            {
+                Image? oldImage = pictureBoxGrid.Image;
+                pictureBoxGrid.Image = newImage;
+                oldImage?.Dispose();
+            }
+            catch (ArgumentException) when (_isClosing || IsDisposed)
+            {
+                newImage.Dispose();
+            }
         }
 
         private void btnExportCanvas_Click(object sender, EventArgs e)

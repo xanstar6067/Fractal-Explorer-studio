@@ -28,8 +28,14 @@ namespace FractalExplorer.Forms.Fractals
             lblGridSize = new Label();
             nudCols = new NumericUpDown();
             nudRows = new NumericUpDown();
+            trackBarCols = new TrackBar();
+            lblColsValue = new Label();
+            trackBarRows = new TrackBar();
+            lblRowsValue = new Label();
             lblTileSize = new Label();
             nudTileSize = new NumericUpDown();
+            trackBarTileSize = new TrackBar();
+            lblTileSizeValue = new Label();
             chkOpenOnClick = new CheckBox();
             btnRender = new Button();
             btnExportCanvas = new Button();
@@ -47,7 +53,10 @@ namespace FractalExplorer.Forms.Fractals
             ((System.ComponentModel.ISupportInitialize)nudImMax).BeginInit();
             ((System.ComponentModel.ISupportInitialize)nudCols).BeginInit();
             ((System.ComponentModel.ISupportInitialize)nudRows).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)trackBarCols).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)trackBarRows).BeginInit();
             ((System.ComponentModel.ISupportInitialize)nudTileSize).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)trackBarTileSize).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBoxGrid).BeginInit();
             SuspendLayout();
             // 
@@ -72,8 +81,8 @@ namespace FractalExplorer.Forms.Fractals
             // panelControls
             // 
             panelControls.ColumnCount = 2;
-            panelControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            panelControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            panelControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
+            panelControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
             panelControls.Controls.Add(lblReRange, 0, 0);
             panelControls.Controls.Add(nudReMin, 0, 1);
             panelControls.Controls.Add(nudReMax, 1, 1);
@@ -83,26 +92,35 @@ namespace FractalExplorer.Forms.Fractals
             panelControls.Controls.Add(lblGridSize, 0, 4);
             panelControls.Controls.Add(nudCols, 0, 5);
             panelControls.Controls.Add(nudRows, 1, 5);
-            panelControls.Controls.Add(lblTileSize, 0, 6);
-            panelControls.Controls.Add(nudTileSize, 0, 7);
-            panelControls.Controls.Add(chkOpenOnClick, 0, 8);
-            panelControls.Controls.Add(btnRender, 0, 9);
-            panelControls.Controls.Add(btnExportCanvas, 1, 9);
-            panelControls.Controls.Add(progressBar, 0, 10);
-            panelControls.Controls.Add(lblStatus, 0, 11);
+            panelControls.Controls.Add(trackBarCols, 0, 6);
+            panelControls.Controls.Add(lblColsValue, 1, 6);
+            panelControls.Controls.Add(trackBarRows, 0, 7);
+            panelControls.Controls.Add(lblRowsValue, 1, 7);
+            panelControls.Controls.Add(lblTileSize, 0, 8);
+            panelControls.Controls.Add(nudTileSize, 0, 9);
+            panelControls.Controls.Add(lblTileSizeValue, 1, 9);
+            panelControls.Controls.Add(trackBarTileSize, 0, 10);
+            panelControls.Controls.Add(chkOpenOnClick, 0, 11);
+            panelControls.Controls.Add(btnRender, 0, 12);
+            panelControls.Controls.Add(btnExportCanvas, 1, 12);
+            panelControls.Controls.Add(progressBar, 0, 13);
+            panelControls.Controls.Add(lblStatus, 0, 14);
             panelControls.Dock = DockStyle.Fill;
             panelControls.Location = new Point(0, 0);
             panelControls.Name = "panelControls";
             panelControls.Padding = new Padding(10);
-            panelControls.RowCount = 12;
+            panelControls.RowCount = 15;
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
+            panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
             panelControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
@@ -131,7 +149,7 @@ namespace FractalExplorer.Forms.Fractals
             nudReMin.Maximum = new decimal(new int[] { 2, 0, 0, 0 });
             nudReMin.Minimum = new decimal(new int[] { 2, 0, 0, int.MinValue });
             nudReMin.Name = "nudReMin";
-            nudReMin.Size = new Size(149, 23);
+            nudReMin.Size = new Size(211, 23);
             nudReMin.TabIndex = 1;
             nudReMin.Value = new decimal(new int[] { 2, 0, 0, int.MinValue });
             // 
@@ -140,11 +158,11 @@ namespace FractalExplorer.Forms.Fractals
             nudReMax.DecimalPlaces = 4;
             nudReMax.Dock = DockStyle.Fill;
             nudReMax.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            nudReMax.Location = new Point(168, 39);
+            nudReMax.Location = new Point(230, 39);
             nudReMax.Maximum = new decimal(new int[] { 2, 0, 0, 0 });
             nudReMax.Minimum = new decimal(new int[] { 2, 0, 0, int.MinValue });
             nudReMax.Name = "nudReMax";
-            nudReMax.Size = new Size(149, 23);
+            nudReMax.Size = new Size(87, 23);
             nudReMax.TabIndex = 2;
             nudReMax.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
@@ -169,7 +187,7 @@ namespace FractalExplorer.Forms.Fractals
             nudImMin.Maximum = new decimal(new int[] { 2, 0, 0, 0 });
             nudImMin.Minimum = new decimal(new int[] { 2, 0, 0, int.MinValue });
             nudImMin.Name = "nudImMin";
-            nudImMin.Size = new Size(149, 23);
+            nudImMin.Size = new Size(211, 23);
             nudImMin.TabIndex = 4;
             nudImMin.Value = new decimal(new int[] { 2, 0, 0, int.MinValue });
             // 
@@ -178,11 +196,11 @@ namespace FractalExplorer.Forms.Fractals
             nudImMax.DecimalPlaces = 4;
             nudImMax.Dock = DockStyle.Fill;
             nudImMax.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            nudImMax.Location = new Point(168, 99);
+            nudImMax.Location = new Point(230, 99);
             nudImMax.Maximum = new decimal(new int[] { 2, 0, 0, 0 });
             nudImMax.Minimum = new decimal(new int[] { 2, 0, 0, int.MinValue });
             nudImMax.Name = "nudImMax";
-            nudImMax.Size = new Size(149, 23);
+            nudImMax.Size = new Size(87, 23);
             nudImMax.TabIndex = 5;
             nudImMax.Value = new decimal(new int[] { 12, 0, 0, 65536 });
             // 
@@ -205,76 +223,147 @@ namespace FractalExplorer.Forms.Fractals
             nudCols.Maximum = new decimal(new int[] { 20, 0, 0, 0 });
             nudCols.Minimum = new decimal(new int[] { 2, 0, 0, 0 });
             nudCols.Name = "nudCols";
-            nudCols.Size = new Size(149, 23);
+            nudCols.Size = new Size(211, 23);
             nudCols.TabIndex = 7;
             nudCols.Value = new decimal(new int[] { 5, 0, 0, 0 });
             // 
             // nudRows
             // 
             nudRows.Dock = DockStyle.Fill;
-            nudRows.Location = new Point(168, 159);
+            nudRows.Location = new Point(230, 159);
             nudRows.Maximum = new decimal(new int[] { 20, 0, 0, 0 });
             nudRows.Minimum = new decimal(new int[] { 2, 0, 0, 0 });
             nudRows.Name = "nudRows";
-            nudRows.Size = new Size(149, 23);
+            nudRows.Size = new Size(87, 23);
             nudRows.TabIndex = 8;
             nudRows.Value = new decimal(new int[] { 4, 0, 0, 0 });
+            // 
+            // trackBarCols
+            // 
+            trackBarCols.Dock = DockStyle.Fill;
+            trackBarCols.Location = new Point(13, 193);
+            trackBarCols.Maximum = 20;
+            trackBarCols.Minimum = 2;
+            trackBarCols.Name = "trackBarCols";
+            trackBarCols.Size = new Size(211, 26);
+            trackBarCols.TabIndex = 9;
+            trackBarCols.TickStyle = TickStyle.None;
+            trackBarCols.Value = 5;
+            // 
+            // lblColsValue
+            // 
+            lblColsValue.AutoSize = true;
+            lblColsValue.Dock = DockStyle.Fill;
+            lblColsValue.Location = new Point(230, 190);
+            lblColsValue.Name = "lblColsValue";
+            lblColsValue.Size = new Size(87, 32);
+            lblColsValue.TabIndex = 18;
+            lblColsValue.Text = "5";
+            lblColsValue.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // trackBarRows
+            // 
+            trackBarRows.Dock = DockStyle.Fill;
+            trackBarRows.Location = new Point(13, 225);
+            trackBarRows.Maximum = 20;
+            trackBarRows.Minimum = 2;
+            trackBarRows.Name = "trackBarRows";
+            trackBarRows.Size = new Size(211, 26);
+            trackBarRows.TabIndex = 10;
+            trackBarRows.TickStyle = TickStyle.None;
+            trackBarRows.Value = 4;
+            // 
+            // lblRowsValue
+            // 
+            lblRowsValue.AutoSize = true;
+            lblRowsValue.Dock = DockStyle.Fill;
+            lblRowsValue.Location = new Point(230, 222);
+            lblRowsValue.Name = "lblRowsValue";
+            lblRowsValue.Size = new Size(87, 32);
+            lblRowsValue.TabIndex = 19;
+            lblRowsValue.Text = "4";
+            lblRowsValue.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // lblTileSize
             // 
             lblTileSize.AutoSize = true;
             panelControls.SetColumnSpan(lblTileSize, 2);
             lblTileSize.Dock = DockStyle.Fill;
-            lblTileSize.Location = new Point(13, 190);
+            lblTileSize.Location = new Point(13, 254);
             lblTileSize.Name = "lblTileSize";
             lblTileSize.Size = new Size(304, 26);
-            lblTileSize.TabIndex = 9;
+            lblTileSize.TabIndex = 11;
             lblTileSize.Text = "Размер миниатюры (px)";
             lblTileSize.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // nudTileSize
             // 
-            panelControls.SetColumnSpan(nudTileSize, 2);
             nudTileSize.Dock = DockStyle.Fill;
-            nudTileSize.Location = new Point(13, 219);
+            nudTileSize.Location = new Point(13, 283);
             nudTileSize.Maximum = new decimal(new int[] { 512, 0, 0, 0 });
             nudTileSize.Minimum = new decimal(new int[] { 64, 0, 0, 0 });
             nudTileSize.Name = "nudTileSize";
-            nudTileSize.Size = new Size(304, 23);
-            nudTileSize.TabIndex = 10;
+            nudTileSize.Size = new Size(211, 23);
+            nudTileSize.TabIndex = 12;
             nudTileSize.Value = new decimal(new int[] { 180, 0, 0, 0 });
+            // 
+            // trackBarTileSize
+            // 
+            panelControls.SetColumnSpan(trackBarTileSize, 2);
+            trackBarTileSize.Dock = DockStyle.Fill;
+            trackBarTileSize.LargeChange = 8;
+            trackBarTileSize.Location = new Point(13, 317);
+            trackBarTileSize.Maximum = 512;
+            trackBarTileSize.Minimum = 64;
+            trackBarTileSize.Name = "trackBarTileSize";
+            trackBarTileSize.Size = new Size(304, 26);
+            trackBarTileSize.SmallChange = 8;
+            trackBarTileSize.TabIndex = 14;
+            trackBarTileSize.TickStyle = TickStyle.None;
+            trackBarTileSize.Value = 180;
+            // 
+            // lblTileSizeValue
+            // 
+            lblTileSizeValue.AutoSize = true;
+            lblTileSizeValue.Dock = DockStyle.Fill;
+            lblTileSizeValue.Location = new Point(230, 280);
+            lblTileSizeValue.Name = "lblTileSizeValue";
+            lblTileSizeValue.Size = new Size(87, 34);
+            lblTileSizeValue.TabIndex = 20;
+            lblTileSizeValue.Text = "180px";
+            lblTileSizeValue.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // chkOpenOnClick
             // 
             chkOpenOnClick.AutoSize = true;
             panelControls.SetColumnSpan(chkOpenOnClick, 2);
             chkOpenOnClick.Dock = DockStyle.Fill;
-            chkOpenOnClick.Location = new Point(13, 253);
+            chkOpenOnClick.Location = new Point(13, 349);
             chkOpenOnClick.Name = "chkOpenOnClick";
             chkOpenOnClick.Size = new Size(304, 28);
-            chkOpenOnClick.TabIndex = 11;
+            chkOpenOnClick.TabIndex = 15;
             chkOpenOnClick.Text = "Открывать FractalJulia по клику на клетку";
             chkOpenOnClick.UseVisualStyleBackColor = true;
             // 
             // btnRender
             // 
             btnRender.Dock = DockStyle.Fill;
-            btnRender.Location = new Point(13, 287);
+            btnRender.Location = new Point(13, 383);
             btnRender.Name = "btnRender";
-            btnRender.Size = new Size(149, 34);
-            btnRender.TabIndex = 12;
-            btnRender.Text = "Построить сетку";
+            btnRender.Size = new Size(211, 34);
+            btnRender.TabIndex = 16;
+            btnRender.Text = "Рендер сейчас";
             btnRender.UseVisualStyleBackColor = true;
             btnRender.Click += btnRender_Click;
             // 
             // btnExportCanvas
             // 
             btnExportCanvas.Dock = DockStyle.Fill;
-            btnExportCanvas.Location = new Point(168, 287);
+            btnExportCanvas.Location = new Point(230, 383);
             btnExportCanvas.Name = "btnExportCanvas";
-            btnExportCanvas.Size = new Size(149, 34);
-            btnExportCanvas.TabIndex = 13;
-            btnExportCanvas.Text = "Экспорт полотна";
+            btnExportCanvas.Size = new Size(87, 34);
+            btnExportCanvas.TabIndex = 17;
+            btnExportCanvas.Text = "Экспорт";
             btnExportCanvas.UseVisualStyleBackColor = true;
             btnExportCanvas.Click += btnExportCanvas_Click;
             // 
@@ -282,21 +371,21 @@ namespace FractalExplorer.Forms.Fractals
             // 
             panelControls.SetColumnSpan(progressBar, 2);
             progressBar.Dock = DockStyle.Fill;
-            progressBar.Location = new Point(13, 327);
+            progressBar.Location = new Point(13, 423);
             progressBar.Name = "progressBar";
             progressBar.Size = new Size(304, 24);
-            progressBar.TabIndex = 14;
+            progressBar.TabIndex = 21;
             // 
             // lblStatus
             // 
             lblStatus.AutoSize = true;
             panelControls.SetColumnSpan(lblStatus, 2);
             lblStatus.Dock = DockStyle.Fill;
-            lblStatus.Location = new Point(13, 354);
+            lblStatus.Location = new Point(13, 450);
             lblStatus.Name = "lblStatus";
-            lblStatus.Size = new Size(304, 536);
-            lblStatus.TabIndex = 15;
-            lblStatus.Text = "Готово к рендеру.";
+            lblStatus.Size = new Size(304, 440);
+            lblStatus.TabIndex = 22;
+            lblStatus.Text = "Готово к автоперерисовке.";
             // 
             // pictureBoxGrid
             // 
@@ -332,7 +421,10 @@ namespace FractalExplorer.Forms.Fractals
             ((System.ComponentModel.ISupportInitialize)nudImMax).EndInit();
             ((System.ComponentModel.ISupportInitialize)nudCols).EndInit();
             ((System.ComponentModel.ISupportInitialize)nudRows).EndInit();
+            ((System.ComponentModel.ISupportInitialize)trackBarCols).EndInit();
+            ((System.ComponentModel.ISupportInitialize)trackBarRows).EndInit();
             ((System.ComponentModel.ISupportInitialize)nudTileSize).EndInit();
+            ((System.ComponentModel.ISupportInitialize)trackBarTileSize).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBoxGrid).EndInit();
             ResumeLayout(false);
         }
@@ -348,8 +440,14 @@ namespace FractalExplorer.Forms.Fractals
         private Label lblGridSize;
         private NumericUpDown nudCols;
         private NumericUpDown nudRows;
+        private TrackBar trackBarCols;
+        private Label lblColsValue;
+        private TrackBar trackBarRows;
+        private Label lblRowsValue;
         private Label lblTileSize;
         private NumericUpDown nudTileSize;
+        private TrackBar trackBarTileSize;
+        private Label lblTileSizeValue;
         private CheckBox chkOpenOnClick;
         private Button btnRender;
         private Button btnExportCanvas;
