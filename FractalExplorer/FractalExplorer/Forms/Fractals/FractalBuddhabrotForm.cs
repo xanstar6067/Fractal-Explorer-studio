@@ -158,8 +158,6 @@ namespace FractalExplorer.Forms.Fractals
             }
 
             _buddhabrotColorConfigForm.ShowDialog(this);
-            EnsureActivePalette();
-            QueueRenderRestart(immediate: true);
         }
 
         private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
