@@ -146,7 +146,7 @@ namespace FractalExplorer.Forms.Fractals
             nudReMax.Name = "nudReMax";
             nudReMax.Size = new Size(149, 23);
             nudReMax.TabIndex = 2;
-            nudReMax.Value = 1;
+            nudReMax.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
             // lblImRange
             // 
