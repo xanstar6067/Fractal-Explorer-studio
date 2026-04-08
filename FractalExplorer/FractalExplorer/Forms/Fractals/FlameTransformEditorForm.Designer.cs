@@ -700,6 +700,7 @@ namespace FractalExplorer.Forms.Fractals
             Controls.Add(_split);
             Controls.Add(_footerPanel);
             FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             MinimumSize = new Size(680, 420);
             Name = "FlameTransformEditorForm";
