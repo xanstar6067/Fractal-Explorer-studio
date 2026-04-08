@@ -14,6 +14,7 @@ namespace FractalExplorer.Forms.Fractals
         private readonly List<FlameTransform> _transforms;
         private int _selectedIndex = -1;
         private bool _suppressSync;   // подавляет рекурсивные обновления
+        private readonly Stack<EditorSnapshot> _undoStack = new();
 
         // ── карточки в списке ─────────────────────────────────────────────────
         private readonly List<TransformCard> _cards = new();
@@ -68,8 +69,9 @@ namespace FractalExplorer.Forms.Fractals
         private void WireEvents()
         {
             _btnAdd.Click += BtnAdd_Click;
-            _btnDelete.Click += BtnDelete_Click;
-            _btnOk.Click += (_, _) => CommitAndClose();
+            _btnUndo.Click += BtnUndo_Click;
+            _btnOk.Click += (_, _) => CommitChanges();
+            _btnClose.Click += (_, _) => CommitAndClose();
 
             _cmbVariation.SelectedIndexChanged += EditorControl_Changed;
             _btnPickColor.Click += BtnPickColor_Click;
@@ -146,7 +148,6 @@ namespace FractalExplorer.Forms.Fractals
             UpdateCardSelection();
             LoadEditorFromTransform(_transforms[index]);
             SetEditorEnabled(true);
-            _btnDelete.Enabled = true;
             _lblEditorTitle.Text = $"Трансформация {index + 1}";
         }
 
@@ -198,6 +199,7 @@ namespace FractalExplorer.Forms.Fractals
         private void EditorControl_Changed(object? sender, EventArgs e)
         {
             if (_suppressSync || _selectedIndex < 0) return;
+            PushUndoSnapshot();
             SaveEditorToTransform(_transforms[_selectedIndex]);
             RefreshCardAt(_selectedIndex);
         }
@@ -245,6 +247,7 @@ namespace FractalExplorer.Forms.Fractals
         // ══════════════════════════════════════════════════════════════════════
         private void BtnAdd_Click(object? sender, EventArgs e)
         {
+            PushUndoSnapshot();
             var t = new FlameTransform
             {
                 Weight = 1.0,
@@ -266,6 +269,7 @@ namespace FractalExplorer.Forms.Fractals
         {
             if (index < 0 || index >= _transforms.Count) return;
 
+            PushUndoSnapshot();
             _transforms.RemoveAt(index);
 
             int newIndex = _transforms.Count == 0
@@ -280,15 +284,11 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _selectedIndex = -1;
                 SetEditorEnabled(false);
-                _btnDelete.Enabled = false;
                 _lblEditorTitle.Text = "Редактор трансформации";
             }
         }
 
-        private void BtnDelete_Click(object? sender, EventArgs e)
-        {
-            DeleteTransform(_selectedIndex);
-        }
+        private void BtnUndo_Click(object? sender, EventArgs e) => UndoLastAction();
 
         // ══════════════════════════════════════════════════════════════════════
         // Включение / выключение редактора
@@ -314,9 +314,9 @@ namespace FractalExplorer.Forms.Fractals
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        // OK — сохранить и закрыть
+        // Применение / закрытие
         // ══════════════════════════════════════════════════════════════════════
-        private void CommitAndClose()
+        private void CommitChanges()
         {
             // Сохраняем текущий редактор если есть выбранная трансформация
             if (_selectedIndex >= 0 && _selectedIndex < _transforms.Count)
@@ -326,6 +326,51 @@ namespace FractalExplorer.Forms.Fractals
                 .Where(t => t.Weight > 0)
                 .Select(t => t.Clone())
                 .ToList();
+        }
+
+        private void CommitAndClose()
+        {
+            CommitChanges();
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+
+        private void PushUndoSnapshot()
+        {
+            var snapshot = new EditorSnapshot(_transforms, _selectedIndex);
+            if (_undoStack.Count > 0 && _undoStack.Peek().HasSameState(_transforms, _selectedIndex))
+                return;
+            _undoStack.Push(snapshot);
+            UpdateUndoButtonState();
+        }
+
+        private void UndoLastAction()
+        {
+            if (_undoStack.Count == 0) return;
+
+            var snapshot = _undoStack.Pop();
+            _transforms.Clear();
+            _transforms.AddRange(snapshot.Transforms.Select(t => t.Clone()));
+
+            RebuildList();
+            if (_transforms.Count == 0)
+            {
+                _selectedIndex = -1;
+                SetEditorEnabled(false);
+                _lblEditorTitle.Text = "Редактор трансформации";
+            }
+            else
+            {
+                int indexToSelect = Math.Clamp(snapshot.SelectedIndex, 0, _transforms.Count - 1);
+                SelectTransform(indexToSelect);
+            }
+
+            UpdateUndoButtonState();
+        }
+
+        private void UpdateUndoButtonState()
+        {
+            _btnUndo.Enabled = _undoStack.Count > 0;
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -347,6 +392,43 @@ namespace FractalExplorer.Forms.Fractals
 
             // Сплиттер — цвет рамки
             _split.BackColor = ThemeManager.CurrentDefinition.BorderColor;
+        }
+
+        private sealed class EditorSnapshot
+        {
+            public IReadOnlyList<FlameTransform> Transforms { get; }
+            public int SelectedIndex { get; }
+
+            public EditorSnapshot(IEnumerable<FlameTransform> transforms, int selectedIndex)
+            {
+                Transforms = transforms.Select(t => t.Clone()).ToList();
+                SelectedIndex = selectedIndex;
+            }
+
+            public bool HasSameState(IReadOnlyList<FlameTransform> transforms, int selectedIndex)
+            {
+                if (selectedIndex != SelectedIndex || transforms.Count != Transforms.Count) return false;
+
+                for (int i = 0; i < transforms.Count; i++)
+                {
+                    var left = transforms[i];
+                    var right = Transforms[i];
+                    if (left.Variation != right.Variation ||
+                        left.Color != right.Color ||
+                        left.Weight != right.Weight ||
+                        left.A != right.A ||
+                        left.B != right.B ||
+                        left.C != right.C ||
+                        left.D != right.D ||
+                        left.E != right.E ||
+                        left.F != right.F)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
         }
 
         private void ApplyThemeToCards()
@@ -447,7 +529,7 @@ namespace FractalExplorer.Forms.Fractals
                 // кнопка удаления
                 _btnDel = new Button
                 {
-                    Text = "×",
+                    Text = "🗑",
                     Size = new Size(18, 18),
                     Location = new Point(Width - 26, 4),
                     FlatStyle = FlatStyle.Flat,

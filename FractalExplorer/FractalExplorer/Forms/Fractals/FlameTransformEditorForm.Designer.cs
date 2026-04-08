@@ -60,9 +60,10 @@ namespace FractalExplorer.Forms.Fractals
 
         // ── нижняя полоска кнопок ─────────────────────────────────────────────
         private Panel _footerPanel;
-        private Button _btnDelete;
+        private Button _btnUndo;
         private Button _btnCancel;
         private Button _btnOk;
+        private Button _btnClose;
 
         protected override void Dispose(bool disposing)
         {
@@ -120,9 +121,10 @@ namespace FractalExplorer.Forms.Fractals
             _editorHeader = new Panel();
             _lblEditorTitle = new Label();
             _footerPanel = new Panel();
+            _btnClose = new Button();
             _btnOk = new Button();
             _btnCancel = new Button();
-            _btnDelete = new Button();
+            _btnUndo = new Button();
             ((System.ComponentModel.ISupportInitialize)_split).BeginInit();
             _split.Panel1.SuspendLayout();
             _split.Panel2.SuspendLayout();
@@ -646,9 +648,10 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // _footerPanel
             // 
+            _footerPanel.Controls.Add(_btnClose);
             _footerPanel.Controls.Add(_btnOk);
             _footerPanel.Controls.Add(_btnCancel);
-            _footerPanel.Controls.Add(_btnDelete);
+            _footerPanel.Controls.Add(_btnUndo);
             _footerPanel.Dock = DockStyle.Bottom;
             _footerPanel.Location = new Point(0, 434);
             _footerPanel.Name = "_footerPanel";
@@ -656,9 +659,18 @@ namespace FractalExplorer.Forms.Fractals
             _footerPanel.Size = new Size(883, 46);
             _footerPanel.TabIndex = 1;
             // 
+            // _btnClose
+            // 
+            _btnClose.Dock = DockStyle.Right;
+            _btnClose.FlatStyle = FlatStyle.Flat;
+            _btnClose.Location = new Point(589, 6);
+            _btnClose.Name = "_btnClose";
+            _btnClose.Size = new Size(100, 34);
+            _btnClose.TabIndex = 49;
+            _btnClose.Text = "Готово";
+            // 
             // _btnOk
             // 
-            _btnOk.DialogResult = DialogResult.OK;
             _btnOk.Dock = DockStyle.Right;
             _btnOk.FlatStyle = FlatStyle.Flat;
             _btnOk.Location = new Point(689, 6);
@@ -679,16 +691,16 @@ namespace FractalExplorer.Forms.Fractals
             _btnCancel.TabIndex = 51;
             _btnCancel.Text = "Отмена";
             // 
-            // _btnDelete
+            // _btnUndo
             // 
-            _btnDelete.Dock = DockStyle.Left;
-            _btnDelete.Enabled = false;
-            _btnDelete.FlatStyle = FlatStyle.Flat;
-            _btnDelete.Location = new Point(10, 6);
-            _btnDelete.Name = "_btnDelete";
-            _btnDelete.Size = new Size(148, 34);
-            _btnDelete.TabIndex = 52;
-            _btnDelete.Text = "Удалить выбранную";
+            _btnUndo.Dock = DockStyle.Left;
+            _btnUndo.Enabled = false;
+            _btnUndo.FlatStyle = FlatStyle.Flat;
+            _btnUndo.Location = new Point(10, 6);
+            _btnUndo.Name = "_btnUndo";
+            _btnUndo.Size = new Size(112, 34);
+            _btnUndo.TabIndex = 52;
+            _btnUndo.Text = "Отменить";
             // 
             // FlameTransformEditorForm
             // 
