@@ -163,6 +163,16 @@ namespace FractalExplorer.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap flame_fractal_preview_sq512 {
+            get {
+                object obj = ResourceManager.GetObject("flame_fractal_preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap general_mandelbrot_preview {
             get {
                 object obj = ResourceManager.GetObject("general_mandelbrot_preview", resourceCulture);

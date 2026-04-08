@@ -516,7 +516,7 @@ namespace FractalExplorer
                 Description = "Стохастический итеративный рендер с накоплением HDR-гистограммы посещений.\n\n" +
                               "Поддерживает минимальный набор вариаций linear/sinusoidal/spherical и список аффинных преобразований с весами.\n\n" +
                               "Особенности: редактирование таблицы коэффициентов и весов, tone mapping + гамма-коррекция, поддержка save/load.",
-                PreviewImage = Properties.Resources.mandelbrot_preview_sq512
+                PreviewImage = Properties.Resources.flame_fractal_preview_sq512
             });
 
             _fractalCatalog.Add(new FractalInfo
