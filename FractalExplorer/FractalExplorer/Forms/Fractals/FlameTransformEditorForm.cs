@@ -530,8 +530,8 @@ namespace FractalExplorer.Forms.Fractals
                 _btnDel = new Button
                 {
                     Text = "🗑",
-                    Size = new Size(18, 18),
-                    Location = new Point(Width - 26, 4),
+                    Size = new Size(18, 36),
+                    Location = new Point(Width - 26, 2),
                     FlatStyle = FlatStyle.Flat,
                     Font = new Font(SystemFonts.DefaultFont.FontFamily, 9f),
                     Cursor = Cursors.Default,
