@@ -73,6 +73,8 @@ namespace FractalExplorer.Utilities
                     return GetMandelbrotBurningShipPresets();
                 case "Tricorn":
                     return GetTricornPresets();
+                case "CelticMandelbrot":
+                    return GetCelticMandelbrotPresets();
                 case "JuliaBurningShip":
                     return GetJuliaBurningShipPresets();
                 case "Phoenix":
@@ -624,6 +626,65 @@ namespace FractalExplorer.Utilities
             };
             preset3.PreviewParametersJson = JsonSerializer.Serialize(previewParams3);
             presets.Add(preset3);
+
+            return presets;
+        }
+
+        /// <summary>
+        /// Создает и возвращает список предустановленных состояний для фрактала Celtic Mandelbrot.
+        /// </summary>
+        /// <returns>Список пресетов Celtic Mandelbrot.</returns>
+        private static List<FractalSaveStateBase> GetCelticMandelbrotPresets()
+        {
+            var presets = new List<FractalSaveStateBase>();
+
+            var preset1 = new MandelbrotFamilySaveState("CelticMandelbrot")
+            {
+                SaveName = "Кельтский кардиоид",
+                CenterX = -0.5m,
+                CenterY = 0.0m,
+                Zoom = 1.2m,
+                Iterations = 700,
+                Threshold = 2.0m,
+                PaletteName = "Лёд",
+                Timestamp = DateTime.MinValue
+            };
+            var previewParams1 = new FractalMandelbrotFamilyForm.PreviewParams
+            {
+                CenterX = preset1.CenterX,
+                CenterY = preset1.CenterY,
+                Zoom = preset1.Zoom,
+                Iterations = Math.Min(preset1.Iterations, PREVIEW_ITERATION_LIMIT_MANDELBROT_FAMILY),
+                PaletteName = preset1.PaletteName,
+                Threshold = preset1.Threshold,
+                PreviewEngineType = "CelticMandelbrot"
+            };
+            preset1.PreviewParametersJson = JsonSerializer.Serialize(previewParams1);
+            presets.Add(preset1);
+
+            var preset2 = new MandelbrotFamilySaveState("CelticMandelbrot")
+            {
+                SaveName = "Кельтский спиральный фрагмент",
+                CenterX = -1.245m,
+                CenterY = 0.015m,
+                Zoom = 220m,
+                Iterations = 900,
+                Threshold = 2.0m,
+                PaletteName = "Огонь",
+                Timestamp = DateTime.MinValue
+            };
+            var previewParams2 = new FractalMandelbrotFamilyForm.PreviewParams
+            {
+                CenterX = preset2.CenterX,
+                CenterY = preset2.CenterY,
+                Zoom = preset2.Zoom,
+                Iterations = Math.Min(preset2.Iterations, PREVIEW_ITERATION_LIMIT_MANDELBROT_FAMILY),
+                PaletteName = preset2.PaletteName,
+                Threshold = preset2.Threshold,
+                PreviewEngineType = "CelticMandelbrot"
+            };
+            preset2.PreviewParametersJson = JsonSerializer.Serialize(previewParams2);
+            presets.Add(preset2);
 
             return presets;
         }
