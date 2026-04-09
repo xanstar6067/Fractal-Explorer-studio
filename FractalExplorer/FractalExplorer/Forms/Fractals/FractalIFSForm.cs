@@ -4,6 +4,7 @@ using FractalExplorer.Resources;
 using FractalExplorer.Utilities.UI;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
@@ -32,6 +33,7 @@ namespace FractalExplorer.Forms.Fractals
         public FractalIFSForm()
         {
             InitializeComponent();
+            canvas.Paint += Canvas_Paint;
             canvas.MouseWheel += Canvas_MouseWheel;
             canvas.MouseDown += Canvas_MouseDown;
             canvas.MouseMove += Canvas_MouseMove;
@@ -317,6 +319,25 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
+            canvas.Invalidate();
+        }
+
+        private void Canvas_Paint(object? sender, PaintEventArgs e)
+        {
+            e.Graphics.Clear(_engine.BackgroundColor);
+
+            if (_stableFrameBitmap is null || canvas.Width <= 1 || canvas.Height <= 1)
+            {
+                return;
+            }
+
+            e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+            e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
+            e.Graphics.DrawImage(_stableFrameBitmap, CalculatePreviewDestinationRect());
+        }
+
+        private RectangleF CalculatePreviewDestinationRect()
+        {
             int width = canvas.Width;
             int height = canvas.Height;
             double currentCenterX = (double)nudCenterX.Value;
@@ -325,29 +346,14 @@ namespace FractalExplorer.Forms.Fractals
             double oldScale = _renderedScale <= 0 ? currentScale : _renderedScale;
             double scaleRatio = oldScale / currentScale;
             double unitsPerPixelCurrentX = currentScale / width;
-            double unitsPerPixelCurrentY = currentScale * height / (double)width / height;
+            double unitsPerPixelCurrentY = currentScale / width;
             double centerOffsetX = (_renderedCenterX - currentCenterX) / unitsPerPixelCurrentX;
             double centerOffsetY = (_renderedCenterY - currentCenterY) / unitsPerPixelCurrentY;
             float drawWidth = (float)(width * scaleRatio);
             float drawHeight = (float)(height * scaleRatio);
             float drawX = (float)(width / 2.0 + centerOffsetX - drawWidth / 2.0);
             float drawY = (float)(height / 2.0 - centerOffsetY - drawHeight / 2.0);
-
-            Bitmap preview = new(width, height, PixelFormat.Format32bppPArgb);
-            using (Graphics g = Graphics.FromImage(preview))
-            {
-                g.Clear(_engine.BackgroundColor);
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
-                g.DrawImage(_stableFrameBitmap, new RectangleF(drawX, drawY, drawWidth, drawHeight));
-            }
-
-            Image? old = canvas.Image;
-            canvas.Image = preview;
-            if (old is not null && !ReferenceEquals(old, _stableFrameBitmap))
-            {
-                old.Dispose();
-            }
+            return new RectangleF(drawX, drawY, drawWidth, drawHeight);
         }
 
         private double ScreenToWorldX(int x, double scale, double centerX)
@@ -430,16 +436,10 @@ namespace FractalExplorer.Forms.Fractals
             Bitmap ready = (Bitmap)bitmap.Clone();
             BeginInvoke(new Action(() =>
             {
-                Image? old = canvas.Image;
                 Bitmap? previousStable = _stableFrameBitmap;
                 previousStable?.Dispose();
                 _stableFrameBitmap = ready;
-                canvas.Image = ready;
-                if (old is not null && !ReferenceEquals(old, previousStable))
-                {
-                    old.Dispose();
-                }
-                canvas.Refresh();
+                canvas.Invalidate();
                 pbRenderProgress.Value = 100;
                 _renderedCenterX = _engine.CenterX;
                 _renderedCenterY = _engine.CenterY;
