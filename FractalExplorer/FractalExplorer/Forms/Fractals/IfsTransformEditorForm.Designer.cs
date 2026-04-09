@@ -58,6 +58,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(IfsTransformEditorForm));
             _split = new SplitContainer();
             _leftPanel = new Panel();
             _listContainer = new Panel();
@@ -269,12 +270,12 @@ namespace FractalExplorer.Forms.Fractals
             _tblProbabilityRow.Controls.Add(_lblProbabilityValue, 1, 0);
             _tblProbabilityRow.Controls.Add(_lblProbabilityPercent, 2, 0);
             _tblProbabilityRow.Dock = DockStyle.Fill;
-            _tblProbabilityRow.Location = new Point(15, 35);
+            _tblProbabilityRow.Location = new Point(12, 32);
             _tblProbabilityRow.Margin = new Padding(0);
             _tblProbabilityRow.Name = "_tblProbabilityRow";
             _tblProbabilityRow.RowCount = 1;
             _tblProbabilityRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _tblProbabilityRow.Size = new Size(636, 34);
+            _tblProbabilityRow.Size = new Size(642, 34);
             _tblProbabilityRow.TabIndex = 1;
             // 
             // _trkProbability
@@ -286,7 +287,7 @@ namespace FractalExplorer.Forms.Fractals
             _trkProbability.Margin = new Padding(0, 2, 4, 2);
             _trkProbability.Maximum = 1000;
             _trkProbability.Name = "_trkProbability";
-            _trkProbability.Size = new Size(528, 30);
+            _trkProbability.Size = new Size(534, 30);
             _trkProbability.SmallChange = 10;
             _trkProbability.TabIndex = 0;
             _trkProbability.TickFrequency = 100;
@@ -296,7 +297,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _lblProbabilityValue.Dock = DockStyle.Fill;
             _lblProbabilityValue.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            _lblProbabilityValue.Location = new Point(535, 0);
+            _lblProbabilityValue.Location = new Point(541, 0);
             _lblProbabilityValue.Name = "_lblProbabilityValue";
             _lblProbabilityValue.Size = new Size(54, 34);
             _lblProbabilityValue.TabIndex = 1;
@@ -307,7 +308,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _lblProbabilityPercent.Dock = DockStyle.Fill;
             _lblProbabilityPercent.Font = new Font("Segoe UI", 8F);
-            _lblProbabilityPercent.Location = new Point(595, 0);
+            _lblProbabilityPercent.Location = new Point(601, 0);
             _lblProbabilityPercent.Name = "_lblProbabilityPercent";
             _lblProbabilityPercent.Size = new Size(38, 34);
             _lblProbabilityPercent.TabIndex = 2;
@@ -586,6 +587,7 @@ namespace FractalExplorer.Forms.Fractals
             ClientSize = new Size(920, 512);
             Controls.Add(_split);
             Controls.Add(_footerPanel);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(880, 500);
             Name = "IfsTransformEditorForm";
             StartPosition = FormStartPosition.CenterParent;
