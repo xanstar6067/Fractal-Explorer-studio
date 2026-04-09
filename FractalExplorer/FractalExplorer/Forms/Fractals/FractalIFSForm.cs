@@ -1,5 +1,6 @@
 ﻿using FractalExplorer.Engines;
 using FractalExplorer.Resources;
+using FractalExplorer.Utilities.UI;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Drawing.Imaging;
@@ -19,6 +20,13 @@ namespace FractalExplorer.Forms.Fractals
         private double _panStartCenterX;
         private double _panStartCenterY;
         private bool _suppressEvents;
+        private readonly FullscreenToggleController _fullscreenController = new();
+        private const int ToggleButtonMargin = 12;
+        private bool _controlsPanelVisible = true;
+        private Bitmap? _stableFrameBitmap;
+        private double _renderedCenterX;
+        private double _renderedCenterY;
+        private double _renderedScale = 2.4;
 
         public FractalIFSForm()
         {
@@ -29,6 +37,10 @@ namespace FractalExplorer.Forms.Fractals
             canvas.MouseUp += Canvas_MouseUp;
             canvas.MouseLeave += Canvas_MouseLeave;
             canvas.Resize += (_, _) => QueueRenderRestart(immediate: true);
+            canvasHost.Resize += (_, _) => UpdateToggleControlsPosition();
+            controlsHost.SizeChanged += (_, _) => UpdateToggleControlsPosition();
+            btnToggleControls.Click += (_, _) => ToggleControlsPanel();
+            KeyDown += FractalIFSForm_KeyDown;
 
             _rerenderTimer.Tick += (_, _) =>
             {
@@ -85,15 +97,18 @@ namespace FractalExplorer.Forms.Fractals
                 ApplyPointOfInterest(_pointsOfInterest[0]);
             }
 
+            UpdateToggleControlsPosition();
             ScheduleRender();
         }
 
         private void FractalIFSForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            ExitFullscreenSafely();
             _renderCts?.Cancel();
             _renderCts?.Dispose();
             _rerenderTimer.Stop();
             _wheelDebounceTimer.Stop();
+            _stableFrameBitmap?.Dispose();
         }
 
         private void CbPointOfInterest_SelectedIndexChanged(object? sender, EventArgs e)
@@ -192,6 +207,7 @@ namespace FractalExplorer.Forms.Fractals
 
             _engine.CenterX = (double)nudCenterX.Value;
             _engine.CenterY = (double)nudCenterY.Value;
+            ShowFastPreviewFrame();
         }
 
         private void Canvas_MouseUp(object? sender, MouseEventArgs e)
@@ -249,9 +265,104 @@ namespace FractalExplorer.Forms.Fractals
             _engine.Scale = (double)nudScale.Value;
             _engine.CenterX = (double)nudCenterX.Value;
             _engine.CenterY = (double)nudCenterY.Value;
+            ShowFastPreviewFrame();
 
             _wheelDebounceTimer.Stop();
             _wheelDebounceTimer.Start();
+        }
+
+        private void FractalIFSForm_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F11)
+            {
+                ToggleFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == Keys.Escape && _fullscreenController.IsFullscreen(this))
+            {
+                ExitFullscreenSafely();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void ToggleFullscreenSafely()
+        {
+            _fullscreenController.Toggle(this);
+            UpdateToggleControlsPosition();
+        }
+
+        private void ExitFullscreenSafely()
+        {
+            if (!_fullscreenController.IsFullscreen(this))
+            {
+                return;
+            }
+
+            _fullscreenController.ExitFullscreen(this);
+            UpdateToggleControlsPosition();
+        }
+
+        private void ToggleControlsPanel()
+        {
+            _controlsPanelVisible = !_controlsPanelVisible;
+            controlsHost.Visible = _controlsPanelVisible;
+            btnToggleControls.Text = _controlsPanelVisible ? "✕" : "☰";
+            UpdateToggleControlsPosition();
+        }
+
+        private void UpdateToggleControlsPosition()
+        {
+            int targetX = ToggleButtonMargin;
+            if (_controlsPanelVisible)
+            {
+                targetX = controlsHost.Right + ToggleButtonMargin;
+            }
+
+            int maxX = Math.Max(ToggleButtonMargin, canvasHost.ClientSize.Width - btnToggleControls.Width - ToggleButtonMargin);
+            btnToggleControls.Location = new Point(Math.Min(targetX, maxX), ToggleButtonMargin);
+            btnToggleControls.BringToFront();
+        }
+
+        private void ShowFastPreviewFrame()
+        {
+            if (_stableFrameBitmap is null || canvas.Width <= 1 || canvas.Height <= 1)
+            {
+                return;
+            }
+
+            int width = canvas.Width;
+            int height = canvas.Height;
+            double currentCenterX = (double)nudCenterX.Value;
+            double currentCenterY = (double)nudCenterY.Value;
+            double currentScale = (double)nudScale.Value;
+            double oldScale = _renderedScale <= 0 ? currentScale : _renderedScale;
+            double scaleRatio = oldScale / currentScale;
+            double unitsPerPixelCurrentX = currentScale / width;
+            double unitsPerPixelCurrentY = currentScale * height / (double)width / height;
+            double centerOffsetX = (_renderedCenterX - currentCenterX) / unitsPerPixelCurrentX;
+            double centerOffsetY = (_renderedCenterY - currentCenterY) / unitsPerPixelCurrentY;
+            float drawWidth = (float)(width * scaleRatio);
+            float drawHeight = (float)(height * scaleRatio);
+            float drawX = (float)(width / 2.0 + centerOffsetX - drawWidth / 2.0);
+            float drawY = (float)(height / 2.0 - centerOffsetY - drawHeight / 2.0);
+
+            Bitmap preview = new(width, height, PixelFormat.Format32bppPArgb);
+            using (Graphics g = Graphics.FromImage(preview))
+            {
+                g.Clear(_engine.BackgroundColor);
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+                g.DrawImage(_stableFrameBitmap, new RectangleF(drawX, drawY, drawWidth, drawHeight));
+            }
+
+            Image? old = canvas.Image;
+            canvas.Image = preview;
+            if (old is not null && !ReferenceEquals(old, _stableFrameBitmap))
+            {
+                old.Dispose();
+            }
         }
 
         private double ScreenToWorldX(int x, double scale, double centerX)
@@ -335,10 +446,19 @@ namespace FractalExplorer.Forms.Fractals
             BeginInvoke(new Action(() =>
             {
                 Image? old = canvas.Image;
+                Bitmap? previousStable = _stableFrameBitmap;
+                previousStable?.Dispose();
+                _stableFrameBitmap = ready;
                 canvas.Image = ready;
-                old?.Dispose();
+                if (old is not null && !ReferenceEquals(old, previousStable))
+                {
+                    old.Dispose();
+                }
                 canvas.Refresh();
                 pbRenderProgress.Value = 100;
+                _renderedCenterX = _engine.CenterX;
+                _renderedCenterY = _engine.CenterY;
+                _renderedScale = _engine.Scale;
             }));
         }
 

@@ -17,6 +17,9 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
+            contentPanel = new Panel();
+            canvasHost = new Panel();
+            controlsHost = new Panel();
             panelControls = new Panel();
             pbRenderProgress = new ProgressBar();
             btnRender = new Button();
@@ -36,7 +39,11 @@ namespace FractalExplorer.Forms.Fractals
             cbPointOfInterest = new ComboBox();
             label2 = new Label();
             label1 = new Label();
+            btnToggleControls = new Button();
             canvas = new PictureBox();
+            contentPanel.SuspendLayout();
+            canvasHost.SuspendLayout();
+            controlsHost.SuspendLayout();
             panelControls.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)nudScale).BeginInit();
             ((System.ComponentModel.ISupportInitialize)nudCenterY).BeginInit();
@@ -44,6 +51,38 @@ namespace FractalExplorer.Forms.Fractals
             ((System.ComponentModel.ISupportInitialize)nudIterations).BeginInit();
             ((System.ComponentModel.ISupportInitialize)canvas).BeginInit();
             SuspendLayout();
+            // 
+            // 
+            // contentPanel
+            // 
+            contentPanel.Controls.Add(canvasHost);
+            contentPanel.Dock = DockStyle.Fill;
+            contentPanel.Location = new Point(0, 0);
+            contentPanel.Name = "contentPanel";
+            contentPanel.Size = new Size(1348, 761);
+            contentPanel.TabIndex = 0;
+            // 
+            // canvasHost
+            // 
+            canvasHost.Controls.Add(controlsHost);
+            canvasHost.Controls.Add(btnToggleControls);
+            canvasHost.Controls.Add(canvas);
+            canvasHost.Dock = DockStyle.Fill;
+            canvasHost.Location = new Point(0, 0);
+            canvasHost.Name = "canvasHost";
+            canvasHost.Size = new Size(1348, 761);
+            canvasHost.TabIndex = 0;
+            // 
+            // controlsHost
+            // 
+            controlsHost.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            controlsHost.BackColor = SystemColors.Control;
+            controlsHost.BorderStyle = BorderStyle.FixedSingle;
+            controlsHost.Controls.Add(panelControls);
+            controlsHost.Location = new Point(0, 0);
+            controlsHost.Name = "controlsHost";
+            controlsHost.Size = new Size(300, 761);
+            controlsHost.TabIndex = 0;
             // 
             // panelControls
             // 
@@ -65,11 +104,11 @@ namespace FractalExplorer.Forms.Fractals
             panelControls.Controls.Add(cbPointOfInterest);
             panelControls.Controls.Add(label2);
             panelControls.Controls.Add(label1);
-            panelControls.Dock = DockStyle.Left;
+            panelControls.Dock = DockStyle.Fill;
             panelControls.Location = new Point(0, 0);
             panelControls.Name = "panelControls";
             panelControls.Padding = new Padding(12);
-            panelControls.Size = new Size(300, 761);
+            panelControls.Size = new Size(298, 759);
             panelControls.TabIndex = 0;
             // 
             // pbRenderProgress
@@ -243,13 +282,26 @@ namespace FractalExplorer.Forms.Fractals
             label1.TabIndex = 0;
             label1.Text = "IFS Explorer (zoom / pan / affine)";
             // 
+            // btnToggleControls
+            // 
+            btnToggleControls.AutoSize = true;
+            btnToggleControls.BackColor = Color.FromArgb(235, 32, 32, 32);
+            btnToggleControls.FlatStyle = FlatStyle.Popup;
+            btnToggleControls.ForeColor = Color.White;
+            btnToggleControls.Location = new Point(312, 12);
+            btnToggleControls.Name = "btnToggleControls";
+            btnToggleControls.Size = new Size(44, 32);
+            btnToggleControls.TabIndex = 2;
+            btnToggleControls.Text = "✕";
+            btnToggleControls.UseVisualStyleBackColor = true;
+            // 
             // canvas
             // 
             canvas.BackColor = Color.Black;
             canvas.Dock = DockStyle.Fill;
-            canvas.Location = new Point(300, 0);
+            canvas.Location = new Point(0, 0);
             canvas.Name = "canvas";
-            canvas.Size = new Size(1048, 761);
+            canvas.Size = new Size(1348, 761);
             canvas.SizeMode = PictureBoxSizeMode.Normal;
             canvas.TabIndex = 1;
             canvas.TabStop = false;
@@ -259,12 +311,16 @@ namespace FractalExplorer.Forms.Fractals
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1348, 761);
-            Controls.Add(canvas);
-            Controls.Add(panelControls);
+            Controls.Add(contentPanel);
+            KeyPreview = true;
             Name = "FractalIFSForm";
             Text = "IFS Explorer";
             FormClosing += FractalIFSForm_FormClosing;
             Load += FractalIFSForm_Load;
+            contentPanel.ResumeLayout(false);
+            canvasHost.ResumeLayout(false);
+            canvasHost.PerformLayout();
+            controlsHost.ResumeLayout(false);
             panelControls.ResumeLayout(false);
             panelControls.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)nudScale).EndInit();
@@ -277,6 +333,9 @@ namespace FractalExplorer.Forms.Fractals
 
         #endregion
 
+        private Panel contentPanel;
+        private Panel canvasHost;
+        private Panel controlsHost;
         private Panel panelControls;
         private PictureBox canvas;
         private Label label1;
@@ -297,5 +356,6 @@ namespace FractalExplorer.Forms.Fractals
         private Button btnResetView;
         private Button btnRender;
         private ProgressBar pbRenderProgress;
+        private Button btnToggleControls;
     }
 }
