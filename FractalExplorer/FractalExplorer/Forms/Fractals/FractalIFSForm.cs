@@ -1,5 +1,4 @@
 ﻿using FractalExplorer.Engines;
-using FractalExplorer.Forms.Other;
 using FractalExplorer.Resources;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
