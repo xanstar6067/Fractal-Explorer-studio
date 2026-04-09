@@ -1,6 +1,7 @@
 ﻿using FractalExplorer.Engines;
 using FractalExplorer.Forms.Common;
 using FractalExplorer.Resources;
+using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.UI;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
@@ -13,7 +14,7 @@ namespace FractalExplorer.Forms.Fractals
     public partial class FractalIFSForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal
     {
         private readonly FractalIFSGeometryEngine _engine = new();
-        private readonly List<IfsPointOfInterest> _pointsOfInterest = FractalIFSGeometryEngine.CreateDefaultPointsOfInterest();
+        private readonly List<IfsPointOfInterest> _pointsOfInterest = PresetManager.GetIfsPointsOfInterest();
         private CancellationTokenSource? _renderCts;
         private readonly System.Windows.Forms.Timer _rerenderTimer = new() { Interval = 260 };
         private readonly System.Windows.Forms.Timer _wheelDebounceTimer = new() { Interval = 360 };

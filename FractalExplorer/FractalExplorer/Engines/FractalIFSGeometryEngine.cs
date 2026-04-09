@@ -1,3 +1,5 @@
+using FractalExplorer.Utilities;
+
 namespace FractalExplorer.Engines
 {
     public sealed class IfsAffineTransform
@@ -51,7 +53,7 @@ namespace FractalExplorer.Engines
         public double CenterX { get; set; } = 0;
         public double CenterY { get; set; } = 0;
         public double Scale { get; set; } = 2.4;
-        public List<IfsAffineTransform> Transforms { get; private set; } = CreateDefaultPointsOfInterest()[0].Transforms.Select(t => t.Clone()).ToList();
+        public List<IfsAffineTransform> Transforms { get; private set; } = PresetManager.GetIfsPointsOfInterest()[0].Transforms.Select(t => t.Clone()).ToList();
 
         public void ApplyPointOfInterest(IfsPointOfInterest point)
         {
@@ -69,63 +71,7 @@ namespace FractalExplorer.Engines
 
         public static List<IfsPointOfInterest> CreateDefaultPointsOfInterest()
         {
-            List<IfsAffineTransform> barnsley =
-            [
-                new IfsAffineTransform { A = 0.0, B = 0.0, C = 0.0, D = 0.16, E = 0.0, F = 0.0, Probability = 0.01 },
-                new IfsAffineTransform { A = 0.85, B = 0.04, C = -0.04, D = 0.85, E = 0.0, F = 1.6, Probability = 0.85 },
-                new IfsAffineTransform { A = 0.2, B = -0.26, C = 0.23, D = 0.22, E = 0.0, F = 1.6, Probability = 0.07 },
-                new IfsAffineTransform { A = -0.15, B = 0.28, C = 0.26, D = 0.24, E = 0.0, F = 0.44, Probability = 0.07 }
-            ];
-
-            List<IfsAffineTransform> dragon =
-            [
-                new IfsAffineTransform { A = 0.824074, B = 0.281428, C = -0.212346, D = 0.864198, E = -1.882290, F = -0.110607, Probability = 0.5 },
-                new IfsAffineTransform { A = 0.088272, B = 0.520988, C = -0.463889, D = -0.377778, E = 0.785360, F = 8.095795, Probability = 0.5 }
-            ];
-
-            return
-            [
-                new IfsPointOfInterest
-                {
-                    Id = "barnsley_overview",
-                    Name = "Barnsley Fern — общий вид",
-                    Iterations = 220_000,
-                    CenterX = 0,
-                    CenterY = 0,
-                    Scale = 5.00,
-                    Transforms = barnsley.Select(t => t.Clone()).ToList()
-                },
-                new IfsPointOfInterest
-                {
-                    Id = "barnsley_stem",
-                    Name = "Barnsley Fern — стебель",
-                    Iterations = 320_000,
-                    CenterX = -0.03,
-                    CenterY = -0.2,
-                    Scale = 1.1,
-                    Transforms = barnsley.Select(t => t.Clone()).ToList()
-                },
-                new IfsPointOfInterest
-                {
-                    Id = "dragon_overview",
-                    Name = "Heighway Dragon — общий вид",
-                    Iterations = 200_000,
-                    CenterX = 0,
-                    CenterY = 0,
-                    Scale = 5.00,
-                    Transforms = dragon.Select(t => t.Clone()).ToList()
-                },
-                new IfsPointOfInterest
-                {
-                    Id = "dragon_wing",
-                    Name = "Heighway Dragon — ребро",
-                    Iterations = 300_000,
-                    CenterX = -0.28,
-                    CenterY = -0.08,
-                    Scale = 0.95,
-                    Transforms = dragon.Select(t => t.Clone()).ToList()
-                }
-            ];
+            return PresetManager.GetIfsPointsOfInterest();
         }
 
         public void RenderToBuffer(byte[] buffer, int width, int height, int stride, int bytesPerPixel, CancellationToken token, Action<int>? reportProgress = null)
