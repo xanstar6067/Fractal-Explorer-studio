@@ -92,7 +92,7 @@ namespace FractalExplorer.Engines
                     Iterations = 220_000,
                     CenterX = 0,
                     CenterY = 0,
-                    Scale = 2.45,
+                    Scale = 5.00,
                     Transforms = barnsley.Select(t => t.Clone()).ToList()
                 },
                 new IfsPointOfInterest
@@ -112,7 +112,7 @@ namespace FractalExplorer.Engines
                     Iterations = 200_000,
                     CenterX = 0,
                     CenterY = 0,
-                    Scale = 2.3,
+                    Scale = 5.00,
                     Transforms = dragon.Select(t => t.Clone()).ToList()
                 },
                 new IfsPointOfInterest
