@@ -72,16 +72,16 @@ namespace FractalExplorer.Forms.Fractals
             _lblAffineFormula = new Label();
             _tblAffineGrid = new TableLayoutPanel();
             _lblA = new Label();
-            _lblB = new Label();
-            _lblC = new Label();
-            _lblD = new Label();
-            _lblE = new Label();
-            _lblF = new Label();
             _nudA = new NumericUpDown();
+            _lblB = new Label();
             _nudB = new NumericUpDown();
+            _lblC = new Label();
             _nudC = new NumericUpDown();
+            _lblD = new Label();
             _nudD = new NumericUpDown();
+            _lblE = new Label();
             _nudE = new NumericUpDown();
+            _lblF = new Label();
             _nudF = new NumericUpDown();
             _editorHeader = new Panel();
             _lblEditorTitle = new Label();
@@ -266,7 +266,7 @@ namespace FractalExplorer.Forms.Fractals
             // _divider
             // 
             _divider.Dock = DockStyle.Fill;
-            _divider.Location = new Point(15, 66);
+            _divider.Location = new Point(15, 69);
             _divider.Name = "_divider";
             _divider.Size = new Size(636, 4);
             _divider.TabIndex = 2;
@@ -333,15 +333,39 @@ namespace FractalExplorer.Forms.Fractals
             _lblA.Text = "A";
             _lblA.TextAlign = ContentAlignment.MiddleLeft;
             // 
+            // _nudA
+            // 
+            _nudA.DecimalPlaces = 6;
+            _nudA.Dock = DockStyle.Fill;
+            _nudA.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
+            _nudA.Location = new Point(25, 3);
+            _nudA.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            _nudA.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
+            _nudA.Name = "_nudA";
+            _nudA.Size = new Size(290, 23);
+            _nudA.TabIndex = 6;
+            // 
             // _lblB
             // 
             _lblB.Dock = DockStyle.Fill;
-            _lblB.Location = new Point(317, 0);
+            _lblB.Location = new Point(321, 0);
             _lblB.Name = "_lblB";
             _lblB.Size = new Size(16, 34);
             _lblB.TabIndex = 1;
             _lblB.Text = "B";
             _lblB.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _nudB
+            // 
+            _nudB.DecimalPlaces = 6;
+            _nudB.Dock = DockStyle.Fill;
+            _nudB.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
+            _nudB.Location = new Point(343, 3);
+            _nudB.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            _nudB.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
+            _nudB.Name = "_nudB";
+            _nudB.Size = new Size(290, 23);
+            _nudB.TabIndex = 7;
             // 
             // _lblC
             // 
@@ -353,15 +377,39 @@ namespace FractalExplorer.Forms.Fractals
             _lblC.Text = "C";
             _lblC.TextAlign = ContentAlignment.MiddleLeft;
             // 
+            // _nudC
+            // 
+            _nudC.DecimalPlaces = 6;
+            _nudC.Dock = DockStyle.Fill;
+            _nudC.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
+            _nudC.Location = new Point(25, 37);
+            _nudC.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            _nudC.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
+            _nudC.Name = "_nudC";
+            _nudC.Size = new Size(290, 23);
+            _nudC.TabIndex = 8;
+            // 
             // _lblD
             // 
             _lblD.Dock = DockStyle.Fill;
-            _lblD.Location = new Point(317, 34);
+            _lblD.Location = new Point(321, 34);
             _lblD.Name = "_lblD";
             _lblD.Size = new Size(16, 34);
             _lblD.TabIndex = 3;
             _lblD.Text = "D";
             _lblD.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // _nudD
+            // 
+            _nudD.DecimalPlaces = 6;
+            _nudD.Dock = DockStyle.Fill;
+            _nudD.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
+            _nudD.Location = new Point(343, 37);
+            _nudD.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            _nudD.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
+            _nudD.Name = "_nudD";
+            _nudD.Size = new Size(290, 23);
+            _nudD.TabIndex = 9;
             // 
             // _lblE
             // 
@@ -373,64 +421,6 @@ namespace FractalExplorer.Forms.Fractals
             _lblE.Text = "E";
             _lblE.TextAlign = ContentAlignment.MiddleLeft;
             // 
-            // _lblF
-            // 
-            _lblF.Dock = DockStyle.Fill;
-            _lblF.Location = new Point(317, 68);
-            _lblF.Name = "_lblF";
-            _lblF.Size = new Size(16, 42);
-            _lblF.TabIndex = 5;
-            _lblF.Text = "F";
-            _lblF.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // _nudA
-            // 
-            _nudA.DecimalPlaces = 6;
-            _nudA.Dock = DockStyle.Fill;
-            _nudA.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            _nudA.Location = new Point(25, 3);
-            _nudA.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudA.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
-            _nudA.Name = "_nudA";
-            _nudA.Size = new Size(286, 23);
-            _nudA.TabIndex = 6;
-            // 
-            // _nudB
-            // 
-            _nudB.DecimalPlaces = 6;
-            _nudB.Dock = DockStyle.Fill;
-            _nudB.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            _nudB.Location = new Point(339, 3);
-            _nudB.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudB.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
-            _nudB.Name = "_nudB";
-            _nudB.Size = new Size(294, 23);
-            _nudB.TabIndex = 7;
-            // 
-            // _nudC
-            // 
-            _nudC.DecimalPlaces = 6;
-            _nudC.Dock = DockStyle.Fill;
-            _nudC.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            _nudC.Location = new Point(25, 37);
-            _nudC.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudC.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
-            _nudC.Name = "_nudC";
-            _nudC.Size = new Size(286, 23);
-            _nudC.TabIndex = 8;
-            // 
-            // _nudD
-            // 
-            _nudD.DecimalPlaces = 6;
-            _nudD.Dock = DockStyle.Fill;
-            _nudD.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            _nudD.Location = new Point(339, 37);
-            _nudD.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudD.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
-            _nudD.Name = "_nudD";
-            _nudD.Size = new Size(294, 23);
-            _nudD.TabIndex = 9;
-            // 
             // _nudE
             // 
             _nudE.DecimalPlaces = 6;
@@ -438,21 +428,31 @@ namespace FractalExplorer.Forms.Fractals
             _nudE.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
             _nudE.Location = new Point(25, 71);
             _nudE.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudE.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
+            _nudE.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
             _nudE.Name = "_nudE";
-            _nudE.Size = new Size(286, 23);
+            _nudE.Size = new Size(290, 23);
             _nudE.TabIndex = 10;
+            // 
+            // _lblF
+            // 
+            _lblF.Dock = DockStyle.Fill;
+            _lblF.Location = new Point(321, 68);
+            _lblF.Name = "_lblF";
+            _lblF.Size = new Size(16, 42);
+            _lblF.TabIndex = 5;
+            _lblF.Text = "F";
+            _lblF.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // _nudF
             // 
             _nudF.DecimalPlaces = 6;
             _nudF.Dock = DockStyle.Fill;
             _nudF.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            _nudF.Location = new Point(339, 71);
+            _nudF.Location = new Point(343, 71);
             _nudF.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudF.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
+            _nudF.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
             _nudF.Name = "_nudF";
-            _nudF.Size = new Size(294, 23);
+            _nudF.Size = new Size(290, 23);
             _nudF.TabIndex = 11;
             // 
             // _editorHeader
