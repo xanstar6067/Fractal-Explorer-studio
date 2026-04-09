@@ -1,6 +1,8 @@
 ﻿using FractalExplorer.Engines;
 using FractalExplorer.Forms.Common;
+using FractalExplorer.Forms.Other;
 using FractalExplorer.Resources;
+using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.UI;
 using FractalExplorer.Utilities.SaveIO;
@@ -11,7 +13,7 @@ using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public partial class FractalIFSForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal
+    public partial class FractalIFSForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal, IHighResRenderable
     {
         private readonly FractalIFSGeometryEngine _engine = new();
         private readonly List<IfsPointOfInterest> _pointsOfInterest = PresetManager.GetIfsPointsOfInterest();
@@ -70,6 +72,11 @@ namespace FractalExplorer.Forms.Fractals
             btnRender.Click += (_, _) => ScheduleRender();
             btnEditTransforms.Click += BtnEditTransforms_Click;
             btnSaveLoad.Click += btnSaveLoad_Click;
+            btnSaveImage.Click += (_, _) =>
+            {
+                using var saveManager = new SaveImageManagerForm(this);
+                saveManager.ShowDialog(this);
+            };
             btnResetView.Click += (_, _) =>
             {
                 _suppressEvents = true;
@@ -659,5 +666,117 @@ namespace FractalExplorer.Forms.Fractals
 
         public void SaveAllSavesForThisType(List<FractalSaveStateBase> saves)
             => SaveFileManager.SaveSaves(FractalTypeIdentifier, saves.Cast<IFSSaveState>().ToList());
+
+        public HighResRenderState GetRenderState()
+        {
+            return new HighResRenderState
+            {
+                EngineType = FractalTypeIdentifier,
+                CenterX = (decimal)_engine.CenterX,
+                CenterY = (decimal)_engine.CenterY,
+                Scale = (decimal)_engine.Scale,
+                Iterations = _engine.Iterations,
+                FileNameDetails = "ifs_fractal"
+            };
+        }
+
+        public async Task<Bitmap> RenderHighResolutionAsync(
+            HighResRenderState state,
+            int width,
+            int height,
+            int ssaaFactor,
+            IProgress<RenderProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            int renderWidth = Math.Max(1, width * Math.Max(1, ssaaFactor));
+            int renderHeight = Math.Max(1, height * Math.Max(1, ssaaFactor));
+            int stride = renderWidth * 4;
+            byte[] buffer = new byte[stride * renderHeight];
+
+            var renderEngine = new FractalIFSGeometryEngine
+            {
+                Iterations = state.Iterations > 0 ? state.Iterations : _engine.Iterations,
+                CenterX = (double)state.CenterX,
+                CenterY = (double)state.CenterY,
+                Scale = state.Scale > 0 ? (double)state.Scale : _engine.Scale,
+                FractalColor = _engine.FractalColor,
+                BackgroundColor = _engine.BackgroundColor
+            };
+            renderEngine.SetTransforms(_engine.Transforms);
+
+            await Task.Run(() =>
+            {
+                renderEngine.RenderToBuffer(
+                    buffer,
+                    renderWidth,
+                    renderHeight,
+                    stride,
+                    4,
+                    cancellationToken,
+                    p => progress.Report(new RenderProgress
+                    {
+                        Percentage = Math.Clamp(p, 0, 100),
+                        Status = "Рендеринг..."
+                    }));
+            }, cancellationToken);
+
+            Bitmap full = new(renderWidth, renderHeight, PixelFormat.Format32bppArgb);
+            BitmapData fullData = full.LockBits(new Rectangle(0, 0, renderWidth, renderHeight), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                Marshal.Copy(buffer, 0, fullData.Scan0, buffer.Length);
+            }
+            finally
+            {
+                full.UnlockBits(fullData);
+            }
+
+            if (ssaaFactor <= 1)
+            {
+                return full;
+            }
+
+            Bitmap downscaled = new(width, height, PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(downscaled))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(full, new Rectangle(0, 0, width, height));
+            }
+
+            full.Dispose();
+            return downscaled;
+        }
+
+        public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
+        {
+            var renderEngine = new FractalIFSGeometryEngine
+            {
+                Iterations = state.Iterations > 0 ? state.Iterations : _engine.Iterations,
+                CenterX = (double)state.CenterX,
+                CenterY = (double)state.CenterY,
+                Scale = state.Scale > 0 ? (double)state.Scale : _engine.Scale,
+                FractalColor = _engine.FractalColor,
+                BackgroundColor = _engine.BackgroundColor
+            };
+            renderEngine.SetTransforms(_engine.Transforms);
+
+            int width = Math.Max(1, previewWidth);
+            int height = Math.Max(1, previewHeight);
+            Bitmap bmp = new(width, height, PixelFormat.Format32bppArgb);
+            BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                int localStride = data.Stride;
+                byte[] localBuffer = new byte[localStride * height];
+                renderEngine.RenderToBuffer(localBuffer, width, height, localStride, 4, CancellationToken.None);
+                Marshal.Copy(localBuffer, 0, data.Scan0, localBuffer.Length);
+            }
+            finally
+            {
+                bmp.UnlockBits(data);
+            }
+
+            return bmp;
+        }
     }
 }
