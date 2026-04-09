@@ -50,14 +50,14 @@ namespace FractalExplorer.Forms.Fractals
             ((System.ComponentModel.ISupportInitialize)canvas).BeginInit();
             SuspendLayout();
             // 
-            // 
             // contentPanel
             // 
             contentPanel.Controls.Add(canvasHost);
             contentPanel.Dock = DockStyle.Fill;
             contentPanel.Location = new Point(0, 0);
+            contentPanel.Margin = new Padding(3, 2, 3, 2);
             contentPanel.Name = "contentPanel";
-            contentPanel.Size = new Size(1348, 761);
+            contentPanel.Size = new Size(1180, 571);
             contentPanel.TabIndex = 0;
             // 
             // canvasHost
@@ -67,8 +67,9 @@ namespace FractalExplorer.Forms.Fractals
             canvasHost.Controls.Add(canvas);
             canvasHost.Dock = DockStyle.Fill;
             canvasHost.Location = new Point(0, 0);
+            canvasHost.Margin = new Padding(3, 2, 3, 2);
             canvasHost.Name = "canvasHost";
-            canvasHost.Size = new Size(1348, 761);
+            canvasHost.Size = new Size(1180, 571);
             canvasHost.TabIndex = 0;
             // 
             // controlsHost
@@ -78,8 +79,9 @@ namespace FractalExplorer.Forms.Fractals
             controlsHost.BorderStyle = BorderStyle.FixedSingle;
             controlsHost.Controls.Add(panelControls);
             controlsHost.Location = new Point(0, 0);
+            controlsHost.Margin = new Padding(3, 2, 3, 2);
             controlsHost.Name = "controlsHost";
-            controlsHost.Size = new Size(300, 761);
+            controlsHost.Size = new Size(263, 571);
             controlsHost.TabIndex = 0;
             // 
             // panelControls
@@ -102,59 +104,66 @@ namespace FractalExplorer.Forms.Fractals
             panelControls.Controls.Add(label1);
             panelControls.Dock = DockStyle.Fill;
             panelControls.Location = new Point(0, 0);
+            panelControls.Margin = new Padding(3, 2, 3, 2);
             panelControls.Name = "panelControls";
-            panelControls.Padding = new Padding(12);
-            panelControls.Size = new Size(298, 759);
+            panelControls.Padding = new Padding(10, 9, 10, 9);
+            panelControls.Size = new Size(261, 569);
             panelControls.TabIndex = 0;
             // 
             // pbRenderProgress
             // 
-            pbRenderProgress.Location = new Point(15, 610);
+            pbRenderProgress.Location = new Point(13, 458);
+            pbRenderProgress.Margin = new Padding(3, 2, 3, 2);
             pbRenderProgress.Name = "pbRenderProgress";
-            pbRenderProgress.Size = new Size(269, 15);
+            pbRenderProgress.Size = new Size(235, 11);
             pbRenderProgress.TabIndex = 17;
             // 
             // btnRender
             // 
-            btnRender.Location = new Point(15, 570);
+            btnRender.Location = new Point(13, 428);
+            btnRender.Margin = new Padding(3, 2, 3, 2);
             btnRender.Name = "btnRender";
-            btnRender.Size = new Size(269, 34);
+            btnRender.Size = new Size(235, 26);
             btnRender.TabIndex = 16;
             btnRender.Text = "Рендер";
             btnRender.UseVisualStyleBackColor = true;
             // 
             // btnResetView
             // 
-            btnResetView.Location = new Point(15, 530);
+            btnResetView.Location = new Point(13, 398);
+            btnResetView.Margin = new Padding(3, 2, 3, 2);
             btnResetView.Name = "btnResetView";
-            btnResetView.Size = new Size(269, 34);
+            btnResetView.Size = new Size(235, 26);
             btnResetView.TabIndex = 15;
             btnResetView.Text = "Сброс вида";
             btnResetView.UseVisualStyleBackColor = true;
             // 
             // btnSaveLoad
             // 
-            btnSaveLoad.Location = new Point(15, 490);
+            btnSaveLoad.Location = new Point(13, 368);
+            btnSaveLoad.Margin = new Padding(3, 2, 3, 2);
             btnSaveLoad.Name = "btnSaveLoad";
-            btnSaveLoad.Size = new Size(269, 34);
+            btnSaveLoad.Size = new Size(235, 26);
             btnSaveLoad.TabIndex = 14;
             btnSaveLoad.Text = "Сохранить / Загрузить";
             btnSaveLoad.UseVisualStyleBackColor = true;
             // 
             // btnEditTransforms
             // 
-            btnEditTransforms.Location = new Point(15, 450);
+            btnEditTransforms.Location = new Point(13, 338);
+            btnEditTransforms.Margin = new Padding(3, 2, 3, 2);
             btnEditTransforms.Name = "btnEditTransforms";
-            btnEditTransforms.Size = new Size(269, 34);
+            btnEditTransforms.Size = new Size(235, 26);
             btnEditTransforms.TabIndex = 13;
             btnEditTransforms.Text = "Аффинные преобразования";
             btnEditTransforms.UseVisualStyleBackColor = true;
             // 
             // btnBackgroundColor
             // 
-            btnBackgroundColor.Location = new Point(15, 410);
+            btnBackgroundColor.Location = new Point(13, 308);
+            btnBackgroundColor.Margin = new Padding(3, 2, 3, 2);
             btnBackgroundColor.Name = "btnBackgroundColor";
-            btnBackgroundColor.Size = new Size(269, 34);
+            btnBackgroundColor.Size = new Size(235, 26);
             btnBackgroundColor.TabIndex = 12;
             btnBackgroundColor.Text = "Цвет фона";
             btnBackgroundColor.UseVisualStyleBackColor = true;
@@ -162,9 +171,10 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // btnFractalColor
             // 
-            btnFractalColor.Location = new Point(15, 370);
+            btnFractalColor.Location = new Point(13, 278);
+            btnFractalColor.Margin = new Padding(3, 2, 3, 2);
             btnFractalColor.Name = "btnFractalColor";
-            btnFractalColor.Size = new Size(269, 34);
+            btnFractalColor.Size = new Size(235, 26);
             btnFractalColor.TabIndex = 11;
             btnFractalColor.Text = "Цвет фрактала";
             btnFractalColor.UseVisualStyleBackColor = true;
@@ -174,20 +184,21 @@ namespace FractalExplorer.Forms.Fractals
             // 
             nudScale.DecimalPlaces = 4;
             nudScale.Increment = new decimal(new int[] { 1, 0, 0, 262144 });
-            nudScale.Location = new Point(15, 248);
+            nudScale.Location = new Point(13, 186);
+            nudScale.Margin = new Padding(3, 2, 3, 2);
             nudScale.Maximum = new decimal(new int[] { 40, 0, 0, 0 });
             nudScale.Minimum = new decimal(new int[] { 1, 0, 0, 65536 });
             nudScale.Name = "nudScale";
-            nudScale.Size = new Size(269, 27);
+            nudScale.Size = new Size(235, 23);
             nudScale.TabIndex = 10;
             nudScale.Value = new decimal(new int[] { 24, 0, 0, 65536 });
             // 
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(15, 225);
+            label7.Location = new Point(13, 169);
             label7.Name = "label7";
-            label7.Size = new Size(81, 20);
+            label7.Size = new Size(59, 15);
             label7.TabIndex = 9;
             label7.Text = "Масштаб";
             // 
@@ -195,19 +206,20 @@ namespace FractalExplorer.Forms.Fractals
             // 
             nudCenterY.DecimalPlaces = 6;
             nudCenterY.Increment = new decimal(new int[] { 1, 0, 0, 262144 });
-            nudCenterY.Location = new Point(15, 188);
-            nudCenterY.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
+            nudCenterY.Location = new Point(13, 141);
+            nudCenterY.Margin = new Padding(3, 2, 3, 2);
             nudCenterY.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            nudCenterY.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
             nudCenterY.Name = "nudCenterY";
-            nudCenterY.Size = new Size(269, 27);
+            nudCenterY.Size = new Size(235, 23);
             nudCenterY.TabIndex = 8;
             // 
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(15, 165);
+            label6.Location = new Point(13, 124);
             label6.Name = "label6";
-            label6.Size = new Size(130, 20);
+            label6.Size = new Size(85, 15);
             label6.TabIndex = 7;
             label6.Text = "Центр Y (мир)";
             // 
@@ -215,48 +227,50 @@ namespace FractalExplorer.Forms.Fractals
             // 
             nudCenterX.DecimalPlaces = 6;
             nudCenterX.Increment = new decimal(new int[] { 1, 0, 0, 262144 });
-            nudCenterX.Location = new Point(15, 128);
-            nudCenterX.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
+            nudCenterX.Location = new Point(13, 96);
+            nudCenterX.Margin = new Padding(3, 2, 3, 2);
             nudCenterX.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            nudCenterX.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
             nudCenterX.Name = "nudCenterX";
-            nudCenterX.Size = new Size(269, 27);
+            nudCenterX.Size = new Size(235, 23);
             nudCenterX.TabIndex = 6;
             // 
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new Point(15, 105);
+            label5.Location = new Point(13, 79);
             label5.Name = "label5";
-            label5.Size = new Size(131, 20);
+            label5.Size = new Size(85, 15);
             label5.TabIndex = 5;
             label5.Text = "Центр X (мир)";
             // 
             // nudIterations
             // 
             nudIterations.Increment = new decimal(new int[] { 10000, 0, 0, 0 });
-            nudIterations.Location = new Point(15, 68);
+            nudIterations.Location = new Point(13, 51);
+            nudIterations.Margin = new Padding(3, 2, 3, 2);
             nudIterations.Maximum = new decimal(new int[] { 10000000, 0, 0, 0 });
             nudIterations.Minimum = new decimal(new int[] { 10000, 0, 0, 0 });
             nudIterations.Name = "nudIterations";
-            nudIterations.Size = new Size(269, 27);
+            nudIterations.Size = new Size(235, 23);
             nudIterations.TabIndex = 4;
             nudIterations.Value = new decimal(new int[] { 220000, 0, 0, 0 });
             // 
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(15, 45);
+            label3.Location = new Point(13, 34);
             label3.Name = "label3";
-            label3.Size = new Size(73, 20);
+            label3.Size = new Size(61, 15);
             label3.TabIndex = 3;
             label3.Text = "Итерации";
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(15, 12);
+            label1.Location = new Point(13, 9);
             label1.Name = "label1";
-            label1.Size = new Size(262, 20);
+            label1.Size = new Size(181, 15);
             label1.TabIndex = 0;
             label1.Text = "IFS Explorer (zoom / pan / affine)";
             // 
@@ -266,9 +280,10 @@ namespace FractalExplorer.Forms.Fractals
             btnToggleControls.BackColor = Color.FromArgb(235, 32, 32, 32);
             btnToggleControls.FlatStyle = FlatStyle.Popup;
             btnToggleControls.ForeColor = Color.White;
-            btnToggleControls.Location = new Point(312, 12);
+            btnToggleControls.Location = new Point(273, 9);
+            btnToggleControls.Margin = new Padding(3, 2, 3, 2);
             btnToggleControls.Name = "btnToggleControls";
-            btnToggleControls.Size = new Size(44, 32);
+            btnToggleControls.Size = new Size(38, 25);
             btnToggleControls.TabIndex = 2;
             btnToggleControls.Text = "✕";
             btnToggleControls.UseVisualStyleBackColor = true;
@@ -278,19 +293,20 @@ namespace FractalExplorer.Forms.Fractals
             canvas.BackColor = Color.Black;
             canvas.Dock = DockStyle.Fill;
             canvas.Location = new Point(0, 0);
+            canvas.Margin = new Padding(3, 2, 3, 2);
             canvas.Name = "canvas";
-            canvas.Size = new Size(1348, 761);
-            canvas.SizeMode = PictureBoxSizeMode.Normal;
+            canvas.Size = new Size(1180, 571);
             canvas.TabIndex = 1;
             canvas.TabStop = false;
             // 
             // FractalIFSForm
             // 
-            AutoScaleDimensions = new SizeF(8F, 20F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1348, 761);
+            ClientSize = new Size(1180, 571);
             Controls.Add(contentPanel);
             KeyPreview = true;
+            Margin = new Padding(3, 2, 3, 2);
             Name = "FractalIFSForm";
             Text = "IFS Explorer";
             FormClosing += FractalIFSForm_FormClosing;
