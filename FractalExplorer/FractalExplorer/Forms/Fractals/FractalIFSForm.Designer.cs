@@ -17,6 +17,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FractalIFSForm));
             contentPanel = new Panel();
             canvasHost = new Panel();
             controlsHost = new Panel();
@@ -363,6 +364,7 @@ namespace FractalExplorer.Forms.Fractals
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1180, 781);
             Controls.Add(contentPanel);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
             Margin = new Padding(3, 2, 3, 2);
             Name = "FractalIFSForm";
