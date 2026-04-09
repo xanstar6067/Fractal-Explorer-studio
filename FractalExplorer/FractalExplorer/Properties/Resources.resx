@@ -170,6 +170,10 @@
     <value>..\Resources\general_mandelbrot_preview_sq512.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
     <comment>превью</comment>
   </data>
+  <data name="ifs_fractal_preview_sq512" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\ifs_fractal_preview_sq512.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <comment>превью</comment>
+  </data>
   <data name="julia_burningship_preview" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\julia_burningship_preview.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
     <comment>превью</comment>

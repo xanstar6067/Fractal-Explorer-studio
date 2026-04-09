@@ -193,6 +193,16 @@ namespace FractalExplorer.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap ifs_fractal_preview_sq512 {
+            get {
+                object obj = ResourceManager.GetObject("ifs_fractal_preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap julia_burningship_preview {
             get {
                 object obj = ResourceManager.GetObject("julia_burningship_preview", resourceCulture);
