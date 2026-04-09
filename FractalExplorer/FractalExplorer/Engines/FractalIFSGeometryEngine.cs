@@ -46,6 +46,7 @@ namespace FractalExplorer.Engines
     {
         private const double MinScale = 0.05;
         private const double MaxScale = 40.0;
+        private const string DefaultPointOfInterestId = "barnsley_overview";
 
         public int Iterations { get; set; } = 220_000;
         public Color BackgroundColor { get; set; } = Color.Black;
@@ -53,7 +54,7 @@ namespace FractalExplorer.Engines
         public double CenterX { get; set; } = 0;
         public double CenterY { get; set; } = 0;
         public double Scale { get; set; } = 2.4;
-        public List<IfsAffineTransform> Transforms { get; private set; } = PresetManager.GetIfsPointsOfInterest()[0].Transforms.Select(t => t.Clone()).ToList();
+        public List<IfsAffineTransform> Transforms { get; private set; } = CreateInitialTransforms();
 
         public void ApplyPointOfInterest(IfsPointOfInterest point)
         {
@@ -71,7 +72,13 @@ namespace FractalExplorer.Engines
 
         public static List<IfsPointOfInterest> CreateDefaultPointsOfInterest()
         {
-            return PresetManager.GetIfsPointsOfInterest();
+            List<IfsPointOfInterest> pointsOfInterest = PresetManager.GetIfsPointsOfInterest();
+            if (pointsOfInterest.Count > 0)
+            {
+                return pointsOfInterest;
+            }
+
+            return new List<IfsPointOfInterest> { CreateFallbackPointOfInterest() };
         }
 
         public void RenderToBuffer(byte[] buffer, int width, int height, int stride, int bytesPerPixel, CancellationToken token, Action<int>? reportProgress = null)
@@ -191,6 +198,52 @@ namespace FractalExplorer.Engines
                     }
                 }
             }
+        }
+
+        private static List<IfsAffineTransform> CreateInitialTransforms()
+        {
+            List<IfsPointOfInterest> pointsOfInterest = PresetManager.GetIfsPointsOfInterest();
+            IfsPointOfInterest? initialPoint =
+                pointsOfInterest.FirstOrDefault(p => string.Equals(p.Id, DefaultPointOfInterestId, StringComparison.OrdinalIgnoreCase))
+                ?? pointsOfInterest.FirstOrDefault();
+
+            if (initialPoint?.Transforms is { Count: > 0 })
+            {
+                return initialPoint.Transforms.Select(t => t.Clone()).ToList();
+            }
+
+            return CreateFallbackTransforms();
+        }
+
+        private static IfsPointOfInterest CreateFallbackPointOfInterest()
+        {
+            return new IfsPointOfInterest
+            {
+                Id = "fallback",
+                Name = "Fallback IFS",
+                Iterations = 100_000,
+                CenterX = 0,
+                CenterY = 0,
+                Scale = 2.4,
+                Transforms = CreateFallbackTransforms()
+            };
+        }
+
+        private static List<IfsAffineTransform> CreateFallbackTransforms()
+        {
+            return new List<IfsAffineTransform>
+            {
+                new()
+                {
+                    A = 0.5,
+                    B = 0.0,
+                    C = 0.0,
+                    D = 0.5,
+                    E = 0.0,
+                    F = 0.0,
+                    Probability = 1.0
+                }
+            };
         }
     }
 }
