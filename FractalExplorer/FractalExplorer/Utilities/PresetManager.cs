@@ -93,6 +93,8 @@ namespace FractalExplorer.Utilities
                     return GetLyapunovPresets();
                 case "Flame":
                     return GetFlamePresets();
+                case "IFS":
+                    return GetIfsPresets();
                 default:
                     return new List<FractalSaveStateBase>();
             }
@@ -1540,6 +1542,34 @@ namespace FractalExplorer.Utilities
                     new() { Weight = 0.33, A = 0.28, B = 0.00, C = 0.00, D = 0.00, E = 0.30, F = -0.73, Variation = FlameVariation.Spherical, Color = Color.DodgerBlue }
                 }
             });
+
+            return presets;
+        }
+
+        private static List<FractalSaveStateBase> GetIfsPresets()
+        {
+            List<IfsPointOfInterest> pointsOfInterest = FractalIFSGeometryEngine.CreateDefaultPointsOfInterest();
+            var presets = new List<FractalSaveStateBase>();
+
+            foreach (IfsPointOfInterest point in pointsOfInterest.Where(p =>
+                         p.Name.Contains("общий вид", StringComparison.OrdinalIgnoreCase)
+                         && !p.Name.Contains("стебель", StringComparison.OrdinalIgnoreCase)
+                         && !p.Name.Contains("ребро", StringComparison.OrdinalIgnoreCase)))
+            {
+                presets.Add(new IFSSaveState("IFS")
+                {
+                    SaveName = point.Name,
+                    Timestamp = DateTime.MinValue,
+                    PointOfInterestId = point.Id,
+                    Iterations = point.Iterations,
+                    CenterX = point.CenterX,
+                    CenterY = point.CenterY,
+                    Scale = point.Scale,
+                    Transforms = point.Transforms.Select(t => t.Clone()).ToList(),
+                    FractalColor = Color.Lime,
+                    BackgroundColor = Color.Black
+                });
+            }
 
             return presets;
         }

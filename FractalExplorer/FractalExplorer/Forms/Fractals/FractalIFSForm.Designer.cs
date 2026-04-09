@@ -36,8 +36,6 @@ namespace FractalExplorer.Forms.Fractals
             label5 = new Label();
             nudIterations = new NumericUpDown();
             label3 = new Label();
-            cbPointOfInterest = new ComboBox();
-            label2 = new Label();
             label1 = new Label();
             btnToggleControls = new Button();
             canvas = new PictureBox();
@@ -101,8 +99,6 @@ namespace FractalExplorer.Forms.Fractals
             panelControls.Controls.Add(label5);
             panelControls.Controls.Add(nudIterations);
             panelControls.Controls.Add(label3);
-            panelControls.Controls.Add(cbPointOfInterest);
-            panelControls.Controls.Add(label2);
             panelControls.Controls.Add(label1);
             panelControls.Dock = DockStyle.Fill;
             panelControls.Location = new Point(0, 0);
@@ -178,7 +174,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             nudScale.DecimalPlaces = 4;
             nudScale.Increment = new decimal(new int[] { 1, 0, 0, 262144 });
-            nudScale.Location = new Point(15, 316);
+            nudScale.Location = new Point(15, 248);
             nudScale.Maximum = new decimal(new int[] { 40, 0, 0, 0 });
             nudScale.Minimum = new decimal(new int[] { 1, 0, 0, 65536 });
             nudScale.Name = "nudScale";
@@ -189,7 +185,7 @@ namespace FractalExplorer.Forms.Fractals
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(15, 293);
+            label7.Location = new Point(15, 225);
             label7.Name = "label7";
             label7.Size = new Size(81, 20);
             label7.TabIndex = 9;
@@ -199,7 +195,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             nudCenterY.DecimalPlaces = 6;
             nudCenterY.Increment = new decimal(new int[] { 1, 0, 0, 262144 });
-            nudCenterY.Location = new Point(15, 256);
+            nudCenterY.Location = new Point(15, 188);
             nudCenterY.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
             nudCenterY.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
             nudCenterY.Name = "nudCenterY";
@@ -209,7 +205,7 @@ namespace FractalExplorer.Forms.Fractals
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(15, 233);
+            label6.Location = new Point(15, 165);
             label6.Name = "label6";
             label6.Size = new Size(130, 20);
             label6.TabIndex = 7;
@@ -219,7 +215,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             nudCenterX.DecimalPlaces = 6;
             nudCenterX.Increment = new decimal(new int[] { 1, 0, 0, 262144 });
-            nudCenterX.Location = new Point(15, 196);
+            nudCenterX.Location = new Point(15, 128);
             nudCenterX.Minimum = new decimal(new int[] { 1000, 0, 0, -2147483648 });
             nudCenterX.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
             nudCenterX.Name = "nudCenterX";
@@ -229,7 +225,7 @@ namespace FractalExplorer.Forms.Fractals
             // label5
             // 
             label5.AutoSize = true;
-            label5.Location = new Point(15, 173);
+            label5.Location = new Point(15, 105);
             label5.Name = "label5";
             label5.Size = new Size(131, 20);
             label5.TabIndex = 5;
@@ -238,7 +234,7 @@ namespace FractalExplorer.Forms.Fractals
             // nudIterations
             // 
             nudIterations.Increment = new decimal(new int[] { 10000, 0, 0, 0 });
-            nudIterations.Location = new Point(15, 136);
+            nudIterations.Location = new Point(15, 68);
             nudIterations.Maximum = new decimal(new int[] { 10000000, 0, 0, 0 });
             nudIterations.Minimum = new decimal(new int[] { 10000, 0, 0, 0 });
             nudIterations.Name = "nudIterations";
@@ -249,29 +245,11 @@ namespace FractalExplorer.Forms.Fractals
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(15, 113);
+            label3.Location = new Point(15, 45);
             label3.Name = "label3";
             label3.Size = new Size(73, 20);
             label3.TabIndex = 3;
             label3.Text = "Итерации";
-            // 
-            // cbPointOfInterest
-            // 
-            cbPointOfInterest.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbPointOfInterest.FormattingEnabled = true;
-            cbPointOfInterest.Location = new Point(15, 71);
-            cbPointOfInterest.Name = "cbPointOfInterest";
-            cbPointOfInterest.Size = new Size(269, 28);
-            cbPointOfInterest.TabIndex = 2;
-            // 
-            // label2
-            // 
-            label2.AutoSize = true;
-            label2.Location = new Point(15, 48);
-            label2.Name = "label2";
-            label2.Size = new Size(130, 20);
-            label2.TabIndex = 1;
-            label2.Text = "Точка интереса";
             // 
             // label1
             // 
@@ -339,8 +317,6 @@ namespace FractalExplorer.Forms.Fractals
         private Panel panelControls;
         private PictureBox canvas;
         private Label label1;
-        private Label label2;
-        private ComboBox cbPointOfInterest;
         private NumericUpDown nudIterations;
         private Label label3;
         private Label label5;

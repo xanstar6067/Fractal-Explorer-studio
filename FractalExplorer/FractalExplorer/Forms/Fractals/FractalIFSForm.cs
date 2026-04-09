@@ -1,4 +1,5 @@
 ﻿using FractalExplorer.Engines;
+using FractalExplorer.Forms.Common;
 using FractalExplorer.Resources;
 using FractalExplorer.Utilities.UI;
 using FractalExplorer.Utilities.SaveIO;
@@ -8,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public partial class FractalIFSForm : Form, ISaveLoadCapableFractal
+    public partial class FractalIFSForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal
     {
         private readonly FractalIFSGeometryEngine _engine = new();
         private readonly List<IfsPointOfInterest> _pointsOfInterest = FractalIFSGeometryEngine.CreateDefaultPointsOfInterest();
@@ -54,10 +55,6 @@ namespace FractalExplorer.Forms.Fractals
                 ScheduleRender();
             };
 
-            cbPointOfInterest.DisplayMember = nameof(IfsPointOfInterest.Name);
-            cbPointOfInterest.ValueMember = nameof(IfsPointOfInterest.Id);
-            cbPointOfInterest.DataSource = _pointsOfInterest;
-
             AttachControlTriggers();
         }
 
@@ -67,8 +64,6 @@ namespace FractalExplorer.Forms.Fractals
             nudCenterX.ValueChanged += ParamChanged;
             nudCenterY.ValueChanged += ParamChanged;
             nudScale.ValueChanged += ParamChanged;
-            cbPointOfInterest.SelectedIndexChanged += CbPointOfInterest_SelectedIndexChanged;
-
             btnRender.Click += (_, _) => ScheduleRender();
             btnEditTransforms.Click += BtnEditTransforms_Click;
             btnSaveLoad.Click += btnSaveLoad_Click;
@@ -91,10 +86,11 @@ namespace FractalExplorer.Forms.Fractals
 
         private void FractalIFSForm_Load(object sender, EventArgs e)
         {
-            if (_pointsOfInterest.Count > 0)
+            IfsPointOfInterest? defaultPreset = _pointsOfInterest.FirstOrDefault(p => p.Id == "barnsley_overview")
+                                             ?? _pointsOfInterest.FirstOrDefault();
+            if (defaultPreset != null)
             {
-                cbPointOfInterest.SelectedIndex = 0;
-                ApplyPointOfInterest(_pointsOfInterest[0]);
+                ApplyPointOfInterest(defaultPreset);
             }
 
             UpdateToggleControlsPosition();
@@ -109,17 +105,6 @@ namespace FractalExplorer.Forms.Fractals
             _rerenderTimer.Stop();
             _wheelDebounceTimer.Stop();
             _stableFrameBitmap?.Dispose();
-        }
-
-        private void CbPointOfInterest_SelectedIndexChanged(object? sender, EventArgs e)
-        {
-            if (_suppressEvents || cbPointOfInterest.SelectedItem is not IfsPointOfInterest selected)
-            {
-                return;
-            }
-
-            ApplyPointOfInterest(selected);
-            QueueRenderRestart(immediate: true);
         }
 
         private void ApplyPointOfInterest(IfsPointOfInterest point)
@@ -464,20 +449,20 @@ namespace FractalExplorer.Forms.Fractals
 
         private void btnFractalColor_Click(object sender, EventArgs e)
         {
-            using ColorDialog dialog = new() { Color = _engine.FractalColor };
-            if (dialog.ShowDialog() == DialogResult.OK)
+            using ColorPickerPanelForm dialog = new(_engine.FractalColor);
+            if (dialog.ShowDialog(this) == DialogResult.OK)
             {
-                _engine.FractalColor = dialog.Color;
+                _engine.FractalColor = dialog.SelectedColor;
                 QueueRenderRestart(immediate: true);
             }
         }
 
         private void btnBackgroundColor_Click(object sender, EventArgs e)
         {
-            using ColorDialog dialog = new() { Color = _engine.BackgroundColor };
-            if (dialog.ShowDialog() == DialogResult.OK)
+            using ColorPickerPanelForm dialog = new(_engine.BackgroundColor);
+            if (dialog.ShowDialog(this) == DialogResult.OK)
             {
-                _engine.BackgroundColor = dialog.Color;
+                _engine.BackgroundColor = dialog.SelectedColor;
                 QueueRenderRestart(immediate: true);
             }
         }
@@ -497,7 +482,6 @@ namespace FractalExplorer.Forms.Fractals
             {
                 SaveName = saveName,
                 Timestamp = DateTime.Now,
-                PointOfInterestId = cbPointOfInterest.SelectedValue?.ToString(),
                 Iterations = (int)nudIterations.Value,
                 CenterX = (double)nudCenterX.Value,
                 CenterY = (double)nudCenterY.Value,
@@ -518,15 +502,6 @@ namespace FractalExplorer.Forms.Fractals
             _suppressEvents = true;
             try
             {
-                if (!string.IsNullOrWhiteSpace(s.PointOfInterestId))
-                {
-                    int idx = _pointsOfInterest.FindIndex(p => p.Id == s.PointOfInterestId);
-                    if (idx >= 0)
-                    {
-                        cbPointOfInterest.SelectedIndex = idx;
-                    }
-                }
-
                 nudIterations.Value = Math.Clamp(s.Iterations, (int)nudIterations.Minimum, (int)nudIterations.Maximum);
                 nudCenterX.Value = (decimal)Math.Clamp(s.CenterX, (double)nudCenterX.Minimum, (double)nudCenterX.Maximum);
                 nudCenterY.Value = (decimal)Math.Clamp(s.CenterY, (double)nudCenterY.Minimum, (double)nudCenterY.Maximum);
@@ -541,9 +516,17 @@ namespace FractalExplorer.Forms.Fractals
             {
                 _engine.SetTransforms(s.Transforms);
             }
-            else if (cbPointOfInterest.SelectedItem is IfsPointOfInterest point)
+            else if (!string.IsNullOrWhiteSpace(s.PointOfInterestId))
             {
-                _engine.SetTransforms(point.Transforms);
+                IfsPointOfInterest? pointById = _pointsOfInterest.FirstOrDefault(p => p.Id == s.PointOfInterestId);
+                if (pointById != null)
+                {
+                    _engine.SetTransforms(pointById.Transforms);
+                }
+            }
+            else if (_pointsOfInterest.Count > 0)
+            {
+                _engine.SetTransforms(_pointsOfInterest[0].Transforms);
             }
 
             _engine.FractalColor = s.FractalColor;
@@ -570,6 +553,14 @@ namespace FractalExplorer.Forms.Fractals
             if (s.Transforms.Count > 0)
             {
                 previewEngine.SetTransforms(s.Transforms);
+            }
+            else if (!string.IsNullOrWhiteSpace(s.PointOfInterestId))
+            {
+                IfsPointOfInterest? pointById = _pointsOfInterest.FirstOrDefault(p => p.Id == s.PointOfInterestId);
+                if (pointById != null)
+                {
+                    previewEngine.SetTransforms(pointById.Transforms);
+                }
             }
 
             Bitmap bmp = new(previewWidth, previewHeight, PixelFormat.Format32bppArgb);
@@ -604,6 +595,62 @@ namespace FractalExplorer.Forms.Fractals
             {
                 full.UnlockBits(data);
             }
+        }
+
+        public async Task<byte[]> RenderPreviewAsync(
+            FractalSaveStateBase state,
+            int previewWidth,
+            int previewHeight,
+            CancellationToken cancellationToken,
+            IProgress<int>? progress = null)
+        {
+            if (state is not IFSSaveState s)
+            {
+                return new byte[Math.Max(1, previewWidth * previewHeight * 4)];
+            }
+
+            var previewEngine = new FractalIFSGeometryEngine
+            {
+                Iterations = s.Iterations,
+                CenterX = s.CenterX,
+                CenterY = s.CenterY,
+                Scale = s.Scale <= 0 ? 2.4 : s.Scale,
+                FractalColor = s.FractalColor,
+                BackgroundColor = s.BackgroundColor
+            };
+
+            if (s.Transforms.Count > 0)
+            {
+                previewEngine.SetTransforms(s.Transforms);
+            }
+            else if (!string.IsNullOrWhiteSpace(s.PointOfInterestId))
+            {
+                IfsPointOfInterest? pointById = _pointsOfInterest.FirstOrDefault(p => p.Id == s.PointOfInterestId);
+                if (pointById != null)
+                {
+                    previewEngine.SetTransforms(pointById.Transforms);
+                }
+            }
+
+            int width = Math.Max(1, previewWidth);
+            int height = Math.Max(1, previewHeight);
+            int stride = width * 4;
+            byte[] buffer = new byte[stride * height];
+
+            await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                previewEngine.RenderToBuffer(
+                    buffer,
+                    width,
+                    height,
+                    stride,
+                    4,
+                    cancellationToken,
+                    p => progress?.Report(Math.Clamp(p, 0, 100)));
+            }, cancellationToken);
+
+            return buffer;
         }
 
         public List<FractalSaveStateBase> LoadAllSavesForThisType()
