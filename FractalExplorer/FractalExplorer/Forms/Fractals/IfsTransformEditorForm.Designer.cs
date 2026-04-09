@@ -19,7 +19,10 @@ namespace FractalExplorer.Forms.Fractals
         private Label _lblEditorTitle;
         private TableLayoutPanel _tblMain;
         private Label _lblProbabilityCaption;
-        private NumericUpDown _nudProbability;
+        private TableLayoutPanel _tblProbabilityRow;
+        private TrackBar _trkProbability;
+        private Label _lblProbabilityValue;
+        private Label _lblProbabilityPercent;
         private Panel _divider;
         private Label _lblAffineCaption;
         private Label _lblAffineFormula;
@@ -66,7 +69,10 @@ namespace FractalExplorer.Forms.Fractals
             _rightPanel = new Panel();
             _tblMain = new TableLayoutPanel();
             _lblProbabilityCaption = new Label();
-            _nudProbability = new NumericUpDown();
+            _tblProbabilityRow = new TableLayoutPanel();
+            _trkProbability = new TrackBar();
+            _lblProbabilityValue = new Label();
+            _lblProbabilityPercent = new Label();
             _divider = new Panel();
             _lblAffineCaption = new Label();
             _lblAffineFormula = new Label();
@@ -99,7 +105,8 @@ namespace FractalExplorer.Forms.Fractals
             _listHeader.SuspendLayout();
             _rightPanel.SuspendLayout();
             _tblMain.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)_nudProbability).BeginInit();
+            _tblProbabilityRow.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)_trkProbability).BeginInit();
             _tblAffineGrid.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)_nudA).BeginInit();
             ((System.ComponentModel.ISupportInitialize)_nudB).BeginInit();
@@ -222,7 +229,7 @@ namespace FractalExplorer.Forms.Fractals
             _tblMain.ColumnCount = 1;
             _tblMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             _tblMain.Controls.Add(_lblProbabilityCaption, 0, 0);
-            _tblMain.Controls.Add(_nudProbability, 0, 1);
+            _tblMain.Controls.Add(_tblProbabilityRow, 0, 1);
             _tblMain.Controls.Add(_divider, 0, 2);
             _tblMain.Controls.Add(_lblAffineCaption, 0, 3);
             _tblMain.Controls.Add(_lblAffineFormula, 0, 4);
@@ -252,16 +259,60 @@ namespace FractalExplorer.Forms.Fractals
             _lblProbabilityCaption.Text = "ВЕРОЯТНОСТЬ";
             _lblProbabilityCaption.TextAlign = ContentAlignment.BottomLeft;
             // 
-            // _nudProbability
+            // _tblProbabilityRow
             // 
-            _nudProbability.DecimalPlaces = 6;
-            _nudProbability.Dock = DockStyle.Fill;
-            _nudProbability.Increment = new decimal(new int[] { 1, 0, 0, 196608 });
-            _nudProbability.Location = new Point(15, 35);
-            _nudProbability.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            _nudProbability.Name = "_nudProbability";
-            _nudProbability.Size = new Size(636, 23);
-            _nudProbability.TabIndex = 1;
+            _tblProbabilityRow.ColumnCount = 3;
+            _tblProbabilityRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            _tblProbabilityRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60F));
+            _tblProbabilityRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44F));
+            _tblProbabilityRow.Controls.Add(_trkProbability, 0, 0);
+            _tblProbabilityRow.Controls.Add(_lblProbabilityValue, 1, 0);
+            _tblProbabilityRow.Controls.Add(_lblProbabilityPercent, 2, 0);
+            _tblProbabilityRow.Dock = DockStyle.Fill;
+            _tblProbabilityRow.Location = new Point(15, 35);
+            _tblProbabilityRow.Margin = new Padding(0);
+            _tblProbabilityRow.Name = "_tblProbabilityRow";
+            _tblProbabilityRow.RowCount = 1;
+            _tblProbabilityRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            _tblProbabilityRow.Size = new Size(636, 34);
+            _tblProbabilityRow.TabIndex = 1;
+            // 
+            // _trkProbability
+            // 
+            _trkProbability.AutoSize = false;
+            _trkProbability.Dock = DockStyle.Fill;
+            _trkProbability.LargeChange = 50;
+            _trkProbability.Location = new Point(0, 2);
+            _trkProbability.Margin = new Padding(0, 2, 4, 2);
+            _trkProbability.Maximum = 1000;
+            _trkProbability.Name = "_trkProbability";
+            _trkProbability.Size = new Size(528, 30);
+            _trkProbability.SmallChange = 10;
+            _trkProbability.TabIndex = 0;
+            _trkProbability.TickFrequency = 100;
+            _trkProbability.Value = 500;
+            // 
+            // _lblProbabilityValue
+            // 
+            _lblProbabilityValue.Dock = DockStyle.Fill;
+            _lblProbabilityValue.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _lblProbabilityValue.Location = new Point(535, 0);
+            _lblProbabilityValue.Name = "_lblProbabilityValue";
+            _lblProbabilityValue.Size = new Size(54, 34);
+            _lblProbabilityValue.TabIndex = 1;
+            _lblProbabilityValue.Text = "0.500";
+            _lblProbabilityValue.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // _lblProbabilityPercent
+            // 
+            _lblProbabilityPercent.Dock = DockStyle.Fill;
+            _lblProbabilityPercent.Font = new Font("Segoe UI", 8F);
+            _lblProbabilityPercent.Location = new Point(595, 0);
+            _lblProbabilityPercent.Name = "_lblProbabilityPercent";
+            _lblProbabilityPercent.Size = new Size(38, 34);
+            _lblProbabilityPercent.TabIndex = 2;
+            _lblProbabilityPercent.Text = "50%";
+            _lblProbabilityPercent.TextAlign = ContentAlignment.MiddleRight;
             // 
             // _divider
             // 
@@ -549,7 +600,8 @@ namespace FractalExplorer.Forms.Fractals
             _rightPanel.ResumeLayout(false);
             _tblMain.ResumeLayout(false);
             _tblMain.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)_nudProbability).EndInit();
+            _tblProbabilityRow.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)_trkProbability).EndInit();
             _tblAffineGrid.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)_nudA).EndInit();
             ((System.ComponentModel.ISupportInitialize)_nudB).EndInit();

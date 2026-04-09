@@ -51,7 +51,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudD.ValueChanged += EditorControl_Changed;
             _nudE.ValueChanged += EditorControl_Changed;
             _nudF.ValueChanged += EditorControl_Changed;
-            _nudProbability.ValueChanged += EditorControl_Changed;
+            _trkProbability.Scroll += TrkProbability_Scroll;
         }
 
         private void RebuildList()
@@ -104,7 +104,9 @@ namespace FractalExplorer.Forms.Fractals
                 SetNud(_nudD, t.D);
                 SetNud(_nudE, t.E);
                 SetNud(_nudF, t.F);
-                SetNud(_nudProbability, t.Probability);
+                int sliderValue = (int)Math.Round(Math.Clamp(t.Probability * 1000.0, 0.0, 1000.0));
+                _trkProbability.Value = sliderValue;
+                UpdateProbabilityLabels(sliderValue);
             }
             finally
             {
@@ -120,7 +122,7 @@ namespace FractalExplorer.Forms.Fractals
             t.D = (double)_nudD.Value;
             t.E = (double)_nudE.Value;
             t.F = (double)_nudF.Value;
-            t.Probability = Math.Max(0, (double)_nudProbability.Value);
+            t.Probability = _trkProbability.Value / 1000.0;
         }
 
         private void EditorControl_Changed(object? sender, EventArgs e)
@@ -129,6 +131,31 @@ namespace FractalExplorer.Forms.Fractals
             PushUndoSnapshot();
             SaveEditorToTransform(_transforms[_selectedIndex]);
             RefreshCardAt(_selectedIndex);
+        }
+
+        private void TrkProbability_Scroll(object? sender, EventArgs e)
+        {
+            UpdateProbabilityLabels(_trkProbability.Value);
+            EditorControl_Changed(sender, e);
+        }
+
+        private void UpdateProbabilityLabels(int sliderValue)
+        {
+            double p = sliderValue / 1000.0;
+            _lblProbabilityValue.Text = p.ToString("F3");
+
+            double total = _transforms.Count > 0 ? _transforms.Sum(t => Math.Max(0, t.Probability)) : 1.0;
+            if (_selectedIndex >= 0 && total > 0)
+            {
+                double others = total - Math.Max(0, _transforms[_selectedIndex].Probability);
+                double projected = others + p;
+                int pct = projected > 0 ? (int)Math.Round(p / projected * 100) : 0;
+                _lblProbabilityPercent.Text = $"{pct}%";
+            }
+            else
+            {
+                _lblProbabilityPercent.Text = "—";
+            }
         }
 
         private void BtnAdd_Click(object? sender, EventArgs e)
@@ -261,7 +288,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudD.Enabled = enabled;
             _nudE.Enabled = enabled;
             _nudF.Enabled = enabled;
-            _nudProbability.Enabled = enabled;
+            _trkProbability.Enabled = enabled;
 
             if (!enabled)
                 _lblEditorTitle.Text = "Нет преобразований — нажмите «+ Добавить»";
@@ -287,6 +314,7 @@ namespace FractalExplorer.Forms.Fractals
             _divider.BackColor = ThemeManager.CurrentDefinition.BorderColor;
             _lblAffineCaption.ForeColor = ThemeManager.CurrentDefinition.SecondaryText;
             _lblProbabilityCaption.ForeColor = ThemeManager.CurrentDefinition.SecondaryText;
+            _lblProbabilityPercent.ForeColor = ThemeManager.CurrentDefinition.SecondaryText;
             _lblAffineFormula.ForeColor = ThemeManager.CurrentDefinition.SecondaryText;
         }
 
@@ -341,6 +369,7 @@ namespace FractalExplorer.Forms.Fractals
             private readonly Panel _probabilityBar;
             private readonly Panel _probabilityFill;
             private readonly Button _btnDelete;
+            private bool _hovered;
             private bool _selected;
 
             public event Action? Clicked;
@@ -389,14 +418,16 @@ namespace FractalExplorer.Forms.Fractals
 
                 _btnDelete = new Button
                 {
-                    Text = "✕",
-                    Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
-                    Size = new Size(24, 24),
-                    Location = new Point(190, 17),
+                    Text = "🗑",
+                    Font = new Font(SystemFonts.DefaultFont.FontFamily, 9f),
+                    Size = new Size(18, 36),
+                    Location = new Point(Width - 26, 2),
                     FlatStyle = FlatStyle.Flat,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Cursor = Cursors.Default,
                     TabStop = false
                 };
-                _btnDelete.FlatAppearance.BorderSize = 1;
+                _btnDelete.FlatAppearance.BorderSize = 0;
                 _btnDelete.Click += (_, _) => DeleteClicked?.Invoke();
 
                 Controls.Add(_lblName);
@@ -407,6 +438,18 @@ namespace FractalExplorer.Forms.Fractals
                 Click += (_, _) => Clicked?.Invoke();
                 foreach (Control c in Controls)
                     c.Click += (_, _) => Clicked?.Invoke();
+                MouseEnter += (_, _) =>
+                {
+                    _hovered = true;
+                    ApplyTheme(ThemeManager.CurrentDefinition);
+                    Invalidate();
+                };
+                MouseLeave += (_, _) =>
+                {
+                    _hovered = false;
+                    ApplyTheme(ThemeManager.CurrentDefinition);
+                    Invalidate();
+                };
 
                 UpdateFrom(transform, number);
             }
@@ -423,19 +466,31 @@ namespace FractalExplorer.Forms.Fractals
 
             public void ApplyTheme(ThemeDefinition theme)
             {
-                BackColor = _selected ? theme.ControlBackground : theme.PanelBackground;
+                BackColor = _selected || _hovered ? theme.HoverBackground : theme.PanelBackground;
                 ForeColor = theme.PrimaryText;
                 _lblName.ForeColor = theme.PrimaryText;
                 _lblMeta.ForeColor = theme.SecondaryText;
-                _btnDelete.BackColor = theme.ControlBackground;
-                _btnDelete.ForeColor = theme.PrimaryText;
-                _btnDelete.FlatAppearance.BorderColor = theme.BorderColor;
+                _btnDelete.BackColor = Color.Transparent;
+                _btnDelete.ForeColor = theme.SecondaryText;
+                _btnDelete.FlatAppearance.MouseOverBackColor = theme.HoverBackground;
+                _probabilityBar.BackColor = theme.BorderColor;
+                _probabilityFill.BackColor = theme.AccentPrimary;
             }
 
             public void SetSelected(bool selected)
             {
                 _selected = selected;
                 ApplyTheme(ThemeManager.CurrentDefinition);
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                if (_selected)
+                {
+                    using var pen = new Pen(ThemeManager.CurrentDefinition.AccentPrimary, 2f);
+                    e.Graphics.DrawRectangle(pen, 1, 1, Width - 3, Height - 3);
+                }
             }
 
             private static string MetaText(IfsAffineTransform transform)
