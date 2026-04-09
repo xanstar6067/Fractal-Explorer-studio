@@ -4,8 +4,16 @@ namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
 {
     public sealed class IFSSaveState : FractalSaveStateBase
     {
-        public IfsPreset Preset { get; set; }
+        // legacy
         public int Iterations { get; set; }
+
+        // new explorer params
+        public string? PointOfInterestId { get; set; }
+        public double CenterX { get; set; }
+        public double CenterY { get; set; }
+        public double Scale { get; set; }
+        public List<IfsAffineTransform> Transforms { get; set; } = [];
+
         public Color FractalColor { get; set; }
         public Color BackgroundColor { get; set; }
 
