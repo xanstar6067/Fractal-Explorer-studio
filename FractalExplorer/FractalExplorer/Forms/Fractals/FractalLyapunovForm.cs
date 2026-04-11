@@ -266,7 +266,14 @@ namespace FractalExplorer.Forms.Fractals
         private async void RenderRestartTimer_Tick(object? sender, EventArgs e)
         {
             _renderRestartTimer.Stop();
-            await TriggerQueuedRenderRestartAsync();
+            try
+            {
+                await TriggerQueuedRenderRestartAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                // Отмена предыдущей сессии рендера ожидаема при активном взаимодействии с UI.
+            }
         }
 
         private async Task TriggerQueuedRenderRestartAsync()
@@ -698,30 +705,31 @@ namespace FractalExplorer.Forms.Fractals
                     ColorPalette = _engine.ColorPalette
                 };
 
-                LyapunovColoringContext? coloringContext = await Task.Run(() => engine.PrepareColoringContext(width, height, token), token);
-
-                Bitmap frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-                lock (_frameBufferLock)
-                {
-                    _currentRenderingFrameBuffer?.Dispose();
-                    _currentRenderingFrameBuffer = frame;
-                    _currentRenderedTiles.Clear();
-                }
-                _canvas.Invalidate();
-
-                if (_pbRenderProgress.IsHandleCreated)
-                {
-                    _pbRenderProgress.Maximum = Math.Max(1, tiles.Count);
-                    _pbRenderProgress.Value = 0;
-                }
-
-                int completedTiles = 0;
-                var dispatcher = new TileRenderDispatcher(tiles, threads, RenderPatternSettings.SelectedPattern);
-                _renderVisualizer.NotifyRenderSessionStart();
-                _isRenderingPreview = true;
-
+                Bitmap? frame = null;
                 try
                 {
+                    LyapunovColoringContext? coloringContext = await Task.Run(() => engine.PrepareColoringContext(width, height, token), token);
+
+                    frame = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+                    lock (_frameBufferLock)
+                    {
+                        _currentRenderingFrameBuffer?.Dispose();
+                        _currentRenderingFrameBuffer = frame;
+                        _currentRenderedTiles.Clear();
+                    }
+                    _canvas.Invalidate();
+
+                    if (_pbRenderProgress.IsHandleCreated)
+                    {
+                        _pbRenderProgress.Maximum = Math.Max(1, tiles.Count);
+                        _pbRenderProgress.Value = 0;
+                    }
+
+                    int completedTiles = 0;
+                    var dispatcher = new TileRenderDispatcher(tiles, threads, RenderPatternSettings.SelectedPattern);
+                    _renderVisualizer.NotifyRenderSessionStart();
+                    _isRenderingPreview = true;
+
                     await dispatcher.RenderAsync(async (tile, ct) =>
                     {
                         ct.ThrowIfCancellationRequested();
@@ -787,7 +795,7 @@ namespace FractalExplorer.Forms.Fractals
                             _currentRenderedTiles.Clear();
                         }
                     }
-                    frame.Dispose();
+                    frame?.Dispose();
                 }
                 finally
                 {
