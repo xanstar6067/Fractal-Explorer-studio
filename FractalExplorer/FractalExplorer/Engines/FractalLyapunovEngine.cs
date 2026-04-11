@@ -26,6 +26,9 @@ namespace FractalExplorer.Engines
         private const double MinLogArgument = 1e-300;
         private const double LogisticStateClamp = 1e-15;
         private const int HistogramBins = 2048;
+        private const int HistogramMaxSamplePoints = 262_144;
+        private const int HistogramMinSamplePoints = 4_096;
+        private const int HistogramTargetWorkUnits = 8_000_000;
 
         public decimal AMin { get; set; } = 2.5m;
         public decimal AMax { get; set; } = 4.0m;
@@ -138,28 +141,56 @@ namespace FractalExplorer.Engines
             string pattern = NormalizePattern(Pattern);
             int iterations = ClampDepth(Iterations);
             int transient = Math.Clamp(TransientIterations, 0, MaxStableDepth);
+            int depth = Math.Max(1, iterations + transient);
 
-            double[] exponents = new double[canvasWidth * canvasHeight];
+            int sampleWidth = canvasWidth;
+            int sampleHeight = canvasHeight;
+            long requestedSamples = (long)canvasWidth * canvasHeight;
+            int adaptiveMaxSamplePoints = Math.Clamp(HistogramTargetWorkUnits / depth, HistogramMinSamplePoints, HistogramMaxSamplePoints);
+            if (requestedSamples > adaptiveMaxSamplePoints)
+            {
+                double scale = Math.Sqrt(adaptiveMaxSamplePoints / (double)requestedSamples);
+                sampleWidth = Math.Max(1, (int)Math.Round(canvasWidth * scale));
+                sampleHeight = Math.Max(1, (int)Math.Round(canvasHeight * scale));
+            }
+
+            double[] exponents = new double[sampleWidth * sampleHeight];
             double min = double.PositiveInfinity;
             double max = double.NegativeInfinity;
-
-            for (int y = 0; y < canvasHeight; y++)
+            object extremaLock = new();
+            var po = new ParallelOptions
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                decimal b = BMax - (BMax - BMin) * y / Math.Max(1, canvasHeight - 1);
-                int row = y * canvasWidth;
-                for (int x = 0; x < canvasWidth; x++)
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                CancellationToken = cancellationToken
+            };
+
+            Parallel.For(0, sampleHeight, po,
+                () => (LocalMin: double.PositiveInfinity, LocalMax: double.NegativeInfinity),
+                (y, _, local) =>
                 {
-                    decimal a = AMin + (AMax - AMin) * x / Math.Max(1, canvasWidth - 1);
-                    double exponent = ComputeLyapunovExponent(a, b, transient, iterations, pattern);
-                    exponents[row + x] = exponent;
-                    if (double.IsFinite(exponent))
+                    decimal b = BMax - (BMax - BMin) * y / Math.Max(1, sampleHeight - 1);
+                    int row = y * sampleWidth;
+                    for (int x = 0; x < sampleWidth; x++)
                     {
-                        min = Math.Min(min, exponent);
-                        max = Math.Max(max, exponent);
+                        decimal a = AMin + (AMax - AMin) * x / Math.Max(1, sampleWidth - 1);
+                        double exponent = ComputeLyapunovExponent(a, b, transient, iterations, pattern);
+                        exponents[row + x] = exponent;
+                        if (double.IsFinite(exponent))
+                        {
+                            local.LocalMin = Math.Min(local.LocalMin, exponent);
+                            local.LocalMax = Math.Max(local.LocalMax, exponent);
+                        }
                     }
-                }
-            }
+                    return local;
+                },
+                local =>
+                {
+                    lock (extremaLock)
+                    {
+                        min = Math.Min(min, local.LocalMin);
+                        max = Math.Max(max, local.LocalMax);
+                    }
+                });
 
             if (!double.IsFinite(min) || !double.IsFinite(max) || max <= min)
             {

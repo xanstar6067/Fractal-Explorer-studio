@@ -49,6 +49,7 @@ namespace FractalExplorer.Forms.Fractals
         private bool _isProcessingRenderQueue;
         private bool _isHighResRendering;
         private readonly SemaphoreSlim _renderExecutionLock = new(1, 1);
+        private readonly object _previewColoringContextCacheLock = new();
         private readonly FullscreenToggleController _fullscreenController = new();
         private Point _panStartPoint;
         private decimal _renderedAMin = DefaultAMin;
@@ -56,6 +57,8 @@ namespace FractalExplorer.Forms.Fractals
         private decimal _renderedBMin = DefaultBMin;
         private decimal _renderedBMax = DefaultBMax;
         private readonly string _baseTitle;
+        private string? _previewColoringContextCacheKey;
+        private LyapunovColoringContext? _previewColoringContextCache;
 
         public FractalLyapunovForm()
         {
@@ -1110,6 +1113,56 @@ namespace FractalExplorer.Forms.Fractals
             return Environment.ProcessorCount;
         }
 
+        private LyapunovColoringContext? GetCachedPreviewColoringContext(string cacheKey, Func<LyapunovColoringContext?> factory)
+        {
+            lock (_previewColoringContextCacheLock)
+            {
+                if (_previewColoringContextCacheKey == cacheKey)
+                {
+                    return _previewColoringContextCache;
+                }
+            }
+
+            LyapunovColoringContext? computed = factory();
+            lock (_previewColoringContextCacheLock)
+            {
+                _previewColoringContextCacheKey = cacheKey;
+                _previewColoringContextCache = computed;
+            }
+
+            return computed;
+        }
+
+        private static string BuildPreviewColoringContextCacheKey(
+            decimal aMin,
+            decimal aMax,
+            decimal bMin,
+            decimal bMax,
+            int iterations,
+            int transientIterations,
+            string pattern,
+            LyapunovColorPalette palette,
+            int width,
+            int height)
+        {
+            string colorsSignature = string.Join(',', (palette.Colors ?? new List<Color>()).Select(c => c.ToArgb().ToString("X8")));
+            return string.Join("|",
+                width,
+                height,
+                aMin,
+                aMax,
+                bMin,
+                bMax,
+                iterations,
+                transientIterations,
+                pattern,
+                palette.Name,
+                palette.Mode,
+                palette.ExponentRange,
+                palette.ZeroBandWidth,
+                colorsSignature);
+        }
+
         public string FractalTypeIdentifier => "Lyapunov";
         public Type ConcreteSaveStateType => typeof(LyapunovSaveState);
 
@@ -1218,7 +1271,19 @@ namespace FractalExplorer.Forms.Fractals
                     TransientIterations = lyapunov.TransientIterations,
                     ColorPalette = _paletteManager.Palettes.FirstOrDefault(p => p.Name == lyapunov.PaletteName) ?? _paletteManager.ActivePalette
                 };
-                LyapunovColoringContext? coloringContext = engine.PrepareColoringContext(totalWidth, totalHeight);
+                string cacheKey = BuildPreviewColoringContextCacheKey(
+                    engine.AMin,
+                    engine.AMax,
+                    engine.BMin,
+                    engine.BMax,
+                    engine.Iterations,
+                    engine.TransientIterations,
+                    engine.Pattern,
+                    engine.ColorPalette,
+                    totalWidth,
+                    totalHeight);
+
+                LyapunovColoringContext? coloringContext = GetCachedPreviewColoringContext(cacheKey, () => engine.PrepareColoringContext(totalWidth, totalHeight));
                 return engine.RenderSingleTile(tile, totalWidth, totalHeight, out _, coloringContext);
             });
         }
