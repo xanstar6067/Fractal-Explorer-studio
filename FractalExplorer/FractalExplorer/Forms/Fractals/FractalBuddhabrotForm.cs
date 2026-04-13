@@ -1162,13 +1162,18 @@ namespace FractalExplorer.Forms.Fractals
                 .FirstOrDefault(p => string.Equals(p.Name, state.ActivePaletteName, StringComparison.OrdinalIgnoreCase))
                 ?? _paletteManager.ActivePalette;
 
+            int renderWidth = Math.Max(1, width * Math.Max(1, ssaaFactor));
+            int renderHeight = Math.Max(1, height * Math.Max(1, ssaaFactor));
+            int baseSampleCount = state.BuddhabrotSampleCount ?? _engine.SampleCount;
+            int scaledSampleCount = ScaleWorkloadForResolution(baseSampleCount, renderWidth, renderHeight, _canvas.Width, _canvas.Height, 10_000);
+
             var engine = new FractalBuddhabrotEngine
             {
                 CenterX = state.CenterX,
                 CenterY = state.CenterY,
                 Scale = state.BaseScale / Math.Max(0.0000001m, state.Zoom),
                 MaxIterations = state.Iterations,
-                SampleCount = state.BuddhabrotSampleCount ?? _engine.SampleCount,
+                SampleCount = scaledSampleCount,
                 ThreadCount = _threadsCombo.SelectedItem?.ToString() == AutoThreadOptionText ? 0 : Convert.ToInt32(_threadsCombo.SelectedItem),
                 RenderMode = ParseRenderMode(state.BuddhabrotRenderMode ?? 0),
                 SampleMinRe = state.BuddhabrotSampleMinRe ?? _engine.SampleMinRe,
@@ -1178,8 +1183,6 @@ namespace FractalExplorer.Forms.Fractals
                 DensityPalette = CreateDensityPalette(palette, state.Iterations)
             };
 
-            int renderWidth = Math.Max(1, width * Math.Max(1, ssaaFactor));
-            int renderHeight = Math.Max(1, height * Math.Max(1, ssaaFactor));
             byte[] pixels = new byte[renderWidth * renderHeight * 4];
 
             await Task.Run(() =>
@@ -1221,6 +1224,16 @@ namespace FractalExplorer.Forms.Fractals
 
             fullBitmap.Dispose();
             return downscaled;
+        }
+
+        private static int ScaleWorkloadForResolution(int baseValue, int targetWidth, int targetHeight, int sourceWidth, int sourceHeight, int minimum)
+        {
+            int safeBase = Math.Max(minimum, baseValue);
+            double sourcePixels = Math.Max(1.0, (double)Math.Max(1, sourceWidth) * Math.Max(1, sourceHeight));
+            double targetPixels = Math.Max(1.0, (double)Math.Max(1, targetWidth) * Math.Max(1, targetHeight));
+            double scaleFactor = Math.Max(1.0, targetPixels / sourcePixels);
+            double scaled = safeBase * scaleFactor;
+            return scaled >= int.MaxValue ? int.MaxValue : (int)Math.Ceiling(scaled);
         }
 
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)

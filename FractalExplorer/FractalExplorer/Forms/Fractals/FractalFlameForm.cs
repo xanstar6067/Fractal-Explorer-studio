@@ -940,6 +940,8 @@ namespace FractalExplorer.Forms.Fractals
         {
             int renderWidth = Math.Max(1, width * Math.Max(1, ssaaFactor));
             int renderHeight = Math.Max(1, height * Math.Max(1, ssaaFactor));
+            int baseSamples = state.BuddhabrotSampleCount ?? _engine.Samples;
+            int scaledSamples = ScaleWorkloadForResolution(baseSamples, renderWidth, renderHeight, _canvas.Width, _canvas.Height, 20_000);
 
             var save = new FlameFractalSaveState(FractalTypeIdentifier)
             {
@@ -947,7 +949,7 @@ namespace FractalExplorer.Forms.Fractals
                 CenterY = (double)state.CenterY,
                 Scale = NormalizeScale(state.Scale == 0 ? _engine.Scale : (double)state.Scale),
                 IterationsPerSample = state.Iterations > 0 ? state.Iterations : _engine.IterationsPerSample,
-                Samples = state.BuddhabrotSampleCount ?? _engine.Samples,
+                Samples = scaledSamples,
                 Exposure = state.OrbitTrapStrength > 0 ? state.OrbitTrapStrength : _engine.Exposure,
                 Gamma = state.OrbitTrapBias > 0 ? state.OrbitTrapBias : _engine.Gamma,
                 WarmupIterations = _engine.WarmupIterations,
@@ -972,6 +974,16 @@ namespace FractalExplorer.Forms.Fractals
             }
             full.Dispose();
             return downscaled;
+        }
+
+        private static int ScaleWorkloadForResolution(int baseValue, int targetWidth, int targetHeight, int sourceWidth, int sourceHeight, int minimum)
+        {
+            int safeBase = Math.Max(minimum, baseValue);
+            double sourcePixels = Math.Max(1.0, (double)Math.Max(1, sourceWidth) * Math.Max(1, sourceHeight));
+            double targetPixels = Math.Max(1.0, (double)Math.Max(1, targetWidth) * Math.Max(1, targetHeight));
+            double scaleFactor = Math.Max(1.0, targetPixels / sourcePixels);
+            double scaled = safeBase * scaleFactor;
+            return scaled >= int.MaxValue ? int.MaxValue : (int)Math.Ceiling(scaled);
         }
 
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
