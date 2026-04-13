@@ -692,10 +692,12 @@ namespace FractalExplorer.Forms.Fractals
             int renderHeight = Math.Max(1, height * Math.Max(1, ssaaFactor));
             int stride = renderWidth * 4;
             byte[] buffer = new byte[stride * renderHeight];
+            int baseIterations = state.Iterations > 0 ? state.Iterations : _engine.Iterations;
+            int scaledIterations = ScaleIterationsForResolution(baseIterations, renderWidth, renderHeight);
 
             var renderEngine = new FractalIFSGeometryEngine
             {
-                Iterations = state.Iterations > 0 ? state.Iterations : _engine.Iterations,
+                Iterations = scaledIterations,
                 CenterX = (double)state.CenterX,
                 CenterY = (double)state.CenterY,
                 Scale = state.Scale > 0 ? (double)state.Scale : _engine.Scale,
@@ -745,6 +747,20 @@ namespace FractalExplorer.Forms.Fractals
 
             full.Dispose();
             return downscaled;
+        }
+
+        private int ScaleIterationsForResolution(int baseIterations, int targetWidth, int targetHeight)
+        {
+            int safeBaseIterations = Math.Max(1_000, baseIterations);
+            int sourceWidth = Math.Max(1, canvas.Width);
+            int sourceHeight = Math.Max(1, canvas.Height);
+
+            double sourcePixels = (double)sourceWidth * sourceHeight;
+            double targetPixels = (double)Math.Max(1, targetWidth) * Math.Max(1, targetHeight);
+            double scaleFactor = targetPixels / sourcePixels;
+            double scaled = safeBaseIterations * Math.Max(1.0, scaleFactor);
+
+            return scaled >= int.MaxValue ? int.MaxValue : (int)Math.Ceiling(scaled);
         }
 
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
