@@ -390,7 +390,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // pictureBoxGrid
             // 
-            pictureBoxGrid.BackColor = Color.Black;
+            pictureBoxGrid.BackColor = Color.Transparent;
             pictureBoxGrid.Cursor = Cursors.Cross;
             pictureBoxGrid.Dock = DockStyle.Fill;
             pictureBoxGrid.Location = new Point(0, 0);

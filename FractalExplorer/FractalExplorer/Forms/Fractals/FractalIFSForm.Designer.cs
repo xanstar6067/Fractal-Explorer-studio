@@ -349,7 +349,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // canvas
             // 
-            canvas.BackColor = Color.Black;
+            canvas.BackColor = Color.Transparent;
             canvas.Dock = DockStyle.Fill;
             canvas.Location = new Point(0, 0);
             canvas.Margin = new Padding(3, 2, 3, 2);
