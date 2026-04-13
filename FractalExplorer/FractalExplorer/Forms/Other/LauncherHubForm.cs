@@ -409,7 +409,7 @@ namespace FractalExplorer
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Множество Жюлиа",
-                DisplayName = "Галерея констант C (Julia Grid)",
+                DisplayName = "Галерея констант C (Жюлиа)",
                 FormToLaunch = typeof(FractalJuliaGridForm),
                 Description = "Режим красивого пакетного исследования множества Жюлиа по сетке значений константы C.\n\n" +
                               "Задайте диапазоны Re(C)/Im(C), размер и плотность сетки, чтобы получить цельную галерею миниатюр, рассчитанных параллельно.\n\n" +
@@ -420,7 +420,7 @@ namespace FractalExplorer
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Множество Жюлиа",
-                DisplayName = "Галерея констант C (Julia Burning Ship Grid)",
+                DisplayName = "Галерея констант C (Жюлиа горящий корабль)",
                 FormToLaunch = typeof(FractalJuliaBurningShipGridForm),
                 Description = "Режим пакетного исследования множества Жюлиа для варианта 'Горящий корабль' по сетке значений константы C.\n\n" +
                               "Задайте диапазоны Re(C)/Im(C), размер и плотность сетки, чтобы получить цельную галерею миниатюр Burning Ship Julia.\n\n" +
@@ -489,7 +489,7 @@ namespace FractalExplorer
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Геометрические",
-                DisplayName = "IFS: Barnsley/Heighway",
+                DisplayName = "IFS Барнсли / Хейуэя",
                 FormToLaunch = typeof(FractalIFSForm),
                 Description = "Стохастический IFS-рендер на базе набора аффинных преобразований с вероятностями выбора.\n\n" +
                               "Доступны готовые пресеты Barnsley Fern и Heighway Dragon, а также выбор числа итераций и базовых цветов.\n\n" +
@@ -522,7 +522,7 @@ namespace FractalExplorer
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Итерируемые функции",
-                DisplayName = "Fractal Flame (stochastic)",
+                DisplayName = "Фрактальное пламя (стохастическое)",
                 FormToLaunch = typeof(FractalFlameForm),
                 Description = "Стохастический итеративный рендер с накоплением HDR-гистограммы посещений.\n\n" +
                               "Поддерживает минимальный набор вариаций linear/sinusoidal/spherical и список аффинных преобразований с весами.\n\n" +
