@@ -31,6 +31,7 @@ namespace FractalExplorer.Forms.Fractals
             ResultTransforms = _transforms; // обновится в CommitAndClose
 
             InitializeComponent();
+            ConfigureAffineEditorControls();
 
             ThemeManager.RegisterForm(this);
             ThemeManager.ThemeChanged += ThemeManager_ThemeChanged;
@@ -44,6 +45,48 @@ namespace FractalExplorer.Forms.Fractals
                 SelectTransform(0);
             else
                 SetEditorEnabled(false);
+        }
+
+        /// <summary>
+        /// Настраивает affine-редактор вне Designer-кода, чтобы Visual Studio не
+        /// перезаписывала параметры NumericUpDown при регенерации *.Designer.cs.
+        /// </summary>
+        private void ConfigureAffineEditorControls()
+        {
+            SetupAffineLabel(_lblA, "a");
+            SetupAffineLabel(_lblB, "b");
+            SetupAffineLabel(_lblC, "c");
+            SetupAffineLabel(_lblD, "d");
+            SetupAffineLabel(_lblE, "e");
+            SetupAffineLabel(_lblF, "f");
+
+            SetupAffineNud(_nudA, 6);
+            SetupAffineNud(_nudB, 7);
+            SetupAffineNud(_nudC, 8);
+            SetupAffineNud(_nudD, 9);
+            SetupAffineNud(_nudE, 10);
+            SetupAffineNud(_nudF, 11);
+        }
+
+        private static void SetupAffineLabel(Label lbl, string text)
+        {
+            lbl.Text = text;
+            lbl.Dock = DockStyle.Fill;
+            lbl.TextAlign = ContentAlignment.BottomCenter;
+            lbl.Font = new Font(SystemFonts.DefaultFont.FontFamily, 8f, FontStyle.Italic);
+            lbl.Margin = new Padding(2, 0, 2, 0);
+        }
+
+        private static void SetupAffineNud(NumericUpDown nud, int tabIndex)
+        {
+            nud.Dock = DockStyle.Fill;
+            nud.DecimalPlaces = 8;
+            nud.Increment = 0.0001M;
+            nud.Minimum = -10M;
+            nud.Maximum = 10M;
+            nud.TextAlign = HorizontalAlignment.Right;
+            nud.Margin = new Padding(2, 0, 2, 0);
+            nud.TabIndex = tabIndex;
         }
 
         private void WireVariationCombo()
@@ -186,17 +229,45 @@ namespace FractalExplorer.Forms.Fractals
             }
         }
 
-        private void SaveEditorToTransform(FlameTransform t)
+        private void ApplyEditorFieldChange(FlameTransform t, object? sender)
         {
-            t.Variation = _cmbVariation.SelectedItem is FlameVariation v ? v : FlameVariation.Linear;
-            t.Color = _pnlColorPreview.BackColor;
-            t.Weight = _trkWeight.Value / WeightScale;
-            t.A = (double)_nudA.Value;
-            t.B = (double)_nudB.Value;
-            t.C = (double)_nudC.Value;
-            t.D = (double)_nudD.Value;
-            t.E = (double)_nudE.Value;
-            t.F = (double)_nudF.Value;
+            if (sender == _cmbVariation)
+            {
+                t.Variation = _cmbVariation.SelectedItem is FlameVariation v ? v : FlameVariation.Linear;
+            }
+            else if (sender == _trkWeight)
+            {
+                t.Weight = _trkWeight.Value / WeightScale;
+            }
+            else if (sender == _nudA)
+            {
+                t.A = (double)_nudA.Value;
+            }
+            else if (sender == _nudB)
+            {
+                t.B = (double)_nudB.Value;
+            }
+            else if (sender == _nudC)
+            {
+                t.C = (double)_nudC.Value;
+            }
+            else if (sender == _nudD)
+            {
+                t.D = (double)_nudD.Value;
+            }
+            else if (sender == _nudE)
+            {
+                t.E = (double)_nudE.Value;
+            }
+            else if (sender == _nudF)
+            {
+                t.F = (double)_nudF.Value;
+            }
+            else
+            {
+                // Изменения цвета приходят из кнопки/панели предпросмотра.
+                t.Color = _pnlColorPreview.BackColor;
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -206,7 +277,7 @@ namespace FractalExplorer.Forms.Fractals
         {
             if (_suppressSync || _selectedIndex < 0) return;
             PushUndoSnapshot();
-            SaveEditorToTransform(_transforms[_selectedIndex]);
+            ApplyEditorFieldChange(_transforms[_selectedIndex], sender);
             RefreshCardAt(_selectedIndex);
         }
 

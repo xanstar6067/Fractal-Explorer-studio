@@ -761,8 +761,8 @@ namespace FractalExplorer.Forms.Fractals
         private static void ConfigureAffineNud(NumericUpDown nud, int tabIndex)
         {
             nud.Dock = DockStyle.Fill;
-            nud.DecimalPlaces = 4;
-            nud.Increment = 0.1M;
+            nud.DecimalPlaces = 8;
+            nud.Increment = 0.0001M;
             nud.Minimum = -10M;
             nud.Maximum = 10M;
             nud.TextAlign = HorizontalAlignment.Right;
