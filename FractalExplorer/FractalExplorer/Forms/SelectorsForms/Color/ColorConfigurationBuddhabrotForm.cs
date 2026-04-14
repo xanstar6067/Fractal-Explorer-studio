@@ -13,6 +13,8 @@ namespace FractalExplorer.SelectorsForms
         private BuddhabrotColorPalette? _selectedPalette;
         private bool _isProgrammaticChange;
         private bool _hasUnsavedChanges;
+        private int _dragStartIndex = ListBox.NoMatches;
+        private Point _dragStartPoint = Point.Empty;
 
         public event EventHandler? PaletteApplied;
 
@@ -327,11 +329,43 @@ namespace FractalExplorer.SelectorsForms
             int sourceIndex = _lbColors.IndexFromPoint(e.Location);
             if (sourceIndex == ListBox.NoMatches)
             {
+                _dragStartIndex = ListBox.NoMatches;
                 return;
             }
 
             _lbColors.SelectedIndex = sourceIndex;
-            _lbColors.DoDragDrop(sourceIndex, DragDropEffects.Move);
+            UpdateControlsState();
+            _dragStartIndex = sourceIndex;
+            _dragStartPoint = e.Location;
+        }
+
+        private void ColorsListMouseMove(object? sender, MouseEventArgs e)
+        {
+            if (!IsEditable() || e.Button != MouseButtons.Left || _dragStartIndex == ListBox.NoMatches)
+            {
+                return;
+            }
+
+            Size dragSize = SystemInformation.DragSize;
+            Rectangle dragRect = new(
+                _dragStartPoint.X - dragSize.Width / 2,
+                _dragStartPoint.Y - dragSize.Height / 2,
+                dragSize.Width,
+                dragSize.Height);
+
+            if (!dragRect.Contains(e.Location))
+            {
+                _lbColors.DoDragDrop(_dragStartIndex, DragDropEffects.Move);
+                _dragStartIndex = ListBox.NoMatches;
+            }
+        }
+
+        private void ColorsListMouseUp(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                _dragStartIndex = ListBox.NoMatches;
+            }
         }
 
         private void ColorsListDragOver(object? sender, DragEventArgs e)
@@ -393,6 +427,8 @@ namespace FractalExplorer.SelectorsForms
             _lbPalettes.SelectedIndexChanged += (_, _) => OnPaletteSelected();
             _lbColors.SelectedIndexChanged += (_, _) => UpdateControlsState();
             _lbColors.MouseDown += ColorsListMouseDown;
+            _lbColors.MouseMove += ColorsListMouseMove;
+            _lbColors.MouseUp += ColorsListMouseUp;
             _lbColors.DragOver += ColorsListDragOver;
             _lbColors.DragDrop += ColorsListDragDrop;
 
