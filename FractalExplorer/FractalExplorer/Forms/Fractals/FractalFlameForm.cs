@@ -583,12 +583,36 @@ namespace FractalExplorer.Forms.Fractals
         private void BtnEditTransforms_Click(object? sender, EventArgs e)
         {
             using var editor = new FlameTransformEditorForm(_engine.Transforms);
+            var applyButton = FindControlByName<Button>(editor, "_btnOk");
+            if (applyButton is not null)
+                applyButton.Click += (_, _) => ApplyEditorTransforms(editor.ResultTransforms);
+
             if (editor.ShowDialog(this) == DialogResult.OK)
             {
-                _engine.Transforms.Clear();
-                _engine.Transforms.AddRange(editor.ResultTransforms);
-                QueueRenderRestart(immediate: true);
+                ApplyEditorTransforms(editor.ResultTransforms);
             }
+        }
+
+        private void ApplyEditorTransforms(IEnumerable<FlameTransform> transforms)
+        {
+            _engine.Transforms.Clear();
+            _engine.Transforms.AddRange(transforms.Select(t => t.Clone()));
+            QueueRenderRestart(immediate: true);
+        }
+
+        private static TControl? FindControlByName<TControl>(Control root, string name) where TControl : Control
+        {
+            if (root.Name == name && root is TControl typedRoot)
+                return typedRoot;
+
+            foreach (Control child in root.Controls)
+            {
+                var result = FindControlByName<TControl>(child, name);
+                if (result is not null)
+                    return result;
+            }
+
+            return null;
         }
 
         private void ApplyUiToEngine()

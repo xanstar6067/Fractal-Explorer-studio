@@ -20,6 +20,7 @@ namespace FractalExplorer.Forms.Fractals
         private readonly List<TransformCard> _cards = new();
 
         public List<FlameTransform> ResultTransforms { get; private set; }
+        public event Action<IReadOnlyList<FlameTransform>>? TransformsApplied;
 
         // ─────────────────────────────────────────────────────────────────────
         public FlameTransformEditorForm(IEnumerable<FlameTransform> transforms)
@@ -326,6 +327,8 @@ namespace FractalExplorer.Forms.Fractals
                 .Where(t => t.Weight > 0)
                 .Select(t => t.Clone())
                 .ToList();
+
+            TransformsApplied?.Invoke(ResultTransforms);
         }
 
         private void CommitAndClose()
