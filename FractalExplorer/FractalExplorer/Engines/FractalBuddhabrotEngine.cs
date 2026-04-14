@@ -128,8 +128,6 @@ namespace FractalExplorer.Engines
             double escapeSq = (double)EscapeRadiusSquared;
 
             double viewScale = (double)Scale;
-            double viewLeft = (double)CenterX - viewScale * 0.5;
-            double viewTop = (double)CenterY + viewScale * (height / (double)width) * 0.5;
             double viewScaleY = viewScale * (height / (double)width);
 
             int resolvedThreadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
@@ -194,8 +192,11 @@ namespace FractalExplorer.Engines
                         bool mirrorAcrossRealAxis = RenderMode == BuddhabrotRenderMode.SymmetricBuddhabrot;
                         foreach ((double ore, double oim) in local)
                         {
-                            int px = (int)((ore - viewLeft) / viewScale * width);
-                            int py = (int)((viewTop - oim) / viewScaleY * height);
+                            // Поворот итогового изображения на 90° по часовой стрелке:
+                            // экранная X-ось теперь соответствует мнимой оси,
+                            // экранная Y-ось — действительной.
+                            int px = (int)(((oim - (double)CenterY) / viewScale + 0.5) * width);
+                            int py = (int)(((ore - (double)CenterX) / viewScaleY + 0.5) * height);
 
                             if ((uint)px < (uint)width && (uint)py < (uint)height)
                             {
@@ -204,10 +205,10 @@ namespace FractalExplorer.Engines
 
                             if (mirrorAcrossRealAxis)
                             {
-                                int mirroredPy = (int)((viewTop + oim) / viewScaleY * height);
-                                if ((uint)px < (uint)width && (uint)mirroredPy < (uint)height)
+                                int mirroredPx = (int)((((-oim) - (double)CenterY) / viewScale + 0.5) * width);
+                                if ((uint)mirroredPx < (uint)width && (uint)py < (uint)height)
                                 {
-                                    Interlocked.Increment(ref density[mirroredPy * width + px]);
+                                    Interlocked.Increment(ref density[py * width + mirroredPx]);
                                 }
                             }
                         }

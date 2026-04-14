@@ -169,9 +169,11 @@ namespace FractalExplorer.Forms.Fractals
 
             BeginInteractivePreview();
 
-            decimal scaleBeforeZoom = BaseScale / Math.Max(0.0000001m, _zoom.Value);
-            decimal mouseReal = _centerX + (e.X - _canvas.Width / 2.0m) * scaleBeforeZoom / _canvas.Width;
-            decimal mouseImaginary = _centerY - (e.Y - _canvas.Height / 2.0m) * scaleBeforeZoom / _canvas.Height;
+            GetViewportScales(_zoom.Value, out decimal scaleBeforeZoomX, out decimal scaleBeforeZoomY);
+            decimal dxNorm = (e.X - _canvas.Width / 2.0m) / _canvas.Width;
+            decimal dyNorm = (e.Y - _canvas.Height / 2.0m) / _canvas.Height;
+            decimal mouseReal = _centerX + dyNorm * scaleBeforeZoomY;
+            decimal mouseImaginary = _centerY + dxNorm * scaleBeforeZoomX;
 
             decimal nextZoom = Math.Clamp(_zoom.Value * (e.Delta > 0 ? 1.25m : 0.8m), _zoom.Minimum, _zoom.Maximum);
             if (nextZoom == _zoom.Value)
@@ -179,9 +181,9 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
-            decimal scaleAfterZoom = BaseScale / Math.Max(0.0000001m, nextZoom);
-            _centerX = mouseReal - (e.X - _canvas.Width / 2.0m) * scaleAfterZoom / _canvas.Width;
-            _centerY = mouseImaginary + (e.Y - _canvas.Height / 2.0m) * scaleAfterZoom / _canvas.Height;
+            GetViewportScales(nextZoom, out decimal scaleAfterZoomX, out decimal scaleAfterZoomY);
+            _centerX = mouseReal - dyNorm * scaleAfterZoomY;
+            _centerY = mouseImaginary - dxNorm * scaleAfterZoomX;
 
             _suppressAutoRender = true;
             _zoom.Value = nextZoom;
@@ -213,9 +215,11 @@ namespace FractalExplorer.Forms.Fractals
                 return;
             }
 
-            decimal unitsPerPixel = BaseScale / Math.Max(0.0000001m, _zoom.Value) / _canvas.Width;
-            _centerX -= (e.X - _panStartPoint.X) * unitsPerPixel;
-            _centerY += (e.Y - _panStartPoint.Y) * unitsPerPixel;
+            int deltaX = e.X - _panStartPoint.X;
+            int deltaY = e.Y - _panStartPoint.Y;
+            GetViewportScales(_zoom.Value, out decimal scaleX, out decimal scaleY);
+            _centerX -= deltaY * scaleY / _canvas.Height;
+            _centerY -= deltaX * scaleX / _canvas.Width;
             _panStartPoint = e.Location;
             ApplyInstantViewportPreview();
         }
@@ -334,11 +338,12 @@ namespace FractalExplorer.Forms.Fractals
                 decimal sourceScale = BaseScale / Math.Max(0.0000001m, _interactionSourceZoom);
                 decimal targetScale = BaseScale / Math.Max(0.0000001m, _zoom.Value);
                 float scaleRatio = (float)(sourceScale / targetScale);
+                decimal targetScaleY = targetScale * _canvas.Height / _canvas.Width;
 
                 float newWidth = _canvas.Width * scaleRatio;
                 float newHeight = _canvas.Height * scaleRatio;
-                float offsetX = (float)((_interactionSourceCenterX - _centerX) / targetScale * _canvas.Width);
-                float offsetY = (float)(-(_interactionSourceCenterY - _centerY) / targetScale * _canvas.Height);
+                float offsetX = (float)((_interactionSourceCenterY - _centerY) / targetScale * _canvas.Width);
+                float offsetY = (float)((_interactionSourceCenterX - _centerX) / targetScaleY * _canvas.Height);
 
                 float drawX = (_canvas.Width - newWidth) * 0.5f + offsetX;
                 float drawY = (_canvas.Height - newHeight) * 0.5f + offsetY;
@@ -668,6 +673,12 @@ namespace FractalExplorer.Forms.Fractals
 
             EnsureActivePalette();
             _engine.DensityPalette = CreateDensityPalette(_paletteManager.ActivePalette, _engine.MaxIterations);
+        }
+
+        private void GetViewportScales(decimal zoom, out decimal scaleX, out decimal scaleY)
+        {
+            scaleX = BaseScale / Math.Max(0.0000001m, zoom);
+            scaleY = scaleX * _canvas.Height / Math.Max(1, _canvas.Width);
         }
 
         private static Func<double, Color> CreateDensityPalette(BuddhabrotColorPalette palette, int maxIterations)
