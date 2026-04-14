@@ -10,6 +10,8 @@ namespace FractalExplorer.Forms.Fractals
     /// </summary>
     public sealed partial class FlameTransformEditorForm : Form
     {
+        private const double WeightScale = 1000.0;
+
         // ── данные ────────────────────────────────────────────────────────────
         private readonly List<FlameTransform> _transforms;
         private int _selectedIndex = -1;
@@ -164,7 +166,10 @@ namespace FractalExplorer.Forms.Fractals
 
                 _pnlColorPreview.BackColor = t.Color;
 
-                int sliderVal = (int)Math.Round(Math.Clamp(t.Weight * 10.0, 1.0, 100.0));
+                int sliderVal = (int)Math.Round(Math.Clamp(
+                    t.Weight * WeightScale,
+                    _trkWeight.Minimum,
+                    _trkWeight.Maximum));
                 _trkWeight.Value = sliderVal;
                 UpdateWeightLabels(sliderVal);
 
@@ -185,7 +190,7 @@ namespace FractalExplorer.Forms.Fractals
         {
             t.Variation = _cmbVariation.SelectedItem is FlameVariation v ? v : FlameVariation.Linear;
             t.Color = _pnlColorPreview.BackColor;
-            t.Weight = _trkWeight.Value / 10.0;
+            t.Weight = _trkWeight.Value / WeightScale;
             t.A = (double)_nudA.Value;
             t.B = (double)_nudB.Value;
             t.C = (double)_nudC.Value;
@@ -213,8 +218,8 @@ namespace FractalExplorer.Forms.Fractals
 
         private void UpdateWeightLabels(int sliderValue)
         {
-            double w = sliderValue / 10.0;
-            _lblWeightValue.Text = w.ToString("F1");
+            double w = sliderValue / WeightScale;
+            _lblWeightValue.Text = w.ToString("F3");
 
             double total = _transforms.Count > 0 ? _transforms.Sum(t => t.Weight) : 1.0;
             // Если выбрана трансформация — считаем долю относительно текущей суммы
@@ -319,10 +324,6 @@ namespace FractalExplorer.Forms.Fractals
         // ══════════════════════════════════════════════════════════════════════
         private void CommitChanges()
         {
-            // Сохраняем текущий редактор если есть выбранная трансформация
-            if (_selectedIndex >= 0 && _selectedIndex < _transforms.Count)
-                SaveEditorToTransform(_transforms[_selectedIndex]);
-
             ResultTransforms = _transforms
                 .Where(t => t.Weight > 0)
                 .Select(t => t.Clone())

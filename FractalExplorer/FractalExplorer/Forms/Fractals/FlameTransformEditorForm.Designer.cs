@@ -405,13 +405,13 @@ namespace FractalExplorer.Forms.Fractals
             _trkWeight.Dock = DockStyle.Fill;
             _trkWeight.Location = new Point(0, 4);
             _trkWeight.Margin = new Padding(0, 4, 4, 4);
-            _trkWeight.Maximum = 100;
-            _trkWeight.Minimum = 1;
+            _trkWeight.Maximum = 10000;
+            _trkWeight.Minimum = 0;
             _trkWeight.Name = "_trkWeight";
             _trkWeight.Size = new Size(501, 30);
             _trkWeight.TabIndex = 3;
-            _trkWeight.TickFrequency = 10;
-            _trkWeight.Value = 10;
+            _trkWeight.TickFrequency = 500;
+            _trkWeight.Value = 1000;
             // 
             // _lblWeightValue
             // 
