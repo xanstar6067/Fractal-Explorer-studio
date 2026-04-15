@@ -751,10 +751,6 @@ namespace FractalExplorer.Forms.Fractals
                     {
                         ResetPendingCoverageState();
                     }
-                    catch (ObjectDisposedException)
-                    {
-                        ResetPendingCoverageState();
-                    }
                 }
                 return;
             }
