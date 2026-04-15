@@ -68,7 +68,7 @@ namespace FractalExplorer.Forms.Fractals
             FormClosing += (_, _) =>
             {
                 ExitFullscreenSafely();
-                _cts?.Cancel();
+                DisposeRenderCts();
                 _renderRestartTimer.Stop();
                 _wheelDebounceTimer.Stop();
                 _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
@@ -645,10 +645,9 @@ namespace FractalExplorer.Forms.Fractals
                 }
 
                 ApplyUiToEngine();
-                _cts?.Cancel();
-                _cts = new CancellationTokenSource();
+                ReplaceRenderCts();
                 _isRenderCancelRequested = false;
-                CancellationToken token = _cts.Token;
+                CancellationToken token = _cts!.Token;
 
                 _btnRender.Enabled = false;
                 _isRenderInProgress = true;
@@ -854,6 +853,45 @@ namespace FractalExplorer.Forms.Fractals
         }
 
         private bool tokenSafeIsDisposed() => IsDisposed || !IsHandleCreated;
+
+        private void ReplaceRenderCts()
+        {
+            CancellationTokenSource? previousCts = _cts;
+            if (previousCts != null)
+            {
+                try
+                {
+                    previousCts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
+                previousCts.Dispose();
+            }
+
+            _cts = new CancellationTokenSource();
+        }
+
+        private void DisposeRenderCts()
+        {
+            CancellationTokenSource? previousCts = _cts;
+            _cts = null;
+            if (previousCts == null)
+            {
+                return;
+            }
+
+            try
+            {
+                previousCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            previousCts.Dispose();
+        }
 
         private sealed record CoverageHeatmapMeta(int Width, int Height, int Stride);
 
