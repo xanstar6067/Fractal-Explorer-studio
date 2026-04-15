@@ -7,6 +7,7 @@ using FractalExplorer.Properties;
 using System.Reflection;
 
 using FractalExplorer.Utilities.Theme;
+using System.Runtime;
 namespace FractalExplorer
 {
     /// <summary>
@@ -700,8 +701,23 @@ namespace FractalExplorer
             if (Activator.CreateInstance(fractalToLaunch.FormToLaunch) is Form form)
             {
                 ThemeManager.ApplyTheme(form);
+                form.FormClosed += FractalForm_FormClosed;
                 form.Show();
             }
+        }
+
+        /// <summary>
+        /// Форсирует единичную компактацию LOH и запуск GC после закрытия окна фрактала.
+        /// </summary>
+        private static void FractalForm_FormClosed(object? sender, FormClosedEventArgs e)
+        {
+            if (sender is Form closedForm)
+            {
+                closedForm.FormClosed -= FractalForm_FormClosed;
+            }
+
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
         }
 
         #region Version Display
