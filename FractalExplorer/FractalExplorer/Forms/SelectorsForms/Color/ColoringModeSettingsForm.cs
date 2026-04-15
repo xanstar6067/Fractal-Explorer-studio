@@ -45,6 +45,12 @@ namespace FractalExplorer.Utilities
         private NumericUpDown? _nudStripeFrequency;
         private NumericUpDown? _nudStripeStrength;
         private NumericUpDown? _nudStripeBias;
+        private NumericUpDown? _nudSmoothEscapePolyCoeffA;
+        private NumericUpDown? _nudSmoothEscapePolyCoeffB;
+        private NumericUpDown? _nudSmoothEscapePolyCoeffC;
+        private NumericUpDown? _nudSmoothEscapePolyGamma;
+        private NumericUpDown? _nudSmoothEscapePolyBlend;
+        private NumericUpDown? _nudSmoothEscapePolyBias;
 
         // ── Вкладка «Палитра» ────────────────────────────────────────────────
         private ComboBox _cbPalette = null!;
@@ -92,7 +98,7 @@ namespace FractalExplorer.Utilities
             (FractalMandelbrotFamilyForm.ColoringModeType.Histogram,    "Гистограмма"),
             (FractalMandelbrotFamilyForm.ColoringModeType.OrbitTrap,    "Орбитальная ловушка"),
             (FractalMandelbrotFamilyForm.ColoringModeType.StripeAverage,"Полосатое усреднение"),
-            (FractalMandelbrotFamilyForm.ColoringModeType.SmoothEscapePolynomial,"Smooth Escape (Poly)"),
+            (FractalMandelbrotFamilyForm.ColoringModeType.SmoothEscapePolynomial,"Smooth Escape (полином)"),
         };
 
         private void PopulateModeChips()
@@ -122,6 +128,7 @@ namespace FractalExplorer.Utilities
         private void ModeChip_Click(object? sender, EventArgs e)
         {
             if (sender is not Button btn) return;
+            CollectUiToWorkingState();
             SelectModeChip((FractalMandelbrotFamilyForm.ColoringModeType)btn.Tag!);
             RebuildModeParamsPanel();
         }
@@ -160,6 +167,12 @@ namespace FractalExplorer.Utilities
             _nudStripeFrequency = null;
             _nudStripeStrength = null;
             _nudStripeBias = null;
+            _nudSmoothEscapePolyCoeffA = null;
+            _nudSmoothEscapePolyCoeffB = null;
+            _nudSmoothEscapePolyCoeffC = null;
+            _nudSmoothEscapePolyGamma = null;
+            _nudSmoothEscapePolyBlend = null;
+            _nudSmoothEscapePolyBias = null;
 
             switch (SelectedMode())
             {
@@ -174,6 +187,9 @@ namespace FractalExplorer.Utilities
                     break;
                 case FractalMandelbrotFamilyForm.ColoringModeType.StripeAverage:
                     BuildStripeAverageParams();
+                    break;
+                case FractalMandelbrotFamilyForm.ColoringModeType.SmoothEscapePolynomial:
+                    BuildSmoothEscapePolyParams();
                     break;
                 default:
                     _modeParamsPanel.Controls.Add(new Label
@@ -198,6 +214,43 @@ namespace FractalExplorer.Utilities
             AddRow(layout, "Смещение итерации:", 1);
             _nudIterationOffset = MakeNud(-100m, 100m, 0.10m, 2, _workingState.SmoothIterationOffset, -100.0, 100.0);
             layout.Controls.Add(_nudIterationOffset, 1, 1);
+
+            _modeParamsPanel.Controls.Add(layout);
+        }
+
+        private void BuildSmoothEscapePolyParams()
+        {
+            var layout = MakeTwoColumnLayout();
+
+            AddRow(layout, "Коэфф. A:", 0);
+            _nudSmoothEscapePolyCoeffA = MakeNud(0m, 30m, 0.1m, 2, _workingState.SmoothEscapePolySettings.CoeffA, 0.0, 30.0);
+            _nudSmoothEscapePolyCoeffA.Tag = "Коэффициент A для t^3(1-t)";
+            layout.Controls.Add(_nudSmoothEscapePolyCoeffA, 1, 0);
+
+            AddRow(layout, "Коэфф. B:", 1);
+            _nudSmoothEscapePolyCoeffB = MakeNud(0m, 30m, 0.1m, 2, _workingState.SmoothEscapePolySettings.CoeffB, 0.0, 30.0);
+            _nudSmoothEscapePolyCoeffB.Tag = "Коэффициент B для t^2(1-t)^2";
+            layout.Controls.Add(_nudSmoothEscapePolyCoeffB, 1, 1);
+
+            AddRow(layout, "Коэфф. C:", 2);
+            _nudSmoothEscapePolyCoeffC = MakeNud(0m, 30m, 0.1m, 2, _workingState.SmoothEscapePolySettings.CoeffC, 0.0, 30.0);
+            _nudSmoothEscapePolyCoeffC.Tag = "Коэффициент C для t(1-t)^3";
+            layout.Controls.Add(_nudSmoothEscapePolyCoeffC, 1, 2);
+
+            AddRow(layout, "Гамма:", 3);
+            _nudSmoothEscapePolyGamma = MakeNud(0.10m, 5m, 0.05m, 2, _workingState.SmoothEscapePolySettings.Gamma, 0.1, 5.0);
+            _nudSmoothEscapePolyGamma.Tag = "Степенное преобразование после смешивания";
+            layout.Controls.Add(_nudSmoothEscapePolyGamma, 1, 3);
+
+            AddRow(layout, "Смешивание:", 4);
+            _nudSmoothEscapePolyBlend = MakeNud(0m, 1m, 0.01m, 2, _workingState.SmoothEscapePolySettings.Blend, 0.0, 1.0);
+            _nudSmoothEscapePolyBlend.Tag = "0 — исходный smooth, 1 — полиномиальный сигнал";
+            layout.Controls.Add(_nudSmoothEscapePolyBlend, 1, 4);
+
+            AddRow(layout, "Смещение:", 5);
+            _nudSmoothEscapePolyBias = MakeNud(-1m, 1m, 0.01m, 2, _workingState.SmoothEscapePolySettings.Bias, -1.0, 1.0);
+            _nudSmoothEscapePolyBias.Tag = "Добавочное смещение перед гаммой";
+            layout.Controls.Add(_nudSmoothEscapePolyBias, 1, 5);
 
             _modeParamsPanel.Controls.Add(layout);
         }
@@ -399,12 +452,29 @@ namespace FractalExplorer.Utilities
 
         private void BtnApply_Click(object? sender, EventArgs e)
         {
+            CollectUiToWorkingState();
+
             var mode = SelectedMode();
             _workingState.ActiveMode = FractalMandelbrotFamilyForm.ColoringModeRuntime.FromType(mode);
             _workingState.InteriorMode = (_cbInteriorMode.SelectedItem as InteriorModeItem)?.Mode
                 ?? FractalMandelbrotFamilyForm.InteriorMode.Black;
             _workingState.InteriorColor = _pnlInteriorColorPreview.BackColor;
+            if (_nudPalettePhaseOffset is not null)
+                _workingState.PaletteTransform.PhaseOffset = (double)_nudPalettePhaseOffset.Value;
+            if (_nudPaletteScale is not null)
+                _workingState.PaletteTransform.Scale = (double)_nudPaletteScale.Value;
+            if (_cbPaletteWrapMode is not null)
+                _workingState.PaletteTransform.WrapMode = (_cbPaletteWrapMode.SelectedItem as PaletteWrapModeItem)?.Mode
+                    ?? FractalMandelbrotFamilyForm.PaletteTransformWrapMode.Repeat;
 
+            var selectedPaletteName = (_cbPalette.SelectedItem as PaletteItem)?.PaletteName;
+            SettingsApplied?.Invoke(this, new ColoringModeSettingsAppliedEventArgs(
+                _workingState.Clone(),
+                selectedPaletteName));
+        }
+
+        private void CollectUiToWorkingState()
+        {
             if (_nudBlendPower is not null)
                 _workingState.SmoothBlendPower = (double)_nudBlendPower.Value;
             if (_nudIterationOffset is not null)
@@ -425,6 +495,18 @@ namespace FractalExplorer.Utilities
                 _workingState.StripeAverageSettings.Strength = (double)_nudStripeStrength.Value;
             if (_nudStripeBias is not null)
                 _workingState.StripeAverageSettings.Bias = (double)_nudStripeBias.Value;
+            if (_nudSmoothEscapePolyCoeffA is not null)
+                _workingState.SmoothEscapePolySettings.CoeffA = (double)_nudSmoothEscapePolyCoeffA.Value;
+            if (_nudSmoothEscapePolyCoeffB is not null)
+                _workingState.SmoothEscapePolySettings.CoeffB = (double)_nudSmoothEscapePolyCoeffB.Value;
+            if (_nudSmoothEscapePolyCoeffC is not null)
+                _workingState.SmoothEscapePolySettings.CoeffC = (double)_nudSmoothEscapePolyCoeffC.Value;
+            if (_nudSmoothEscapePolyGamma is not null)
+                _workingState.SmoothEscapePolySettings.Gamma = (double)_nudSmoothEscapePolyGamma.Value;
+            if (_nudSmoothEscapePolyBlend is not null)
+                _workingState.SmoothEscapePolySettings.Blend = (double)_nudSmoothEscapePolyBlend.Value;
+            if (_nudSmoothEscapePolyBias is not null)
+                _workingState.SmoothEscapePolySettings.Bias = (double)_nudSmoothEscapePolyBias.Value;
             if (_nudPalettePhaseOffset is not null)
                 _workingState.PaletteTransform.PhaseOffset = (double)_nudPalettePhaseOffset.Value;
             if (_nudPaletteScale is not null)
@@ -432,11 +514,6 @@ namespace FractalExplorer.Utilities
             if (_cbPaletteWrapMode is not null)
                 _workingState.PaletteTransform.WrapMode = (_cbPaletteWrapMode.SelectedItem as PaletteWrapModeItem)?.Mode
                     ?? FractalMandelbrotFamilyForm.PaletteTransformWrapMode.Repeat;
-
-            var selectedPaletteName = (_cbPalette.SelectedItem as PaletteItem)?.PaletteName;
-            SettingsApplied?.Invoke(this, new ColoringModeSettingsAppliedEventArgs(
-                _workingState.Clone(),
-                selectedPaletteName));
         }
 
         private void UpdateInteriorControlsState()

@@ -52,6 +52,31 @@
         public int? ColoringMode { get; set; }
 
         /// <summary>
+        /// Коэффициент A полинома режима Smooth Escape (Poly).
+        /// </summary>
+        public double? SmoothEscapePolyCoeffA { get; set; }
+        /// <summary>
+        /// Коэффициент B полинома режима Smooth Escape (Poly).
+        /// </summary>
+        public double? SmoothEscapePolyCoeffB { get; set; }
+        /// <summary>
+        /// Коэффициент C полинома режима Smooth Escape (Poly).
+        /// </summary>
+        public double? SmoothEscapePolyCoeffC { get; set; }
+        /// <summary>
+        /// Гамма-коррекция режима Smooth Escape (Poly).
+        /// </summary>
+        public double? SmoothEscapePolyGamma { get; set; }
+        /// <summary>
+        /// Параметр смешивания для режима Smooth Escape (Poly).
+        /// </summary>
+        public double? SmoothEscapePolyBlend { get; set; }
+        /// <summary>
+        /// Смещение результата для режима Smooth Escape (Poly).
+        /// </summary>
+        public double? SmoothEscapePolyBias { get; set; }
+
+        /// <summary>
         /// Инициализирует новый экземпляр класса <see cref="MandelbrotFamilySaveState"/>.
         /// Этот конструктор предназначен для использования десериализатором JSON.
         /// </summary>

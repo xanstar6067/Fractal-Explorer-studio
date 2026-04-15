@@ -572,6 +572,7 @@ namespace FractalDraving
             _coloringRuntimeState.HistogramSettings = e.RuntimeState.HistogramSettings.Clone();
             _coloringRuntimeState.OrbitTrapSettings = e.RuntimeState.OrbitTrapSettings.Clone();
             _coloringRuntimeState.StripeAverageSettings = e.RuntimeState.StripeAverageSettings.Clone();
+            _coloringRuntimeState.SmoothEscapePolySettings = e.RuntimeState.SmoothEscapePolySettings.Clone();
             _coloringRuntimeState.PaletteTransform = e.RuntimeState.PaletteTransform.Clone();
             _coloringRuntimeState.InteriorMode = e.RuntimeState.InteriorMode;
             _coloringRuntimeState.InteriorColor = e.RuntimeState.InteriorColor;
@@ -863,6 +864,12 @@ namespace FractalDraving
             renderEngineCopy.StripeFrequency = _fractalEngine.StripeFrequency;
             renderEngineCopy.StripeStrength = _fractalEngine.StripeStrength;
             renderEngineCopy.StripeBias = _fractalEngine.StripeBias;
+            renderEngineCopy.SmoothEscapePolyCoeffA = _fractalEngine.SmoothEscapePolyCoeffA;
+            renderEngineCopy.SmoothEscapePolyCoeffB = _fractalEngine.SmoothEscapePolyCoeffB;
+            renderEngineCopy.SmoothEscapePolyCoeffC = _fractalEngine.SmoothEscapePolyCoeffC;
+            renderEngineCopy.SmoothEscapePolyGamma = _fractalEngine.SmoothEscapePolyGamma;
+            renderEngineCopy.SmoothEscapePolyBlend = _fractalEngine.SmoothEscapePolyBlend;
+            renderEngineCopy.SmoothEscapePolyBias = _fractalEngine.SmoothEscapePolyBias;
             renderEngineCopy.InteriorColor = _fractalEngine.InteriorColor;
             renderEngineCopy.CopySpecificParametersFrom(_fractalEngine);
 
@@ -1025,6 +1032,12 @@ namespace FractalDraving
             renderEngineCopy.StripeFrequency = _fractalEngine.StripeFrequency;
             renderEngineCopy.StripeStrength = _fractalEngine.StripeStrength;
             renderEngineCopy.StripeBias = _fractalEngine.StripeBias;
+            renderEngineCopy.SmoothEscapePolyCoeffA = _fractalEngine.SmoothEscapePolyCoeffA;
+            renderEngineCopy.SmoothEscapePolyCoeffB = _fractalEngine.SmoothEscapePolyCoeffB;
+            renderEngineCopy.SmoothEscapePolyCoeffC = _fractalEngine.SmoothEscapePolyCoeffC;
+            renderEngineCopy.SmoothEscapePolyGamma = _fractalEngine.SmoothEscapePolyGamma;
+            renderEngineCopy.SmoothEscapePolyBlend = _fractalEngine.SmoothEscapePolyBlend;
+            renderEngineCopy.SmoothEscapePolyBias = _fractalEngine.SmoothEscapePolyBias;
             renderEngineCopy.InteriorColor = _fractalEngine.InteriorColor;
             renderEngineCopy.CopySpecificParametersFrom(_fractalEngine);
 
@@ -1450,6 +1463,12 @@ namespace FractalDraving
             engine.StripeFrequency = _coloringRuntimeState.StripeAverageSettings.Frequency;
             engine.StripeStrength = _coloringRuntimeState.StripeAverageSettings.Strength;
             engine.StripeBias = _coloringRuntimeState.StripeAverageSettings.Bias;
+            engine.SmoothEscapePolyCoeffA = _coloringRuntimeState.SmoothEscapePolySettings.CoeffA;
+            engine.SmoothEscapePolyCoeffB = _coloringRuntimeState.SmoothEscapePolySettings.CoeffB;
+            engine.SmoothEscapePolyCoeffC = _coloringRuntimeState.SmoothEscapePolySettings.CoeffC;
+            engine.SmoothEscapePolyGamma = _coloringRuntimeState.SmoothEscapePolySettings.Gamma;
+            engine.SmoothEscapePolyBlend = _coloringRuntimeState.SmoothEscapePolySettings.Blend;
+            engine.SmoothEscapePolyBias = _coloringRuntimeState.SmoothEscapePolySettings.Bias;
             engine.InteriorColor = ResolveInteriorColor();
         }
 
@@ -1934,6 +1953,30 @@ namespace FractalDraving
             /// </summary>
             public double? StripeBias { get; set; }
             /// <summary>
+            /// Коэффициент A полинома для Smooth Escape (Poly).
+            /// </summary>
+            public double? SmoothEscapePolyCoeffA { get; set; }
+            /// <summary>
+            /// Коэффициент B полинома для Smooth Escape (Poly).
+            /// </summary>
+            public double? SmoothEscapePolyCoeffB { get; set; }
+            /// <summary>
+            /// Коэффициент C полинома для Smooth Escape (Poly).
+            /// </summary>
+            public double? SmoothEscapePolyCoeffC { get; set; }
+            /// <summary>
+            /// Гамма-коррекция для Smooth Escape (Poly).
+            /// </summary>
+            public double? SmoothEscapePolyGamma { get; set; }
+            /// <summary>
+            /// Степень смешивания исходного и полиномиального сигнала в Smooth Escape (Poly).
+            /// </summary>
+            public double? SmoothEscapePolyBlend { get; set; }
+            /// <summary>
+            /// Смещение результата в Smooth Escape (Poly).
+            /// </summary>
+            public double? SmoothEscapePolyBias { get; set; }
+            /// <summary>
             /// Тип движка для рендеринга превью.
             /// </summary>
             public string PreviewEngineType { get; set; }
@@ -1994,6 +2037,29 @@ namespace FractalDraving
                 }
             }
 
+            public sealed class SmoothEscapePolySettingsState
+            {
+                public double CoeffA { get; set; } = 9.0;
+                public double CoeffB { get; set; } = 15.0;
+                public double CoeffC { get; set; } = 8.5;
+                public double Gamma { get; set; } = 1.0;
+                public double Blend { get; set; } = 1.0;
+                public double Bias { get; set; } = 0.0;
+
+                public SmoothEscapePolySettingsState Clone()
+                {
+                    return new SmoothEscapePolySettingsState
+                    {
+                        CoeffA = CoeffA,
+                        CoeffB = CoeffB,
+                        CoeffC = CoeffC,
+                        Gamma = Gamma,
+                        Blend = Blend,
+                        Bias = Bias
+                    };
+                }
+            }
+
             public sealed class PaletteTransformState
             {
                 public double PhaseOffset { get; set; } = 0.0;
@@ -2017,6 +2083,7 @@ namespace FractalDraving
             public HistogramSettingsState HistogramSettings { get; set; } = new();
             public OrbitTrapSettingsState OrbitTrapSettings { get; set; } = new();
             public StripeAverageSettingsState StripeAverageSettings { get; set; } = new();
+            public SmoothEscapePolySettingsState SmoothEscapePolySettings { get; set; } = new();
             public PaletteTransformState PaletteTransform { get; set; } = new();
             public InteriorMode InteriorMode { get; set; } = InteriorMode.Black;
             public Color InteriorColor { get; set; } = Color.Black;
@@ -2027,6 +2094,7 @@ namespace FractalDraving
                 return new ColoringRuntimeState
                 {
                     ActiveMode = ColoringModeRuntime.Smooth,
+                    SmoothEscapePolySettings = new SmoothEscapePolySettingsState(),
                     InteriorMode = InteriorMode.Black,
                     InteriorColor = Color.Black
                 };
@@ -2042,6 +2110,7 @@ namespace FractalDraving
                     HistogramSettings = HistogramSettings.Clone(),
                     OrbitTrapSettings = OrbitTrapSettings.Clone(),
                     StripeAverageSettings = StripeAverageSettings.Clone(),
+                    SmoothEscapePolySettings = SmoothEscapePolySettings.Clone(),
                     PaletteTransform = PaletteTransform.Clone(),
                     InteriorMode = InteriorMode,
                     InteriorColor = InteriorColor
@@ -2147,6 +2216,12 @@ namespace FractalDraving
             state.PaletteName = _paletteManager.ActivePalette?.Name ?? "Стандартный серый";
             state.PreviewEngineType = this.FractalTypeIdentifier;
             state.ColoringMode = (int)_coloringRuntimeState.ActiveMode.ModeType;
+            state.SmoothEscapePolyCoeffA = _coloringRuntimeState.SmoothEscapePolySettings.CoeffA;
+            state.SmoothEscapePolyCoeffB = _coloringRuntimeState.SmoothEscapePolySettings.CoeffB;
+            state.SmoothEscapePolyCoeffC = _coloringRuntimeState.SmoothEscapePolySettings.CoeffC;
+            state.SmoothEscapePolyGamma = _coloringRuntimeState.SmoothEscapePolySettings.Gamma;
+            state.SmoothEscapePolyBlend = _coloringRuntimeState.SmoothEscapePolySettings.Blend;
+            state.SmoothEscapePolyBias = _coloringRuntimeState.SmoothEscapePolySettings.Bias;
 
             var previewParams = new PreviewParams
             {
@@ -2164,6 +2239,12 @@ namespace FractalDraving
                 StripeFrequency = _coloringRuntimeState.StripeAverageSettings.Frequency,
                 StripeStrength = _coloringRuntimeState.StripeAverageSettings.Strength,
                 StripeBias = _coloringRuntimeState.StripeAverageSettings.Bias,
+                SmoothEscapePolyCoeffA = _coloringRuntimeState.SmoothEscapePolySettings.CoeffA,
+                SmoothEscapePolyCoeffB = _coloringRuntimeState.SmoothEscapePolySettings.CoeffB,
+                SmoothEscapePolyCoeffC = _coloringRuntimeState.SmoothEscapePolySettings.CoeffC,
+                SmoothEscapePolyGamma = _coloringRuntimeState.SmoothEscapePolySettings.Gamma,
+                SmoothEscapePolyBlend = _coloringRuntimeState.SmoothEscapePolySettings.Blend,
+                SmoothEscapePolyBias = _coloringRuntimeState.SmoothEscapePolySettings.Bias,
                 PreviewEngineType = state.PreviewEngineType
             };
 
@@ -2230,6 +2311,12 @@ namespace FractalDraving
         {
             var mode = ResolveLoadedColoringMode(state);
             _coloringRuntimeState.ActiveMode = ColoringModeRuntime.FromType(mode);
+            _coloringRuntimeState.SmoothEscapePolySettings.CoeffA = state.SmoothEscapePolyCoeffA ?? 9.0;
+            _coloringRuntimeState.SmoothEscapePolySettings.CoeffB = state.SmoothEscapePolyCoeffB ?? 15.0;
+            _coloringRuntimeState.SmoothEscapePolySettings.CoeffC = state.SmoothEscapePolyCoeffC ?? 8.5;
+            _coloringRuntimeState.SmoothEscapePolySettings.Gamma = state.SmoothEscapePolyGamma ?? 1.0;
+            _coloringRuntimeState.SmoothEscapePolySettings.Blend = state.SmoothEscapePolyBlend ?? 1.0;
+            _coloringRuntimeState.SmoothEscapePolySettings.Bias = state.SmoothEscapePolyBias ?? 0.0;
 
             if (!string.IsNullOrWhiteSpace(state.PreviewParametersJson))
             {
@@ -2250,6 +2337,18 @@ namespace FractalDraving
                             _coloringRuntimeState.StripeAverageSettings.Strength = previewParams.StripeStrength.Value;
                         if (previewParams.StripeBias.HasValue)
                             _coloringRuntimeState.StripeAverageSettings.Bias = previewParams.StripeBias.Value;
+                        if (previewParams.SmoothEscapePolyCoeffA.HasValue)
+                            _coloringRuntimeState.SmoothEscapePolySettings.CoeffA = previewParams.SmoothEscapePolyCoeffA.Value;
+                        if (previewParams.SmoothEscapePolyCoeffB.HasValue)
+                            _coloringRuntimeState.SmoothEscapePolySettings.CoeffB = previewParams.SmoothEscapePolyCoeffB.Value;
+                        if (previewParams.SmoothEscapePolyCoeffC.HasValue)
+                            _coloringRuntimeState.SmoothEscapePolySettings.CoeffC = previewParams.SmoothEscapePolyCoeffC.Value;
+                        if (previewParams.SmoothEscapePolyGamma.HasValue)
+                            _coloringRuntimeState.SmoothEscapePolySettings.Gamma = previewParams.SmoothEscapePolyGamma.Value;
+                        if (previewParams.SmoothEscapePolyBlend.HasValue)
+                            _coloringRuntimeState.SmoothEscapePolySettings.Blend = previewParams.SmoothEscapePolyBlend.Value;
+                        if (previewParams.SmoothEscapePolyBias.HasValue)
+                            _coloringRuntimeState.SmoothEscapePolySettings.Bias = previewParams.SmoothEscapePolyBias.Value;
                     }
                 }
                 catch
@@ -2405,6 +2504,12 @@ namespace FractalDraving
             previewEngine.StripeFrequency = previewParams.StripeFrequency ?? 6.0;
             previewEngine.StripeStrength = previewParams.StripeStrength ?? 0.5;
             previewEngine.StripeBias = previewParams.StripeBias ?? 0.0;
+            previewEngine.SmoothEscapePolyCoeffA = previewParams.SmoothEscapePolyCoeffA ?? 9.0;
+            previewEngine.SmoothEscapePolyCoeffB = previewParams.SmoothEscapePolyCoeffB ?? 15.0;
+            previewEngine.SmoothEscapePolyCoeffC = previewParams.SmoothEscapePolyCoeffC ?? 8.5;
+            previewEngine.SmoothEscapePolyGamma = previewParams.SmoothEscapePolyGamma ?? 1.0;
+            previewEngine.SmoothEscapePolyBlend = previewParams.SmoothEscapePolyBlend ?? 1.0;
+            previewEngine.SmoothEscapePolyBias = previewParams.SmoothEscapePolyBias ?? 0.0;
 
             int safeMaxColorIterations = Math.Max(2, effectiveMaxColorIterations);
             previewEngine.MaxColorIterations = safeMaxColorIterations;
@@ -2577,7 +2682,13 @@ namespace FractalDraving
                 OrbitTrapBias = _coloringRuntimeState.OrbitTrapSettings.Bias,
                 StripeFrequency = _coloringRuntimeState.StripeAverageSettings.Frequency,
                 StripeStrength = _coloringRuntimeState.StripeAverageSettings.Strength,
-                StripeBias = _coloringRuntimeState.StripeAverageSettings.Bias
+                StripeBias = _coloringRuntimeState.StripeAverageSettings.Bias,
+                SmoothEscapePolyCoeffA = _coloringRuntimeState.SmoothEscapePolySettings.CoeffA,
+                SmoothEscapePolyCoeffB = _coloringRuntimeState.SmoothEscapePolySettings.CoeffB,
+                SmoothEscapePolyCoeffC = _coloringRuntimeState.SmoothEscapePolySettings.CoeffC,
+                SmoothEscapePolyGamma = _coloringRuntimeState.SmoothEscapePolySettings.Gamma,
+                SmoothEscapePolyBlend = _coloringRuntimeState.SmoothEscapePolySettings.Blend,
+                SmoothEscapePolyBias = _coloringRuntimeState.SmoothEscapePolySettings.Bias
             };
 
             if (this is FractalJulia || this is FractalJuliaBurningShip)
@@ -2653,6 +2764,12 @@ namespace FractalDraving
             engine.StripeFrequency = state.StripeFrequency;
             engine.StripeStrength = state.StripeStrength;
             engine.StripeBias = state.StripeBias;
+            engine.SmoothEscapePolyCoeffA = state.SmoothEscapePolyCoeffA;
+            engine.SmoothEscapePolyCoeffB = state.SmoothEscapePolyCoeffB;
+            engine.SmoothEscapePolyCoeffC = state.SmoothEscapePolyCoeffC;
+            engine.SmoothEscapePolyGamma = state.SmoothEscapePolyGamma;
+            engine.SmoothEscapePolyBlend = state.SmoothEscapePolyBlend;
+            engine.SmoothEscapePolyBias = state.SmoothEscapePolyBias;
             int effectiveMaxColorIterations = paletteForRender.AlignWithRenderIterations ? engine.MaxIterations : paletteForRender.MaxColorIterations;
             engine.MaxColorIterations = effectiveMaxColorIterations;
 

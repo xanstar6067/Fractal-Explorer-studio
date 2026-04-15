@@ -28,6 +28,12 @@ namespace FractalExplorer.Utilities.RenderUtilities
         public double StripeFrequency { get; set; }
         public double StripeStrength { get; set; }
         public double StripeBias { get; set; }
+        public double SmoothEscapePolyCoeffA { get; set; } = 9.0;
+        public double SmoothEscapePolyCoeffB { get; set; } = 15.0;
+        public double SmoothEscapePolyCoeffC { get; set; } = 8.5;
+        public double SmoothEscapePolyGamma { get; set; } = 1.0;
+        public double SmoothEscapePolyBlend { get; set; } = 1.0;
+        public double SmoothEscapePolyBias { get; set; } = 0.0;
         public decimal? Power { get; set; }
         public decimal Scale { get; set; }
         public bool UseInversion { get; set; }

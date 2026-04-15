@@ -109,6 +109,12 @@ namespace FractalExplorer.Engines
         public double StripeFrequency { get; set; } = 3.0;
         public double StripeStrength { get; set; } = 0.5;
         public double StripeBias { get; set; } = 0.0;
+        public double SmoothEscapePolyCoeffA { get; set; } = 9.0;
+        public double SmoothEscapePolyCoeffB { get; set; } = 15.0;
+        public double SmoothEscapePolyCoeffC { get; set; } = 8.5;
+        public double SmoothEscapePolyGamma { get; set; } = 1.0;
+        public double SmoothEscapePolyBlend { get; set; } = 1.0;
+        public double SmoothEscapePolyBias { get; set; } = 0.0;
 
         #endregion
 
@@ -269,19 +275,30 @@ namespace FractalExplorer.Engines
             }
 
             double t = smoothValue / Math.Max(1.0, MaxIterations);
-            t = Math.Max(0.0, Math.Min(1.0, t));
+            double smoothNorm = Math.Max(0.0, Math.Min(1.0, t));
 
-            double polynomialMapped = 9.0 * (1.0 - t) * t * t * t
-                + 15.0 * (1.0 - t) * (1.0 - t) * t * t
-                + 8.5 * (1.0 - t) * (1.0 - t) * (1.0 - t) * t;
-            polynomialMapped = Math.Max(0.0, Math.Min(1.0, polynomialMapped));
+            double polyMapped = SmoothEscapePolyCoeffA * (1.0 - smoothNorm) * smoothNorm * smoothNorm * smoothNorm
+                + SmoothEscapePolyCoeffB * (1.0 - smoothNorm) * (1.0 - smoothNorm) * smoothNorm * smoothNorm
+                + SmoothEscapePolyCoeffC * (1.0 - smoothNorm) * (1.0 - smoothNorm) * (1.0 - smoothNorm) * smoothNorm;
+            polyMapped = Math.Max(0.0, Math.Min(1.0, polyMapped));
+
+            double blend = Math.Max(0.0, Math.Min(1.0, SmoothEscapePolyBlend));
+            double blended = smoothNorm * (1.0 - blend) + polyMapped * blend;
+            blended = Math.Max(0.0, Math.Min(1.0, blended));
+
+            double biased = blended + SmoothEscapePolyBias;
+            biased = Math.Max(0.0, Math.Min(1.0, biased));
+
+            double safeGamma = SmoothEscapePolyGamma <= 0.0 ? 1.0 : SmoothEscapePolyGamma;
+            double gammaMapped = Math.Pow(biased, safeGamma);
+            gammaMapped = Math.Max(0.0, Math.Min(1.0, gammaMapped));
 
             if (SmoothPalette != null)
             {
-                return SmoothPalette(polynomialMapped * MaxColorIterations);
+                return SmoothPalette(gammaMapped * MaxColorIterations);
             }
 
-            int paletteIter = (int)Math.Round(polynomialMapped * MaxColorIterations);
+            int paletteIter = (int)Math.Round(gammaMapped * MaxColorIterations);
             return Palette(paletteIter, MaxIterations, MaxColorIterations);
         }
 

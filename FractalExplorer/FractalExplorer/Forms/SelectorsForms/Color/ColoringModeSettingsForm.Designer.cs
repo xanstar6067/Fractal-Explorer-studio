@@ -63,7 +63,7 @@ namespace FractalExplorer.Utilities
             root.RowStyles.Add(new RowStyle());
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             root.RowStyles.Add(new RowStyle());
-            root.Size = new Size(600, 440);
+            root.Size = new Size(776, 440);
             root.TabIndex = 0;
             // 
             // modeGroup
@@ -75,19 +75,20 @@ namespace FractalExplorer.Utilities
             modeGroup.Margin = new Padding(0, 0, 0, 8);
             modeGroup.Name = "modeGroup";
             modeGroup.Padding = new Padding(6, 4, 6, 6);
-            modeGroup.Size = new Size(576, 28);
+            modeGroup.Size = new Size(752, 28);
             modeGroup.TabIndex = 0;
             modeGroup.TabStop = false;
             modeGroup.Text = "Режим окраски";
             // 
             // _pnlModeChips
             // 
+            _pnlModeChips.AutoScroll = true;
             _pnlModeChips.AutoSize = true;
             _pnlModeChips.Dock = DockStyle.Fill;
             _pnlModeChips.Location = new Point(6, 20);
             _pnlModeChips.Name = "_pnlModeChips";
             _pnlModeChips.Padding = new Padding(0, 2, 0, 0);
-            _pnlModeChips.Size = new Size(564, 2);
+            _pnlModeChips.Size = new Size(740, 2);
             _pnlModeChips.TabIndex = 0;
             // 
             // _tabs
@@ -101,7 +102,7 @@ namespace FractalExplorer.Utilities
             _tabs.Name = "_tabs";
             _tabs.Padding = new Point(10, 4);
             _tabs.SelectedIndex = 0;
-            _tabs.Size = new Size(576, 338);
+            _tabs.Size = new Size(752, 338);
             _tabs.TabIndex = 1;
             // 
             // _tabParams
@@ -110,7 +111,7 @@ namespace FractalExplorer.Utilities
             _tabParams.Location = new Point(4, 26);
             _tabParams.Name = "_tabParams";
             _tabParams.Padding = new Padding(4);
-            _tabParams.Size = new Size(568, 308);
+            _tabParams.Size = new Size(744, 308);
             _tabParams.TabIndex = 0;
             _tabParams.Text = "Параметры";
             // 
@@ -121,7 +122,7 @@ namespace FractalExplorer.Utilities
             _modeParamsPanel.Location = new Point(4, 4);
             _modeParamsPanel.Name = "_modeParamsPanel";
             _modeParamsPanel.Padding = new Padding(8);
-            _modeParamsPanel.Size = new Size(560, 300);
+            _modeParamsPanel.Size = new Size(736, 300);
             _modeParamsPanel.TabIndex = 0;
             // 
             // _tabPalette
@@ -130,7 +131,7 @@ namespace FractalExplorer.Utilities
             _tabPalette.Location = new Point(4, 26);
             _tabPalette.Name = "_tabPalette";
             _tabPalette.Padding = new Padding(4);
-            _tabPalette.Size = new Size(192, 0);
+            _tabPalette.Size = new Size(727, 308);
             _tabPalette.TabIndex = 1;
             _tabPalette.Text = "Палитра";
             // 
@@ -140,7 +141,7 @@ namespace FractalExplorer.Utilities
             _tabInterior.Location = new Point(4, 26);
             _tabInterior.Name = "_tabInterior";
             _tabInterior.Padding = new Padding(4);
-            _tabInterior.Size = new Size(192, 0);
+            _tabInterior.Size = new Size(727, 308);
             _tabInterior.TabIndex = 2;
             _tabInterior.Text = "Внутренность";
             // 
@@ -154,13 +155,13 @@ namespace FractalExplorer.Utilities
             buttonsRow.Location = new Point(12, 394);
             buttonsRow.Margin = new Padding(0, 8, 0, 0);
             buttonsRow.Name = "buttonsRow";
-            buttonsRow.Size = new Size(576, 34);
+            buttonsRow.Size = new Size(752, 34);
             buttonsRow.TabIndex = 2;
             // 
             // _btnApply
             // 
             _btnApply.AutoSize = true;
-            _btnApply.Location = new Point(483, 3);
+            _btnApply.Location = new Point(659, 3);
             _btnApply.MinimumSize = new Size(90, 28);
             _btnApply.Name = "_btnApply";
             _btnApply.Size = new Size(90, 28);
@@ -171,7 +172,7 @@ namespace FractalExplorer.Utilities
             // _btnCancel
             // 
             _btnCancel.AutoSize = true;
-            _btnCancel.Location = new Point(397, 3);
+            _btnCancel.Location = new Point(573, 3);
             _btnCancel.MinimumSize = new Size(80, 28);
             _btnCancel.Name = "_btnCancel";
             _btnCancel.Size = new Size(80, 28);
@@ -209,11 +210,10 @@ namespace FractalExplorer.Utilities
             // 
             // ColoringModeSettingsForm
             // 
-            ClientSize = new Size(600, 440);
+            ClientSize = new Size(776, 440);
             Controls.Add(root);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
-            MaximumSize = new Size(616, 479);
             MinimizeBox = false;
             MinimumSize = new Size(616, 479);
             Name = "ColoringModeSettingsForm";
