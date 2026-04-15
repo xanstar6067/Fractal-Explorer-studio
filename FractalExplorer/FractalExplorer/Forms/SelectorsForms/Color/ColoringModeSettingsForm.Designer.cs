@@ -82,12 +82,13 @@ namespace FractalExplorer.Utilities
             // 
             // _pnlModeChips
             // 
-            _pnlModeChips.AutoScroll = true;
+            _pnlModeChips.AutoScroll = false;
             _pnlModeChips.AutoSize = true;
             _pnlModeChips.Dock = DockStyle.Fill;
             _pnlModeChips.Location = new Point(6, 20);
             _pnlModeChips.Name = "_pnlModeChips";
             _pnlModeChips.Padding = new Padding(0, 2, 0, 0);
+            _pnlModeChips.WrapContents = true;
             _pnlModeChips.Size = new Size(740, 2);
             _pnlModeChips.TabIndex = 0;
             // 

@@ -103,16 +103,21 @@ namespace FractalExplorer.Utilities
 
         private void PopulateModeChips()
         {
+            _pnlModeChips.SuspendLayout();
             _pnlModeChips.Controls.Clear();
             _modeChips.Clear();
 
-            foreach (var (mode, label) in ModeDefinitions)
+            // Режимы добавляем в конструкторе в заранее заданном порядке и раскладке:
+            // по 3 кнопки в строке, без горизонтального скролла.
+            for (int i = 0; i < ModeDefinitions.Length; i++)
             {
+                var (mode, label) = ModeDefinitions[i];
                 var btn = new Button
                 {
                     Text = label,
-                    AutoSize = true,
-                    MinimumSize = new Size(0, 28),
+                    AutoSize = false,
+                    Width = 228,
+                    Height = 28,
                     Margin = new Padding(0, 0, 6, 4),
                     Tag = mode,
                     FlatStyle = FlatStyle.Flat,
@@ -122,7 +127,12 @@ namespace FractalExplorer.Utilities
                 btn.Click += ModeChip_Click;
                 _modeChips.Add(btn);
                 _pnlModeChips.Controls.Add(btn);
+
+                if ((i + 1) % 3 == 0)
+                    _pnlModeChips.SetFlowBreak(btn, true);
             }
+
+            _pnlModeChips.ResumeLayout();
         }
 
         private void ModeChip_Click(object? sender, EventArgs e)
