@@ -1,4 +1,5 @@
 using FractalExplorer.Utilities;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -74,124 +75,60 @@ namespace FractalExplorer.Engines
             double worldLeft = CenterX - worldWidth * 0.5;
             double worldTop = CenterY + worldHeight * 0.5;
 
-            double[] hdrHit = new double[width * height];
-            double[] hdrR = new double[width * height];
-            double[] hdrG = new double[width * height];
-            double[] hdrB = new double[width * height];
+            int pixelCount = width * height;
+            double[] hdrHit = ArrayPool<double>.Shared.Rent(pixelCount);
+            double[] hdrR = ArrayPool<double>.Shared.Rent(pixelCount);
+            double[] hdrG = ArrayPool<double>.Shared.Rent(pixelCount);
+            double[] hdrB = ArrayPool<double>.Shared.Rent(pixelCount);
+            Array.Clear(hdrHit, 0, pixelCount);
+            Array.Clear(hdrR, 0, pixelCount);
+            Array.Clear(hdrG, 0, pixelCount);
+            Array.Clear(hdrB, 0, pixelCount);
 
-            List<FlameTransform> activeTransforms = Transforms.Where(t => t.Weight > 0).Select(t => t.Clone()).ToList();
-            if (activeTransforms.Count == 0)
+            try
             {
-                Array.Clear(buffer, 0, buffer.Length);
-                return;
-            }
-
-            double weightSum = activeTransforms.Sum(t => t.Weight);
-            double[] cumulativeWeights = new double[activeTransforms.Count];
-            double cumulative = 0;
-            for (int i = 0; i < activeTransforms.Count; i++)
-            {
-                cumulative += activeTransforms[i].Weight / weightSum;
-                cumulativeWeights[i] = cumulative;
-            }
-            cumulativeWeights[^1] = 1.0;
-
-            int totalSamples = Math.Max(1, Samples);
-            int iterations = Math.Max(1, IterationsPerSample);
-            int warmup = Math.Max(0, WarmupIterations);
-            int totalIterations = (int)Math.Min(int.MaxValue, (long)warmup + iterations);
-            int threadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
-            int processed = 0;
-            int progressStep = Math.Max(1, totalSamples / 100);
-            object mergeLock = new();
-            var options = new ParallelOptions
-            {
-                CancellationToken = token,
-                MaxDegreeOfParallelism = Math.Max(1, threadCount)
-            };
-
-            if (reportCoverageHeatmap == null)
-            {
-                int chunkSize = Math.Max(2_048, totalSamples / Math.Max(1, threadCount * 8));
-                var sampleChunks = Partitioner.Create(0, totalSamples, chunkSize);
-
-                Parallel.ForEach(sampleChunks, options, range =>
+                List<FlameTransform> activeTransforms = Transforms.Where(t => t.Weight > 0).Select(t => t.Clone()).ToList();
+                if (activeTransforms.Count == 0)
                 {
-                    LocalAccumulator local = new();
-                    int localProcessed = 0;
+                    Array.Clear(buffer, 0, buffer.Length);
+                    return;
+                }
 
-                    for (int sampleIndex = range.Item1; sampleIndex < range.Item2; sampleIndex++)
-                    {
-                        token.ThrowIfCancellationRequested();
-                        ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
-                        double x = NextUnitSigned(ref seed);
-                        double y = NextUnitSigned(ref seed);
-                        double cr = 0.5;
-                        double cg = 0.5;
-                        double cb = 0.5;
-
-                        for (int i = 0; i < totalIterations; i++)
-                        {
-                            FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
-                            ApplyTransform(transform, ref x, ref y);
-
-                            cr = (cr + transform.Color.R / 255.0) * 0.5;
-                            cg = (cg + transform.Color.G / 255.0) * 0.5;
-                            cb = (cb + transform.Color.B / 255.0) * 0.5;
-
-                            if (i < warmup)
-                            {
-                                continue;
-                            }
-
-                            int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
-                            int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
-                            if ((uint)px >= (uint)width || (uint)py >= (uint)height)
-                            {
-                                continue;
-                            }
-
-                            int idx = py * width + px;
-                            ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
-                            pixel.Hit += 1.0;
-                            pixel.R += cr;
-                            pixel.G += cg;
-                            pixel.B += cb;
-                        }
-
-                        localProcessed++;
-                    }
-
-                    lock (mergeLock)
-                    {
-                        foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
-                        {
-                            hdrHit[idx] += pixel.Hit;
-                            hdrR[idx] += pixel.R;
-                            hdrG[idx] += pixel.G;
-                            hdrB[idx] += pixel.B;
-                        }
-                    }
-
-                    int done = Interlocked.Add(ref processed, localProcessed);
-                    if (done / progressStep != (done - localProcessed) / progressStep)
-                    {
-                        reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
-                    }
-                });
-            }
-            else
-            {
-                int batchSize = Math.Max(1_000, totalSamples / 24);
-                int coverageIntervalMs = Math.Clamp(coverageUpdateIntervalMs, 50, 2_000);
-                var coverageTimer = Stopwatch.StartNew();
-
-                for (int batchStart = 0; batchStart < totalSamples; batchStart += batchSize)
+                double weightSum = activeTransforms.Sum(t => t.Weight);
+                double[] cumulativeWeights = new double[activeTransforms.Count];
+                double cumulative = 0;
+                for (int i = 0; i < activeTransforms.Count; i++)
                 {
-                    int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
-                    Parallel.For(batchStart, batchEnd, options,
-                        () => new LocalAccumulator(),
-                        (sampleIndex, _, local) =>
+                    cumulative += activeTransforms[i].Weight / weightSum;
+                    cumulativeWeights[i] = cumulative;
+                }
+                cumulativeWeights[^1] = 1.0;
+
+                int totalSamples = Math.Max(1, Samples);
+                int iterations = Math.Max(1, IterationsPerSample);
+                int warmup = Math.Max(0, WarmupIterations);
+                int totalIterations = (int)Math.Min(int.MaxValue, (long)warmup + iterations);
+                int threadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
+                int processed = 0;
+                int progressStep = Math.Max(1, totalSamples / 100);
+                object mergeLock = new();
+                var options = new ParallelOptions
+                {
+                    CancellationToken = token,
+                    MaxDegreeOfParallelism = Math.Max(1, threadCount)
+                };
+
+                if (reportCoverageHeatmap == null)
+                {
+                    int chunkSize = Math.Max(2_048, totalSamples / Math.Max(1, threadCount * 8));
+                    var sampleChunks = Partitioner.Create(0, totalSamples, chunkSize);
+
+                    Parallel.ForEach(sampleChunks, options, range =>
+                    {
+                        LocalAccumulator local = new();
+                        int localProcessed = 0;
+
+                        for (int sampleIndex = range.Item1; sampleIndex < range.Item2; sampleIndex++)
                         {
                             token.ThrowIfCancellationRequested();
                             ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
@@ -230,38 +167,117 @@ namespace FractalExplorer.Engines
                                 pixel.B += cb;
                             }
 
-                            int done = Interlocked.Increment(ref processed);
-                            if (done % progressStep == 0)
-                            {
-                                reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
-                            }
+                            localProcessed++;
+                        }
 
-                            return local;
-                        },
-                        local =>
+                        lock (mergeLock)
                         {
-                            lock (mergeLock)
+                            foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
                             {
-                                foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
-                                {
-                                    hdrHit[idx] += pixel.Hit;
-                                    hdrR[idx] += pixel.R;
-                                    hdrG[idx] += pixel.G;
-                                    hdrB[idx] += pixel.B;
-                                }
+                                hdrHit[idx] += pixel.Hit;
+                                hdrR[idx] += pixel.R;
+                                hdrG[idx] += pixel.G;
+                                hdrB[idx] += pixel.B;
                             }
-                        });
+                        }
 
-                    if (coverageTimer.ElapsedMilliseconds >= coverageIntervalMs)
+                        int done = Interlocked.Add(ref processed, localProcessed);
+                        if (done / progressStep != (done - localProcessed) / progressStep)
+                        {
+                            reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
+                        }
+                    });
+                }
+                else
+                {
+                    int batchSize = Math.Max(1_000, totalSamples / 24);
+                    int coverageIntervalMs = Math.Clamp(coverageUpdateIntervalMs, 50, 2_000);
+                    var coverageTimer = Stopwatch.StartNew();
+
+                    for (int batchStart = 0; batchStart < totalSamples; batchStart += batchSize)
                     {
-                        reportCoverageHeatmap(ConvertHitToHeatmapBuffer(width, height, stride, bytesPerPixel, hdrHit));
-                        coverageTimer.Restart();
+                        int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
+                        Parallel.For(batchStart, batchEnd, options,
+                            () => new LocalAccumulator(),
+                            (sampleIndex, _, local) =>
+                            {
+                                token.ThrowIfCancellationRequested();
+                                ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
+                                double x = NextUnitSigned(ref seed);
+                                double y = NextUnitSigned(ref seed);
+                                double cr = 0.5;
+                                double cg = 0.5;
+                                double cb = 0.5;
+
+                                for (int i = 0; i < totalIterations; i++)
+                                {
+                                    FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
+                                    ApplyTransform(transform, ref x, ref y);
+
+                                    cr = (cr + transform.Color.R / 255.0) * 0.5;
+                                    cg = (cg + transform.Color.G / 255.0) * 0.5;
+                                    cb = (cb + transform.Color.B / 255.0) * 0.5;
+
+                                    if (i < warmup)
+                                    {
+                                        continue;
+                                    }
+
+                                    int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
+                                    int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
+                                    if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+                                    {
+                                        continue;
+                                    }
+
+                                    int idx = py * width + px;
+                                    ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
+                                    pixel.Hit += 1.0;
+                                    pixel.R += cr;
+                                    pixel.G += cg;
+                                    pixel.B += cb;
+                                }
+
+                                int done = Interlocked.Increment(ref processed);
+                                if (done % progressStep == 0)
+                                {
+                                    reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
+                                }
+
+                                return local;
+                            },
+                            local =>
+                            {
+                                lock (mergeLock)
+                                {
+                                    foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
+                                    {
+                                        hdrHit[idx] += pixel.Hit;
+                                        hdrR[idx] += pixel.R;
+                                        hdrG[idx] += pixel.G;
+                                        hdrB[idx] += pixel.B;
+                                    }
+                                }
+                            });
+
+                        if (coverageTimer.ElapsedMilliseconds >= coverageIntervalMs)
+                        {
+                            reportCoverageHeatmap(ConvertHitToHeatmapBuffer(width, height, stride, bytesPerPixel, hdrHit));
+                            coverageTimer.Restart();
+                        }
                     }
                 }
-            }
 
-            ConvertHdrToBitmap(buffer, width, height, stride, bytesPerPixel, hdrHit, hdrR, hdrG, hdrB);
-            reportProgress?.Invoke(100);
+                ConvertHdrToBitmap(buffer, width, height, stride, bytesPerPixel, hdrHit, hdrR, hdrG, hdrB);
+                reportProgress?.Invoke(100);
+            }
+            finally
+            {
+                ArrayPool<double>.Shared.Return(hdrHit, clearArray: true);
+                ArrayPool<double>.Shared.Return(hdrR, clearArray: true);
+                ArrayPool<double>.Shared.Return(hdrG, clearArray: true);
+                ArrayPool<double>.Shared.Return(hdrB, clearArray: true);
+            }
         }
 
         private static byte[] ConvertHitToHeatmapBuffer(int width, int height, int stride, int bytesPerPixel, double[] hit)
