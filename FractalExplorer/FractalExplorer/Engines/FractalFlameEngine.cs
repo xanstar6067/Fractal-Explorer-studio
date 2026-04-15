@@ -118,75 +118,74 @@ namespace FractalExplorer.Engines
                     MaxDegreeOfParallelism = Math.Max(1, threadCount)
                 };
 
+                int targetParallelism = options.MaxDegreeOfParallelism <= 0
+                    ? Math.Max(1, Environment.ProcessorCount)
+                    : options.MaxDegreeOfParallelism;
+                int defaultAccumulatorCapacity = Math.Min(pixelCount, Math.Max(4_096, pixelCount / Math.Max(1, targetParallelism * 2)));
+                var accumulatorPool = new ConcurrentBag<LocalAccumulator>();
+
                 if (reportCoverageHeatmap == null)
                 {
                     int chunkSize = Math.Max(2_048, totalSamples / Math.Max(1, threadCount * 8));
                     var sampleChunks = Partitioner.Create(0, totalSamples, chunkSize);
 
-                    Parallel.ForEach(sampleChunks, options, range =>
-                    {
-                        LocalAccumulator local = new();
-                        int localProcessed = 0;
-
-                        for (int sampleIndex = range.Item1; sampleIndex < range.Item2; sampleIndex++)
+                    Parallel.ForEach(sampleChunks, options,
+                        () => RentAccumulator(accumulatorPool, defaultAccumulatorCapacity),
+                        (range, _, local) =>
                         {
-                            token.ThrowIfCancellationRequested();
-                            ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
-                            double x = NextUnitSigned(ref seed);
-                            double y = NextUnitSigned(ref seed);
-                            double cr = 0.5;
-                            double cg = 0.5;
-                            double cb = 0.5;
+                            int localProcessed = 0;
 
-                            for (int i = 0; i < totalIterations; i++)
+                            for (int sampleIndex = range.Item1; sampleIndex < range.Item2; sampleIndex++)
                             {
-                                FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
-                                ApplyTransform(transform, ref x, ref y);
+                                token.ThrowIfCancellationRequested();
+                                ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
+                                double x = NextUnitSigned(ref seed);
+                                double y = NextUnitSigned(ref seed);
+                                double cr = 0.5;
+                                double cg = 0.5;
+                                double cb = 0.5;
 
-                                cr = (cr + transform.Color.R / 255.0) * 0.5;
-                                cg = (cg + transform.Color.G / 255.0) * 0.5;
-                                cb = (cb + transform.Color.B / 255.0) * 0.5;
-
-                                if (i < warmup)
+                                for (int i = 0; i < totalIterations; i++)
                                 {
-                                    continue;
+                                    FlameTransform transform = SelectTransform(activeTransforms, cumulativeWeights, NextUnit(ref seed));
+                                    ApplyTransform(transform, ref x, ref y);
+
+                                    cr = (cr + transform.Color.R / 255.0) * 0.5;
+                                    cg = (cg + transform.Color.G / 255.0) * 0.5;
+                                    cb = (cb + transform.Color.B / 255.0) * 0.5;
+
+                                    if (i < warmup)
+                                    {
+                                        continue;
+                                    }
+
+                                    int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
+                                    int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
+                                    if ((uint)px >= (uint)width || (uint)py >= (uint)height)
+                                    {
+                                        continue;
+                                    }
+
+                                    int idx = py * width + px;
+                                    ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
+                                    pixel.Hit += 1.0;
+                                    pixel.R += cr;
+                                    pixel.G += cg;
+                                    pixel.B += cb;
                                 }
 
-                                int px = (int)((x - worldLeft) / worldWidth * projectionWidth) - projectionOffsetX;
-                                int py = (int)((worldTop - y) / worldHeight * projectionHeight) - projectionOffsetY;
-                                if ((uint)px >= (uint)width || (uint)py >= (uint)height)
-                                {
-                                    continue;
-                                }
-
-                                int idx = py * width + px;
-                                ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
-                                pixel.Hit += 1.0;
-                                pixel.R += cr;
-                                pixel.G += cg;
-                                pixel.B += cb;
+                                localProcessed++;
                             }
 
-                            localProcessed++;
-                        }
-
-                        lock (mergeLock)
-                        {
-                            foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
+                            int done = Interlocked.Add(ref processed, localProcessed);
+                            if (done / progressStep != (done - localProcessed) / progressStep)
                             {
-                                hdrHit[idx] += pixel.Hit;
-                                hdrR[idx] += pixel.R;
-                                hdrG[idx] += pixel.G;
-                                hdrB[idx] += pixel.B;
+                                reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
                             }
-                        }
 
-                        int done = Interlocked.Add(ref processed, localProcessed);
-                        if (done / progressStep != (done - localProcessed) / progressStep)
-                        {
-                            reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
-                        }
-                    });
+                            return local;
+                        },
+                        local => MergeAndReturnAccumulator(local, accumulatorPool, mergeLock, hdrHit, hdrR, hdrG, hdrB));
                 }
                 else
                 {
@@ -198,7 +197,7 @@ namespace FractalExplorer.Engines
                     {
                         int batchEnd = Math.Min(totalSamples, batchStart + batchSize);
                         Parallel.For(batchStart, batchEnd, options,
-                            () => new LocalAccumulator(),
+                            () => RentAccumulator(accumulatorPool, defaultAccumulatorCapacity),
                             (sampleIndex, _, local) =>
                             {
                                 token.ThrowIfCancellationRequested();
@@ -246,19 +245,7 @@ namespace FractalExplorer.Engines
 
                                 return local;
                             },
-                            local =>
-                            {
-                                lock (mergeLock)
-                                {
-                                    foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
-                                    {
-                                        hdrHit[idx] += pixel.Hit;
-                                        hdrR[idx] += pixel.R;
-                                        hdrG[idx] += pixel.G;
-                                        hdrB[idx] += pixel.B;
-                                    }
-                                }
-                            });
+                            local => MergeAndReturnAccumulator(local, accumulatorPool, mergeLock, hdrHit, hdrR, hdrG, hdrB));
 
                         if (coverageTimer.ElapsedMilliseconds >= coverageIntervalMs)
                         {
@@ -448,9 +435,62 @@ namespace FractalExplorer.Engines
             return NextUnit(ref state) * 2.0 - 1.0;
         }
 
+        private static LocalAccumulator RentAccumulator(ConcurrentBag<LocalAccumulator> pool, int defaultCapacity)
+        {
+            if (!pool.TryTake(out LocalAccumulator? accumulator))
+            {
+                accumulator = new LocalAccumulator(defaultCapacity);
+            }
+            else
+            {
+                accumulator.EnsureCapacity(defaultCapacity);
+            }
+
+            return accumulator;
+        }
+
+        private static void MergeAndReturnAccumulator(
+            LocalAccumulator local,
+            ConcurrentBag<LocalAccumulator> pool,
+            object mergeLock,
+            double[] hdrHit,
+            double[] hdrR,
+            double[] hdrG,
+            double[] hdrB)
+        {
+            lock (mergeLock)
+            {
+                foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
+                {
+                    hdrHit[idx] += pixel.Hit;
+                    hdrR[idx] += pixel.R;
+                    hdrG[idx] += pixel.G;
+                    hdrB[idx] += pixel.B;
+                }
+            }
+
+            local.Clear();
+            pool.Add(local);
+        }
+
         private sealed class LocalAccumulator
         {
-            public Dictionary<int, PixelAccumulation> Pixels { get; } = new();
+            public Dictionary<int, PixelAccumulation> Pixels { get; }
+
+            public LocalAccumulator(int initialCapacity)
+            {
+                Pixels = new Dictionary<int, PixelAccumulation>(Math.Max(1, initialCapacity));
+            }
+
+            public void EnsureCapacity(int capacity)
+            {
+                Pixels.EnsureCapacity(Math.Max(1, capacity));
+            }
+
+            public void Clear()
+            {
+                Pixels.Clear();
+            }
 
             public ref PixelAccumulation GetOrAddPixel(int pixelIndex)
             {
