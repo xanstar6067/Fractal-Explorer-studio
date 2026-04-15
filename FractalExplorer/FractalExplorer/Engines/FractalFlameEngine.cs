@@ -1,4 +1,5 @@
 using FractalExplorer.Utilities;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -101,6 +102,7 @@ namespace FractalExplorer.Engines
             int totalIterations = (int)Math.Min(int.MaxValue, (long)warmup + iterations);
             int threadCount = ThreadCount <= 0 ? Environment.ProcessorCount : ThreadCount;
             int processed = 0;
+            int progressStep = Math.Max(1, totalSamples / 100);
             object mergeLock = new();
             var options = new ParallelOptions
             {
@@ -110,9 +112,15 @@ namespace FractalExplorer.Engines
 
             if (reportCoverageHeatmap == null)
             {
-                Parallel.For(0, totalSamples, options,
-                    () => new LocalDenseAccumulator(width * height),
-                    (sampleIndex, _, local) =>
+                int chunkSize = Math.Max(2_048, totalSamples / Math.Max(1, threadCount * 8));
+                var sampleChunks = Partitioner.Create(0, totalSamples, chunkSize);
+
+                Parallel.ForEach(sampleChunks, options, range =>
+                {
+                    LocalAccumulator local = new();
+                    int localProcessed = 0;
+
+                    for (int sampleIndex = range.Item1; sampleIndex < range.Item2; sampleIndex++)
                     {
                         token.ThrowIfCancellationRequested();
                         ulong seed = MixSeed((ulong)(sampleIndex + 1) * 0x9E3779B97F4A7C15UL);
@@ -144,33 +152,33 @@ namespace FractalExplorer.Engines
                             }
 
                             int idx = py * width + px;
-                            local.Hit[idx] += 1.0;
-                            local.R[idx] += cr;
-                            local.G[idx] += cg;
-                            local.B[idx] += cb;
+                            ref PixelAccumulation pixel = ref local.GetOrAddPixel(idx);
+                            pixel.Hit += 1.0;
+                            pixel.R += cr;
+                            pixel.G += cg;
+                            pixel.B += cb;
                         }
 
-                        int done = Interlocked.Increment(ref processed);
-                        if (done % Math.Max(1, totalSamples / 100) == 0)
-                        {
-                            reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
-                        }
+                        localProcessed++;
+                    }
 
-                        return local;
-                    },
-                    local =>
+                    lock (mergeLock)
                     {
-                        lock (mergeLock)
+                        foreach ((int idx, PixelAccumulation pixel) in local.Pixels)
                         {
-                            for (int i = 0; i < hdrHit.Length; i++)
-                            {
-                                hdrHit[i] += local.Hit[i];
-                                hdrR[i] += local.R[i];
-                                hdrG[i] += local.G[i];
-                                hdrB[i] += local.B[i];
-                            }
+                            hdrHit[idx] += pixel.Hit;
+                            hdrR[idx] += pixel.R;
+                            hdrG[idx] += pixel.G;
+                            hdrB[idx] += pixel.B;
                         }
-                    });
+                    }
+
+                    int done = Interlocked.Add(ref processed, localProcessed);
+                    if (done / progressStep != (done - localProcessed) / progressStep)
+                    {
+                        reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
+                    }
+                });
             }
             else
             {
@@ -223,7 +231,7 @@ namespace FractalExplorer.Engines
                             }
 
                             int done = Interlocked.Increment(ref processed);
-                            if (done % Math.Max(1, totalSamples / 100) == 0)
+                            if (done % progressStep == 0)
                             {
                                 reportProgress?.Invoke((int)(done * 100.0 / totalSamples));
                             }
@@ -432,22 +440,6 @@ namespace FractalExplorer.Engines
             {
                 return ref CollectionsMarshal.GetValueRefOrAddDefault(Pixels, pixelIndex, out _);
             }
-        }
-
-        private sealed class LocalDenseAccumulator
-        {
-            public LocalDenseAccumulator(int size)
-            {
-                Hit = new double[size];
-                R = new double[size];
-                G = new double[size];
-                B = new double[size];
-            }
-
-            public double[] Hit { get; }
-            public double[] R { get; }
-            public double[] G { get; }
-            public double[] B { get; }
         }
 
         private struct PixelAccumulation
