@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace FractalExplorer.Engines
 {
     public enum BuddhabrotRenderMode
@@ -14,6 +16,7 @@ namespace FractalExplorer.Engines
     public sealed class FractalBuddhabrotEngine
     {
         private const int DefaultBatchSize = 50_000;
+        private readonly ConcurrentBag<List<(double re, double im)>> _orbitBufferPool = new();
         private int[]? _densityBuffer;
         private int _densityWidth;
         private int _densityHeight;
@@ -140,7 +143,7 @@ namespace FractalExplorer.Engines
             };
 
             Parallel.For(startSample, endSample, options,
-                () => new List<(double re, double im)>(Math.Max(8, MaxIterations)),
+                () => RentOrbitBuffer(Math.Max(8, MaxIterations)),
                 (s, _, local) =>
                 {
                     token.ThrowIfCancellationRequested();
@@ -216,7 +219,28 @@ namespace FractalExplorer.Engines
 
                     return local;
                 },
-                _ => { });
+                ReturnOrbitBuffer);
+        }
+
+        private List<(double re, double im)> RentOrbitBuffer(int minCapacity)
+        {
+            if (!_orbitBufferPool.TryTake(out List<(double re, double im)>? local))
+            {
+                return new List<(double re, double im)>(minCapacity);
+            }
+
+            if (local.Capacity < minCapacity)
+            {
+                local.Capacity = minCapacity;
+            }
+
+            return local;
+        }
+
+        private void ReturnOrbitBuffer(List<(double re, double im)> local)
+        {
+            local.Clear();
+            _orbitBufferPool.Add(local);
         }
 
         private void EnsureDensityBufferInitialized()
