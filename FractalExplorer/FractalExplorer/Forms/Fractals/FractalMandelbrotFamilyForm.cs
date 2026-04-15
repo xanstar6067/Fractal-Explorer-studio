@@ -898,10 +898,11 @@ namespace FractalDraving
                         BitmapData bmpData = _currentRenderingBitmap.LockBits(tileRect, ImageLockMode.WriteOnly, _currentRenderingBitmap.PixelFormat);
                         try
                         {
+                            int originalTileWidthInBytes = tile.Bounds.Width * bytesPerPixel;
                             for (int y = 0; y < tileRect.Height; y++)
                             {
                                 IntPtr destPtr = IntPtr.Add(bmpData.Scan0, y * bmpData.Stride);
-                                int srcOffset = y * tileRect.Width * bytesPerPixel;
+                                int srcOffset = ((y + tileRect.Y) - tile.Bounds.Y) * originalTileWidthInBytes + ((tileRect.X - tile.Bounds.X) * bytesPerPixel);
                                 Marshal.Copy(tileBuffer, srcOffset, destPtr, tileRect.Width * bytesPerPixel);
                             }
                         }
@@ -1182,7 +1183,9 @@ namespace FractalDraving
             {
                 for (int x = 0; x < width; x += TILE_SIZE)
                 {
-                    tiles.Add(new TileInfo(x, y, TILE_SIZE, TILE_SIZE));
+                    int tileWidth = Math.Min(TILE_SIZE, width - x);
+                    int tileHeight = Math.Min(TILE_SIZE, height - y);
+                    tiles.Add(new TileInfo(x, y, tileWidth, tileHeight));
                 }
             }
             return tiles;
