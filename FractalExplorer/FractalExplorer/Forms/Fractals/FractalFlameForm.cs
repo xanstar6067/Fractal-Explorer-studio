@@ -33,6 +33,10 @@ namespace FractalExplorer.Forms.Fractals
         private Bitmap? _previewBitmap;
         private Bitmap? _coverageOverlayBitmap;
         private readonly object _previewLock = new();
+        private readonly object _pendingCoverageLock = new();
+        private byte[]? _pendingHeatmapBuffer;
+        private CoverageHeatmapMeta? _pendingHeatmapMeta;
+        private int _coverageUiUpdateScheduled;
         private readonly string _baseTitle;
         private volatile bool _isRenderInProgress;
         private bool _hasIntermediateFrame;
@@ -69,6 +73,7 @@ namespace FractalExplorer.Forms.Fractals
                 _wheelDebounceTimer.Stop();
                 _renderRestartTimer.Tick -= RenderRestartTimer_Tick;
                 _wheelDebounceTimer.Tick -= WheelDebounceTimer_Tick;
+                ResetPendingCoverageState();
                 lock (_previewLock)
                 {
                     _previewBitmap?.Dispose();
@@ -77,6 +82,7 @@ namespace FractalExplorer.Forms.Fractals
                     _coverageOverlayBitmap = null;
                 }
             };
+            Disposed += (_, _) => ResetPendingCoverageState();
             _canvas.MouseWheel += Canvas_MouseWheel;
             _canvas.MouseDown += Canvas_MouseDown;
             _canvas.MouseMove += Canvas_MouseMove;
@@ -679,7 +685,7 @@ namespace FractalExplorer.Forms.Fractals
                         token,
                         p => ((IProgress<int>)progress).Report(p),
                         reportCoverageHeatmap: coverageCallback,
-                        coverageUpdateIntervalMs: 200), token);
+                        coverageUpdateIntervalMs: 500), token);
                     Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
                     renderStopwatch.Stop();
                     _pbRenderProgress.Value = 100;
@@ -729,10 +735,73 @@ namespace FractalExplorer.Forms.Fractals
 
             if (InvokeRequired)
             {
-                BeginInvoke(new Action(() => UpdateCoverageOverlay(heatmapBuffer, width, height, stride)));
+                lock (_pendingCoverageLock)
+                {
+                    _pendingHeatmapBuffer = heatmapBuffer;
+                    _pendingHeatmapMeta = new CoverageHeatmapMeta(width, height, stride);
+                }
+
+                if (Interlocked.CompareExchange(ref _coverageUiUpdateScheduled, 1, 0) == 0)
+                {
+                    try
+                    {
+                        BeginInvoke(new Action(ProcessPendingCoverageOverlay));
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        ResetPendingCoverageState();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        ResetPendingCoverageState();
+                    }
+                }
                 return;
             }
 
+            ApplyCoverageOverlay(heatmapBuffer, width, height, stride);
+        }
+
+        private void ProcessPendingCoverageOverlay()
+        {
+            if (tokenSafeIsDisposed())
+            {
+                ResetPendingCoverageState();
+                return;
+            }
+
+            byte[]? latestBuffer;
+            CoverageHeatmapMeta? latestMeta;
+            lock (_pendingCoverageLock)
+            {
+                latestBuffer = _pendingHeatmapBuffer;
+                latestMeta = _pendingHeatmapMeta;
+                _pendingHeatmapBuffer = null;
+                _pendingHeatmapMeta = null;
+            }
+
+            Interlocked.Exchange(ref _coverageUiUpdateScheduled, 0);
+            if (latestBuffer == null || latestMeta is null || !_showCoverageMap.Checked)
+            {
+                return;
+            }
+
+            ApplyCoverageOverlay(latestBuffer, latestMeta.Width, latestMeta.Height, latestMeta.Stride);
+
+            bool hasPending;
+            lock (_pendingCoverageLock)
+            {
+                hasPending = _pendingHeatmapBuffer != null && _pendingHeatmapMeta is not null;
+            }
+
+            if (hasPending && Interlocked.CompareExchange(ref _coverageUiUpdateScheduled, 1, 0) == 0)
+            {
+                BeginInvoke(new Action(ProcessPendingCoverageOverlay));
+            }
+        }
+
+        private void ApplyCoverageOverlay(byte[] heatmapBuffer, int width, int height, int stride)
+        {
             Bitmap overlay = new(width, height, PixelFormat.Format32bppArgb);
             BitmapData overlayData = overlay.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, overlay.PixelFormat);
             Marshal.Copy(heatmapBuffer, 0, overlayData.Scan0, heatmapBuffer.Length);
@@ -777,7 +846,20 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.Invalidate();
         }
 
+        private void ResetPendingCoverageState()
+        {
+            lock (_pendingCoverageLock)
+            {
+                _pendingHeatmapBuffer = null;
+                _pendingHeatmapMeta = null;
+            }
+
+            Interlocked.Exchange(ref _coverageUiUpdateScheduled, 0);
+        }
+
         private bool tokenSafeIsDisposed() => IsDisposed || !IsHandleCreated;
+
+        private sealed record CoverageHeatmapMeta(int Width, int Height, int Stride);
 
         public string FractalTypeIdentifier => "Flame";
         public Type ConcreteSaveStateType => typeof(FlameFractalSaveState);
