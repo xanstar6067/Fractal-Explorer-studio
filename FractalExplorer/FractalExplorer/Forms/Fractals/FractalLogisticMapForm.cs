@@ -27,6 +27,7 @@ namespace FractalExplorer.Forms.Fractals
         private Bitmap? _previewBitmap;
         private CancellationTokenSource? _renderCts;
         private bool _isRendering;
+        private bool _renderQueued;
         private bool _isHighResRendering;
         private bool _isPanning;
         private int _controlsOpenWidth = 231;
@@ -206,6 +207,14 @@ namespace FractalExplorer.Forms.Fractals
         private void ScheduleRender()
         {
             if (_canvas.Width <= 1 || _canvas.Height <= 1 || IsDisposed) return;
+
+            _renderQueued = true;
+            if (_isRendering)
+            {
+                CancelRender();
+                return;
+            }
+
             _ = RenderAsync();
         }
 
@@ -214,41 +223,58 @@ namespace FractalExplorer.Forms.Fractals
             if (_isRendering) return;
 
             _isRendering = true;
-            _pbRenderProgress.Style = ProgressBarStyle.Marquee;
-            using CancellationTokenSource cts = StartNewRender();
             try
             {
-                int width = Math.Max(1, _canvas.Width);
-                int height = Math.Max(1, _canvas.Height);
-                byte[] buffer = await Task.Run(() => RenderOrbitBuffer(width, height, cts.Token), cts.Token);
-
-                var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-                var rect = new Rectangle(0, 0, width, height);
-                BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
-                Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
-                bmp.UnlockBits(data);
-
-                lock (_bitmapLock)
+                while (_renderQueued && !IsDisposed)
                 {
-                    _previewBitmap?.Dispose();
-                    _previewBitmap = bmp;
-                }
+                    _renderQueued = false;
+                    _pbRenderProgress.Style = ProgressBarStyle.Blocks;
+                    _pbRenderProgress.Minimum = 0;
+                    _pbRenderProgress.Maximum = 100;
+                    _pbRenderProgress.Value = 0;
 
-                _canvas.Invalidate();
-            }
-            catch (OperationCanceledException)
-            {
+                    using CancellationTokenSource cts = StartNewRender();
+                    var progress = new Progress<int>(value =>
+                    {
+                        if (IsDisposed) return;
+                        _pbRenderProgress.Value = Math.Clamp(value, _pbRenderProgress.Minimum, _pbRenderProgress.Maximum);
+                    });
+
+                    try
+                    {
+                        int width = Math.Max(1, _canvas.Width);
+                        int height = Math.Max(1, _canvas.Height);
+                        byte[] buffer = await Task.Run(() => RenderOrbitBuffer(width, height, cts.Token, progress), cts.Token);
+
+                        var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+                        var rect = new Rectangle(0, 0, width, height);
+                        BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+                        Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
+                        bmp.UnlockBits(data);
+
+                        lock (_bitmapLock)
+                        {
+                            _previewBitmap?.Dispose();
+                            _previewBitmap = bmp;
+                        }
+
+                        _canvas.Invalidate();
+                        _pbRenderProgress.Value = 100;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                }
             }
             finally
             {
-                _pbRenderProgress.Style = ProgressBarStyle.Blocks;
                 _pbRenderProgress.Value = 0;
                 _isRendering = false;
                 Text = _baseTitle;
             }
         }
 
-        private byte[] RenderOrbitBuffer(int width, int height, CancellationToken ct)
+        private byte[] RenderOrbitBuffer(int width, int height, CancellationToken ct, IProgress<int>? progress = null)
         {
             byte[] buffer = new byte[width * height * 4];
             int iterations = (int)_nudIterations.Value;
@@ -266,9 +292,16 @@ namespace FractalExplorer.Forms.Fractals
             var paletteColors = _paletteManager.ActivePalette.Colors;
             Color fallback = Color.Lime;
 
+            int progressInterval = Math.Max(1, iterations / 100);
+
             for (int i = 0; i < iterations; i++)
             {
                 ct.ThrowIfCancellationRequested();
+                if (i % progressInterval == 0 || i == iterations - 1)
+                {
+                    int percent = iterations > 0 ? (int)((i + 1) * 100L / iterations) : 100;
+                    progress?.Report(percent);
+                }
                 x = r * x * (1.0 - x);
                 if (i < transient) continue;
 
@@ -297,6 +330,7 @@ namespace FractalExplorer.Forms.Fractals
                 DrawFallbackAxes(buffer, width, height, minX, maxX, minY, maxY);
             }
 
+            progress?.Report(100);
             return buffer;
         }
 
