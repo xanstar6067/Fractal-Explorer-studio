@@ -198,6 +198,10 @@
     <value>..\Resources\lyapunov_preview_sq512.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
     <comment>превью</comment>
   </data>
+  <data name="logistic_map_preview_sq512" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\logistic_map_preview_sq512.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <comment>превью</comment>
+  </data>
   <data name="mandelbrot_preview" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\mandelbrot_preview.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
     <comment>превью</comment>

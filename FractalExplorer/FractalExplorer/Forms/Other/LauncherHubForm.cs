@@ -541,6 +541,17 @@ namespace FractalExplorer
                               "Особенности: задайте диапазоны A и B, строку паттерна и число прогревочных/основных итераций.",
                 PreviewImage = Properties.Resources.lyapunov_preview_sq512
             });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
+                Family = "Динамические системы",
+                DisplayName = "Логистическое отображение (орбиты)",
+                FormToLaunch = typeof(FractalLogisticMapForm),
+                Description = "Орбитальный график логистического отображения xₙ₊₁ = r·xₙ·(1-xₙ) для фиксированных параметров r и x₀.\n\n" +
+                              "После прогрева (transient) отображаются точки траектории по номеру итерации: это позволяет увидеть переход от устойчивого цикла к хаосу.\n\n" +
+                              "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка r/x₀/iterations/transient, сохранение состояния и изображений.",
+                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+            });
         }
 
         /// <summary>
