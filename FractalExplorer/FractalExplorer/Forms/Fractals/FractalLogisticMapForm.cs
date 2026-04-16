@@ -23,6 +23,7 @@ namespace FractalExplorer.Forms.Fractals
         private readonly object _bitmapLock = new();
         private readonly FullscreenToggleController _fullscreenController = new();
         private readonly string _baseTitle;
+        private readonly System.Windows.Forms.Timer _wheelDebounceTimer = new();
 
         private Bitmap? _previewBitmap;
         private CancellationTokenSource? _renderCts;
@@ -30,12 +31,17 @@ namespace FractalExplorer.Forms.Fractals
         private bool _renderQueued;
         private bool _isHighResRendering;
         private bool _isPanning;
+        private bool _isFormClosing;
+        private bool _suppressZoomValueChanged;
         private int _controlsOpenWidth = 231;
         private Point _panStart;
 
         private decimal _centerX = 0.5m;
         private decimal _centerY = 0.5m;
         private decimal _zoom = 1.0m;
+        private decimal _renderCenterX = 0.5m;
+        private decimal _renderCenterY = 0.5m;
+        private decimal _renderZoom = 1.0m;
 
         public FractalLogisticMapForm()
         {
@@ -44,6 +50,12 @@ namespace FractalExplorer.Forms.Fractals
             _baseTitle = Text;
 
             ApplyDefaults();
+            _wheelDebounceTimer.Interval = 140;
+            _wheelDebounceTimer.Tick += (_, _) =>
+            {
+                _wheelDebounceTimer.Stop();
+                ScheduleRender();
+            };
             _canvas.Paint += Canvas_Paint;
             _canvas.MouseWheel += Canvas_MouseWheel;
             _canvas.MouseDown += Canvas_MouseDown;
@@ -56,17 +68,24 @@ namespace FractalExplorer.Forms.Fractals
 
             FormClosing += (_, _) =>
             {
+                _isFormClosing = true;
                 CancelRender();
                 lock (_bitmapLock)
                 {
                     _previewBitmap?.Dispose();
                     _previewBitmap = null;
                 }
+                _wheelDebounceTimer.Stop();
+                _wheelDebounceTimer.Dispose();
                 _colorConfigForm?.Dispose();
                 _colorConfigForm = null;
             };
 
-            Shown += (_, _) => ScheduleRender();
+            Shown += (_, _) =>
+            {
+                _canvas.Focus();
+                ScheduleRender();
+            };
         }
 
         private void ApplyDefaults()
@@ -85,6 +104,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudZoom.ValueChanged += (_, _) =>
             {
                 _zoom = _nudZoom.Value;
+                if (_suppressZoomValueChanged) return;
                 ScheduleRender();
             };
 
@@ -131,6 +151,7 @@ namespace FractalExplorer.Forms.Fractals
         private void Canvas_MouseWheel(object? sender, MouseEventArgs e)
         {
             if (_isHighResRendering || _canvas.Width <= 0 || _canvas.Height <= 0) return;
+            if (!_canvas.Focused) _canvas.Focus();
 
             decimal zoomFactor = e.Delta > 0 ? 1.5m : 1.0m / 1.5m;
             decimal scaleBeforeZoom = BaseScale / _zoom;
@@ -155,8 +176,19 @@ namespace FractalExplorer.Forms.Fractals
             _centerY = mouseImaginary + (e.Y - _canvas.Height / 2.0m) * scaleAfterZoom / _canvas.Height;
 
             _canvas.Invalidate();
-            if (_nudZoom.Value != _zoom) _nudZoom.Value = _zoom;
-            else ScheduleRender();
+            if (_nudZoom.Value != _zoom)
+            {
+                _suppressZoomValueChanged = true;
+                try
+                {
+                    _nudZoom.Value = _zoom;
+                }
+                finally
+                {
+                    _suppressZoomValueChanged = false;
+                }
+            }
+            QueueRenderAfterWheelInteraction();
         }
 
         private void Canvas_MouseDown(object? sender, MouseEventArgs e)
@@ -164,6 +196,7 @@ namespace FractalExplorer.Forms.Fractals
             if (_isHighResRendering) return;
             if (e.Button == MouseButtons.Left)
             {
+                if (!_canvas.Focused) _canvas.Focus();
                 _isPanning = true;
                 _panStart = e.Location;
                 _canvas.Cursor = Cursors.SizeAll;
@@ -174,9 +207,11 @@ namespace FractalExplorer.Forms.Fractals
         {
             if (_isHighResRendering || !_isPanning || _canvas.Width <= 0) return;
 
-            decimal unitsPerPixel = BaseScale / _zoom / _canvas.Width;
-            _centerX -= (e.X - _panStart.X) * unitsPerPixel;
-            _centerY += (e.Y - _panStart.Y) * unitsPerPixel;
+            decimal scale = BaseScale / _zoom;
+            decimal unitsPerPixelX = scale / _canvas.Width;
+            decimal unitsPerPixelY = scale / Math.Max(1, _canvas.Height);
+            _centerX -= (e.X - _panStart.X) * unitsPerPixelX;
+            _centerY += (e.Y - _panStart.Y) * unitsPerPixelY;
             _panStart = e.Location;
             _canvas.Invalidate();
         }
@@ -199,14 +234,41 @@ namespace FractalExplorer.Forms.Fractals
                 {
                     e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                     e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
-                    e.Graphics.DrawImage(_previewBitmap, _canvas.ClientRectangle);
+                    RectangleF destination = CalculateDestinationRectangle(_canvas.ClientSize, _previewBitmap.Size);
+                    e.Graphics.DrawImage(_previewBitmap, destination);
                 }
             }
         }
 
+        private RectangleF CalculateDestinationRectangle(Size canvasSize, Size imageSize)
+        {
+            float canvasWidth = Math.Max(1, canvasSize.Width);
+            float canvasHeight = Math.Max(1, canvasSize.Height);
+            float imageWidth = Math.Max(1, imageSize.Width);
+            float imageHeight = Math.Max(1, imageSize.Height);
+
+            decimal zoomRatio = _zoom / _renderZoom;
+            float scaledWidth = (float)(imageWidth * (float)zoomRatio);
+            float scaledHeight = (float)(imageHeight * (float)zoomRatio);
+
+            float offsetX = (canvasWidth - scaledWidth) / 2f
+                            + (float)((_renderCenterX - _centerX) * _zoom * (decimal)canvasWidth / BaseScale);
+            float offsetY = (canvasHeight - scaledHeight) / 2f
+                            + (float)((_centerY - _renderCenterY) * _zoom * (decimal)canvasHeight / BaseScale);
+
+            return new RectangleF(offsetX, offsetY, scaledWidth, scaledHeight);
+        }
+
+        private void QueueRenderAfterWheelInteraction()
+        {
+            if (_isHighResRendering || IsDisposed) return;
+            _wheelDebounceTimer.Stop();
+            _wheelDebounceTimer.Start();
+        }
+
         private void ScheduleRender()
         {
-            if (_canvas.Width <= 1 || _canvas.Height <= 1 || IsDisposed) return;
+            if (_isFormClosing || _canvas.Width <= 1 || _canvas.Height <= 1 || IsDisposed) return;
 
             _renderQueued = true;
             if (_isRendering)
@@ -228,15 +290,18 @@ namespace FractalExplorer.Forms.Fractals
                 while (_renderQueued && !IsDisposed)
                 {
                     _renderQueued = false;
-                    _pbRenderProgress.Style = ProgressBarStyle.Blocks;
-                    _pbRenderProgress.Minimum = 0;
-                    _pbRenderProgress.Maximum = 100;
-                    _pbRenderProgress.Value = 0;
+                    if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
+                    {
+                        _pbRenderProgress.Style = ProgressBarStyle.Blocks;
+                        _pbRenderProgress.Minimum = 0;
+                        _pbRenderProgress.Maximum = 100;
+                        _pbRenderProgress.Value = 0;
+                    }
 
                     using CancellationTokenSource cts = StartNewRender();
                     var progress = new Progress<int>(value =>
                     {
-                        if (IsDisposed) return;
+                        if (_isFormClosing || IsDisposed || !_pbRenderProgress.IsHandleCreated) return;
                         _pbRenderProgress.Value = Math.Clamp(value, _pbRenderProgress.Minimum, _pbRenderProgress.Maximum);
                     });
 
@@ -244,7 +309,10 @@ namespace FractalExplorer.Forms.Fractals
                     {
                         int width = Math.Max(1, _canvas.Width);
                         int height = Math.Max(1, _canvas.Height);
-                        byte[] buffer = await Task.Run(() => RenderOrbitBuffer(width, height, cts.Token, progress), cts.Token);
+                        decimal renderCenterX = _centerX;
+                        decimal renderCenterY = _centerY;
+                        decimal renderZoom = _zoom;
+                        byte[] buffer = await Task.Run(() => RenderOrbitBuffer(width, height, renderCenterX, renderCenterY, renderZoom, cts.Token, progress), cts.Token);
 
                         var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
                         var rect = new Rectangle(0, 0, width, height);
@@ -256,10 +324,16 @@ namespace FractalExplorer.Forms.Fractals
                         {
                             _previewBitmap?.Dispose();
                             _previewBitmap = bmp;
+                            _renderCenterX = renderCenterX;
+                            _renderCenterY = renderCenterY;
+                            _renderZoom = renderZoom;
                         }
 
                         _canvas.Invalidate();
-                        _pbRenderProgress.Value = 100;
+                        if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
+                        {
+                            _pbRenderProgress.Value = 100;
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -268,13 +342,21 @@ namespace FractalExplorer.Forms.Fractals
             }
             finally
             {
-                _pbRenderProgress.Value = 0;
+                if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
+                {
+                    _pbRenderProgress.Value = 0;
+                }
                 _isRendering = false;
-                Text = _baseTitle;
+                if (!_isFormClosing && !IsDisposed) Text = _baseTitle;
             }
         }
 
         private byte[] RenderOrbitBuffer(int width, int height, CancellationToken ct, IProgress<int>? progress = null)
+        {
+            return RenderOrbitBuffer(width, height, _centerX, _centerY, _zoom, ct, progress);
+        }
+
+        private byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null)
         {
             byte[] buffer = new byte[width * height * 4];
             int iterations = (int)_nudIterations.Value;
@@ -282,11 +364,11 @@ namespace FractalExplorer.Forms.Fractals
             double r = (double)_nudR.Value;
             double x = (double)_nudX0.Value;
 
-            decimal scale = BaseScale / _zoom;
-            decimal minX = _centerX - scale / 2m;
-            decimal maxX = _centerX + scale / 2m;
-            decimal minY = _centerY - scale / 2m;
-            decimal maxY = _centerY + scale / 2m;
+            decimal scale = BaseScale / zoom;
+            decimal minX = centerX - scale / 2m;
+            decimal maxX = centerX + scale / 2m;
+            decimal minY = centerY - scale / 2m;
+            decimal maxY = centerY + scale / 2m;
 
             int plotted = 0;
             var paletteColors = _paletteManager.ActivePalette.Colors;
