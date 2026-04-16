@@ -40,7 +40,7 @@ namespace FractalExplorer.Forms.Fractals
         private const decimal BaseScale = 1.0m;
         private const string AutoThreadOptionText = "Авто";
 
-        private readonly PaletteManager _paletteManager = new();
+        private readonly LogisticMapPaletteManager _paletteManager = new();
         private ColorConfigurationForm? _colorConfigForm;
         private readonly object _bitmapLock = new();
         private readonly FullscreenToggleController _fullscreenController = new();
@@ -503,7 +503,7 @@ namespace FractalExplorer.Forms.Fractals
             };
         }
 
-        private static LogisticRenderSettings BuildRenderSettingsFromSaveState(LogisticMapSaveState logistic, PaletteManager paletteManager)
+        private static LogisticRenderSettings BuildRenderSettingsFromSaveState(LogisticMapSaveState logistic, LogisticMapPaletteManager paletteManager)
         {
             List<Color> paletteColors = paletteManager.ActivePalette.Colors.ToList();
             if (!string.IsNullOrWhiteSpace(logistic.PaletteName))

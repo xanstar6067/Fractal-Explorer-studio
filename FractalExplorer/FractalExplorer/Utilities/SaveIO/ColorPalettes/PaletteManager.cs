@@ -8,7 +8,8 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
     /// </summary>
     public class PaletteManager
     {
-        private const string CUSTOM_PALETTES_FILE = "custom_palettes_mandelbrot.json";
+        protected virtual string CustomPalettesFileName => "custom_palettes_mandelbrot.json";
+        protected virtual string PaletteSubjectName => "Мандельброта";
 
         /// <summary>
         /// Список всех доступных палитр (встроенных и пользовательских).
@@ -30,9 +31,9 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         private void LoadPalettes()
         {
             Palettes.Clear();
-            Palettes.AddRange(CreateBuiltInPalettesMandelbrotFamily());
+            Palettes.AddRange(CreateBuiltInPalettes());
 
-            string filePath = Path.Combine(Application.StartupPath, "Saves", CUSTOM_PALETTES_FILE);
+            string filePath = Path.Combine(Application.StartupPath, "Saves", CustomPalettesFileName);
 
             if (File.Exists(filePath))
             {
@@ -49,8 +50,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                 }
                 catch (Exception ex)
                 {
-                    // Для согласованности можно использовать MessageBox, как в другом менеджере
-                    MessageBox.Show($"Не удалось загрузить палитры для Мандельброта: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Не удалось загрузить палитры для {PaletteSubjectName}: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -102,13 +102,12 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
                 Directory.CreateDirectory(savesDirectory);
 
                 // ИЗМЕНЕНО: Формирование полного пути для сохранения
-                string filePath = Path.Combine(savesDirectory, CUSTOM_PALETTES_FILE);
+                string filePath = Path.Combine(savesDirectory, CustomPalettesFileName);
                 File.WriteAllText(filePath, json);
             }
             catch (Exception ex)
             {
-                // Для согласованности можно использовать MessageBox
-                MessageBox.Show($"Не удалось сохранить палитры для Мандельброта: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Не удалось сохранить палитры для {PaletteSubjectName}: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -116,7 +115,7 @@ namespace FractalExplorer.Utilities.SaveIO.ColorPalettes
         /// Создает коллекцию встроенных (предопределенных) цветовых палитр.
         /// </summary>
         /// <returns>Коллекция встроенных палитр.</returns>
-        private IEnumerable<Palette> CreateBuiltInPalettesMandelbrotFamily()
+        protected virtual IEnumerable<Palette> CreateBuiltInPalettes()
         {
             return new List<Palette>
             {
