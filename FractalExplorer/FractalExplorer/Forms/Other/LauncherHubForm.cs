@@ -585,6 +585,17 @@ namespace FractalExplorer
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, параметры диапазонов r/x и плотности выборки, сохранение состояния и изображений.",
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
+                Family = "Динамические системы",
+                DisplayName = "Карта Хенона",
+                FormToLaunch = typeof(FractalHenonForm),
+                Description = "Классическое двумерное отображение Хенона: xₙ₊₁ = 1 - a·xₙ² + yₙ, yₙ₊₁ = b·xₙ.\n\n" +
+                              "Даже при простых параметрах система порождает странный аттрактор с тонкой самоподобной структурой.\n\n" +
+                              "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка a/b/x₀/y₀/iterations/discard, сохранение состояния и изображений.",
+                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+            });
         }
 
         /// <summary>
