@@ -494,6 +494,34 @@ namespace FractalExplorer.Forms.Fractals
                 progress);
         }
 
+        private CancellationTokenSource StartNewRender()
+        {
+            var next = new CancellationTokenSource();
+            CancellationTokenSource? prev = Interlocked.Exchange(ref _renderCts, next);
+            prev?.Cancel();
+            prev?.Dispose();
+            return next;
+        }
+
+        private void CancelRender()
+        {
+            CancellationTokenSource? current = Interlocked.Exchange(ref _renderCts, null);
+            current?.Cancel();
+            current?.Dispose();
+        }
+
+        private int GetThreadCount()
+        {
+            if (InvokeRequired)
+            {
+                return (int)Invoke(new Func<int>(GetThreadCount));
+            }
+
+            if (_cbThreads.SelectedItem?.ToString() == AutoThreadOptionText) return Environment.ProcessorCount;
+            if (_cbThreads.SelectedItem is int selected) return Math.Max(1, selected);
+            return Environment.ProcessorCount;
+        }
+
         private void btnToggleControls_Click(object sender, EventArgs e)
         {
             bool hide = _controlsHost.Visible && _controlsHost.Width > 0;
