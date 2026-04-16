@@ -2,6 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using FractalExplorer.Engines;
 using FractalExplorer.Forms.Other;
 using FractalExplorer.Resources;
 using FractalExplorer.Utilities.RenderUtilities;
@@ -466,194 +467,31 @@ namespace FractalExplorer.Forms.Fractals
             IProgress<int>? progress = null,
             int? _ = null)
         {
-            byte[] buffer = new byte[width * height * 4];
-
-            int steps = Math.Max(100, settings.Steps);
-            int warmup = Math.Max(50, Math.Min(4000, steps / 20));
-            decimal dt = settings.Dt <= 0 ? 0.01m : settings.Dt;
-
-            double sigma = (double)settings.Sigma;
-            double rho = (double)settings.Rho;
-            double beta = (double)settings.Beta;
-            double dtD = (double)dt;
-
-            double x = (double)settings.StartX;
-            double y = (double)settings.StartY;
-            double z = (double)settings.StartZ;
-
-            decimal scale = BaseScale / Math.Max(0.000001m, zoom);
-            decimal minU = centerX - scale / 2m;
-            decimal maxU = centerX + scale / 2m;
-            decimal minV = centerY - scale / 2m;
-            decimal maxV = centerY + scale / 2m;
-
-            (double u, double v) Project(double px, double py, double pz)
-            {
-                return settings.Projection switch
+            return FractalLorenzEngine.RenderBuffer(
+                width,
+                height,
+                centerX,
+                centerY,
+                zoom,
+                new FractalLorenzEngine.RenderSettings
                 {
-                    LorenzProjection.XZ => (px, pz),
-                    LorenzProjection.YZ => (py, pz),
-                    _ => (px, py)
-                };
-            }
-
-            for (int i = 0; i < warmup; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                StepLorenz(ref x, ref y, ref z, sigma, rho, beta, dtD);
-            }
-
-            (double uPrev, double vPrev) = Project(x, y, z);
-            int lastReported = -1;
-
-            for (int i = 0; i < steps; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                StepLorenz(ref x, ref y, ref z, sigma, rho, beta, dtD);
-                (double uCur, double vCur) = Project(x, y, z);
-
-                decimal du1 = (decimal)uPrev;
-                decimal dv1 = (decimal)vPrev;
-                decimal du2 = (decimal)uCur;
-                decimal dv2 = (decimal)vCur;
-
-                DrawLineClamped(buffer, width, height, du1, dv1, du2, dv2, minU, maxU, minV, maxV,
-                    GetGradientColor(i, steps));
-
-                uPrev = uCur;
-                vPrev = vCur;
-
-                int percent = (int)((i + 1L) * 100 / steps);
-                if (percent > lastReported)
-                {
-                    lastReported = percent;
-                    progress?.Report(percent);
-                }
-            }
-
-            DrawAxes(buffer, width, height, minU, maxU, minV, maxV);
-            progress?.Report(100);
-            return buffer;
-        }
-
-        private static void StepLorenz(ref double x, ref double y, ref double z, double sigma, double rho, double beta, double dt)
-        {
-            double dx = sigma * (y - x);
-            double dy = x * (rho - z) - y;
-            double dz = x * y - beta * z;
-
-            x += dx * dt;
-            y += dy * dt;
-            z += dz * dt;
-        }
-
-        private static Color GetGradientColor(int i, int total)
-        {
-            if (total <= 1) return Color.Cyan;
-            double t = Math.Clamp((double)i / (total - 1), 0, 1);
-            int r = (int)(70 + 160 * t);
-            int g = (int)(220 - 120 * t);
-            int b = (int)(255 - 30 * t);
-            return Color.FromArgb(255, r, g, b);
-        }
-
-        private static void DrawLineClamped(byte[] buffer, int width, int height,
-            decimal u1, decimal v1, decimal u2, decimal v2,
-            decimal minU, decimal maxU, decimal minV, decimal maxV,
-            Color color)
-        {
-            if ((u1 < minU && u2 < minU) || (u1 > maxU && u2 > maxU) || (v1 < minV && v2 < minV) || (v1 > maxV && v2 > maxV))
-            {
-                return;
-            }
-
-            int x1 = (int)Math.Round((u1 - minU) / (maxU - minU) * (width - 1));
-            int y1 = (int)Math.Round((maxV - v1) / (maxV - minV) * (height - 1));
-            int x2 = (int)Math.Round((u2 - minU) / (maxU - minU) * (width - 1));
-            int y2 = (int)Math.Round((maxV - v2) / (maxV - minV) * (height - 1));
-
-            DrawLine(buffer, width, height, x1, y1, x2, y2, color);
-        }
-
-        private static void DrawLine(byte[] buffer, int width, int height, int x0, int y0, int x1, int y1, Color color)
-        {
-            int dx = Math.Abs(x1 - x0);
-            int sx = x0 < x1 ? 1 : -1;
-            int dy = -Math.Abs(y1 - y0);
-            int sy = y0 < y1 ? 1 : -1;
-            int err = dx + dy;
-
-            while (true)
-            {
-                SetPixel(buffer, width, height, x0, y0, color);
-                if (x0 == x1 && y0 == y1) break;
-                int e2 = 2 * err;
-                if (e2 >= dy)
-                {
-                    err += dy;
-                    x0 += sx;
-                }
-                if (e2 <= dx)
-                {
-                    err += dx;
-                    y0 += sy;
-                }
-            }
-        }
-
-        private static void SetPixel(byte[] buffer, int width, int height, int x, int y, Color color)
-        {
-            if (x < 0 || x >= width || y < 0 || y >= height) return;
-            int idx = (y * width + x) * 4;
-            buffer[idx] = color.B;
-            buffer[idx + 1] = color.G;
-            buffer[idx + 2] = color.R;
-            buffer[idx + 3] = color.A;
-        }
-
-        private static void DrawAxes(byte[] buffer, int width, int height, decimal minX, decimal maxX, decimal minY, decimal maxY)
-        {
-            Color axisColor = Color.FromArgb(120, 140, 140, 140);
-
-            if (minX <= 0m && maxX >= 0m)
-            {
-                int x0 = (int)Math.Round((-minX) / (maxX - minX) * (width - 1));
-                for (int y = 0; y < height; y++) SetPixel(buffer, width, height, x0, y, axisColor);
-            }
-
-            if (minY <= 0m && maxY >= 0m)
-            {
-                int y0 = (int)Math.Round((maxY - 0m) / (maxY - minY) * (height - 1));
-                for (int x = 0; x < width; x++) SetPixel(buffer, width, height, x, y0, axisColor);
-            }
-        }
-
-        private CancellationTokenSource StartNewRender()
-        {
-            var next = new CancellationTokenSource();
-            CancellationTokenSource? prev = Interlocked.Exchange(ref _renderCts, next);
-            prev?.Cancel();
-            prev?.Dispose();
-            return next;
-        }
-
-        private void CancelRender()
-        {
-            CancellationTokenSource? current = Interlocked.Exchange(ref _renderCts, null);
-            current?.Cancel();
-            current?.Dispose();
-        }
-
-        private int GetThreadCount()
-        {
-            if (InvokeRequired)
-            {
-                return (int)Invoke(new Func<int>(GetThreadCount));
-            }
-
-            if (_cbThreads.SelectedItem?.ToString() == AutoThreadOptionText) return Environment.ProcessorCount;
-            if (_cbThreads.SelectedItem is int selected) return Math.Max(1, selected);
-            return Environment.ProcessorCount;
+                    Sigma = settings.Sigma,
+                    Rho = settings.Rho,
+                    Beta = settings.Beta,
+                    Dt = settings.Dt,
+                    Steps = settings.Steps,
+                    StartX = settings.StartX,
+                    StartY = settings.StartY,
+                    StartZ = settings.StartZ,
+                    Projection = settings.Projection switch
+                    {
+                        LorenzProjection.XZ => FractalLorenzEngine.ProjectionMode.XZ,
+                        LorenzProjection.YZ => FractalLorenzEngine.ProjectionMode.YZ,
+                        _ => FractalLorenzEngine.ProjectionMode.XY
+                    }
+                },
+                ct,
+                progress);
         }
 
         private void btnToggleControls_Click(object sender, EventArgs e)
