@@ -545,6 +545,17 @@ namespace FractalExplorer
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Динамические системы",
+                DisplayName = "Аттрактор Лоренца",
+                FormToLaunch = typeof(FractalLorenzForm),
+                Description = "Классическая хаотическая система Лоренца, заданная уравнениями dx/dt = σ(y-x), dy/dt = x(ρ-z)-y, dz/dt = xy-βz.\n\n" +
+                              "Траектория рассчитывается методом Эйлера и отображается как непрерывная орбита в выбранной плоскостной проекции XY/XZ/YZ.\n\n" +
+                              "Особенности: zoom/панорама как в экранах Мандельброта, настройка σ/ρ/β/dt, стартовой точки, числа шагов и сохранение состояний.",
+                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+            });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
+                Family = "Динамические системы",
                 DisplayName = "Логистическое отображение (орбиты)",
                 FormToLaunch = typeof(FractalLogisticMapForm),
                 Description = "Орбитальный график логистического отображения xₙ₊₁ = r·xₙ·(1-xₙ) для фиксированных параметров r и x₀.\n\n" +
