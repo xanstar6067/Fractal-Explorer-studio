@@ -350,16 +350,17 @@ namespace FractalExplorer.Forms.Fractals
 
         private byte[] RenderOrbitBuffer(int width, int height, CancellationToken ct, IProgress<int>? progress = null)
         {
-            return RenderOrbitBuffer(width, height, _centerX, _centerY, _zoom, ct, progress);
+            return RenderOrbitBuffer(width, height, _centerX, _centerY, _zoom, ct, progress, GetThreadCount());
         }
 
-        private byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null)
+        private byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
         {
             byte[] buffer = new byte[width * height * 4];
             int iterations = (int)_nudIterations.Value;
             int transient = Math.Min((int)_nudTransient.Value, Math.Max(0, iterations - 1));
             double r = (double)_nudR.Value;
             double x = (double)_nudX0.Value;
+            int threadCount = Math.Max(1, maxDegreeOfParallelism ?? GetThreadCount());
 
             decimal scale = BaseScale / zoom;
             decimal minX = centerX - scale / 2m;
@@ -367,41 +368,98 @@ namespace FractalExplorer.Forms.Fractals
             decimal minY = centerY - scale / 2m;
             decimal maxY = centerY + scale / 2m;
 
-            int plotted = 0;
             var paletteColors = _paletteManager.ActivePalette.Colors;
             Color fallback = Color.Lime;
 
-            int progressInterval = Math.Max(1, iterations / 100);
-
-            for (int i = 0; i < iterations; i++)
+            if (iterations <= 0)
             {
-                ct.ThrowIfCancellationRequested();
-                if (i % progressInterval == 0 || i == iterations - 1)
+                DrawFallbackAxes(buffer, width, height, minX, maxX, minY, maxY);
+                progress?.Report(100);
+                return buffer;
+            }
+
+            int actualWorkers = Math.Min(threadCount, iterations);
+            int chunkSize = (iterations + actualWorkers - 1) / actualWorkers;
+            byte[][] localBuffers = new byte[actualWorkers][];
+            int[] plottedPerChunk = new int[actualWorkers];
+            int completedIterations = 0;
+            int lastReportedPercent = -1;
+
+            Parallel.For(0, actualWorkers, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = threadCount,
+                CancellationToken = ct
+            }, chunkIndex =>
+            {
+                int start = chunkIndex * chunkSize;
+                if (start >= iterations) return;
+                int end = Math.Min(iterations, start + chunkSize);
+                byte[] localBuffer = new byte[buffer.Length];
+                localBuffers[chunkIndex] = localBuffer;
+
+                double localX = x;
+                for (int i = 0; i < start; i++)
                 {
-                    int percent = iterations > 0 ? (int)((i + 1) * 100L / iterations) : 100;
-                    progress?.Report(percent);
+                    ct.ThrowIfCancellationRequested();
+                    localX = r * localX * (1.0 - localX);
                 }
-                x = r * x * (1.0 - x);
-                if (i < transient) continue;
 
-                decimal graphX = iterations > 1 ? (decimal)i / (iterations - 1) : 0m;
-                decimal graphY = (decimal)x;
-                if (graphX < minX || graphX > maxX || graphY < minY || graphY > maxY) continue;
+                int localPlotted = 0;
+                for (int i = start; i < end; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    localX = r * localX * (1.0 - localX);
+                    if (i >= transient)
+                    {
+                        decimal graphX = iterations > 1 ? (decimal)i / (iterations - 1) : 0m;
+                        decimal graphY = (decimal)localX;
+                        if (graphX >= minX && graphX <= maxX && graphY >= minY && graphY <= maxY)
+                        {
+                            int px = (int)Math.Round((graphX - minX) / (maxX - minX) * (width - 1));
+                            int py = (int)Math.Round((maxY - graphY) / (maxY - minY) * (height - 1));
+                            if (px >= 0 && px < width && py >= 0 && py < height)
+                            {
+                                Color c = paletteColors.Count > 0
+                                    ? paletteColors[(i - transient) % paletteColors.Count]
+                                    : fallback;
 
-                int px = (int)Math.Round((graphX - minX) / (maxX - minX) * (width - 1));
-                int py = (int)Math.Round((maxY - graphY) / (maxY - minY) * (height - 1));
-                if (px < 0 || px >= width || py < 0 || py >= height) continue;
+                                int idx = (py * width + px) * 4;
+                                localBuffer[idx] = c.B;
+                                localBuffer[idx + 1] = c.G;
+                                localBuffer[idx + 2] = c.R;
+                                localBuffer[idx + 3] = 255;
+                                localPlotted++;
+                            }
+                        }
+                    }
 
-                Color c = paletteColors.Count > 0
-                    ? paletteColors[(i - transient) % paletteColors.Count]
-                    : fallback;
+                    int processed = Interlocked.Increment(ref completedIterations);
+                    int percent = (int)(processed * 100L / iterations);
+                    int previous = Volatile.Read(ref lastReportedPercent);
+                    if (percent > previous && Interlocked.CompareExchange(ref lastReportedPercent, percent, previous) == previous)
+                    {
+                        progress?.Report(percent);
+                    }
+                }
 
-                int idx = (py * width + px) * 4;
-                buffer[idx] = c.B;
-                buffer[idx + 1] = c.G;
-                buffer[idx + 2] = c.R;
-                buffer[idx + 3] = 255;
-                plotted++;
+                plottedPerChunk[chunkIndex] = localPlotted;
+            });
+
+            int plotted = 0;
+            for (int chunkIndex = 0; chunkIndex < actualWorkers; chunkIndex++)
+            {
+                byte[]? local = localBuffers[chunkIndex];
+                if (local == null) continue;
+                plotted += plottedPerChunk[chunkIndex];
+
+                for (int idx = 0; idx < local.Length; idx += 4)
+                {
+                    if (local[idx + 3] == 0) continue;
+                    buffer[idx] = local[idx];
+                    buffer[idx + 1] = local[idx + 1];
+                    buffer[idx + 2] = local[idx + 2];
+                    buffer[idx + 3] = local[idx + 3];
+                }
             }
 
             if (plotted == 0)
@@ -456,6 +514,11 @@ namespace FractalExplorer.Forms.Fractals
 
         private int GetThreadCount()
         {
+            if (InvokeRequired)
+            {
+                return (int)Invoke(new Func<int>(GetThreadCount));
+            }
+
             if (_cbThreads.SelectedItem?.ToString() == AutoThreadOptionText) return Environment.ProcessorCount;
             if (_cbThreads.SelectedItem is int selected) return Math.Max(1, selected);
             return Environment.ProcessorCount;
