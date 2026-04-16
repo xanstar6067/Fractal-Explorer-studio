@@ -27,8 +27,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private Bitmap? _previewBitmap;
         private CancellationTokenSource? _renderCts;
-        private bool _isRendering;
-        private bool _renderQueued;
+        private int _renderGeneration;
         private bool _isHighResRendering;
         private bool _isPanning;
         private bool _isFormClosing;
@@ -270,84 +269,82 @@ namespace FractalExplorer.Forms.Fractals
         {
             if (_isFormClosing || _canvas.Width <= 1 || _canvas.Height <= 1 || IsDisposed) return;
 
-            _renderQueued = true;
-            if (_isRendering)
-            {
-                CancelRender();
-                return;
-            }
-
-            _ = RenderAsync();
+            CancellationTokenSource cts = StartNewRender();
+            int renderGeneration = Interlocked.Increment(ref _renderGeneration);
+            _ = RenderAsync(cts, renderGeneration);
         }
 
-        private async Task RenderAsync()
+        private async Task RenderAsync(CancellationTokenSource cts, int renderGeneration)
         {
-            if (_isRendering) return;
+            if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
+            {
+                _pbRenderProgress.Style = ProgressBarStyle.Blocks;
+                _pbRenderProgress.Minimum = 0;
+                _pbRenderProgress.Maximum = 100;
+                _pbRenderProgress.Value = 0;
+            }
 
-            _isRendering = true;
+            var progress = new Progress<int>(value =>
+            {
+                if (_isFormClosing || IsDisposed || !_pbRenderProgress.IsHandleCreated) return;
+                _pbRenderProgress.Value = Math.Clamp(value, _pbRenderProgress.Minimum, _pbRenderProgress.Maximum);
+            });
+
             try
             {
-                while (_renderQueued && !IsDisposed)
+                int width = Math.Max(1, _canvas.Width);
+                int height = Math.Max(1, _canvas.Height);
+                decimal renderCenterX = _centerX;
+                decimal renderCenterY = _centerY;
+                decimal renderZoom = _zoom;
+                byte[] buffer = await Task.Run(() => RenderOrbitBuffer(width, height, renderCenterX, renderCenterY, renderZoom, cts.Token, progress), cts.Token);
+
+                if (cts.IsCancellationRequested || renderGeneration != Volatile.Read(ref _renderGeneration) || _isFormClosing || IsDisposed)
                 {
-                    _renderQueued = false;
-                    if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
-                    {
-                        _pbRenderProgress.Style = ProgressBarStyle.Blocks;
-                        _pbRenderProgress.Minimum = 0;
-                        _pbRenderProgress.Maximum = 100;
-                        _pbRenderProgress.Value = 0;
-                    }
-
-                    using CancellationTokenSource cts = StartNewRender();
-                    var progress = new Progress<int>(value =>
-                    {
-                        if (_isFormClosing || IsDisposed || !_pbRenderProgress.IsHandleCreated) return;
-                        _pbRenderProgress.Value = Math.Clamp(value, _pbRenderProgress.Minimum, _pbRenderProgress.Maximum);
-                    });
-
-                    try
-                    {
-                        int width = Math.Max(1, _canvas.Width);
-                        int height = Math.Max(1, _canvas.Height);
-                        decimal renderCenterX = _centerX;
-                        decimal renderCenterY = _centerY;
-                        decimal renderZoom = _zoom;
-                        byte[] buffer = await Task.Run(() => RenderOrbitBuffer(width, height, renderCenterX, renderCenterY, renderZoom, cts.Token, progress), cts.Token);
-
-                        var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-                        var rect = new Rectangle(0, 0, width, height);
-                        BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
-                        Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
-                        bmp.UnlockBits(data);
-
-                        lock (_bitmapLock)
-                        {
-                            _previewBitmap?.Dispose();
-                            _previewBitmap = bmp;
-                            _renderCenterX = renderCenterX;
-                            _renderCenterY = renderCenterY;
-                            _renderZoom = renderZoom;
-                        }
-
-                        _canvas.Invalidate();
-                        if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
-                        {
-                            _pbRenderProgress.Value = 100;
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
+                    return;
                 }
+
+                var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+                var rect = new Rectangle(0, 0, width, height);
+                BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+                Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
+                bmp.UnlockBits(data);
+
+                lock (_bitmapLock)
+                {
+                    _previewBitmap?.Dispose();
+                    _previewBitmap = bmp;
+                    _renderCenterX = renderCenterX;
+                    _renderCenterY = renderCenterY;
+                    _renderZoom = renderZoom;
+                }
+
+                _canvas.Invalidate();
+                if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
+                {
+                    _pbRenderProgress.Value = 100;
+                }
+            }
+            catch (OperationCanceledException)
+            {
             }
             finally
             {
-                if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated)
+                CancellationTokenSource? current = Interlocked.CompareExchange(ref _renderCts, null, cts);
+                if (ReferenceEquals(current, cts))
+                {
+                    cts.Dispose();
+                }
+
+                if (!_isFormClosing && !IsDisposed && _pbRenderProgress.IsHandleCreated && renderGeneration == Volatile.Read(ref _renderGeneration))
                 {
                     _pbRenderProgress.Value = 0;
                 }
-                _isRendering = false;
-                if (!_isFormClosing && !IsDisposed) Text = _baseTitle;
+
+                if (!_isFormClosing && !IsDisposed && renderGeneration == Volatile.Read(ref _renderGeneration))
+                {
+                    Text = _baseTitle;
+                }
             }
         }
 
