@@ -13,13 +13,28 @@ using FractalExplorer.Utilities.UI;
 
 namespace FractalExplorer.Forms.Fractals
 {
-    public partial class FractalLogisticMapForm : Form, ISaveLoadCapableFractal, IHighResRenderable
+    public partial class FractalLogisticMapForm : Form, ISaveLoadCapableFractal, IFullPreviewRenderCapableFractal, IHighResRenderable
     {
         private enum LogisticVisualizationMode
         {
             Orbit,
             Bifurcation,
             Cobweb
+        }
+
+        private sealed class LogisticRenderSettings
+        {
+            public int Iterations { get; init; }
+            public int TransientIterations { get; init; }
+            public decimal R { get; init; }
+            public decimal X0 { get; init; }
+            public decimal BifurcationRMin { get; init; }
+            public decimal BifurcationRMax { get; init; }
+            public int BifurcationSamples { get; init; }
+            public int BifurcationTransient { get; init; }
+            public int BifurcationPlottedPoints { get; init; }
+            public int CobwebSteps { get; init; }
+            public List<Color> PaletteColors { get; init; } = new();
         }
 
         private const decimal BaseScale = 1.0m;
@@ -382,7 +397,8 @@ namespace FractalExplorer.Forms.Fractals
                 decimal renderCenterY = _centerY;
                 decimal renderZoom = _zoom;
                 LogisticVisualizationMode mode = _mode;
-                byte[] buffer = await Task.Run(() => RenderCurrentModeBuffer(mode, width, height, renderCenterX, renderCenterY, renderZoom, cts.Token, progress), cts.Token);
+                LogisticRenderSettings renderSettings = CaptureUiRenderSettings();
+                byte[] buffer = await Task.Run(() => RenderCurrentModeBuffer(mode, width, height, renderCenterX, renderCenterY, renderZoom, renderSettings, cts.Token, progress), cts.Token);
 
                 if (cts.IsCancellationRequested || renderGeneration != Volatile.Read(ref _renderGeneration) || _isFormClosing || IsDisposed)
                 {
@@ -435,26 +451,77 @@ namespace FractalExplorer.Forms.Fractals
 
         private byte[] RenderOrbitBuffer(int width, int height, CancellationToken ct, IProgress<int>? progress = null)
         {
-            return RenderOrbitBuffer(width, height, _centerX, _centerY, _zoom, ct, progress, GetThreadCount());
+            return RenderOrbitBuffer(width, height, _centerX, _centerY, _zoom, CaptureUiRenderSettings(), ct, progress, GetThreadCount());
         }
 
         private byte[] RenderCurrentModeBuffer(LogisticVisualizationMode mode, int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
         {
+            return RenderCurrentModeBuffer(mode, width, height, centerX, centerY, zoom, CaptureUiRenderSettings(), ct, progress, maxDegreeOfParallelism);
+        }
+
+        private byte[] RenderCurrentModeBuffer(LogisticVisualizationMode mode, int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        {
             return mode switch
             {
-                LogisticVisualizationMode.Bifurcation => RenderBifurcationBuffer(width, height, centerX, centerY, zoom, ct, progress, maxDegreeOfParallelism),
-                LogisticVisualizationMode.Cobweb => RenderCobwebBuffer(width, height, centerX, centerY, zoom, ct, progress),
-                _ => RenderOrbitBuffer(width, height, centerX, centerY, zoom, ct, progress, maxDegreeOfParallelism)
+                LogisticVisualizationMode.Bifurcation => RenderBifurcationBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, maxDegreeOfParallelism),
+                LogisticVisualizationMode.Cobweb => RenderCobwebBuffer(width, height, centerX, centerY, zoom, settings, ct, progress),
+                _ => RenderOrbitBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, maxDegreeOfParallelism)
             };
         }
 
-        private byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        private LogisticRenderSettings CaptureUiRenderSettings()
+        {
+            return new LogisticRenderSettings
+            {
+                Iterations = (int)_nudIterations.Value,
+                TransientIterations = (int)_nudTransient.Value,
+                R = _nudR.Value,
+                X0 = _nudX0.Value,
+                BifurcationRMin = _nudBifurcationRMin.Value,
+                BifurcationRMax = _nudBifurcationRMax.Value,
+                BifurcationSamples = (int)_nudBifurcationSamples.Value,
+                BifurcationTransient = (int)_nudBifurcationTransient.Value,
+                BifurcationPlottedPoints = (int)_nudBifurcationPlotted.Value,
+                CobwebSteps = (int)_nudCobwebSteps.Value,
+                PaletteColors = _paletteManager.ActivePalette.Colors.ToList()
+            };
+        }
+
+        private static LogisticRenderSettings BuildRenderSettingsFromSaveState(LogisticMapSaveState logistic, PaletteManager paletteManager)
+        {
+            List<Color> paletteColors = paletteManager.ActivePalette.Colors.ToList();
+            if (!string.IsNullOrWhiteSpace(logistic.PaletteName))
+            {
+                var palette = paletteManager.Palettes.FirstOrDefault(p => p.Name == logistic.PaletteName);
+                if (palette != null)
+                {
+                    paletteColors = palette.Colors.ToList();
+                }
+            }
+
+            return new LogisticRenderSettings
+            {
+                Iterations = Math.Max(1, logistic.Iterations),
+                TransientIterations = Math.Max(0, logistic.TransientIterations),
+                R = logistic.R,
+                X0 = logistic.X0,
+                BifurcationRMin = logistic.BifurcationRMin,
+                BifurcationRMax = logistic.BifurcationRMax,
+                BifurcationSamples = Math.Max(1, logistic.BifurcationSamples),
+                BifurcationTransient = Math.Max(0, logistic.BifurcationTransient),
+                BifurcationPlottedPoints = Math.Max(1, logistic.BifurcationPlottedPoints),
+                CobwebSteps = Math.Max(1, logistic.CobwebSteps),
+                PaletteColors = paletteColors
+            };
+        }
+
+        private byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
         {
             byte[] buffer = new byte[width * height * 4];
-            int iterations = (int)_nudIterations.Value;
-            int transient = Math.Min((int)_nudTransient.Value, Math.Max(0, iterations - 1));
-            double r = (double)_nudR.Value;
-            double x = (double)_nudX0.Value;
+            int iterations = settings.Iterations;
+            int transient = Math.Min(settings.TransientIterations, Math.Max(0, iterations - 1));
+            double r = (double)settings.R;
+            double x = (double)settings.X0;
             int threadCount = Math.Max(1, maxDegreeOfParallelism ?? GetThreadCount());
 
             decimal scale = BaseScale / zoom;
@@ -463,7 +530,7 @@ namespace FractalExplorer.Forms.Fractals
             decimal minY = centerY - scale / 2m;
             decimal maxY = centerY + scale / 2m;
 
-            var paletteColors = _paletteManager.ActivePalette.Colors;
+            var paletteColors = settings.PaletteColors;
             Color fallback = Color.Lime;
 
             if (iterations <= 0)
@@ -566,17 +633,17 @@ namespace FractalExplorer.Forms.Fractals
             return buffer;
         }
 
-        private byte[] RenderBifurcationBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        private byte[] RenderBifurcationBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
         {
             byte[] buffer = new byte[width * height * 4];
-            decimal rMin = Math.Min(_nudBifurcationRMin.Value, _nudBifurcationRMax.Value);
-            decimal rMax = Math.Max(_nudBifurcationRMin.Value, _nudBifurcationRMax.Value);
-            int rSamples = (int)_nudBifurcationSamples.Value;
-            int transient = (int)_nudBifurcationTransient.Value;
-            int plottedPoints = (int)_nudBifurcationPlotted.Value;
-            double x0 = (double)_nudX0.Value;
+            decimal rMin = Math.Min(settings.BifurcationRMin, settings.BifurcationRMax);
+            decimal rMax = Math.Max(settings.BifurcationRMin, settings.BifurcationRMax);
+            int rSamples = settings.BifurcationSamples;
+            int transient = settings.BifurcationTransient;
+            int plottedPoints = settings.BifurcationPlottedPoints;
+            double x0 = (double)settings.X0;
             int threadCount = Math.Max(1, maxDegreeOfParallelism ?? GetThreadCount());
-            var paletteColors = _paletteManager.ActivePalette.Colors;
+            var paletteColors = settings.PaletteColors;
             Color fallback = Color.Lime;
 
             decimal scale = BaseScale / zoom;
@@ -671,15 +738,15 @@ namespace FractalExplorer.Forms.Fractals
             return buffer;
         }
 
-        private byte[] RenderCobwebBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null)
+        private byte[] RenderCobwebBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null)
         {
             byte[] buffer = new byte[width * height * 4];
             decimal min = 0m;
             decimal max = 1m;
-            double r = (double)_nudR.Value;
-            double x = (double)_nudX0.Value;
-            int steps = (int)_nudCobwebSteps.Value;
-            var paletteColors = _paletteManager.ActivePalette.Colors;
+            double r = (double)settings.R;
+            double x = (double)settings.X0;
+            int steps = settings.CobwebSteps;
+            var paletteColors = settings.PaletteColors;
             Color curveColor = Color.FromArgb(220, 60, 180, 250);
             Color diagonalColor = Color.FromArgb(220, 230, 230, 230);
 
@@ -952,76 +1019,60 @@ namespace FractalExplorer.Forms.Fractals
                 return new Bitmap(previewWidth, previewHeight);
             }
 
-            decimal oldCenterX = _centerX;
-            decimal oldCenterY = _centerY;
-            decimal oldZoom = _zoom;
-            decimal oldR = _nudR.Value;
-            decimal oldX0 = _nudX0.Value;
-            decimal oldIterations = _nudIterations.Value;
-            decimal oldTransient = _nudTransient.Value;
-            decimal oldBifRMin = _nudBifurcationRMin.Value;
-            decimal oldBifRMax = _nudBifurcationRMax.Value;
-            decimal oldBifSamples = _nudBifurcationSamples.Value;
-            decimal oldBifTransient = _nudBifurcationTransient.Value;
-            decimal oldBifPlotted = _nudBifurcationPlotted.Value;
-            decimal oldCobwebSteps = _nudCobwebSteps.Value;
-            LogisticVisualizationMode oldMode = _mode;
+            int width = Math.Max(1, previewWidth);
+            int height = Math.Max(1, previewHeight);
+            LogisticVisualizationMode mode = ParseMode(logistic.VisualizationMode);
+            decimal zoom = logistic.Zoom == 0 ? 0.01m : logistic.Zoom;
+            LogisticRenderSettings settings = BuildRenderSettingsFromSaveState(logistic, _paletteManager);
 
-            try
-            {
-                _centerX = logistic.CenterX;
-                _centerY = logistic.CenterY;
-                _zoom = logistic.Zoom;
-                _nudR.Value = Math.Max(_nudR.Minimum, Math.Min(_nudR.Maximum, logistic.R));
-                _nudX0.Value = Math.Max(_nudX0.Minimum, Math.Min(_nudX0.Maximum, logistic.X0));
-                _nudIterations.Value = Math.Max(_nudIterations.Minimum, Math.Min(_nudIterations.Maximum, logistic.Iterations));
-                _nudTransient.Value = Math.Max(_nudTransient.Minimum, Math.Min(_nudTransient.Maximum, logistic.TransientIterations));
-                _nudBifurcationRMin.Value = Math.Max(_nudBifurcationRMin.Minimum, Math.Min(_nudBifurcationRMin.Maximum, logistic.BifurcationRMin));
-                _nudBifurcationRMax.Value = Math.Max(_nudBifurcationRMax.Minimum, Math.Min(_nudBifurcationRMax.Maximum, logistic.BifurcationRMax));
-                _nudBifurcationSamples.Value = Math.Max(_nudBifurcationSamples.Minimum, Math.Min(_nudBifurcationSamples.Maximum, logistic.BifurcationSamples));
-                _nudBifurcationTransient.Value = Math.Max(_nudBifurcationTransient.Minimum, Math.Min(_nudBifurcationTransient.Maximum, logistic.BifurcationTransient));
-                _nudBifurcationPlotted.Value = Math.Max(_nudBifurcationPlotted.Minimum, Math.Min(_nudBifurcationPlotted.Maximum, logistic.BifurcationPlottedPoints));
-                _nudCobwebSteps.Value = Math.Max(_nudCobwebSteps.Minimum, Math.Min(_nudCobwebSteps.Maximum, logistic.CobwebSteps));
-                SetSelectedMode(ParseMode(logistic.VisualizationMode));
+            byte[] buffer = RenderCurrentModeBuffer(mode, width, height, logistic.CenterX, logistic.CenterY, zoom, settings, CancellationToken.None);
+            var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            var rect = new Rectangle(0, 0, width, height);
+            BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+            Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
+            bmp.UnlockBits(data);
+            return bmp;
+        }
 
-                byte[] buffer = RenderCurrentModeBuffer(_mode, previewWidth, previewHeight, _centerX, _centerY, _zoom, CancellationToken.None);
-                var bmp = new Bitmap(previewWidth, previewHeight, PixelFormat.Format32bppArgb);
-                var rect = new Rectangle(0, 0, previewWidth, previewHeight);
-                BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
-                Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
-                bmp.UnlockBits(data);
-                return bmp;
-            }
-            finally
+        public async Task<byte[]> RenderPreviewAsync(FractalSaveStateBase state, int previewWidth, int previewHeight, CancellationToken cancellationToken, IProgress<int>? progress = null)
+        {
+            if (state is not LogisticMapSaveState logistic)
             {
-                _centerX = oldCenterX;
-                _centerY = oldCenterY;
-                _zoom = oldZoom;
-                _nudR.Value = oldR;
-                _nudX0.Value = oldX0;
-                _nudIterations.Value = oldIterations;
-                _nudTransient.Value = oldTransient;
-                _nudBifurcationRMin.Value = oldBifRMin;
-                _nudBifurcationRMax.Value = oldBifRMax;
-                _nudBifurcationSamples.Value = oldBifSamples;
-                _nudBifurcationTransient.Value = oldBifTransient;
-                _nudBifurcationPlotted.Value = oldBifPlotted;
-                _nudCobwebSteps.Value = oldCobwebSteps;
-                SetSelectedMode(oldMode);
+                return new byte[Math.Max(1, previewWidth * previewHeight * 4)];
             }
+
+            int width = Math.Max(1, previewWidth);
+            int height = Math.Max(1, previewHeight);
+            LogisticVisualizationMode mode = ParseMode(logistic.VisualizationMode);
+            decimal zoom = logistic.Zoom == 0 ? 0.01m : logistic.Zoom;
+            LogisticRenderSettings settings = BuildRenderSettingsFromSaveState(logistic, _paletteManager);
+
+            return await Task.Run(
+                () => RenderCurrentModeBuffer(mode, width, height, logistic.CenterX, logistic.CenterY, zoom, settings, cancellationToken, progress),
+                cancellationToken);
         }
 
         public async Task<byte[]> RenderPreviewTileAsync(FractalSaveStateBase state, TileInfo tile, int totalWidth, int totalHeight, int tileSize)
         {
             return await Task.Run(() =>
             {
-                Bitmap preview = RenderPreview(state, totalWidth, totalHeight);
-                var rect = tile.Bounds;
+                using Bitmap preview = RenderPreview(state, totalWidth, totalHeight);
+                Rectangle rect = tile.Bounds;
                 var tileBytes = new byte[rect.Width * rect.Height * 4];
                 BitmapData data = preview.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                Marshal.Copy(data.Scan0, tileBytes, 0, tileBytes.Length);
-                preview.UnlockBits(data);
-                preview.Dispose();
+                try
+                {
+                    int rowBytes = rect.Width * 4;
+                    for (int y = 0; y < rect.Height; y++)
+                    {
+                        IntPtr rowPtr = IntPtr.Add(data.Scan0, y * data.Stride);
+                        Marshal.Copy(rowPtr, tileBytes, y * rowBytes, rowBytes);
+                    }
+                }
+                finally
+                {
+                    preview.UnlockBits(data);
+                }
                 return tileBytes;
             });
         }
@@ -1060,11 +1111,16 @@ namespace FractalExplorer.Forms.Fractals
             _isHighResRendering = true;
             try
             {
+                LogisticRenderSettings settings = CaptureUiRenderSettings();
+                LogisticVisualizationMode mode = _mode;
+                decimal centerX = _centerX;
+                decimal centerY = _centerY;
+                decimal zoom = _zoom;
                 return await Task.Run(() =>
                 {
                     int w = Math.Max(1, width);
                     int h = Math.Max(1, height);
-                    byte[] buffer = RenderCurrentModeBuffer(_mode, w, h, _centerX, _centerY, _zoom, cancellationToken);
+                    byte[] buffer = RenderCurrentModeBuffer(mode, w, h, centerX, centerY, zoom, settings, cancellationToken);
                     var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
                     var rect = new Rectangle(0, 0, w, h);
                     BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
@@ -1082,7 +1138,8 @@ namespace FractalExplorer.Forms.Fractals
 
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
         {
-            byte[] buffer = RenderCurrentModeBuffer(_mode, previewWidth, previewHeight, _centerX, _centerY, _zoom, CancellationToken.None);
+            LogisticRenderSettings settings = CaptureUiRenderSettings();
+            byte[] buffer = RenderCurrentModeBuffer(_mode, previewWidth, previewHeight, _centerX, _centerY, _zoom, settings, CancellationToken.None);
             var bmp = new Bitmap(previewWidth, previewHeight, PixelFormat.Format32bppArgb);
             var rect = new Rectangle(0, 0, previewWidth, previewHeight);
             BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
