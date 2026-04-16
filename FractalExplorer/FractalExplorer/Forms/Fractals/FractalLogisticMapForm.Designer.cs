@@ -54,7 +54,6 @@ namespace FractalExplorer.Forms.Fractals
 
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FractalLogisticMapForm));
             _canvasHost = new Panel();
             _controlsHost = new Panel();
             _pnlControls = new TableLayoutPanel();
@@ -117,7 +116,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvasHost.Dock = DockStyle.Fill;
             _canvasHost.Location = new Point(0, 0);
             _canvasHost.Name = "_canvasHost";
-            _canvasHost.Size = new Size(1086, 591);
+            _canvasHost.Size = new Size(1086, 644);
             _canvasHost.TabIndex = 0;
             // 
             // _controlsHost
@@ -128,7 +127,7 @@ namespace FractalExplorer.Forms.Fractals
             _controlsHost.Controls.Add(_pnlControls);
             _controlsHost.Location = new Point(0, 0);
             _controlsHost.Name = "_controlsHost";
-            _controlsHost.Size = new Size(231, 1232);
+            _controlsHost.Size = new Size(231, 1285);
             _controlsHost.TabIndex = 0;
             // 
             // _pnlControls
@@ -192,7 +191,7 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            _pnlControls.Size = new Size(229, 1230);
+            _pnlControls.Size = new Size(229, 1283);
             _pnlControls.TabIndex = 0;
             // 
             // _nudR
@@ -463,7 +462,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_btnSaveImage, 2);
             _btnSaveImage.Dock = DockStyle.Fill;
-            _btnSaveImage.Location = new Point(6, 386);
+            _btnSaveImage.Location = new Point(6, 383);
             _btnSaveImage.Margin = new Padding(6, 3, 6, 3);
             _btnSaveImage.Name = "_btnSaveImage";
             _btnSaveImage.Size = new Size(217, 39);
@@ -476,7 +475,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_btnPalette, 2);
             _btnPalette.Dock = DockStyle.Fill;
-            _btnPalette.Location = new Point(6, 431);
+            _btnPalette.Location = new Point(6, 428);
             _btnPalette.Margin = new Padding(6, 3, 6, 3);
             _btnPalette.Name = "_btnPalette";
             _btnPalette.Size = new Size(217, 39);
@@ -489,7 +488,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_btnRender, 2);
             _btnRender.Dock = DockStyle.Fill;
-            _btnRender.Location = new Point(6, 476);
+            _btnRender.Location = new Point(6, 473);
             _btnRender.Margin = new Padding(6, 3, 6, 3);
             _btnRender.Name = "_btnRender";
             _btnRender.Size = new Size(217, 39);
@@ -502,7 +501,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_btnReset, 2);
             _btnReset.Dock = DockStyle.Fill;
-            _btnReset.Location = new Point(6, 521);
+            _btnReset.Location = new Point(6, 518);
             _btnReset.Margin = new Padding(6, 3, 6, 3);
             _btnReset.Name = "_btnReset";
             _btnReset.Size = new Size(217, 39);
@@ -515,7 +514,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_btnState, 2);
             _btnState.Dock = DockStyle.Fill;
-            _btnState.Location = new Point(6, 566);
+            _btnState.Location = new Point(6, 563);
             _btnState.Margin = new Padding(6, 3, 6, 3);
             _btnState.Name = "_btnState";
             _btnState.Size = new Size(217, 39);
@@ -528,7 +527,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_pbRenderProgress, 2);
             _pbRenderProgress.Dock = DockStyle.Fill;
-            _pbRenderProgress.Location = new Point(6, 611);
+            _pbRenderProgress.Location = new Point(6, 608);
             _pbRenderProgress.Margin = new Padding(6, 3, 6, 3);
             _pbRenderProgress.Name = "_pbRenderProgress";
             _pbRenderProgress.Size = new Size(217, 22);
@@ -550,11 +549,11 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // _canvas
             // 
-            _canvas.BackColor = Color.Black;
+            _canvas.BackColor = Color.Transparent;
             _canvas.Dock = DockStyle.Fill;
             _canvas.Location = new Point(0, 0);
             _canvas.Name = "_canvas";
-            _canvas.Size = new Size(1086, 591);
+            _canvas.Size = new Size(1086, 644);
             _canvas.TabIndex = 2;
             _canvas.TabStop = false;
             // 
@@ -562,9 +561,9 @@ namespace FractalExplorer.Forms.Fractals
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1086, 591);
+            ClientSize = new Size(1086, 644);
             Controls.Add(_canvasHost);
-            Icon = (Icon)resources.GetObject("$this.Icon");
+            MinimumSize = new Size(1102, 683);
             Name = "FractalLogisticMapForm";
             Text = "Орбиты логистического отображения";
             _canvasHost.ResumeLayout(false);
