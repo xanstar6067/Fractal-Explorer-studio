@@ -480,7 +480,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnPalette.Name = "_btnPalette";
             _btnPalette.Size = new Size(217, 39);
             _btnPalette.TabIndex = 27;
-            _btnPalette.Text = "Настройка палитры";
+            _btnPalette.Text = "Настроить палитру";
             _btnPalette.UseVisualStyleBackColor = true;
             _btnPalette.Click += btnPalette_Click;
             // 
@@ -493,7 +493,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnRender.Name = "_btnRender";
             _btnRender.Size = new Size(217, 39);
             _btnRender.TabIndex = 28;
-            _btnRender.Text = "Перерендерить";
+            _btnRender.Text = "Запустить рендер";
             _btnRender.UseVisualStyleBackColor = true;
             _btnRender.Click += btnRender_Click;
             // 
@@ -519,7 +519,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnState.Name = "_btnState";
             _btnState.Size = new Size(217, 39);
             _btnState.TabIndex = 30;
-            _btnState.Text = "Сохранение/загрузка";
+            _btnState.Text = "Менеджер сохранений";
             _btnState.UseVisualStyleBackColor = true;
             _btnState.Click += btnState_Click;
             // 
