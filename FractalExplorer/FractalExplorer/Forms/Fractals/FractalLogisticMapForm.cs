@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FractalExplorer.Forms.Other;
+using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;

@@ -39,10 +39,24 @@ namespace FractalExplorer.Utilities
         /// </summary>
         /// <param name="paletteManager">Менеджер палитр для управления палитрами.</param>
         public ColorConfigurationForm(PaletteManager paletteManager)
+            : this(paletteManager, null)
+        {
+        }
+
+        /// <summary>
+        /// Инициализирует новый экземпляр класса <see cref="ColorConfigurationForm"/> с пользовательским заголовком.
+        /// </summary>
+        /// <param name="paletteManager">Менеджер палитр для управления палитрами.</param>
+        /// <param name="title">Пользовательский заголовок формы (необязательно).</param>
+        public ColorConfigurationForm(PaletteManager paletteManager, string? title)
         {
             InitializeComponent();
             ThemeManager.RegisterForm(this);
             _paletteManager = paletteManager;
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                Text = title;
+            }
 
             nudGamma.Minimum = 0.1m;
             nudGamma.Maximum = 5.0m;
