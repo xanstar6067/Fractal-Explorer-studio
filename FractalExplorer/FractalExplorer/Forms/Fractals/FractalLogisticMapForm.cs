@@ -46,6 +46,7 @@ namespace FractalExplorer.Forms.Fractals
         private readonly FullscreenToggleController _fullscreenController = new();
         private readonly string _baseTitle;
         private readonly System.Windows.Forms.Timer _wheelDebounceTimer = new();
+        private readonly System.Windows.Forms.Timer _resizeDebounceTimer = new();
 
         private Bitmap? _previewBitmap;
         private CancellationTokenSource? _renderCts;
@@ -78,6 +79,12 @@ namespace FractalExplorer.Forms.Fractals
                 _wheelDebounceTimer.Stop();
                 ScheduleRender();
             };
+            _resizeDebounceTimer.Interval = 260;
+            _resizeDebounceTimer.Tick += (_, _) =>
+            {
+                _resizeDebounceTimer.Stop();
+                ScheduleRender();
+            };
             _canvas.Paint += Canvas_Paint;
             _canvas.MouseWheel += Canvas_MouseWheel;
             _canvas.MouseDown += Canvas_MouseDown;
@@ -85,7 +92,7 @@ namespace FractalExplorer.Forms.Fractals
             _canvas.MouseUp += Canvas_MouseUp;
             _canvas.MouseLeave += Canvas_MouseUp;
             _canvas.MouseEnter += (_, _) => _canvas.Focus();
-            _canvas.Resize += (_, _) => ScheduleRender();
+            _canvas.Resize += (_, _) => QueueRenderAfterResizeInteraction();
             KeyDown += Form_KeyDown;
 
             FormClosing += (_, _) =>
@@ -99,6 +106,8 @@ namespace FractalExplorer.Forms.Fractals
                 }
                 _wheelDebounceTimer.Stop();
                 _wheelDebounceTimer.Dispose();
+                _resizeDebounceTimer.Stop();
+                _resizeDebounceTimer.Dispose();
                 _colorConfigForm?.Dispose();
                 _colorConfigForm = null;
             };
@@ -362,6 +371,13 @@ namespace FractalExplorer.Forms.Fractals
             if (_isHighResRendering || IsDisposed) return;
             _wheelDebounceTimer.Stop();
             _wheelDebounceTimer.Start();
+        }
+
+        private void QueueRenderAfterResizeInteraction()
+        {
+            if (_isHighResRendering || IsDisposed) return;
+            _resizeDebounceTimer.Stop();
+            _resizeDebounceTimer.Start();
         }
 
         private void ScheduleRender()
