@@ -552,6 +552,17 @@ namespace FractalExplorer
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка r/x₀/iterations/transient, сохранение состояния и изображений.",
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
+
+            _fractalCatalog.Add(new FractalInfo
+            {
+                Family = "Динамические системы",
+                DisplayName = "Диаграмма бифуркации",
+                FormToLaunch = typeof(FractalBifurcationForm),
+                Description = "Классическая диаграмма бифуркации логистического отображения xₙ₊₁ = r·xₙ·(1-xₙ) в координатах r/x.\n\n" +
+                              "Для каждого r вычисляются устойчивые состояния после прогрева, что позволяет видеть каскад удвоения периода и переход к хаосу.\n\n" +
+                              "Особенности: интерактивный zoom/панорама как в Мандельброте, параметры диапазонов r/x и плотности выборки, сохранение состояния и изображений.",
+                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+            });
         }
 
         /// <summary>
