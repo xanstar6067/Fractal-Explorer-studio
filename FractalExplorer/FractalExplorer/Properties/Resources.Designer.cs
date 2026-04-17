@@ -243,6 +243,16 @@ namespace FractalExplorer.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap logistic_map_preview_sq512 {
+            get {
+                object obj = ResourceManager.GetObject("logistic_map_preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap lyapunov_preview {
             get {
                 object obj = ResourceManager.GetObject("lyapunov_preview", resourceCulture);
@@ -256,16 +266,6 @@ namespace FractalExplorer.Properties {
         internal static System.Drawing.Bitmap lyapunov_preview_sq512 {
             get {
                 object obj = ResourceManager.GetObject("lyapunov_preview_sq512", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap logistic_map_preview_sq512 {
-            get {
-                object obj = ResourceManager.GetObject("logistic_map_preview_sq512", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -386,6 +386,16 @@ namespace FractalExplorer.Properties {
         internal static System.Drawing.Bitmap serpinski_preview_sq512 {
             get {
                 object obj = ResourceManager.GetObject("serpinski_preview_sq512", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap sig_preview_sq512 {
+            get {
+                object obj = ResourceManager.GetObject("sig_preview_sq512", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
