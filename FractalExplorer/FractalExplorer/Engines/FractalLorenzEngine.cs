@@ -3,6 +3,8 @@ namespace FractalExplorer.Engines
     public sealed class FractalLorenzEngine
     {
         public const decimal BaseScale = 80m;
+        private const double MinDt = 0.000001d;
+        private const double MaxDt = 1.0d;
 
         public enum ProjectionMode
         {
@@ -35,7 +37,7 @@ namespace FractalExplorer.Engines
             double sigma = (double)settings.Sigma;
             double rho = (double)settings.Rho;
             double beta = (double)settings.Beta;
-            double dtD = (double)dt;
+            double dtD = Math.Clamp((double)dt, MinDt, MaxDt);
 
             double x = (double)settings.StartX;
             double y = (double)settings.StartY;
@@ -60,7 +62,11 @@ namespace FractalExplorer.Engines
             for (int i = 0; i < warmup; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                StepLorenz(ref x, ref y, ref z, sigma, rho, beta, dtD);
+                StepLorenzRk4(ref x, ref y, ref z, sigma, rho, beta, dtD);
+                if (!IsFiniteState(x, y, z))
+                {
+                    break;
+                }
             }
 
             (double uPrev, double vPrev) = Project(x, y, z);
@@ -69,15 +75,14 @@ namespace FractalExplorer.Engines
             for (int i = 0; i < steps; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                StepLorenz(ref x, ref y, ref z, sigma, rho, beta, dtD);
+                StepLorenzRk4(ref x, ref y, ref z, sigma, rho, beta, dtD);
+                if (!IsFiniteState(x, y, z))
+                {
+                    break;
+                }
+
                 (double uCur, double vCur) = Project(x, y, z);
-
-                decimal du1 = (decimal)uPrev;
-                decimal dv1 = (decimal)vPrev;
-                decimal du2 = (decimal)uCur;
-                decimal dv2 = (decimal)vCur;
-
-                DrawLineClamped(buffer, width, height, du1, dv1, du2, dv2, minU, maxU, minV, maxV, GetGradientColor(i, steps));
+                DrawLineClamped(buffer, width, height, uPrev, vPrev, uCur, vCur, (double)minU, (double)maxU, (double)minV, (double)maxV, GetGradientColor(i, steps));
 
                 uPrev = uCur;
                 vPrev = vCur;
@@ -95,15 +100,36 @@ namespace FractalExplorer.Engines
             return buffer;
         }
 
-        private static void StepLorenz(ref double x, ref double y, ref double z, double sigma, double rho, double beta, double dt)
+        private static void StepLorenzRk4(ref double x, ref double y, ref double z, double sigma, double rho, double beta, double dt)
+        {
+            (double k1x, double k1y, double k1z) = Derivatives(x, y, z, sigma, rho, beta);
+            (double k2x, double k2y, double k2z) = Derivatives(
+                x + 0.5 * dt * k1x,
+                y + 0.5 * dt * k1y,
+                z + 0.5 * dt * k1z,
+                sigma, rho, beta);
+            (double k3x, double k3y, double k3z) = Derivatives(
+                x + 0.5 * dt * k2x,
+                y + 0.5 * dt * k2y,
+                z + 0.5 * dt * k2z,
+                sigma, rho, beta);
+            (double k4x, double k4y, double k4z) = Derivatives(
+                x + dt * k3x,
+                y + dt * k3y,
+                z + dt * k3z,
+                sigma, rho, beta);
+
+            x += dt * (k1x + 2.0 * k2x + 2.0 * k3x + k4x) / 6.0;
+            y += dt * (k1y + 2.0 * k2y + 2.0 * k3y + k4y) / 6.0;
+            z += dt * (k1z + 2.0 * k2z + 2.0 * k3z + k4z) / 6.0;
+        }
+
+        private static (double dx, double dy, double dz) Derivatives(double x, double y, double z, double sigma, double rho, double beta)
         {
             double dx = sigma * (y - x);
             double dy = x * (rho - z) - y;
             double dz = x * y - beta * z;
-
-            x += dx * dt;
-            y += dy * dt;
-            z += dz * dt;
+            return (dx, dy, dz);
         }
 
         private static Color GetGradientColor(int i, int total)
@@ -116,12 +142,16 @@ namespace FractalExplorer.Engines
             return Color.FromArgb(255, r, g, b);
         }
 
-        private static void DrawLineClamped(byte[] buffer, int width, int height, decimal x0, decimal y0, decimal x1, decimal y1, decimal minX, decimal maxX, decimal minY, decimal maxY, Color color)
+        private static void DrawLineClamped(byte[] buffer, int width, int height, double x0, double y0, double x1, double y1, double minX, double maxX, double minY, double maxY, Color color)
         {
-            int px0 = (int)Math.Round((x0 - minX) / (maxX - minX) * (width - 1));
-            int py0 = (int)Math.Round((maxY - y0) / (maxY - minY) * (height - 1));
-            int px1 = (int)Math.Round((x1 - minX) / (maxX - minX) * (width - 1));
-            int py1 = (int)Math.Round((maxY - y1) / (maxY - minY) * (height - 1));
+            if (!TryMapToPixel(x0, y0, minX, maxX, minY, maxY, width, height, out double px0d, out double py0d)) return;
+            if (!TryMapToPixel(x1, y1, minX, maxX, minY, maxY, width, height, out double px1d, out double py1d)) return;
+            if (!ClipLineToViewport(ref px0d, ref py0d, ref px1d, ref py1d, width, height)) return;
+
+            int px0 = (int)Math.Round(px0d);
+            int py0 = (int)Math.Round(py0d);
+            int px1 = (int)Math.Round(px1d);
+            int py1 = (int)Math.Round(py1d);
 
             int dx = Math.Abs(px1 - px0);
             int sx = px0 < px1 ? 1 : -1;
@@ -147,6 +177,94 @@ namespace FractalExplorer.Engines
                 }
             }
         }
+
+        private static bool TryMapToPixel(double x, double y, double minX, double maxX, double minY, double maxY, int width, int height, out double px, out double py)
+        {
+            px = 0;
+            py = 0;
+            if (!double.IsFinite(x) || !double.IsFinite(y)) return false;
+            if (!double.IsFinite(minX) || !double.IsFinite(maxX) || !double.IsFinite(minY) || !double.IsFinite(maxY)) return false;
+
+            double dx = maxX - minX;
+            double dy = maxY - minY;
+            if (!double.IsFinite(dx) || !double.IsFinite(dy) || Math.Abs(dx) < 1e-12 || Math.Abs(dy) < 1e-12) return false;
+
+            px = (x - minX) / dx * (width - 1);
+            py = (maxY - y) / dy * (height - 1);
+            return double.IsFinite(px) && double.IsFinite(py);
+        }
+
+        private static bool ClipLineToViewport(ref double x0, ref double y0, ref double x1, ref double y1, int width, int height)
+        {
+            double minX = 0;
+            double minY = 0;
+            double maxX = Math.Max(0, width - 1);
+            double maxY = Math.Max(0, height - 1);
+
+            int code0 = ComputeOutCode(x0, y0, minX, minY, maxX, maxY);
+            int code1 = ComputeOutCode(x1, y1, minX, minY, maxX, maxY);
+
+            while (true)
+            {
+                if ((code0 | code1) == 0) return true;
+                if ((code0 & code1) != 0) return false;
+
+                int outCode = code0 != 0 ? code0 : code1;
+                double x = 0;
+                double y = 0;
+
+                if ((outCode & 8) != 0) // bottom
+                {
+                    if (Math.Abs(y1 - y0) < 1e-12) return false;
+                    x = x0 + (x1 - x0) * (maxY - y0) / (y1 - y0);
+                    y = maxY;
+                }
+                else if ((outCode & 4) != 0) // top
+                {
+                    if (Math.Abs(y1 - y0) < 1e-12) return false;
+                    x = x0 + (x1 - x0) * (minY - y0) / (y1 - y0);
+                    y = minY;
+                }
+                else if ((outCode & 2) != 0) // right
+                {
+                    if (Math.Abs(x1 - x0) < 1e-12) return false;
+                    y = y0 + (y1 - y0) * (maxX - x0) / (x1 - x0);
+                    x = maxX;
+                }
+                else if ((outCode & 1) != 0) // left
+                {
+                    if (Math.Abs(x1 - x0) < 1e-12) return false;
+                    y = y0 + (y1 - y0) * (minX - x0) / (x1 - x0);
+                    x = minX;
+                }
+
+                if (outCode == code0)
+                {
+                    x0 = x;
+                    y0 = y;
+                    code0 = ComputeOutCode(x0, y0, minX, minY, maxX, maxY);
+                }
+                else
+                {
+                    x1 = x;
+                    y1 = y;
+                    code1 = ComputeOutCode(x1, y1, minX, minY, maxX, maxY);
+                }
+            }
+        }
+
+        private static int ComputeOutCode(double x, double y, double minX, double minY, double maxX, double maxY)
+        {
+            int code = 0;
+            if (x < minX) code |= 1;
+            else if (x > maxX) code |= 2;
+            if (y < minY) code |= 4;
+            else if (y > maxY) code |= 8;
+            return code;
+        }
+
+        private static bool IsFiniteState(double x, double y, double z) =>
+            double.IsFinite(x) && double.IsFinite(y) && double.IsFinite(z);
 
         private static void SetPixel(byte[] buffer, int width, int height, int x, int y, Color color)
         {
