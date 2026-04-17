@@ -26,7 +26,16 @@ namespace FractalExplorer.Engines
             public ProjectionMode Projection { get; init; }
         }
 
-        public static byte[] RenderBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, RenderSettings settings, CancellationToken ct, IProgress<int>? progress = null)
+        public static byte[] RenderBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            RenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            bool drawAxes = true)
         {
             byte[] buffer = new byte[width * height * 4];
 
@@ -95,7 +104,10 @@ namespace FractalExplorer.Engines
                 }
             }
 
-            DrawAxes(buffer, width, height, minU, maxU, minV, maxV);
+            if (drawAxes)
+            {
+                DrawAxes(buffer, width, height, minU, maxU, minV, maxV);
+            }
             progress?.Report(100);
             return buffer;
         }

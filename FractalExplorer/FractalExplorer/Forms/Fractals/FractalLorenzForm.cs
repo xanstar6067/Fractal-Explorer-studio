@@ -479,7 +479,8 @@ namespace FractalExplorer.Forms.Fractals
             LorenzRenderSettings settings,
             CancellationToken ct,
             IProgress<int>? progress = null,
-            int? _ = null)
+            int? _ = null,
+            bool drawAxes = true)
         {
             return FractalLorenzEngine.RenderBuffer(
                 width,
@@ -505,7 +506,8 @@ namespace FractalExplorer.Forms.Fractals
                     }
                 },
                 ct,
-                progress);
+                progress,
+                drawAxes);
         }
 
         private CancellationTokenSource StartNewRender()
@@ -735,7 +737,7 @@ namespace FractalExplorer.Forms.Fractals
                     progress.Report(new RenderProgress { Percentage = p, Status = $"Рендер Лоренца: {p}%" });
                 });
 
-                byte[] buffer = await Task.Run(() => RenderLorenzBuffer(renderWidth, renderHeight, state.CenterX, state.CenterY, state.Zoom, settings, cancellationToken, innerProgress), cancellationToken);
+                byte[] buffer = await Task.Run(() => RenderLorenzBuffer(renderWidth, renderHeight, state.CenterX, state.CenterY, state.Zoom, settings, cancellationToken, innerProgress, drawAxes: false), cancellationToken);
 
                 using Bitmap full = BufferToBitmap(buffer, renderWidth, renderHeight);
                 if (ssaaFactor <= 1)
@@ -759,7 +761,7 @@ namespace FractalExplorer.Forms.Fractals
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
         {
             LorenzRenderSettings settings = CaptureUiRenderSettings();
-            byte[] buffer = RenderLorenzBuffer(previewWidth, previewHeight, state.CenterX, state.CenterY, state.Zoom, settings, CancellationToken.None);
+            byte[] buffer = RenderLorenzBuffer(previewWidth, previewHeight, state.CenterX, state.CenterY, state.Zoom, settings, CancellationToken.None, drawAxes: false);
             return BufferToBitmap(buffer, previewWidth, previewHeight);
         }
 
