@@ -479,7 +479,8 @@ namespace FractalExplorer.Forms.Fractals
             RosslerRenderSettings settings,
             CancellationToken ct,
             IProgress<int>? progress = null,
-            int? _ = null)
+            int? _ = null,
+            bool drawAxes = true)
         {
             return FractalRosslerEngine.RenderBuffer(
                 width,
@@ -505,7 +506,8 @@ namespace FractalExplorer.Forms.Fractals
                     }
                 },
                 ct,
-                progress);
+                progress,
+                drawAxes);
         }
 
         private CancellationTokenSource StartNewRender()
@@ -735,7 +737,7 @@ namespace FractalExplorer.Forms.Fractals
                     progress.Report(new RenderProgress { Percentage = p, Status = $"Рендер Рёсслера: {p}%" });
                 });
 
-                byte[] buffer = await Task.Run(() => RenderRosslerBuffer(renderWidth, renderHeight, state.CenterX, state.CenterY, state.Zoom, settings, cancellationToken, innerProgress), cancellationToken);
+                byte[] buffer = await Task.Run(() => RenderRosslerBuffer(renderWidth, renderHeight, state.CenterX, state.CenterY, state.Zoom, settings, cancellationToken, innerProgress, drawAxes: false), cancellationToken);
 
                 using Bitmap full = BufferToBitmap(buffer, renderWidth, renderHeight);
                 if (ssaaFactor <= 1)
