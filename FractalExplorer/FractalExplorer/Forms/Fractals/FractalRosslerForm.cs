@@ -36,6 +36,8 @@ namespace FractalExplorer.Forms.Fractals
 
         private const decimal BaseScale = 30m;
         private const string AutoThreadOptionText = "Авто";
+        private const decimal MinRosslerDt = 0.000001m;
+        private const decimal MaxRosslerDt = 0.2m;
 
         private readonly object _bitmapLock = new();
         private readonly FullscreenToggleController _fullscreenController = new();
@@ -121,7 +123,7 @@ namespace FractalExplorer.Forms.Fractals
             ConfigureDecimal(_nudA, 6, 0.001m, -5m, 5m, 0.2m);
             ConfigureDecimal(_nudB, 6, 0.001m, -5m, 5m, 0.2m);
             ConfigureDecimal(_nudC, 6, 0.001m, 0m, 20m, 5.7m);
-            ConfigureDecimal(_nudDt, 6, 0.0001m, 0.00001m, 0.2m, 0.01m);
+            ConfigureDecimal(_nudDt, 6, 0.0001m, MinRosslerDt, MaxRosslerDt, 0.01m);
 
             _nudSteps.Minimum = 1000;
             _nudSteps.Maximum = 2000000;
@@ -404,6 +406,18 @@ namespace FractalExplorer.Forms.Fractals
             catch (OperationCanceledException)
             {
             }
+            catch (Exception ex)
+            {
+                if (!_isFormClosing && !IsDisposed)
+                {
+                    _lblProgress.Text = "Ошибка рендера";
+                    MessageBox.Show(
+                        $"Не удалось отрисовать аттрактор Рёсслера.\n{ex.Message}",
+                        "Ошибка рендера",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
             finally
             {
                 CancellationTokenSource? current = Interlocked.CompareExchange(ref _renderCts, null, cts);
@@ -431,7 +445,7 @@ namespace FractalExplorer.Forms.Fractals
                 A = _nudA.Value,
                 B = _nudB.Value,
                 C = _nudC.Value,
-                Dt = _nudDt.Value,
+                Dt = NormalizeDt(_nudDt.Value),
                 Steps = (int)_nudSteps.Value,
                 StartX = _nudStartX.Value,
                 StartY = _nudStartY.Value,
@@ -447,7 +461,7 @@ namespace FractalExplorer.Forms.Fractals
                 A = state.A,
                 B = state.B,
                 C = state.C,
-                Dt = Math.Max(0.000001m, state.Dt),
+                Dt = NormalizeDt(state.Dt),
                 Steps = Math.Max(100, state.Steps),
                 StartX = state.StartX,
                 StartY = state.StartY,
@@ -586,7 +600,7 @@ namespace FractalExplorer.Forms.Fractals
                 A = _nudA.Value,
                 B = _nudB.Value,
                 C = _nudC.Value,
-                Dt = _nudDt.Value,
+                Dt = NormalizeDt(_nudDt.Value),
                 Steps = (int)_nudSteps.Value,
                 StartX = _nudStartX.Value,
                 StartY = _nudStartY.Value,
@@ -625,7 +639,7 @@ namespace FractalExplorer.Forms.Fractals
             _nudA.Value = Math.Max(_nudA.Minimum, Math.Min(_nudA.Maximum, rossler.A));
             _nudB.Value = Math.Max(_nudB.Minimum, Math.Min(_nudB.Maximum, rossler.B));
             _nudC.Value = Math.Max(_nudC.Minimum, Math.Min(_nudC.Maximum, rossler.C));
-            _nudDt.Value = Math.Max(_nudDt.Minimum, Math.Min(_nudDt.Maximum, rossler.Dt));
+            _nudDt.Value = Math.Max(_nudDt.Minimum, Math.Min(_nudDt.Maximum, NormalizeDt(rossler.Dt)));
             _nudSteps.Value = Math.Max(_nudSteps.Minimum, Math.Min(_nudSteps.Maximum, rossler.Steps));
             _nudStartX.Value = Math.Max(_nudStartX.Minimum, Math.Min(_nudStartX.Maximum, rossler.StartX));
             _nudStartY.Value = Math.Max(_nudStartY.Minimum, Math.Min(_nudStartY.Maximum, rossler.StartY));
@@ -701,9 +715,9 @@ namespace FractalExplorer.Forms.Fractals
                 Zoom = _zoom,
                 BaseScale = BaseScale,
                 Iterations = (int)_nudSteps.Value,
-                Threshold = _nudDt.Value,
+                Threshold = NormalizeDt(_nudDt.Value),
                 FileNameDetails =
-                    $"a{_nudA.Value:F3}_b{_nudB.Value:F3}_c{_nudC.Value:F3}_dt{_nudDt.Value:F4}_{GetSelectedProjection()}"
+                    $"a{_nudA.Value:F3}_b{_nudB.Value:F3}_c{_nudC.Value:F3}_dt{NormalizeDt(_nudDt.Value):F4}_{GetSelectedProjection()}"
             };
         }
 
@@ -756,6 +770,12 @@ namespace FractalExplorer.Forms.Fractals
             Marshal.Copy(buffer, 0, data.Scan0, buffer.Length);
             bitmap.UnlockBits(data);
             return bitmap;
+        }
+
+        private static decimal NormalizeDt(decimal dt)
+        {
+            if (dt <= 0m) return 0.01m;
+            return Math.Clamp(dt, MinRosslerDt, MaxRosslerDt);
         }
     }
 }
