@@ -32,6 +32,14 @@ namespace FractalExplorer.Engines
             decimal viewRMax = centerX + scale / 2m;
             decimal viewXMin = centerY - scale / 2m;
             decimal viewXMax = centerY + scale / 2m;
+            decimal viewRangeR = viewRMax - viewRMin;
+            decimal viewRangeX = viewXMax - viewXMin;
+            double invRangeR = 1.0 / (double)viewRangeR;
+            double invRangeX = 1.0 / (double)viewRangeX;
+            double pxScale = (width - 1) * invRangeR;
+            double pyScale = (height - 1) * invRangeX;
+            double viewRMinDouble = (double)viewRMin;
+            double viewXMaxDouble = (double)viewXMax;
 
             if (iterations <= 0 || samplesPerR <= 0 || rMax <= rMin || xMax <= xMin)
             {
@@ -50,11 +58,14 @@ namespace FractalExplorer.Engines
             int[] sampleOwners = new int[rSamples];
             int[] columnOwner = new int[width];
             Array.Fill(columnOwner, -1);
+            bool hasSingleRSample = rSamples <= 1;
+            decimal rRange = rMax - rMin;
+            decimal rSampleFactor = hasSingleRSample ? 0m : 1m / (rSamples - 1);
 
             for (int i = 0; i < rSamples; i++)
             {
-                decimal t = rSamples <= 1 ? 0m : (decimal)i / (rSamples - 1);
-                decimal r = rMin + (rMax - rMin) * t;
+                decimal t = hasSingleRSample ? 0m : i * rSampleFactor;
+                decimal r = rMin + rRange * t;
 
                 if (r < viewRMin || r > viewRMax)
                 {
@@ -63,7 +74,8 @@ namespace FractalExplorer.Engines
                     continue;
                 }
 
-                int px = (int)Math.Round((r - viewRMin) / (viewRMax - viewRMin) * (width - 1));
+                double graphX = (double)r;
+                int px = (int)((graphX - viewRMinDouble) * pxScale + 0.5);
                 if (px < 0 || px >= width)
                 {
                     sampleColumns[i] = -1;
@@ -82,6 +94,9 @@ namespace FractalExplorer.Engines
 
             int completedSamples = 0;
             int lastReportedPercent = -1;
+            bool hasSingleSeed = samplesPerR <= 1;
+            decimal xRange = xMax - xMin;
+            decimal seedFactor = hasSingleSeed ? 0m : 1m / (samplesPerR - 1);
 
             Parallel.For(0, actualWorkers, new ParallelOptions
             {
@@ -110,13 +125,14 @@ namespace FractalExplorer.Engines
                         continue;
                     }
 
-                    decimal t = rSamples <= 1 ? 0m : (decimal)i / (rSamples - 1);
-                    decimal r = rMin + (rMax - rMin) * t;
+                    decimal t = hasSingleRSample ? 0m : i * rSampleFactor;
+                    decimal r = rMin + rRange * t;
                     double rValue = (double)r;
 
                     for (int seed = 0; seed < samplesPerR; seed++)
                     {
-                        double x = (double)(xMin + (xMax - xMin) * (samplesPerR <= 1 ? 0m : (decimal)seed / (samplesPerR - 1)));
+                        decimal seedT = hasSingleSeed ? 0m : seed * seedFactor;
+                        double x = (double)(xMin + xRange * seedT);
 
                         for (int k = 0; k < transient; k++)
                         {
@@ -133,7 +149,7 @@ namespace FractalExplorer.Engines
                                 continue;
                             }
 
-                            int py = (int)Math.Round((viewXMax - graphY) / (viewXMax - viewXMin) * (height - 1));
+                            int py = (int)((viewXMaxDouble - (double)graphY) * pyScale + 0.5);
                             if (py < 0 || py >= height) continue;
 
                             int hitIndex = py * width + px;
