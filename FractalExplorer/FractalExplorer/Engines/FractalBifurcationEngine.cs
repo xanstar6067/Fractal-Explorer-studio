@@ -45,7 +45,41 @@ namespace FractalExplorer.Engines
             int actualWorkers = Math.Min(threadCount, rSamples);
             int chunkSize = (rSamples + actualWorkers - 1) / actualWorkers;
 
-            byte[][] localBuffers = new byte[actualWorkers][];
+            bool[] hit = new bool[width * height];
+            int[] sampleColumns = new int[rSamples];
+            int[] sampleOwners = new int[rSamples];
+            int[] columnOwner = new int[width];
+            Array.Fill(columnOwner, -1);
+
+            for (int i = 0; i < rSamples; i++)
+            {
+                decimal t = rSamples <= 1 ? 0m : (decimal)i / (rSamples - 1);
+                decimal r = rMin + (rMax - rMin) * t;
+
+                if (r < viewRMin || r > viewRMax)
+                {
+                    sampleColumns[i] = -1;
+                    sampleOwners[i] = -1;
+                    continue;
+                }
+
+                int px = (int)Math.Round((r - viewRMin) / (viewRMax - viewRMin) * (width - 1));
+                if (px < 0 || px >= width)
+                {
+                    sampleColumns[i] = -1;
+                    sampleOwners[i] = -1;
+                    continue;
+                }
+
+                sampleColumns[i] = px;
+                int owner = Math.Min(actualWorkers - 1, i / chunkSize);
+                sampleOwners[i] = owner;
+                if (columnOwner[px] == -1)
+                {
+                    columnOwner[px] = owner;
+                }
+            }
+
             int completedSamples = 0;
             int lastReportedPercent = -1;
 
@@ -59,12 +93,22 @@ namespace FractalExplorer.Engines
                 if (start >= rSamples) return;
                 int end = Math.Min(rSamples, start + chunkSize);
 
-                byte[] localBuffer = new byte[buffer.Length];
-                localBuffers[chunkIndex] = localBuffer;
-
                 for (int i = start; i < end; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+
+                    int px = sampleColumns[i];
+                    if (px < 0 || sampleOwners[i] != chunkIndex || columnOwner[px] != chunkIndex)
+                    {
+                        int skippedProcessed = Interlocked.Increment(ref completedSamples);
+                        int skippedPercent = (int)(skippedProcessed * 100L / rSamples);
+                        int skippedPrevious = Volatile.Read(ref lastReportedPercent);
+                        if (skippedPercent > skippedPrevious && Interlocked.CompareExchange(ref lastReportedPercent, skippedPercent, skippedPrevious) == skippedPrevious)
+                        {
+                            progress?.Report(skippedPercent);
+                        }
+                        continue;
+                    }
 
                     decimal t = rSamples <= 1 ? 0m : (decimal)i / (rSamples - 1);
                     decimal r = rMin + (rMax - rMin) * t;
@@ -82,23 +126,18 @@ namespace FractalExplorer.Engines
                         for (int k = 0; k < iterations; k++)
                         {
                             x = rValue * x * (1.0 - x);
-                            decimal graphX = r;
                             decimal graphY = (decimal)x;
 
-                            if (graphX < viewRMin || graphX > viewRMax || graphY < viewXMin || graphY > viewXMax)
+                            if (graphY < viewXMin || graphY > viewXMax)
                             {
                                 continue;
                             }
 
-                            int px = (int)Math.Round((graphX - viewRMin) / (viewRMax - viewRMin) * (width - 1));
                             int py = (int)Math.Round((viewXMax - graphY) / (viewXMax - viewXMin) * (height - 1));
-                            if (px < 0 || px >= width || py < 0 || py >= height) continue;
+                            if (py < 0 || py >= height) continue;
 
-                            int idx = (py * width + px) * 4;
-                            localBuffer[idx] = 255;
-                            localBuffer[idx + 1] = 255;
-                            localBuffer[idx + 2] = 255;
-                            localBuffer[idx + 3] = 255;
+                            int hitIndex = py * width + px;
+                            hit[hitIndex] = true;
                         }
                     }
 
@@ -112,19 +151,14 @@ namespace FractalExplorer.Engines
                 }
             });
 
-            for (int chunkIndex = 0; chunkIndex < actualWorkers; chunkIndex++)
+            for (int pixel = 0; pixel < hit.Length; pixel++)
             {
-                byte[]? local = localBuffers[chunkIndex];
-                if (local == null) continue;
-
-                for (int idx = 0; idx < local.Length; idx += 4)
-                {
-                    if (local[idx + 3] == 0) continue;
-                    buffer[idx] = local[idx];
-                    buffer[idx + 1] = local[idx + 1];
-                    buffer[idx + 2] = local[idx + 2];
-                    buffer[idx + 3] = local[idx + 3];
-                }
+                if (!hit[pixel]) continue;
+                int idx = pixel * 4;
+                buffer[idx] = 255;
+                buffer[idx + 1] = 255;
+                buffer[idx + 2] = 255;
+                buffer[idx + 3] = 255;
             }
 
             DrawAxes(buffer, width, height, viewRMin, viewRMax, viewXMin, viewXMax);
