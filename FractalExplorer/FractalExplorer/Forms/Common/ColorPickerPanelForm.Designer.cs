@@ -60,6 +60,7 @@ namespace FractalExplorer.Forms.Common
             panelHexButtons = new FlowLayoutPanel();
             btnApplyHex = new Button();
             btnCopyCurrentHex = new Button();
+            btnSetTransparent = new Button();
 
             // нижняя строка
             panelButtons = new FlowLayoutPanel();
@@ -445,7 +446,7 @@ namespace FractalExplorer.Forms.Common
             lblHexInput.Margin = new Padding(0, 0, 0, 4);
             lblHexInput.Name = "lblHexInput";
             lblHexInput.TabIndex = 0;
-            lblHexInput.Text = "Ввести HEX (#RRGGBB):";
+            lblHexInput.Text = "Ввести HEX (#RRGGBB или #AARRGGBB):";
 
             // ── txtHexInput ──────────────────────────────────────────────────
             txtHexInput.Dock = DockStyle.Top;
@@ -457,6 +458,7 @@ namespace FractalExplorer.Forms.Common
             panelHexButtons.AutoSize = true;
             panelHexButtons.Controls.Add(btnApplyHex);
             panelHexButtons.Controls.Add(btnCopyCurrentHex);
+            panelHexButtons.Controls.Add(btnSetTransparent);
             panelHexButtons.Dock = DockStyle.Top;
             panelHexButtons.FlowDirection = FlowDirection.LeftToRight;
             panelHexButtons.Margin = new Padding(0, 8, 0, 0);
@@ -479,6 +481,14 @@ namespace FractalExplorer.Forms.Common
             btnCopyCurrentHex.Text = "Копировать HEX текущего";
             btnCopyCurrentHex.UseVisualStyleBackColor = true;
             btnCopyCurrentHex.Click += btnCopyCurrentHex_Click;
+
+            // ── btnSetTransparent ────────────────────────────────────────────
+            btnSetTransparent.AutoSize = true;
+            btnSetTransparent.Name = "btnSetTransparent";
+            btnSetTransparent.TabIndex = 2;
+            btnSetTransparent.Text = "Сделать прозрачным";
+            btnSetTransparent.UseVisualStyleBackColor = true;
+            btnSetTransparent.Click += btnSetTransparent_Click;
 
             // ══════════════════════════════════════════════════════════════════
             // panelButtons — нижняя строка, кнопки вправо
@@ -593,6 +603,7 @@ namespace FractalExplorer.Forms.Common
         private FlowLayoutPanel panelHexButtons;
         private Button btnApplyHex;
         private Button btnCopyCurrentHex;
+        private Button btnSetTransparent;
 
         // ── корень и нижняя строка ────────────────────────────────────────────
         private TableLayoutPanel tableMain;

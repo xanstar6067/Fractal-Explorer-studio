@@ -125,7 +125,7 @@ namespace FractalExplorer.Forms.Common
             {
                 if (_screenEyedropper.TryPickColor(null, out Color pickedColor))
                 {
-                    ApplySelectedColor(ToOpaqueColor(pickedColor));
+                    ApplySelectedColor(Color.FromArgb(_selectedColor.A, pickedColor.R, pickedColor.G, pickedColor.B));
                 }
             }
             finally
@@ -142,7 +142,7 @@ namespace FractalExplorer.Forms.Common
                 return;
             }
 
-            ApplySelectedColor(Color.FromArgb(trkRed.Value, trkGreen.Value, trkBlue.Value));
+            ApplySelectedColor(Color.FromArgb(_selectedColor.A, trkRed.Value, trkGreen.Value, trkBlue.Value));
         }
 
         private void pnlColorMatrix_Paint(object? sender, PaintEventArgs e)
@@ -207,14 +207,14 @@ namespace FractalExplorer.Forms.Common
             {
                 if (_customColors[i] == Color.Empty)
                 {
-                    _customColors[i] = ToOpaqueColor(_selectedColor);
+                    _customColors[i] = _selectedColor;
                     RefreshCustomColorCell(i);
                     SaveCustomColors();
                     return;
                 }
             }
 
-            _customColors[0] = ToOpaqueColor(_selectedColor);
+            _customColors[0] = _selectedColor;
             RefreshCustomColorCell(0);
             SaveCustomColors();
         }
@@ -255,7 +255,7 @@ namespace FractalExplorer.Forms.Common
             }
             else
             {
-                _customColors[index] = ToOpaqueColor(_selectedColor);
+                _customColors[index] = _selectedColor;
                 RefreshCustomColorCell(index);
                 SaveCustomColors();
             }
@@ -283,7 +283,6 @@ namespace FractalExplorer.Forms.Common
 
         private void ApplySelectedColor(Color color)
         {
-            color = ToOpaqueColor(color);
             _selectedColor = color;
             _hue = color.GetHue();
             _saturation = color.GetSaturation();
@@ -342,7 +341,7 @@ namespace FractalExplorer.Forms.Common
             _saturation = x / (float)(pnlColorMatrix.Width - 1);
             _brightness = 1f - (y / (float)(pnlColorMatrix.Height - 1));
 
-            ApplySelectedColor(FromAhsb(255, _hue, _saturation, _brightness));
+            ApplySelectedColor(FromAhsb(_selectedColor.A, _hue, _saturation, _brightness));
         }
 
         private void UpdateHueFromPoint(int y)
@@ -359,7 +358,7 @@ namespace FractalExplorer.Forms.Common
                 _hue = 0f;
             }
 
-            ApplySelectedColor(FromAhsb(255, _hue, _saturation, _brightness));
+            ApplySelectedColor(FromAhsb(_selectedColor.A, _hue, _saturation, _brightness));
         }
 
         private Point GetMatrixMarkerPoint()
@@ -829,14 +828,11 @@ namespace FractalExplorer.Forms.Common
             Settings.Default.Save();
         }
 
-        private static Color ToOpaqueColor(Color color)
-        {
-            return color.A == byte.MaxValue ? color : Color.FromArgb(byte.MaxValue, color.R, color.G, color.B);
-        }
-
         private static string ToHexString(Color color)
         {
-            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            return color.A == byte.MaxValue
+                ? $"#{color.R:X2}{color.G:X2}{color.B:X2}"
+                : $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
         }
 
         private static bool TryParseHexColor(string? text, out Color color)
@@ -853,16 +849,31 @@ namespace FractalExplorer.Forms.Common
                 normalized = normalized[1..];
             }
 
-            if (normalized.Length != 6
-                || !byte.TryParse(normalized[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte r)
-                || !byte.TryParse(normalized.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte g)
-                || !byte.TryParse(normalized.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte b))
+            if (normalized.Length == 6
+                && byte.TryParse(normalized[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte r6)
+                && byte.TryParse(normalized.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte g6)
+                && byte.TryParse(normalized.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte b6))
             {
-                return false;
+                color = Color.FromArgb(r6, g6, b6);
+                return true;
             }
 
-            color = Color.FromArgb(r, g, b);
-            return true;
+            if (normalized.Length == 8
+                && byte.TryParse(normalized[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte a8)
+                && byte.TryParse(normalized.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte r8)
+                && byte.TryParse(normalized.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte g8)
+                && byte.TryParse(normalized.Substring(6, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte b8))
+            {
+                color = Color.FromArgb(a8, r8, g8, b8);
+                return true;
+            }
+
+            return false;
+        }
+
+        private void btnSetTransparent_Click(object? sender, EventArgs e)
+        {
+            ApplySelectedColor(Color.FromArgb(0, _selectedColor.R, _selectedColor.G, _selectedColor.B));
         }
 
         private static Color FromAhsb(int alpha, float hue, float saturation, float brightness)

@@ -290,7 +290,15 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
         {
-            e.Graphics.Clear(_backgroundColor);
+            if (_backgroundColor.A == 0)
+            {
+                DrawTransparencyChecker(e.Graphics, _canvas.ClientRectangle);
+            }
+            else
+            {
+                e.Graphics.Clear(_backgroundColor);
+            }
+
             lock (_bitmapLock)
             {
                 if (_previewBitmap == null)
@@ -302,6 +310,21 @@ namespace FractalExplorer.Forms.Fractals
                 e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
                 RectangleF destination = CalculateDestinationRectangle(_canvas.ClientSize, _previewBitmap.Size);
                 e.Graphics.DrawImage(_previewBitmap, destination);
+            }
+        }
+
+        private static void DrawTransparencyChecker(Graphics graphics, Rectangle bounds)
+        {
+            graphics.Clear(Color.White);
+            const int checkerSize = 12;
+            using Brush checkerBrush = new SolidBrush(Color.FromArgb(232, 232, 232));
+            for (int y = 0; y < bounds.Height; y += checkerSize)
+            {
+                int row = y / checkerSize;
+                for (int x = (row % 2 == 0 ? 0 : checkerSize); x < bounds.Width; x += checkerSize * 2)
+                {
+                    graphics.FillRectangle(checkerBrush, x, y, checkerSize, checkerSize);
+                }
             }
         }
 
