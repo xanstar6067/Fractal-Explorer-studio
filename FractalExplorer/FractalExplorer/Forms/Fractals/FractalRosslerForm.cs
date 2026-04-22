@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FractalExplorer.Engines;
+using FractalExplorer.Forms.Common;
 using FractalExplorer.Forms.Other;
 using FractalExplorer.Resources;
 using FractalExplorer.Utilities.RenderUtilities;
@@ -54,6 +55,8 @@ namespace FractalExplorer.Forms.Fractals
         private bool _suppressZoomValueChanged;
         private int _controlsOpenWidth = 231;
         private Point _panStart;
+
+        private Color _backgroundColor = Color.Black;
 
         private decimal _centerX = 0m;
         private decimal _centerY = 0m;
@@ -287,7 +290,7 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
         {
-            e.Graphics.Clear(Color.Black);
+            e.Graphics.Clear(_backgroundColor);
             lock (_bitmapLock)
             {
                 if (_previewBitmap == null)
@@ -373,7 +376,7 @@ namespace FractalExplorer.Forms.Fractals
                 RosslerRenderSettings settings = CaptureUiRenderSettings();
 
                 byte[] buffer = await Task.Run(
-                    () => RenderRosslerBuffer(width, height, renderCenterX, renderCenterY, renderZoom, settings, cts.Token, progress, GetThreadCount()),
+                    () => RenderRosslerBuffer(width, height, renderCenterX, renderCenterY, renderZoom, settings, cts.Token, progress, GetThreadCount(), backgroundColor: _backgroundColor),
                     cts.Token);
 
                 if (cts.IsCancellationRequested || renderGeneration != Volatile.Read(ref _renderGeneration) || _isFormClosing || IsDisposed)
@@ -480,7 +483,8 @@ namespace FractalExplorer.Forms.Fractals
             CancellationToken ct,
             IProgress<int>? progress = null,
             int? _ = null,
-            bool drawAxes = true)
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
             return FractalRosslerEngine.RenderBuffer(
                 width,
@@ -507,7 +511,8 @@ namespace FractalExplorer.Forms.Fractals
                 },
                 ct,
                 progress,
-                drawAxes);
+                drawAxes,
+                backgroundColor);
         }
 
         private CancellationTokenSource StartNewRender()
@@ -555,6 +560,17 @@ namespace FractalExplorer.Forms.Fractals
                 _controlsHost.Visible = true;
                 _btnToggleControls.Text = "✕";
                 _btnToggleControls.Location = new Point(_controlsHost.Width + 25, 12);
+            }
+        }
+
+        private void btnBackgroundColor_Click(object sender, EventArgs e)
+        {
+            using var dialog = new ColorPickerPanelForm(_backgroundColor);
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _backgroundColor = dialog.SelectedColor;
+                _canvas.Invalidate();
+                ScheduleRender();
             }
         }
 
@@ -737,7 +753,7 @@ namespace FractalExplorer.Forms.Fractals
                     progress.Report(new RenderProgress { Percentage = p, Status = $"Рендер Рёсслера: {p}%" });
                 });
 
-                byte[] buffer = await Task.Run(() => RenderRosslerBuffer(renderWidth, renderHeight, state.CenterX, state.CenterY, state.Zoom, settings, cancellationToken, innerProgress, drawAxes: false), cancellationToken);
+                byte[] buffer = await Task.Run(() => RenderRosslerBuffer(renderWidth, renderHeight, state.CenterX, state.CenterY, state.Zoom, settings, cancellationToken, innerProgress, drawAxes: false, backgroundColor: _backgroundColor), cancellationToken);
 
                 using Bitmap full = BufferToBitmap(buffer, renderWidth, renderHeight);
                 if (ssaaFactor <= 1)
@@ -761,7 +777,7 @@ namespace FractalExplorer.Forms.Fractals
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
         {
             RosslerRenderSettings settings = CaptureUiRenderSettings();
-            byte[] buffer = RenderRosslerBuffer(previewWidth, previewHeight, state.CenterX, state.CenterY, state.Zoom, settings, CancellationToken.None);
+            byte[] buffer = RenderRosslerBuffer(previewWidth, previewHeight, state.CenterX, state.CenterY, state.Zoom, settings, CancellationToken.None, backgroundColor: _backgroundColor);
             return BufferToBitmap(buffer, previewWidth, previewHeight);
         }
 

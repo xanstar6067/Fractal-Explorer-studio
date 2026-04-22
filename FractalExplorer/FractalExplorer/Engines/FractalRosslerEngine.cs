@@ -35,9 +35,12 @@ namespace FractalExplorer.Engines
             RenderSettings settings,
             CancellationToken ct,
             IProgress<int>? progress = null,
-            bool drawAxes = true)
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
             byte[] buffer = new byte[width * height * 4];
+            if (backgroundColor.A > 0)
+                FillBackground(buffer, backgroundColor);
 
             int steps = Math.Max(100, settings.Steps);
             int warmup = Math.Max(50, Math.Min(4000, steps / 20));
@@ -277,6 +280,18 @@ namespace FractalExplorer.Engines
 
         private static bool IsFiniteState(double x, double y, double z) =>
             double.IsFinite(x) && double.IsFinite(y) && double.IsFinite(z);
+
+        private static void FillBackground(byte[] buffer, Color color)
+        {
+            byte b = color.B, g = color.G, r = color.R, a = color.A;
+            for (int i = 0; i < buffer.Length; i += 4)
+            {
+                buffer[i] = b;
+                buffer[i + 1] = g;
+                buffer[i + 2] = r;
+                buffer[i + 3] = a;
+            }
+        }
 
         private static void SetPixel(byte[] buffer, int width, int height, int x, int y, Color color)
         {

@@ -37,6 +37,7 @@ namespace FractalExplorer.Forms.Fractals
         private Button _btnRender;
         private Button _btnReset;
         private Button _btnState;
+        private Button _btnBackgroundColor;
         private Label _lblProgress;
         private ProgressBar _pbRenderProgress;
 
@@ -81,6 +82,7 @@ namespace FractalExplorer.Forms.Fractals
             _btnRender = new Button();
             _btnReset = new Button();
             _btnState = new Button();
+            _btnBackgroundColor = new Button();
             _lblProgress = new Label();
             _pbRenderProgress = new ProgressBar();
             _btnToggleControls = new Button();
@@ -153,12 +155,13 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.Controls.Add(_btnRender, 0, 12);
             _pnlControls.Controls.Add(_btnReset, 0, 13);
             _pnlControls.Controls.Add(_btnState, 0, 14);
-            _pnlControls.Controls.Add(_lblProgress, 0, 15);
-            _pnlControls.Controls.Add(_pbRenderProgress, 0, 16);
+            _pnlControls.Controls.Add(_btnBackgroundColor, 0, 15);
+            _pnlControls.Controls.Add(_lblProgress, 0, 16);
+            _pnlControls.Controls.Add(_pbRenderProgress, 0, 17);
             _pnlControls.Dock = DockStyle.Fill;
             _pnlControls.Location = new Point(0, 0);
             _pnlControls.Name = "_pnlControls";
-            _pnlControls.RowCount = 18;
+            _pnlControls.RowCount = 19;
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
@@ -170,6 +173,7 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
@@ -455,29 +459,42 @@ namespace FractalExplorer.Forms.Fractals
             _btnState.Text = "Менеджер сохранений";
             _btnState.UseVisualStyleBackColor = true;
             _btnState.Click += btnState_Click;
-            // 
+            //
+            // _btnBackgroundColor
+            //
+            _pnlControls.SetColumnSpan(_btnBackgroundColor, 2);
+            _btnBackgroundColor.Dock = DockStyle.Fill;
+            _btnBackgroundColor.Location = new Point(6, 505);
+            _btnBackgroundColor.Margin = new Padding(6, 3, 6, 3);
+            _btnBackgroundColor.Name = "_btnBackgroundColor";
+            _btnBackgroundColor.Size = new Size(217, 39);
+            _btnBackgroundColor.TabIndex = 26;
+            _btnBackgroundColor.Text = "Цвет фона";
+            _btnBackgroundColor.UseVisualStyleBackColor = true;
+            _btnBackgroundColor.Click += btnBackgroundColor_Click;
+            //
             // _lblProgress
-            // 
+            //
             _lblProgress.AutoSize = true;
             _pnlControls.SetColumnSpan(_lblProgress, 2);
             _lblProgress.Dock = DockStyle.Fill;
-            _lblProgress.Location = new Point(6, 502);
+            _lblProgress.Location = new Point(6, 547);
             _lblProgress.Margin = new Padding(6, 0, 3, 0);
             _lblProgress.Name = "_lblProgress";
             _lblProgress.Size = new Size(220, 20);
-            _lblProgress.TabIndex = 26;
+            _lblProgress.TabIndex = 27;
             _lblProgress.Text = "Обработка";
             _lblProgress.TextAlign = ContentAlignment.MiddleLeft;
-            // 
+            //
             // _pbRenderProgress
-            // 
+            //
             _pbRenderProgress.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             _pnlControls.SetColumnSpan(_pbRenderProgress, 2);
-            _pbRenderProgress.Location = new Point(6, 525);
+            _pbRenderProgress.Location = new Point(6, 570);
             _pbRenderProgress.Margin = new Padding(6, 3, 6, 3);
             _pbRenderProgress.Name = "_pbRenderProgress";
             _pbRenderProgress.Size = new Size(217, 24);
-            _pbRenderProgress.TabIndex = 27;
+            _pbRenderProgress.TabIndex = 28;
             // 
             // _btnToggleControls
             // 
