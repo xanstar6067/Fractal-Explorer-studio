@@ -1005,6 +1005,12 @@ namespace FractalExplorer.Utilities.Theme
 
             string buttonName = button.Name ?? string.Empty;
             string buttonText = button.Text ?? string.Empty;
+
+            if (ContainsAny(buttonName, "background") || ContainsAny(buttonText, "фон"))
+            {
+                return false;
+            }
+
             return ContainsAny(buttonName, "close", "cancel", "delete", "remove", "back") ||
                    ContainsAny(buttonText, "закры", "отмен", "удал", "назад", "close", "cancel", "delete", "back");
         }
