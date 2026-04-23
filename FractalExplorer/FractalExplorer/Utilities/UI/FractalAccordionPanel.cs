@@ -135,12 +135,22 @@ namespace FractalExplorer.Controls
 
         private void RebuildLayout()
         {
-            Point previousScroll = AutoScrollPosition;
+            int previousScrollY = VerticalScroll.Visible
+                ? VerticalScroll.Value
+                : Math.Abs(AutoScrollPosition.Y);
+
             SuspendLayout();
+
+            // Важно: при перестройке из не-нулевой позиции скролла WinForms может смещать
+            // координаты дочерних контролов относительно DisplayRectangle, что раздувает
+            // виртуальную область прокрутки и оставляет "пустой хвост".
+            AutoScrollPosition = Point.Empty;
+
             Controls.Clear();
             AutoScrollMinSize = Size.Empty;
 
             int y = Padding.Top;
+            int x = Padding.Left;
             const int blockGap = 4;
 
             for (int bi = 0; bi < _blocks.Count; bi++)
@@ -151,7 +161,7 @@ namespace FractalExplorer.Controls
                 CategoryHeader header = new(block.Category, isOpen, _colors);
                 int capturedIndex = bi;
                 header.Click += (_, _) => OnCategoryHeaderClicked(capturedIndex);
-                header.Location = new Point(0, y);
+                header.Location = new Point(x, y);
                 header.Width = ClientSize.Width - Padding.Horizontal;
                 header.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
                 Controls.Add(header);
@@ -164,7 +174,7 @@ namespace FractalExplorer.Controls
                     foreach (AccordionEntry entry in block.Entries)
                     {
                         ItemRow row = new(entry, _colors);
-                        row.Location = new Point(0, y);
+                        row.Location = new Point(x, y);
                         row.Width = ClientSize.Width - Padding.Horizontal;
                         row.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
 
@@ -201,12 +211,11 @@ namespace FractalExplorer.Controls
 
             AutoScrollMinSize = new Size(0, y + Padding.Bottom);
 
-            int previousScrollY = Math.Abs(previousScroll.Y);
             int maxScrollY = Math.Max(0, AutoScrollMinSize.Height - ClientSize.Height);
             int clampedScrollY = Math.Min(previousScrollY, maxScrollY);
-            AutoScrollPosition = new Point(0, clampedScrollY);
 
             ResumeLayout(true);
+            AutoScrollPosition = new Point(0, clampedScrollY);
         }
 
         private void OnCategoryHeaderClicked(int blockIndex)
