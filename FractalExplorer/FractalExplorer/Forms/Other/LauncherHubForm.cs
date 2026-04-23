@@ -4,10 +4,9 @@ using FractalExplorer.Forms.Other;
 using FractalExplorer.Projects;
 using FractalExplorer.Resources;
 using FractalExplorer.Properties;
-using System.Reflection;
-
 using FractalExplorer.Utilities.Theme;
 using System.Runtime;
+using System.Reflection;
 namespace FractalExplorer
 {
     /// <summary>
@@ -53,11 +52,6 @@ namespace FractalExplorer
         private FractalInfo _selectedFractal;
 
         /// <summary>
-        /// Узел, над которым находится курсор мыши.
-        /// </summary>
-        private TreeNode? _hoveredNode;
-
-        /// <summary>
         /// Пункты селектора тем (реальные темы и действия управления).
         /// </summary>
         private readonly List<ThemeSelectorItem> _themeOptions = new();
@@ -86,31 +80,12 @@ namespace FractalExplorer
             _fractalCatalog = new List<FractalInfo>();
 
             InitializeFractalCatalog();
-            PopulateTreeView();
-            InitializeFractalTreeVisualStates();
+            PopulateAccordion();
             InitializeRenderPatternSelector();
             InitializeThemeSelector();
             ThemeManager.ThemesChanged += ThemeManager_ThemesChanged;
-            ThemeManager.ThemeChanged += ThemeManager_ThemeChanged;
             Disposed += LauncherHubForm_Disposed;
             DisplayAppVersionInTitle();
-        }
-
-        private void InitializeFractalTreeVisualStates()
-        {
-            treeViewFractals.DrawMode = TreeViewDrawMode.OwnerDrawText;
-            treeViewFractals.HideSelection = false;
-            EnableDoubleBuffering(treeViewFractals);
-            treeViewFractals.DrawNode += treeViewFractals_DrawNode;
-            treeViewFractals.NodeMouseDoubleClick += treeViewFractals_NodeMouseDoubleClick;
-            treeViewFractals.MouseMove += treeViewFractals_MouseMove;
-            treeViewFractals.MouseLeave += treeViewFractals_MouseLeave;
-        }
-
-        private static void EnableDoubleBuffering(Control control)
-        {
-            PropertyInfo? doubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic);
-            doubleBufferedProperty?.SetValue(control, true);
         }
 
 
@@ -239,26 +214,9 @@ namespace FractalExplorer
             InitializeThemeSelector();
         }
 
-        private void ThemeManager_ThemeChanged(object? sender, EventArgs e)
-        {
-            if (IsDisposed)
-            {
-                return;
-            }
-
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action(() => treeViewFractals.Invalidate()));
-                return;
-            }
-
-            treeViewFractals.Invalidate();
-        }
-
         private void LauncherHubForm_Disposed(object? sender, EventArgs e)
         {
             ThemeManager.ThemesChanged -= ThemeManager_ThemesChanged;
-            ThemeManager.ThemeChanged -= ThemeManager_ThemeChanged;
             Disposed -= LauncherHubForm_Disposed;
         }
 
@@ -609,47 +567,26 @@ namespace FractalExplorer
             });
         }
 
-        /// <summary>
-        /// Заполняет элемент управления <see cref="TreeView"/> на основе каталога фракталов, группируя их по семействам.
-        /// </summary>
-        private void PopulateTreeView()
+        private void PopulateAccordion()
         {
-            treeViewFractals.BeginUpdate();
-            treeViewFractals.Nodes.Clear();
-
-            var familyNodes = new Dictionary<string, TreeNode>();
-
-            foreach (var fractal in _fractalCatalog)
-            {
-                if (!familyNodes.ContainsKey(fractal.Family))
+            IEnumerable<FractalExplorer.Controls.FractalAccordionPanel.AccordionEntry> entries = _fractalCatalog
+                .Select(f => new FractalExplorer.Controls.FractalAccordionPanel.AccordionEntry
                 {
-                    var newFamilyNode = new TreeNode(fractal.Family);
-                    familyNodes[fractal.Family] = newFamilyNode;
-                    treeViewFractals.Nodes.Add(newFamilyNode);
-                }
+                    Category = f.Family,
+                    DisplayName = f.DisplayName,
+                    Tag = f
+                });
 
-                var fractalNode = new TreeNode(fractal.DisplayName)
-                {
-                    // Сохраняем всю информацию о фрактале в теге узла. Это ключ к успеху!
-                    Tag = fractal
-                };
-
-                familyNodes[fractal.Family].Nodes.Add(fractalNode);
-            }
-
-            treeViewFractals.ExpandAll();
-            treeViewFractals.EndUpdate();
+            accordionFractals.Populate(entries);
+            accordionFractals.ItemSelected += AccordionFractals_ItemSelected;
+            accordionFractals.ItemDoubleClicked += AccordionFractals_ItemDoubleClicked;
         }
 
-        /// <summary>
-        /// Обрабатывает событие выбора узла в дереве фракталов и обновляет панель информации.
-        /// </summary>
-        /// <param name="sender">Источник события.</param>
-        /// <param name="e">Данные события.</param>
-        private void treeViewFractals_AfterSelect(object sender, TreeViewEventArgs e)
+        private void AccordionFractals_ItemSelected(
+            object? sender,
+            FractalExplorer.Controls.FractalAccordionPanel.AccordionItemEventArgs e)
         {
-            // Если выбран узел фрактала (а не семейства), его Tag будет содержать объект FractalInfo.
-            if (e.Node.Tag is FractalInfo selected)
+            if (e.Tag is FractalInfo selected)
             {
                 _selectedFractal = selected;
                 lblFractalName.Text = selected.DisplayName;
@@ -657,87 +594,16 @@ namespace FractalExplorer
                 pictureBoxPreview.Image = selected.PreviewImage;
                 btnLaunchSelected.Visible = true;
             }
-            else // Выбран узел категории.
-            {
-                _selectedFractal = null;
-                lblFractalName.Text = "Выберите фрактал";
-                richTextBoxDescription.Text = "Выберите конкретный фрактал из списка слева, чтобы увидеть его описание и запустить.";
-                pictureBoxPreview.Image = Properties.Resources.base_img_CHAT_GPT_01;
-                btnLaunchSelected.Visible = false;
-            }
         }
 
-        private void treeViewFractals_DrawNode(object? sender, DrawTreeNodeEventArgs e)
+        private void AccordionFractals_ItemDoubleClicked(
+            object? sender,
+            FractalExplorer.Controls.FractalAccordionPanel.AccordionItemEventArgs e)
         {
-            ThemeDefinition theme = ThemeManager.CurrentDefinition;
-            bool isSelected = (e.State & TreeNodeStates.Selected) == TreeNodeStates.Selected;
-            bool isHovered = e.Node == _hoveredNode;
-
-            Color background = treeViewFractals.BackColor;
-            if (isSelected)
+            if (e.Tag is FractalInfo)
             {
-                background = theme.AccentPrimary;
+                LaunchFractal(_selectedFractal);
             }
-            else if (isHovered)
-            {
-                background = theme.HoverBackground;
-            }
-
-            Color textColor = isSelected ? theme.PrimaryText : treeViewFractals.ForeColor;
-
-            using SolidBrush backgroundBrush = new(background);
-
-            e.Graphics.FillRectangle(backgroundBrush, e.Bounds);
-            TextRenderer.DrawText(e.Graphics, e.Node.Text, treeViewFractals.Font, e.Bounds, textColor, TextFormatFlags.VerticalCenter);
-
-            if ((e.State & TreeNodeStates.Focused) == TreeNodeStates.Focused)
-            {
-                ControlPaint.DrawFocusRectangle(e.Graphics, e.Bounds, textColor, background);
-            }
-        }
-
-        private void treeViewFractals_MouseMove(object? sender, MouseEventArgs e)
-        {
-            UpdateHoveredNode(treeViewFractals.GetNodeAt(e.Location));
-        }
-
-        private void treeViewFractals_MouseLeave(object? sender, EventArgs e)
-        {
-            UpdateHoveredNode(null);
-        }
-
-        private void treeViewFractals_NodeMouseDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
-        {
-            if (e.Node.Tag is not FractalInfo)
-            {
-                return;
-            }
-
-            LaunchFractal(_selectedFractal);
-        }
-
-        private void UpdateHoveredNode(TreeNode? node)
-        {
-            if (_hoveredNode == node)
-            {
-                return;
-            }
-
-            TreeNode? previousNode = _hoveredNode;
-            _hoveredNode = node;
-
-            InvalidateNode(previousNode);
-            InvalidateNode(_hoveredNode);
-        }
-
-        private void InvalidateNode(TreeNode? node)
-        {
-            if (node is null)
-            {
-                return;
-            }
-
-            treeViewFractals.Invalidate(node.Bounds);
         }
 
         /// <summary>

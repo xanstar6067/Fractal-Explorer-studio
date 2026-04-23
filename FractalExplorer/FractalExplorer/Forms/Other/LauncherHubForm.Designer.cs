@@ -30,7 +30,7 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(LauncherHubForm));
             splitContainerMain = new SplitContainer();
-            treeViewFractals = new TreeView();
+            accordionFractals = new FractalExplorer.Controls.FractalAccordionPanel();
             pnlDetails = new TableLayoutPanel();
             headerPanel = new TableLayoutPanel();
             lblFractalName = new Label();
@@ -62,7 +62,7 @@
             // 
             // splitContainerMain.Panel1
             // 
-            splitContainerMain.Panel1.Controls.Add(treeViewFractals);
+            splitContainerMain.Panel1.Controls.Add(accordionFractals);
             splitContainerMain.Panel1.Padding = new Padding(10);
             // 
             // splitContainerMain.Panel2
@@ -73,17 +73,13 @@
             splitContainerMain.SplitterWidth = 2;
             splitContainerMain.TabIndex = 0;
             // 
-            // treeViewFractals
+            // accordionFractals
             // 
-            treeViewFractals.BorderStyle = BorderStyle.None;
-            treeViewFractals.Dock = DockStyle.Fill;
-            treeViewFractals.Font = new Font("Segoe UI", 11F);
-            treeViewFractals.Location = new Point(10, 10);
-            treeViewFractals.Name = "treeViewFractals";
-            treeViewFractals.ShowLines = false;
-            treeViewFractals.Size = new Size(281, 501);
-            treeViewFractals.TabIndex = 0;
-            treeViewFractals.AfterSelect += treeViewFractals_AfterSelect;
+            accordionFractals.Dock = DockStyle.Fill;
+            accordionFractals.Location = new Point(10, 10);
+            accordionFractals.Name = "accordionFractals";
+            accordionFractals.Size = new Size(281, 501);
+            accordionFractals.TabIndex = 0;
             // 
             // pnlDetails
             // 
@@ -288,7 +284,7 @@
         #endregion
 
         private System.Windows.Forms.SplitContainer splitContainerMain;
-        private System.Windows.Forms.TreeView treeViewFractals;
+        private FractalExplorer.Controls.FractalAccordionPanel accordionFractals;
         private System.Windows.Forms.TableLayoutPanel pnlDetails;
         private System.Windows.Forms.TableLayoutPanel headerPanel;
         private System.Windows.Forms.Label lblFractalName;
