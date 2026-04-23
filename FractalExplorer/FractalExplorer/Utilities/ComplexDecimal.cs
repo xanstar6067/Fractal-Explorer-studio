@@ -1,6 +1,4 @@
-﻿using FractalExplorer.Utilities;
-
-namespace FractalExplorer.Resources
+﻿namespace FractalExplorer.Utilities
 {
     /// <summary>
     /// Представляет комплексное число, используя тип decimal для высокой точности.

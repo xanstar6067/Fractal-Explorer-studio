@@ -1,4 +1,4 @@
-﻿using FractalExplorer.Resources;
+﻿using FractalExplorer.Utilities;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 

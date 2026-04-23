@@ -1,6 +1,6 @@
 ﻿using FractalDraving;
 using FractalExplorer.Engines;
-using FractalExplorer.Resources;
+using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;

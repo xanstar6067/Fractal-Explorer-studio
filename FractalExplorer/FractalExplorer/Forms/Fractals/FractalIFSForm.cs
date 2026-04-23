@@ -1,9 +1,8 @@
 ﻿using FractalExplorer.Engines;
 using FractalExplorer.Forms.Common;
 using FractalExplorer.Forms.Other;
-using FractalExplorer.Resources;
-using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities;
+using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.UI;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;

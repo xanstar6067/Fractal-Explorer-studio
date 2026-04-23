@@ -1,7 +1,7 @@
 ﻿using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using FractalExplorer.Engines;
-using FractalExplorer.Resources;
+using FractalExplorer.Utilities;
 
 using FractalExplorer.Utilities.Theme;
 namespace FractalExplorer.SelectorsForms

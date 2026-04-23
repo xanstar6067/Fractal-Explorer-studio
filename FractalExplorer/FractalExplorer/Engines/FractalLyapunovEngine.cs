@@ -1,8 +1,9 @@
-﻿using FractalExplorer.Resources;
+﻿using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.Coloring;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using FractalExplorer.Utilities.RenderUtilities;
 
 namespace FractalExplorer.Engines
 {

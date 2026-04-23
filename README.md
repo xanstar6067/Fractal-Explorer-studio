@@ -58,6 +58,14 @@ The color configuration system has been completely overhauled. You now have thre
   - *Newton's Pools:* Root-finding algorithms were optimized, providing an average performance boost of 20% across all scenarios.
 - **RAM Usage:** High architectural efficiency keeps application memory footprint under 100 MB even during complex calculations.
 
+## 🧭 Development Convention: Namespaces
+
+- **Canonical rule:** namespace follows physical file path.
+- For example:
+  - `FractalExplorer/Utilities/ComplexDecimal.cs` → `namespace FractalExplorer.Utilities`
+  - `FractalExplorer/Utilities/RenderUtilities/TileInfo.cs` → `namespace FractalExplorer.Utilities.RenderUtilities`
+- Do not place utility/domain types into `FractalExplorer.Resources` unless the file is physically placed in a matching `Resources/` code folder.
+
 ## 🖼️ Gallery and Interface
 
 Below is a detailed overview of the application's features and windows.
@@ -207,6 +215,14 @@ This project is distributed under the Apache 2.0 license. The full text of the l
   - *Мандельброт:* Внедрена проверка нахождения точек внутри основной кардиоиды и бульбы периода 2. Это позволило сократить время рендера низких глубин ("мелководья") в десятки раз (например, с 0.4 сек до 0.02 сек).
   - *Бассейны Ньютона:* Алгоритмы поиска корней оптимизированы, что дало прирост производительности в среднем на 20% во всех сценариях.
 - **Потребление ОЗУ:** Высокая эффективность архитектуры позволяет приложению потреблять до 100 МБ оперативной памяти даже при сложных расчетах.
+
+## 🧭 Соглашение разработки: пространства имен
+
+- **Каноничное правило:** пространство имен следует физическому пути файла.
+- Примеры:
+  - `FractalExplorer/Utilities/ComplexDecimal.cs` → `namespace FractalExplorer.Utilities`
+  - `FractalExplorer/Utilities/RenderUtilities/TileInfo.cs` → `namespace FractalExplorer.Utilities.RenderUtilities`
+- Не размещайте utility/domain-типы в `FractalExplorer.Resources`, если файл физически не лежит в соответствующей папке `Resources/` с кодом.
 
 ## 🖼️ Галерея и Интерфейс
 

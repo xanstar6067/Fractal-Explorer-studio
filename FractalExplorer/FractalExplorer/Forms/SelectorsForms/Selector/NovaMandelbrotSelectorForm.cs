@@ -1,4 +1,4 @@
-﻿using FractalExplorer.Resources;
+﻿using FractalExplorer.Utilities;
 using System.Drawing.Imaging;
 using System.Numerics;
 using System.Runtime.InteropServices;

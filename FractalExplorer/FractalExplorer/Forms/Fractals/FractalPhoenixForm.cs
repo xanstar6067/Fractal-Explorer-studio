@@ -1,6 +1,5 @@
 ﻿using FractalExplorer.Utilities;
 using FractalExplorer.Engines;
-using FractalExplorer.Resources;
 using FractalExplorer.SelectorsForms;
 using System.Drawing.Imaging;
 using System.Globalization;

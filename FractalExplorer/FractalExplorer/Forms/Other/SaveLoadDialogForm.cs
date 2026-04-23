@@ -2,13 +2,13 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.VisualBasic.FileIO;
-using FractalExplorer.Resources;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 
 using FractalExplorer.Utilities.Theme;
 using System.Drawing.Drawing2D;
+using FractalExplorer.Utilities.RenderUtilities;
 namespace FractalExplorer.Forms
 {
     /// <summary>

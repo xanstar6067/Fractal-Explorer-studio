@@ -1,4 +1,4 @@
-﻿namespace FractalExplorer.Resources
+namespace FractalExplorer.Utilities.RenderUtilities
 {
     /// <summary>
     /// Представляет одну плитку (тайл) для мозаичного рендеринга.

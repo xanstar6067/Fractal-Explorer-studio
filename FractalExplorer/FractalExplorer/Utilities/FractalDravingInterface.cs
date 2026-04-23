@@ -1,4 +1,4 @@
-﻿namespace FractalExplorer.Resources
+namespace FractalExplorer.Utilities
 {
     /// <summary>
     /// Определяет общий контракт для форм фракталов,

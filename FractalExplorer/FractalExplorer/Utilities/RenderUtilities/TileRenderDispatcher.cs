@@ -1,6 +1,6 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
-namespace FractalExplorer.Resources
+namespace FractalExplorer.Utilities.RenderUtilities
 {
     /// <summary>
     /// Стратегия выбора порядка плиток перед распределением по рабочим потокам.

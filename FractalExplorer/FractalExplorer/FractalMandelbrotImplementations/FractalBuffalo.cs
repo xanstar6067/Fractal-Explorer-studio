@@ -1,10 +1,11 @@
 ﻿using FractalDraving;
 using FractalExplorer.Engines;
-using FractalExplorer.Resources;
+using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.SaveIO;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using System.Text.Json;
+using FractalExplorer.Utilities.RenderUtilities;
 
 namespace FractalExplorer.Projects
 {

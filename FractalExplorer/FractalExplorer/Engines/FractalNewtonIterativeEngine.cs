@@ -1,9 +1,10 @@
 ﻿using FractalExplorer.Parsers;
-using FractalExplorer.Resources;
+using FractalExplorer.Utilities;
 using System.Drawing.Imaging;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using FractalExplorer.Utilities.RenderUtilities;
 
 namespace FractalExplorer.Engines
 {
