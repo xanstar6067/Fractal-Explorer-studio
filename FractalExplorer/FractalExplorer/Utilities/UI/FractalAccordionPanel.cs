@@ -102,10 +102,43 @@ namespace FractalExplorer.Controls
             RebuildLayout();
         }
 
+        /// <summary>
+        /// Выбирает первый доступный элемент списка (первый фрактал первой категории).
+        /// </summary>
+        public void SelectFirstItem(bool ensureVisible = false)
+        {
+            if (_blocks.Count == 0)
+            {
+                return;
+            }
+
+            if (!_openBlockIndices.Contains(0))
+            {
+                _openBlockIndices.Add(0);
+            }
+
+            RebuildLayout();
+
+            ItemRow? firstItem = _blocks[0].ItemControls.FirstOrDefault();
+            if (firstItem == null)
+            {
+                return;
+            }
+
+            OnItemClicked(firstItem);
+
+            if (ensureVisible)
+            {
+                ScrollControlIntoView(firstItem);
+            }
+        }
+
         private void RebuildLayout()
         {
+            Point previousScroll = AutoScrollPosition;
             SuspendLayout();
             Controls.Clear();
+            AutoScrollMinSize = Size.Empty;
 
             int y = Padding.Top;
             const int blockGap = 4;
@@ -165,6 +198,13 @@ namespace FractalExplorer.Controls
                     }
                 }
             }
+
+            AutoScrollMinSize = new Size(0, y + Padding.Bottom);
+
+            int previousScrollY = Math.Abs(previousScroll.Y);
+            int maxScrollY = Math.Max(0, AutoScrollMinSize.Height - ClientSize.Height);
+            int clampedScrollY = Math.Min(previousScrollY, maxScrollY);
+            AutoScrollPosition = new Point(0, clampedScrollY);
 
             ResumeLayout(true);
         }
@@ -269,6 +309,7 @@ namespace FractalExplorer.Controls
                 SelectedText: t.PrimaryText,
                 NormalText: t.SecondaryText,
                 CategoryText: t.SecondaryText,
+                CategoryTextOpen: t.PrimaryText,
                 Separator: t.BorderColor,
                 CategoryBg: t.ControlBackground,
                 CategoryBgOpen: t.PanelBackground
@@ -295,6 +336,7 @@ namespace FractalExplorer.Controls
             Color SelectedText,
             Color NormalText,
             Color CategoryText,
+            Color CategoryTextOpen,
             Color Separator,
             Color CategoryBg,
             Color CategoryBgOpen
@@ -340,7 +382,9 @@ namespace FractalExplorer.Controls
                 Graphics g = e.Graphics;
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-                Color bg = _isOpen ? _colors.CategoryBgOpen : _isHovered ? _colors.Hover : _colors.CategoryBg;
+                Color bg = _isOpen
+                    ? (_isHovered ? Blend(_colors.CategoryBgOpen, _colors.Hover, 0.35d) : _colors.CategoryBgOpen)
+                    : (_isHovered ? _colors.Hover : _colors.CategoryBg);
                 g.Clear(bg);
 
                 if (_isOpen)
@@ -355,7 +399,7 @@ namespace FractalExplorer.Controls
                     g.DrawLine(sep, 0, Height - 1, Width, Height - 1);
                 }
 
-                Color textColor = _isOpen ? _colors.Accent : _colors.CategoryText;
+                Color textColor = _isOpen ? _colors.CategoryTextOpen : _colors.CategoryText;
                 TextRenderer.DrawText(
                     g,
                     Text,
@@ -365,6 +409,19 @@ namespace FractalExplorer.Controls
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
 
                 DrawArrow(g, _isOpen, textColor);
+            }
+
+            private static Color Blend(Color bottom, Color top, double topWeight)
+            {
+                topWeight = Math.Clamp(topWeight, 0d, 1d);
+                double bottomWeight = 1d - topWeight;
+
+                int a = (int)Math.Round(bottom.A * bottomWeight + top.A * topWeight);
+                int r = (int)Math.Round(bottom.R * bottomWeight + top.R * topWeight);
+                int g = (int)Math.Round(bottom.G * bottomWeight + top.G * topWeight);
+                int b = (int)Math.Round(bottom.B * bottomWeight + top.B * topWeight);
+
+                return Color.FromArgb(a, r, g, b);
             }
 
             private void DrawArrow(Graphics g, bool open, Color color)

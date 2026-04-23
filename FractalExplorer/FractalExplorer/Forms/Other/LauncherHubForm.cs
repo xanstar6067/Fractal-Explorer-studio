@@ -81,6 +81,7 @@ namespace FractalExplorer
 
             InitializeFractalCatalog();
             PopulateAccordion();
+            SelectDefaultFractal();
             InitializeRenderPatternSelector();
             InitializeThemeSelector();
             ThemeManager.ThemesChanged += ThemeManager_ThemesChanged;
@@ -580,6 +581,16 @@ namespace FractalExplorer
             accordionFractals.Populate(entries);
             accordionFractals.ItemSelected += AccordionFractals_ItemSelected;
             accordionFractals.ItemDoubleClicked += AccordionFractals_ItemDoubleClicked;
+        }
+
+        private void SelectDefaultFractal()
+        {
+            if (_fractalCatalog.Count == 0)
+            {
+                return;
+            }
+
+            accordionFractals.SelectFirstItem();
         }
 
         private void AccordionFractals_ItemSelected(
