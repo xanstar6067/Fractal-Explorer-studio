@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FractalExplorer.Engines;
+using FractalExplorer.Forms.Common;
 using FractalExplorer.Forms.Other;
 using FractalExplorer.Utilities;
 using FractalExplorer.Utilities.RenderUtilities;
@@ -57,6 +58,8 @@ namespace FractalExplorer.Forms.Fractals
         private bool _suppressZoomValueChanged;
         private int _controlsOpenWidth = 231;
         private Point _panStart;
+
+        private Color _backgroundColor = Color.Black;
 
         private decimal _centerX = 0.5m;
         private decimal _centerY = 0.5m;
@@ -334,7 +337,15 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
         {
-            e.Graphics.Clear(Color.Black);
+            if (_backgroundColor.A == 0)
+            {
+                DrawTransparencyChecker(e.Graphics, _canvas.ClientRectangle);
+            }
+            else
+            {
+                e.Graphics.Clear(_backgroundColor);
+            }
+
             lock (_bitmapLock)
             {
                 if (_previewBitmap != null)
@@ -343,6 +354,21 @@ namespace FractalExplorer.Forms.Fractals
                     e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
                     RectangleF destination = CalculateDestinationRectangle(_canvas.ClientSize, _previewBitmap.Size);
                     e.Graphics.DrawImage(_previewBitmap, destination);
+                }
+            }
+        }
+
+        private static void DrawTransparencyChecker(Graphics graphics, Rectangle bounds)
+        {
+            graphics.Clear(Color.White);
+            const int checkerSize = 12;
+            using Brush checkerBrush = new SolidBrush(Color.FromArgb(232, 232, 232));
+            for (int y = 0; y < bounds.Height; y += checkerSize)
+            {
+                int row = y / checkerSize;
+                for (int x = (row % 2 == 0 ? 0 : checkerSize); x < bounds.Width; x += checkerSize * 2)
+                {
+                    graphics.FillRectangle(checkerBrush, x, y, checkerSize, checkerSize);
                 }
             }
         }
@@ -470,18 +496,41 @@ namespace FractalExplorer.Forms.Fractals
             return RenderOrbitBuffer(width, height, _centerX, _centerY, _zoom, CaptureUiRenderSettings(), ct, progress, GetThreadCount());
         }
 
-        private byte[] RenderCurrentModeBuffer(LogisticVisualizationMode mode, int width, int height, decimal centerX, decimal centerY, decimal zoom, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        private byte[] RenderCurrentModeBuffer(
+            LogisticVisualizationMode mode,
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
-            return RenderCurrentModeBuffer(mode, width, height, centerX, centerY, zoom, CaptureUiRenderSettings(), ct, progress, maxDegreeOfParallelism);
+            return RenderCurrentModeBuffer(mode, width, height, centerX, centerY, zoom, CaptureUiRenderSettings(), ct, progress, maxDegreeOfParallelism, drawAxes, backgroundColor);
         }
 
-        private byte[] RenderCurrentModeBuffer(LogisticVisualizationMode mode, int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        private byte[] RenderCurrentModeBuffer(
+            LogisticVisualizationMode mode,
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            LogisticRenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
             return mode switch
             {
-                LogisticVisualizationMode.Bifurcation => RenderBifurcationBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, maxDegreeOfParallelism),
-                LogisticVisualizationMode.Cobweb => RenderCobwebBuffer(width, height, centerX, centerY, zoom, settings, ct, progress),
-                _ => RenderOrbitBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, maxDegreeOfParallelism)
+                LogisticVisualizationMode.Bifurcation => RenderBifurcationBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, maxDegreeOfParallelism, drawAxes, backgroundColor),
+                LogisticVisualizationMode.Cobweb => RenderCobwebBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, backgroundColor),
+                _ => RenderOrbitBuffer(width, height, centerX, centerY, zoom, settings, ct, progress, maxDegreeOfParallelism, drawAxes, backgroundColor)
             };
         }
 
@@ -531,19 +580,50 @@ namespace FractalExplorer.Forms.Fractals
             };
         }
 
-        private byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        private byte[] RenderOrbitBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            LogisticRenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
-            return FractalLogisticMapEngine.RenderOrbitBuffer(width, height, centerX, centerY, zoom, ToEngineSettings(settings), ct, progress, maxDegreeOfParallelism);
+            return FractalLogisticMapEngine.RenderOrbitBuffer(width, height, centerX, centerY, zoom, ToEngineSettings(settings), ct, progress, maxDegreeOfParallelism, drawAxes, backgroundColor);
         }
 
-        private byte[] RenderBifurcationBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        private byte[] RenderBifurcationBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            LogisticRenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
-            return FractalLogisticMapEngine.RenderBifurcationBuffer(width, height, centerX, centerY, zoom, ToEngineSettings(settings), ct, progress, maxDegreeOfParallelism);
+            return FractalLogisticMapEngine.RenderBifurcationBuffer(width, height, centerX, centerY, zoom, ToEngineSettings(settings), ct, progress, maxDegreeOfParallelism, drawAxes, backgroundColor);
         }
 
-        private byte[] RenderCobwebBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, LogisticRenderSettings settings, CancellationToken ct, IProgress<int>? progress = null)
+        private byte[] RenderCobwebBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            LogisticRenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            Color backgroundColor = default)
         {
-            return FractalLogisticMapEngine.RenderCobwebBuffer(width, height, ToEngineSettings(settings), ct, progress);
+            return FractalLogisticMapEngine.RenderCobwebBuffer(width, height, ToEngineSettings(settings), ct, progress, backgroundColor);
         }
 
         private static FractalLogisticMapEngine.RenderSettings ToEngineSettings(LogisticRenderSettings settings)
@@ -609,6 +689,17 @@ namespace FractalExplorer.Forms.Fractals
                 _controlsHost.Visible = true;
                 _btnToggleControls.Text = "✕";
                 _btnToggleControls.Location = new Point(_controlsHost.Width + 25, 12);
+            }
+        }
+
+        private void btnBackgroundColor_Click(object sender, EventArgs e)
+        {
+            using var dialog = new ColorPickerPanelForm(_backgroundColor);
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _backgroundColor = dialog.SelectedColor;
+                _canvas.Invalidate();
+                ScheduleRender();
             }
         }
 
@@ -831,7 +922,19 @@ namespace FractalExplorer.Forms.Fractals
                 {
                     int w = Math.Max(1, width);
                     int h = Math.Max(1, height);
-                    byte[] buffer = RenderCurrentModeBuffer(mode, w, h, centerX, centerY, zoom, settings, cancellationToken);
+                    byte[] buffer = RenderCurrentModeBuffer(
+                        mode,
+                        w,
+                        h,
+                        centerX,
+                        centerY,
+                        zoom,
+                        settings,
+                        cancellationToken,
+                        null,
+                        null,
+                        drawAxes: false,
+                        backgroundColor: _backgroundColor);
                     var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
                     var rect = new Rectangle(0, 0, w, h);
                     BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
@@ -850,7 +953,19 @@ namespace FractalExplorer.Forms.Fractals
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
         {
             LogisticRenderSettings settings = CaptureUiRenderSettings();
-            byte[] buffer = RenderCurrentModeBuffer(_mode, previewWidth, previewHeight, _centerX, _centerY, _zoom, settings, CancellationToken.None);
+            byte[] buffer = RenderCurrentModeBuffer(
+                _mode,
+                previewWidth,
+                previewHeight,
+                _centerX,
+                _centerY,
+                _zoom,
+                settings,
+                CancellationToken.None,
+                null,
+                null,
+                drawAxes: false,
+                backgroundColor: _backgroundColor);
             var bmp = new Bitmap(previewWidth, previewHeight, PixelFormat.Format32bppArgb);
             var rect = new Rectangle(0, 0, previewWidth, previewHeight);
             BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);

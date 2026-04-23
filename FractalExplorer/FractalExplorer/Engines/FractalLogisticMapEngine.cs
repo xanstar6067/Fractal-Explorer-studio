@@ -19,9 +19,25 @@ namespace FractalExplorer.Engines
             public List<Color> PaletteColors { get; init; } = new();
         }
 
-        public static byte[] RenderOrbitBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, RenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        public static byte[] RenderOrbitBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            RenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
             byte[] buffer = new byte[width * height * 4];
+            if (backgroundColor.A > 0)
+            {
+                FillBackground(buffer, backgroundColor);
+            }
+
             int iterations = settings.Iterations;
             int transient = Math.Min(settings.TransientIterations, Math.Max(0, iterations - 1));
             double r = (double)settings.R;
@@ -39,7 +55,10 @@ namespace FractalExplorer.Engines
 
             if (iterations <= 0)
             {
-                DrawFallbackAxes(buffer, width, height, minX, maxX, minY, maxY);
+                if (drawAxes)
+                {
+                    DrawFallbackAxes(buffer, width, height, minX, maxX, minY, maxY);
+                }
                 progress?.Report(100);
                 return buffer;
             }
@@ -128,7 +147,7 @@ namespace FractalExplorer.Engines
                 }
             }
 
-            if (plotted == 0)
+            if (plotted == 0 && drawAxes)
             {
                 DrawFallbackAxes(buffer, width, height, minX, maxX, minY, maxY);
             }
@@ -137,9 +156,25 @@ namespace FractalExplorer.Engines
             return buffer;
         }
 
-        public static byte[] RenderBifurcationBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, RenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        public static byte[] RenderBifurcationBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            RenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
+            Color backgroundColor = default)
         {
             byte[] buffer = new byte[width * height * 4];
+            if (backgroundColor.A > 0)
+            {
+                FillBackground(buffer, backgroundColor);
+            }
+
             decimal rMin = Math.Min(settings.BifurcationRMin, settings.BifurcationRMax);
             decimal rMax = Math.Max(settings.BifurcationRMin, settings.BifurcationRMax);
             int rSamples = settings.BifurcationSamples;
@@ -158,7 +193,10 @@ namespace FractalExplorer.Engines
 
             if (rSamples <= 0 || plottedPoints <= 0 || rMax <= rMin)
             {
-                DrawFallbackAxes(buffer, width, height, viewRMin, viewRMax, viewYMin, viewYMax);
+                if (drawAxes)
+                {
+                    DrawFallbackAxes(buffer, width, height, viewRMin, viewRMax, viewYMin, viewYMax);
+                }
                 progress?.Report(100);
                 return buffer;
             }
@@ -237,14 +275,28 @@ namespace FractalExplorer.Engines
                 }
             }
 
-            DrawFallbackAxes(buffer, width, height, viewRMin, viewRMax, viewYMin, viewYMax);
+            if (drawAxes)
+            {
+                DrawFallbackAxes(buffer, width, height, viewRMin, viewRMax, viewYMin, viewYMax);
+            }
             progress?.Report(100);
             return buffer;
         }
 
-        public static byte[] RenderCobwebBuffer(int width, int height, RenderSettings settings, CancellationToken ct, IProgress<int>? progress = null)
+        public static byte[] RenderCobwebBuffer(
+            int width,
+            int height,
+            RenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            Color backgroundColor = default)
         {
             byte[] buffer = new byte[width * height * 4];
+            if (backgroundColor.A > 0)
+            {
+                FillBackground(buffer, backgroundColor);
+            }
+
             decimal min = 0m;
             decimal max = 1m;
             double r = (double)settings.R;
@@ -329,6 +381,22 @@ namespace FractalExplorer.Engines
                     err += dx;
                     py0 += sy;
                 }
+            }
+        }
+
+        private static void FillBackground(byte[] buffer, Color color)
+        {
+            byte b = color.B;
+            byte g = color.G;
+            byte r = color.R;
+            byte a = color.A;
+
+            for (int i = 0; i < buffer.Length; i += 4)
+            {
+                buffer[i] = b;
+                buffer[i + 1] = g;
+                buffer[i + 2] = r;
+                buffer[i + 3] = a;
             }
         }
 
