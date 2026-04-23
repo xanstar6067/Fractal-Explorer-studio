@@ -2,7 +2,6 @@
 using FractalExplorer.Forms.Fractals;
 using FractalExplorer.Forms.Other;
 using FractalExplorer.Projects;
-using FractalExplorer.Utilities;
 using FractalExplorer.Properties;
 using FractalExplorer.Utilities.Theme;
 using System.Runtime;

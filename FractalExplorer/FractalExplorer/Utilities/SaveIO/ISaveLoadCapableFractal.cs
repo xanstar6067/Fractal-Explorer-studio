@@ -1,5 +1,4 @@
-﻿using FractalExplorer.Utilities;
-using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
+﻿using FractalExplorer.Utilities.SaveIO.SaveStateImplementations;
 using FractalExplorer.Utilities.RenderUtilities;
 
 namespace FractalExplorer.Utilities.SaveIO

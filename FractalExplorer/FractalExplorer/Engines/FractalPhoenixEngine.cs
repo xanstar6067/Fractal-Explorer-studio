@@ -1,5 +1,4 @@
 ﻿using FractalExplorer.Utilities;
-using FractalExplorer.Utilities; // NEW: Подключаем пространство имен для ComplexDouble
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using FractalExplorer.Utilities.RenderUtilities;

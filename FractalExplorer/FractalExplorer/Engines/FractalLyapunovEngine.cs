@@ -1,5 +1,4 @@
-﻿using FractalExplorer.Utilities;
-using FractalExplorer.Utilities.Coloring;
+﻿using FractalExplorer.Utilities.Coloring;
 using FractalExplorer.Utilities.SaveIO.ColorPalettes;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;

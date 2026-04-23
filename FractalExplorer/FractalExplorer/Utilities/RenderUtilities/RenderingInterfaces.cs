@@ -1,5 +1,4 @@
 ﻿using FractalExplorer.Engines;
-using FractalExplorer.Utilities;
 
 namespace FractalExplorer.Utilities.RenderUtilities
 {
