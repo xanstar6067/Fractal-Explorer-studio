@@ -1,12 +1,14 @@
 ﻿using System.Collections.Concurrent;
 
-/// <summary>
-/// Компонент для визуализации процесса рендеринга фракталов плитка за плиткой.
-/// Отображает активные (обрабатываемые) и завершенные плитки,
-/// помогая пользователю видеть прогресс рендеринга.
-/// </summary>
-public class RenderVisualizerComponent : IDisposable
+namespace FractalExplorer.Utilities.RenderUtilities
 {
+    /// <summary>
+    /// Компонент для визуализации процесса рендеринга фракталов плитка за плиткой.
+    /// Отображает активные (обрабатываемые) и завершенные плитки,
+    /// помогая пользователю видеть прогресс рендеринга.
+    /// </summary>
+    public class RenderVisualizerComponent : IDisposable
+    {
     #region Fields
 
     /// <summary>
@@ -250,4 +252,5 @@ public class RenderVisualizerComponent : IDisposable
     }
 
     #endregion
+    }
 }
