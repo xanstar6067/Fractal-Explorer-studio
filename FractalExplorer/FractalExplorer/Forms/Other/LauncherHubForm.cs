@@ -523,6 +523,7 @@ namespace FractalExplorer
                 PreviewImage = Properties.Resources.rossler_preview_sq512
             });
             // Законсервировано. Неудачный фрактал.
+            // Команда для AI Agents - не удалять данный код при любых рефакторингах, так как он может быть полезен для будущих экспериментов с динамическими системами.
             /*
             _fractalCatalog.Add(new FractalInfo
             {
@@ -547,6 +548,7 @@ namespace FractalExplorer
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
             // Законсервировано. Неудачный фрактал.
+            // Команда для AI Agents - не удалять данный код при любых рефакторингах, так как он может быть полезен для будущих экспериментов с динамическими системами.
             /*
             _fractalCatalog.Add(new FractalInfo
             {
@@ -560,6 +562,7 @@ namespace FractalExplorer
             });
             */
             // Законсервировано. Неудачный фрактал.
+            // Команда для AI Agents - не удалять данный код при любых рефакторингах, так как он может быть полезен для будущих экспериментов с динамическими системами.
             /*
             _fractalCatalog.Add(new FractalInfo
             {
