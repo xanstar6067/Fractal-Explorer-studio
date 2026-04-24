@@ -113,9 +113,8 @@ namespace FractalExplorer.Engines
 
             int completedSamples = 0;
             int lastReportedPercent = -1;
-            bool hasSingleSeed = samplesPerR <= 1;
             decimal xRange = xMax - xMin;
-            decimal seedFactor = hasSingleSeed ? 0m : 1m / (samplesPerR - 1);
+            decimal seedFactor = samplesPerR <= 1 ? 0.5m : 1m / (samplesPerR + 1);
 
             Parallel.For(0, actualWorkers, new ParallelOptions
             {
@@ -150,7 +149,7 @@ namespace FractalExplorer.Engines
 
                     for (int seed = 0; seed < samplesPerR; seed++)
                     {
-                        decimal seedT = hasSingleSeed ? 0m : seed * seedFactor;
+                        decimal seedT = samplesPerR <= 1 ? seedFactor : (seed + 1) * seedFactor;
                         double x = (double)(xMin + xRange * seedT);
 
                         for (int k = 0; k < transient; k++)
