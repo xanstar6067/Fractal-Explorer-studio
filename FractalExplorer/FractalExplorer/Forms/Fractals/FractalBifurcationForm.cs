@@ -365,7 +365,18 @@ namespace FractalExplorer.Forms.Fractals
                 BifurcationRenderSettings settings = CaptureUiRenderSettings();
 
                 byte[] buffer = await Task.Run(
-                    () => RenderBifurcationBuffer(width, height, renderCenterX, renderCenterY, renderZoom, settings, cts.Token, progress, GetThreadCount(), _pointColor, _backgroundColor),
+                    () => RenderBifurcationBuffer(
+                        width,
+                        height,
+                        renderCenterX,
+                        renderCenterY,
+                        renderZoom,
+                        settings,
+                        cts.Token,
+                        progress,
+                        GetThreadCount(),
+                        pointColor: _pointColor,
+                        backgroundColor: _backgroundColor),
                     cts.Token);
 
                 if (cts.IsCancellationRequested || renderGeneration != Volatile.Read(ref _renderGeneration) || _isFormClosing || IsDisposed)
@@ -456,6 +467,7 @@ namespace FractalExplorer.Forms.Fractals
             CancellationToken ct,
             IProgress<int>? progress = null,
             int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
             Color pointColor = default,
             Color backgroundColor = default)
         {
@@ -478,6 +490,7 @@ namespace FractalExplorer.Forms.Fractals
                 ct,
                 progress,
                 maxDegreeOfParallelism,
+                drawAxes,
                 pointColor,
                 backgroundColor);
         }
@@ -773,7 +786,19 @@ namespace FractalExplorer.Forms.Fractals
                 {
                     int w = Math.Max(1, width);
                     int h = Math.Max(1, height);
-                    byte[] buffer = RenderBifurcationBuffer(w, h, centerX, centerY, zoom, settings, cancellationToken, null, threads, _pointColor, _backgroundColor);
+                    byte[] buffer = RenderBifurcationBuffer(
+                        w,
+                        h,
+                        centerX,
+                        centerY,
+                        zoom,
+                        settings,
+                        cancellationToken,
+                        null,
+                        threads,
+                        drawAxes: false,
+                        pointColor: _pointColor,
+                        backgroundColor: _backgroundColor);
                     var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
                     var rect = new Rectangle(0, 0, w, h);
                     BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);

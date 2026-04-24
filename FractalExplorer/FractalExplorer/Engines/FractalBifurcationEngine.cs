@@ -25,6 +25,7 @@ namespace FractalExplorer.Engines
             CancellationToken ct,
             IProgress<int>? progress = null,
             int? maxDegreeOfParallelism = null,
+            bool drawAxes = true,
             Color pointColor = default,
             Color backgroundColor = default)
         {
@@ -58,7 +59,10 @@ namespace FractalExplorer.Engines
 
             if (iterations <= 0 || samplesPerR <= 0 || rMax <= rMin || xMax <= xMin)
             {
-                DrawAxes(buffer, width, height, viewRMin, viewRMax, viewXMin, viewXMax);
+                if (drawAxes)
+                {
+                    DrawAxes(buffer, width, height, viewRMin, viewRMax, viewXMin, viewXMax);
+                }
                 progress?.Report(100);
                 return buffer;
             }
@@ -193,7 +197,10 @@ namespace FractalExplorer.Engines
                 buffer[idx + 3] = resolvedPointColor.A;
             }
 
-            DrawAxes(buffer, width, height, viewRMin, viewRMax, viewXMin, viewXMax);
+            if (drawAxes)
+            {
+                DrawAxes(buffer, width, height, viewRMin, viewRMax, viewXMin, viewXMax);
+            }
             progress?.Report(100);
             return buffer;
         }
