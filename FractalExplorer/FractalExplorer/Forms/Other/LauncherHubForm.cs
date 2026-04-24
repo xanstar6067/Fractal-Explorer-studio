@@ -522,7 +522,8 @@ namespace FractalExplorer
                               "Особенности: zoom/панорама как в экранах Мандельброта, настройка a/b/c/dt, стартовой точки, числа шагов и сохранение состояний.",
                 PreviewImage = Properties.Resources.rossler_preview_sq512
             });
-
+            // Законсервировано. Неудачный фрактал.
+            /*
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Динамические системы",
@@ -533,6 +534,7 @@ namespace FractalExplorer
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка r/x₀/iterations/transient, сохранение состояния и изображений.",
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
+            */
 
             _fractalCatalog.Add(new FractalInfo
             {
@@ -544,7 +546,8 @@ namespace FractalExplorer
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, параметры диапазонов r/x и плотности выборки, сохранение состояния и изображений.",
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
-
+            // Законсервировано. Неудачный фрактал.
+            /*
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Динамические системы",
@@ -555,7 +558,9 @@ namespace FractalExplorer
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка a/b/x₀/y₀/iterations/discard, сохранение состояния и изображений.",
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
-
+            */
+            // Законсервировано. Неудачный фрактал.
+            /*
             _fractalCatalog.Add(new FractalInfo
             {
                 Family = "Динамические системы",
@@ -566,6 +571,7 @@ namespace FractalExplorer
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка u/x₀/y₀/iterations/discard и диапазонов отображения, сохранение состояния и изображений.",
                 PreviewImage = Properties.Resources.logistic_map_preview_sq512
             });
+            */
         }
 
         private void PopulateAccordion()
