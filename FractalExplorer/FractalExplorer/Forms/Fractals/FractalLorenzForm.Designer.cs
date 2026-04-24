@@ -459,9 +459,9 @@ namespace FractalExplorer.Forms.Fractals
             _btnState.Text = "Менеджер сохранений";
             _btnState.UseVisualStyleBackColor = true;
             _btnState.Click += btnState_Click;
-            //
+            // 
             // _btnBackgroundColor
-            //
+            // 
             _pnlControls.SetColumnSpan(_btnBackgroundColor, 2);
             _btnBackgroundColor.Dock = DockStyle.Fill;
             _btnBackgroundColor.Location = new Point(6, 505);
@@ -472,9 +472,9 @@ namespace FractalExplorer.Forms.Fractals
             _btnBackgroundColor.Text = "Цвет фона";
             _btnBackgroundColor.UseVisualStyleBackColor = true;
             _btnBackgroundColor.Click += btnBackgroundColor_Click;
-            //
+            // 
             // _lblProgress
-            //
+            // 
             _lblProgress.AutoSize = true;
             _pnlControls.SetColumnSpan(_lblProgress, 2);
             _lblProgress.Dock = DockStyle.Fill;
@@ -485,9 +485,9 @@ namespace FractalExplorer.Forms.Fractals
             _lblProgress.TabIndex = 27;
             _lblProgress.Text = "Обработка";
             _lblProgress.TextAlign = ContentAlignment.MiddleLeft;
-            //
+            // 
             // _pbRenderProgress
-            //
+            // 
             _pbRenderProgress.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             _pnlControls.SetColumnSpan(_pbRenderProgress, 2);
             _pbRenderProgress.Location = new Point(6, 570);
@@ -512,7 +512,7 @@ namespace FractalExplorer.Forms.Fractals
             // 
             // _canvas
             // 
-            _canvas.BackColor = Color.Black;
+            _canvas.BackColor = Color.Transparent;
             _canvas.Dock = DockStyle.Fill;
             _canvas.Location = new Point(0, 0);
             _canvas.Name = "_canvas";
