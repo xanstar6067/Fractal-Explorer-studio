@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FractalExplorer.Engines;
+using FractalExplorer.Forms.Common;
 using FractalExplorer.Forms.Other;
 using FractalExplorer.Utilities.RenderUtilities;
 using FractalExplorer.Utilities.SaveIO;
@@ -31,6 +32,8 @@ namespace FractalExplorer.Forms.Fractals
         private bool _suppressZoomValueChanged;
         private int _controlsOpenWidth = 231;
         private Point _panStart;
+        private Color _backgroundColor = Color.Black;
+        private Color _pointColor = Color.White;
 
         private decimal _centerX = 3.4m;
         private decimal _centerY = 0.5m;
@@ -255,7 +258,15 @@ namespace FractalExplorer.Forms.Fractals
 
         private void Canvas_Paint(object? sender, PaintEventArgs e)
         {
-            e.Graphics.Clear(Color.Black);
+            if (_backgroundColor.A == 0)
+            {
+                DrawTransparencyChecker(e.Graphics, _canvas.ClientRectangle);
+            }
+            else
+            {
+                e.Graphics.Clear(_backgroundColor);
+            }
+
             lock (_bitmapLock)
             {
                 if (_previewBitmap != null)
@@ -264,6 +275,21 @@ namespace FractalExplorer.Forms.Fractals
                     e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
                     RectangleF destination = CalculateDestinationRectangle(_canvas.ClientSize, _previewBitmap.Size);
                     e.Graphics.DrawImage(_previewBitmap, destination);
+                }
+            }
+        }
+
+        private static void DrawTransparencyChecker(Graphics graphics, Rectangle bounds)
+        {
+            graphics.Clear(Color.White);
+            const int checkerSize = 12;
+            using Brush checkerBrush = new SolidBrush(Color.FromArgb(232, 232, 232));
+            for (int y = 0; y < bounds.Height; y += checkerSize)
+            {
+                int row = y / checkerSize;
+                for (int x = (row % 2 == 0 ? 0 : checkerSize); x < bounds.Width; x += checkerSize * 2)
+                {
+                    graphics.FillRectangle(checkerBrush, x, y, checkerSize, checkerSize);
                 }
             }
         }
@@ -339,7 +365,7 @@ namespace FractalExplorer.Forms.Fractals
                 BifurcationRenderSettings settings = CaptureUiRenderSettings();
 
                 byte[] buffer = await Task.Run(
-                    () => RenderBifurcationBuffer(width, height, renderCenterX, renderCenterY, renderZoom, settings, cts.Token, progress, GetThreadCount()),
+                    () => RenderBifurcationBuffer(width, height, renderCenterX, renderCenterY, renderZoom, settings, cts.Token, progress, GetThreadCount(), _pointColor, _backgroundColor),
                     cts.Token);
 
                 if (cts.IsCancellationRequested || renderGeneration != Volatile.Read(ref _renderGeneration) || _isFormClosing || IsDisposed)
@@ -429,7 +455,9 @@ namespace FractalExplorer.Forms.Fractals
             BifurcationRenderSettings settings,
             CancellationToken ct,
             IProgress<int>? progress = null,
-            int? maxDegreeOfParallelism = null)
+            int? maxDegreeOfParallelism = null,
+            Color pointColor = default,
+            Color backgroundColor = default)
         {
             return FractalBifurcationEngine.RenderBuffer(
                 width,
@@ -449,7 +477,9 @@ namespace FractalExplorer.Forms.Fractals
                 },
                 ct,
                 progress,
-                maxDegreeOfParallelism);
+                maxDegreeOfParallelism,
+                pointColor,
+                backgroundColor);
         }
 
         private CancellationTokenSource StartNewRender()
@@ -501,6 +531,27 @@ namespace FractalExplorer.Forms.Fractals
         }
 
         private void btnRender_Click(object sender, EventArgs e) => ScheduleRender();
+
+        private void btnBackgroundColor_Click(object sender, EventArgs e)
+        {
+            using var dialog = new ColorPickerPanelForm(_backgroundColor);
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _backgroundColor = dialog.SelectedColor;
+                _canvas.Invalidate();
+                ScheduleRender();
+            }
+        }
+
+        private void btnPointColor_Click(object sender, EventArgs e)
+        {
+            using var dialog = new ColorPickerPanelForm(_pointColor);
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _pointColor = dialog.SelectedColor;
+                ScheduleRender();
+            }
+        }
 
         private void btnReset_Click(object sender, EventArgs e)
         {
@@ -599,7 +650,7 @@ namespace FractalExplorer.Forms.Fractals
             decimal zoom = bifurcation.Zoom == 0 ? 0.01m : bifurcation.Zoom;
             BifurcationRenderSettings settings = BuildRenderSettingsFromSaveState(bifurcation);
 
-            byte[] buffer = RenderBifurcationBuffer(width, height, bifurcation.CenterX, bifurcation.CenterY, zoom, settings, CancellationToken.None);
+            byte[] buffer = RenderBifurcationBuffer(width, height, bifurcation.CenterX, bifurcation.CenterY, zoom, settings, CancellationToken.None, pointColor: _pointColor, backgroundColor: _backgroundColor);
             var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
             var rect = new Rectangle(0, 0, width, height);
             BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
@@ -621,7 +672,7 @@ namespace FractalExplorer.Forms.Fractals
             BifurcationRenderSettings settings = BuildRenderSettingsFromSaveState(bifurcation);
 
             return await Task.Run(
-                () => RenderBifurcationBuffer(width, height, bifurcation.CenterX, bifurcation.CenterY, zoom, settings, cancellationToken, progress),
+                () => RenderBifurcationBuffer(width, height, bifurcation.CenterX, bifurcation.CenterY, zoom, settings, cancellationToken, progress, pointColor: _pointColor, backgroundColor: _backgroundColor),
                 cancellationToken);
         }
 
@@ -696,7 +747,7 @@ namespace FractalExplorer.Forms.Fractals
                 {
                     int w = Math.Max(1, width);
                     int h = Math.Max(1, height);
-                    byte[] buffer = RenderBifurcationBuffer(w, h, centerX, centerY, zoom, settings, cancellationToken, null, threads);
+                    byte[] buffer = RenderBifurcationBuffer(w, h, centerX, centerY, zoom, settings, cancellationToken, null, threads, _pointColor, _backgroundColor);
                     var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
                     var rect = new Rectangle(0, 0, w, h);
                     BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
@@ -715,7 +766,7 @@ namespace FractalExplorer.Forms.Fractals
         public Bitmap RenderPreview(HighResRenderState state, int previewWidth, int previewHeight)
         {
             BifurcationRenderSettings settings = CaptureUiRenderSettings();
-            byte[] buffer = RenderBifurcationBuffer(previewWidth, previewHeight, _centerX, _centerY, _zoom, settings, CancellationToken.None);
+            byte[] buffer = RenderBifurcationBuffer(previewWidth, previewHeight, _centerX, _centerY, _zoom, settings, CancellationToken.None, pointColor: _pointColor, backgroundColor: _backgroundColor);
             var bmp = new Bitmap(previewWidth, previewHeight, PixelFormat.Format32bppArgb);
             var rect = new Rectangle(0, 0, previewWidth, previewHeight);
             BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);

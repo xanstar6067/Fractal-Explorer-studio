@@ -15,9 +15,24 @@ namespace FractalExplorer.Engines
             public int Iterations { get; init; }
         }
 
-        public static byte[] RenderBuffer(int width, int height, decimal centerX, decimal centerY, decimal zoom, RenderSettings settings, CancellationToken ct, IProgress<int>? progress = null, int? maxDegreeOfParallelism = null)
+        public static byte[] RenderBuffer(
+            int width,
+            int height,
+            decimal centerX,
+            decimal centerY,
+            decimal zoom,
+            RenderSettings settings,
+            CancellationToken ct,
+            IProgress<int>? progress = null,
+            int? maxDegreeOfParallelism = null,
+            Color pointColor = default,
+            Color backgroundColor = default)
         {
             byte[] buffer = new byte[width * height * 4];
+            if (backgroundColor.A > 0)
+            {
+                FillBackground(buffer, backgroundColor);
+            }
 
             decimal rMin = Math.Min(settings.RMin, settings.RMax);
             decimal rMax = Math.Max(settings.RMin, settings.RMax);
@@ -167,19 +182,31 @@ namespace FractalExplorer.Engines
                 }
             });
 
+            Color resolvedPointColor = pointColor == default ? Color.White : pointColor;
             for (int pixel = 0; pixel < hit.Length; pixel++)
             {
                 if (!hit[pixel]) continue;
                 int idx = pixel * 4;
-                buffer[idx] = 255;
-                buffer[idx + 1] = 255;
-                buffer[idx + 2] = 255;
-                buffer[idx + 3] = 255;
+                buffer[idx] = resolvedPointColor.B;
+                buffer[idx + 1] = resolvedPointColor.G;
+                buffer[idx + 2] = resolvedPointColor.R;
+                buffer[idx + 3] = resolvedPointColor.A;
             }
 
             DrawAxes(buffer, width, height, viewRMin, viewRMax, viewXMin, viewXMax);
             progress?.Report(100);
             return buffer;
+        }
+
+        private static void FillBackground(byte[] buffer, Color color)
+        {
+            for (int i = 0; i < buffer.Length; i += 4)
+            {
+                buffer[i] = color.B;
+                buffer[i + 1] = color.G;
+                buffer[i + 2] = color.R;
+                buffer[i + 3] = color.A;
+            }
         }
 
         private static void DrawAxes(byte[] buffer, int width, int height, decimal minX, decimal maxX, decimal minY, decimal maxY)

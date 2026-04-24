@@ -33,6 +33,8 @@ namespace FractalExplorer.Forms.Fractals
         private Button _btnRender;
         private Button _btnReset;
         private Button _btnState;
+        private Button _btnBackgroundColor;
+        private Button _btnPointColor;
         private Label _lblProgress;
         private ProgressBar _pbRenderProgress;
 
@@ -73,6 +75,8 @@ namespace FractalExplorer.Forms.Fractals
             _btnRender = new Button();
             _btnReset = new Button();
             _btnState = new Button();
+            _btnBackgroundColor = new Button();
+            _btnPointColor = new Button();
             _lblProgress = new Label();
             _pbRenderProgress = new ProgressBar();
             _btnToggleControls = new Button();
@@ -140,12 +144,14 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.Controls.Add(_btnRender, 0, 10);
             _pnlControls.Controls.Add(_btnReset, 0, 11);
             _pnlControls.Controls.Add(_btnState, 0, 12);
-            _pnlControls.Controls.Add(_lblProgress, 0, 13);
-            _pnlControls.Controls.Add(_pbRenderProgress, 0, 14);
+            _pnlControls.Controls.Add(_btnBackgroundColor, 0, 13);
+            _pnlControls.Controls.Add(_btnPointColor, 0, 14);
+            _pnlControls.Controls.Add(_lblProgress, 0, 15);
+            _pnlControls.Controls.Add(_pbRenderProgress, 0, 16);
             _pnlControls.Dock = DockStyle.Fill;
             _pnlControls.Location = new Point(0, 0);
             _pnlControls.Name = "_pnlControls";
-            _pnlControls.RowCount = 16;
+            _pnlControls.RowCount = 18;
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
@@ -155,6 +161,8 @@ namespace FractalExplorer.Forms.Fractals
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
             _pnlControls.RowStyles.Add(new RowStyle());
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
+            _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
             _pnlControls.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
@@ -399,15 +407,41 @@ namespace FractalExplorer.Forms.Fractals
             _btnState.UseVisualStyleBackColor = true;
             _btnState.Click += btnState_Click;
             // 
+            // _btnBackgroundColor
+            // 
+            _pnlControls.SetColumnSpan(_btnBackgroundColor, 2);
+            _btnBackgroundColor.Dock = DockStyle.Fill;
+            _btnBackgroundColor.Location = new Point(6, 447);
+            _btnBackgroundColor.Margin = new Padding(6, 3, 6, 3);
+            _btnBackgroundColor.Name = "_btnBackgroundColor";
+            _btnBackgroundColor.Size = new Size(217, 39);
+            _btnBackgroundColor.TabIndex = 22;
+            _btnBackgroundColor.Text = "Цвет фона";
+            _btnBackgroundColor.UseVisualStyleBackColor = true;
+            _btnBackgroundColor.Click += btnBackgroundColor_Click;
+            // 
+            // _btnPointColor
+            // 
+            _pnlControls.SetColumnSpan(_btnPointColor, 2);
+            _btnPointColor.Dock = DockStyle.Fill;
+            _btnPointColor.Location = new Point(6, 492);
+            _btnPointColor.Margin = new Padding(6, 3, 6, 3);
+            _btnPointColor.Name = "_btnPointColor";
+            _btnPointColor.Size = new Size(217, 39);
+            _btnPointColor.TabIndex = 23;
+            _btnPointColor.Text = "Цвет фрактала";
+            _btnPointColor.UseVisualStyleBackColor = true;
+            _btnPointColor.Click += btnPointColor_Click;
+            // 
             // _lblProgress
             // 
             _pnlControls.SetColumnSpan(_lblProgress, 2);
             _lblProgress.Dock = DockStyle.Fill;
-            _lblProgress.Location = new Point(6, 444);
+            _lblProgress.Location = new Point(6, 534);
             _lblProgress.Margin = new Padding(6, 0, 6, 0);
             _lblProgress.Name = "_lblProgress";
             _lblProgress.Size = new Size(217, 20);
-            _lblProgress.TabIndex = 22;
+            _lblProgress.TabIndex = 24;
             _lblProgress.Text = "Статус рендера";
             _lblProgress.TextAlign = ContentAlignment.MiddleLeft;
             // 
@@ -415,11 +449,11 @@ namespace FractalExplorer.Forms.Fractals
             // 
             _pnlControls.SetColumnSpan(_pbRenderProgress, 2);
             _pbRenderProgress.Dock = DockStyle.Fill;
-            _pbRenderProgress.Location = new Point(6, 467);
+            _pbRenderProgress.Location = new Point(6, 557);
             _pbRenderProgress.Margin = new Padding(6, 3, 6, 3);
             _pbRenderProgress.Name = "_pbRenderProgress";
             _pbRenderProgress.Size = new Size(217, 24);
-            _pbRenderProgress.TabIndex = 23;
+            _pbRenderProgress.TabIndex = 25;
             // 
             // _btnToggleControls
             // 
