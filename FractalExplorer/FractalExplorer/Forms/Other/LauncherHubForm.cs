@@ -533,7 +533,7 @@ namespace FractalExplorer
                 Description = "Орбитальный график логистического отображения xₙ₊₁ = r·xₙ·(1-xₙ) для фиксированных параметров r и x₀.\n\n" +
                               "После прогрева (transient) отображаются точки траектории по номеру итерации: это позволяет увидеть переход от устойчивого цикла к хаосу.\n\n" +
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка r/x₀/iterations/transient, сохранение состояния и изображений.",
-                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+                PreviewImage = Properties.Resources.temporary_preview_sq512
             });
             */
 
@@ -558,7 +558,7 @@ namespace FractalExplorer
                 Description = "Классическое двумерное отображение Хенона: xₙ₊₁ = 1 - a·xₙ² + yₙ, yₙ₊₁ = b·xₙ.\n\n" +
                               "Даже при простых параметрах система порождает странный аттрактор с тонкой самоподобной структурой.\n\n" +
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка a/b/x₀/y₀/iterations/discard, сохранение состояния и изображений.",
-                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+                PreviewImage = Properties.Resources.temporary_preview_sq512
             });
             */
             // Законсервировано. Неудачный фрактал.
@@ -572,7 +572,7 @@ namespace FractalExplorer
                 Description = "Классическое отображение Икэды: t = 0.4 - 6/(1+x²+y²), xₙ₊₁ = 1 + u·(x·cos(t)-y·sin(t)), yₙ₊₁ = u·(x·sin(t)+y·cos(t)).\n\n" +
                               "Система формирует характерный странный аттрактор с выраженной самоподобной структурой при изменении параметра u и начальной точки.\n\n" +
                               "Особенности: интерактивный zoom/панорама как в Мандельброте, настройка u/x₀/y₀/iterations/discard и диапазонов отображения, сохранение состояния и изображений.",
-                PreviewImage = Properties.Resources.logistic_map_preview_sq512
+                PreviewImage = Properties.Resources.temporary_preview_sq512
             });
             */
         }
