@@ -17,6 +17,8 @@ namespace FractalExplorer.Utilities.SaveIO.SaveStateImplementations
         public int TransientIterations { get; set; } = 500;
         public int SamplesPerR { get; set; } = 240;
         public int Iterations { get; set; } = 1200;
+        public Color BackgroundColor { get; set; } = Color.Black;
+        public Color FractalColor { get; set; } = Color.White;
 
         public BifurcationSaveState()
         {

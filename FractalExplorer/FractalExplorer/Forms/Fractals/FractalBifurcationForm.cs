@@ -598,7 +598,9 @@ namespace FractalExplorer.Forms.Fractals
                 XMax = _nudXMax.Value,
                 TransientIterations = (int)_nudTransient.Value,
                 SamplesPerR = (int)_nudSamplesPerR.Value,
-                Iterations = (int)_nudIterations.Value
+                Iterations = (int)_nudIterations.Value,
+                BackgroundColor = _backgroundColor,
+                FractalColor = _pointColor
             };
 
             state.PreviewParametersJson = JsonSerializer.Serialize(new
@@ -612,7 +614,9 @@ namespace FractalExplorer.Forms.Fractals
                 state.XMax,
                 state.TransientIterations,
                 state.SamplesPerR,
-                state.Iterations
+                state.Iterations,
+                state.BackgroundColor,
+                state.FractalColor
             });
 
             return state;
@@ -634,6 +638,9 @@ namespace FractalExplorer.Forms.Fractals
             _nudTransient.Value = Math.Max(_nudTransient.Minimum, Math.Min(_nudTransient.Maximum, bifurcation.TransientIterations));
             _nudSamplesPerR.Value = Math.Max(_nudSamplesPerR.Minimum, Math.Min(_nudSamplesPerR.Maximum, bifurcation.SamplesPerR));
             _nudIterations.Value = Math.Max(_nudIterations.Minimum, Math.Min(_nudIterations.Maximum, bifurcation.Iterations));
+            _backgroundColor = bifurcation.BackgroundColor;
+            _pointColor = bifurcation.FractalColor;
+            _canvas.Invalidate();
 
             ScheduleRender();
         }
@@ -650,7 +657,16 @@ namespace FractalExplorer.Forms.Fractals
             decimal zoom = bifurcation.Zoom == 0 ? 0.01m : bifurcation.Zoom;
             BifurcationRenderSettings settings = BuildRenderSettingsFromSaveState(bifurcation);
 
-            byte[] buffer = RenderBifurcationBuffer(width, height, bifurcation.CenterX, bifurcation.CenterY, zoom, settings, CancellationToken.None, pointColor: _pointColor, backgroundColor: _backgroundColor);
+            byte[] buffer = RenderBifurcationBuffer(
+                width,
+                height,
+                bifurcation.CenterX,
+                bifurcation.CenterY,
+                zoom,
+                settings,
+                CancellationToken.None,
+                pointColor: bifurcation.FractalColor,
+                backgroundColor: bifurcation.BackgroundColor);
             var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
             var rect = new Rectangle(0, 0, width, height);
             BitmapData data = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
@@ -672,7 +688,17 @@ namespace FractalExplorer.Forms.Fractals
             BifurcationRenderSettings settings = BuildRenderSettingsFromSaveState(bifurcation);
 
             return await Task.Run(
-                () => RenderBifurcationBuffer(width, height, bifurcation.CenterX, bifurcation.CenterY, zoom, settings, cancellationToken, progress, pointColor: _pointColor, backgroundColor: _backgroundColor),
+                () => RenderBifurcationBuffer(
+                    width,
+                    height,
+                    bifurcation.CenterX,
+                    bifurcation.CenterY,
+                    zoom,
+                    settings,
+                    cancellationToken,
+                    progress,
+                    pointColor: bifurcation.FractalColor,
+                    backgroundColor: bifurcation.BackgroundColor),
                 cancellationToken);
         }
 
