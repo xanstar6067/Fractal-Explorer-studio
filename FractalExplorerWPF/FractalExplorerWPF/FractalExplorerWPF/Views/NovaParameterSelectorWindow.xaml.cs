@@ -55,7 +55,7 @@ public partial class NovaParameterSelectorWindow : Window
     {
         if (_rendering) { ScheduleRender(); return; }
         _rendering = true; _cts?.Dispose(); _cts = new CancellationTokenSource(); CancellationToken token = _cts.Token;
-        _mapState.CenterX = _centerX; _mapState.CenterY = _centerY; _mapState.Zoom = _zoom;
+        _mapState.CenterX = _centerX; _mapState.CenterY = _centerY; _mapState.Zoom = (double)_zoom;
         try
         {
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);

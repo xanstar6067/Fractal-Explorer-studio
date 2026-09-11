@@ -4,13 +4,15 @@ using System.Numerics;
 namespace FractalExplorerWPF.Core.NewtonMath;
 
 /// <summary>
-/// Трансцендентные функции над <see cref="BigFloat"/>: π, экспонента, синус с косинусом и
-/// их гиперболические напарники.
+/// Трансцендентные функции над <see cref="BigFloat"/>: π, экспонента, логарифм, синус с
+/// косинусом и их гиперболические напарники.
 ///
 /// Набор появился ради глубокого зума Коллатца. Его формула
 /// <c>z ← a + b·z + (c + d·z)·cos(πz)</c> трансцендентна, поэтому пертурбация ей не подходит:
 /// орбита считается напрямую, и каждый шаг требует sin/cos/ch/sh с полной рабочей точностью.
-/// Мандельбротовскому «второму двигателю» этот файл не нужен и им не используется.
+/// Позже к ним добавился <see cref="Log"/> — его просит опорная орбита Nova, где встречается
+/// <c>z^(1−p)</c> с произвольной комплексной степенью, а такая степень считается только через
+/// логарифм. Мандельбротовскому «второму двигателю» этот файл не нужен и им не используется.
 ///
 /// Общие принципы всех методов:
 /// <list type="bullet">
@@ -104,6 +106,104 @@ public static class BigFloatMath
             for (int i = 0; i < reduction; i++) result *= result;
         }
         return BigFloat.FromScaled(result.Mantissa, result.Exponent);
+    }
+
+    // ------------------------------------------------------------------ логарифм
+
+    /// <summary>Сколько верных бит даёт начальное приближение из double.</summary>
+    private const int SeedBits = 50;
+
+    // ln 2 зависит только от точности, поэтому считается один раз на каждое встреченное
+    // значение WorkingPrecisionBits и переиспользуется всеми потоками рендера — как и π.
+    private static readonly ConcurrentDictionary<int, BigFloat> LogTwoCache = new();
+
+    /// <summary>ln 2 с текущей рабочей точностью.</summary>
+    public static BigFloat LogTwo => LogTwoCache.GetOrAdd(BigFloat.WorkingPrecisionBits, ComputeLogTwo);
+
+    /// <summary>
+    /// ln 2 = 2·arth(1/3). Ряд считается в целых числах с фиксированной запятой, поэтому
+    /// деления идут нацело и промежуточных округлений нет вовсе — та же схема, что у π.
+    /// Знаменатель 9 даёт больше трёх бит на член ряда.
+    /// </summary>
+    private static BigFloat ComputeLogTwo(int bits)
+    {
+        using var precision = new BigFloat.PrecisionScope(bits);
+        int scaleBits = bits + 64;
+        return BigFloat.FromScaled(2 * ArtanhReciprocal(3, scaleBits), -scaleBits);
+    }
+
+    /// <summary>arth(1/inverse), умноженный на 2^scaleBits: ряд Σ 1/((2k+1)·x^(2k+1)).</summary>
+    private static BigInteger ArtanhReciprocal(int inverse, int scaleBits)
+    {
+        BigInteger power = (BigInteger.One << scaleBits) / inverse;
+        BigInteger sum = power;
+        BigInteger squared = (BigInteger)inverse * inverse;
+        for (int term = 1; ; term++)
+        {
+            power /= squared;
+            if (power.IsZero) return sum;
+            sum += power / (2 * term + 1);
+        }
+    }
+
+    /// <summary>
+    /// Натуральный логарифм положительного числа.
+    ///
+    /// Собственного ряда у него нет: логарифм находится обращением уже имеющейся
+    /// <see cref="Exp"/> методом Ньютона. Для y = ln m из f(y) = e^y − m выходит
+    /// <c>y ← y + m·e^(−y) − 1</c>: поправка мала сама по себе, а каждый шаг удваивает число
+    /// верных бит. Начальное приближение берёт <see cref="System.Math.Log"/> — это сразу
+    /// <see cref="SeedBits"/> бит, поэтому до восьмисот бит хватает четырёх шагов.
+    ///
+    /// Аргумент сначала раскладывается на m·2^e — деление на степень двойки точное, — и
+    /// ln x = ln m + e·ln 2. Без этого шага ни начальное приближение, ни сама итерация не
+    /// работали бы для значений вне диапазона double. Мантисса приводится к ближайшей к
+    /// единице половине диапазона, m ∈ [1/√2, √2): так |ln m| не превосходит 0.35 вместо 0.70,
+    /// а главное — у самой единицы и у степеней двойки слагаемое e·ln 2 не приходится гасить
+    /// почти равным ему логарифмом мантиссы. Без этого ln 1 выходил бы не нулём, а остатком
+    /// сокращения.
+    ///
+    /// Точность результата абсолютная: вычитание единицы в поправке съедает ровно те старшие
+    /// разряды, которые уже верны. Потребителю нужна именно она — логарифм у него идёт в
+    /// показатель степени, где абсолютная ошибка и становится относительной ошибкой ответа.
+    /// </summary>
+    public static BigFloat Log(BigFloat value)
+    {
+        if (value.Sign <= 0)
+            throw new ArgumentOutOfRangeException(nameof(value), "Логарифм неположительного числа.");
+
+        int precision = BigFloat.WorkingPrecisionBits;
+        BigFloat result;
+        using (var scope = new BigFloat.PrecisionScope(precision + GuardBits))
+        {
+            int exponent = value.BinaryExponent;
+            BigFloat mantissa = BigFloat.ScaleByPowerOfTwo(value, -exponent); // ∈ [1/2, 1)
+            if (mantissa * mantissa < Half)
+            {
+                mantissa = BigFloat.ScaleByPowerOfTwo(mantissa, 1);
+                exponent--;
+            }
+            result = NewtonLog(mantissa, precision + GuardBits);
+            if (exponent != 0) result += LogTwo * exponent;
+        }
+        return BigFloat.FromScaled(result.Mantissa, result.Exponent);
+    }
+
+    /// <summary>
+    /// Ньютоновское обращение экспоненты для аргумента около единицы. Рабочая точность растёт
+    /// вместе с числом верных бит: пока их полсотни, считать поправку на полной разрядности
+    /// незачем, и ранние шаги обходятся почти даром.
+    /// </summary>
+    private static BigFloat NewtonLog(BigFloat value, int targetBits)
+    {
+        BigFloat result = BigFloat.FromDouble(System.Math.Log(value.ToDouble()));
+        for (int bits = SeedBits; bits < targetBits;)
+        {
+            bits = System.Math.Min(targetBits, bits * 2);
+            using var scope = new BigFloat.PrecisionScope(bits + GuardBits);
+            result += value * Exp(-result) - BigFloat.One;
+        }
+        return result;
     }
 
     /// <summary>

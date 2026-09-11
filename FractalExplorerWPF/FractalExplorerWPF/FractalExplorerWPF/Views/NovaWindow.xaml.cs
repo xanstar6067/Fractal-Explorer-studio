@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using FractalExplorerWPF.Core.NewtonMath;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Infrastructure;
@@ -34,17 +35,57 @@ public partial class NovaWindow : Window
     private CancellationTokenSource? _mapCts;
     private RenderSession? _activeSession;
     private bool _isRendering, _panning, _isFullscreen, _controlsVisible = true, _hasRenderedFrame;
-    private Point _lastPanPoint;
-    private decimal _centerX, _centerY, _zoom = 1;
 
     /// <summary>
-    /// Потолок зума. Проверяется и при загрузке состояния: колесо умножает зум на 1.2 ДО
-    /// ограничения, поэтому без верхней границы на входе умножение может переполнить decimal.
+    /// Окно само заполняет поле зума после колеса. Без этого флага обработчик изменения текста
+    /// тут же прочитал бы округлённое до восьми цифр значение обратно в <see cref="_zoom"/> —
+    /// уже после того, как по прежнему зуму посчитан сдвиг центра.
     /// </summary>
-    private const decimal MaxZoom = 1_000_000_000_000_000m;
+    private bool _updatingControls;
+    private Point _lastPanPoint;
+    private decimal _centerX, _centerY;
+    private double _zoom = 1;
 
-    private const decimal MinZoom = 0.000000000000001m;
-    private decimal _renderedCenterX, _renderedCenterY, _renderedZoom = 1;
+    /// <summary>
+    /// Центр области в произвольной точности. Ведётся начиная с
+    /// <see cref="DeepZoomThreshold"/>, когда decimal (28 знаков) перестаёт различать соседние
+    /// пиксели; ниже порога источником истины остаются <see cref="_centerX"/>/<see cref="_centerY"/>.
+    /// </summary>
+    private BigFloat _centerXExact, _centerYExact;
+    private BigFloat _renderedCenterXExact, _renderedCenterYExact;
+    private bool _deepZoomEngaged;
+
+    /// <summary>
+    /// Зум, начиная с которого окно ведёт центр в <see cref="BigFloat"/>. Совпадает с порогом
+    /// включения пертурбационного движка в <c>NovaRenderer.DeepZoom</c>: смысла вести точный
+    /// центр раньше нет, а после — обязательно, иначе движку неоткуда взять положение области
+    /// с нужным числом знаков.
+    /// </summary>
+    private const double DeepZoomThreshold = 1.5e9;
+
+    /// <summary>
+    /// Потолок зума. Прежде здесь стояло 1e15 — не предел точности, а рубеж, за которым
+    /// прежняя ступень на <see cref="FractalExplorer.Utilities.ComplexDecimal"/> начинала
+    /// заметно квантовать координаты (28 знаков decimal при центре порядка единицы).
+    ///
+    /// Теперь выше <see cref="DeepZoomThreshold"/> кадр считает пертурбационный движок, и
+    /// предел задаёт уже он. Отклонение δ ведётся в double, как у Феникса, но ведёт себя
+    /// заметно лучше по двум причинам: ребазирование у Nova полноценное (опорная орбита
+    /// сходится в неподвижную точку, поэтому доступна целиком и перенос в её начало всегда
+    /// возможен), а сама формула — ньютоновская, то есть сжимающая, так что ошибка δ по
+    /// орбите не нарастает.
+    ///
+    /// Замер по спуску вдоль границы, сравнение с прямой BigFloat-итерацией того же кадра
+    /// (64×44, 400 итераций): на всех глубинах от 1e12 до 2e56 расхождение остаётся на
+    /// уровне отдельных пикселей границы — 0…10 из 2816 — и с глубиной не растёт. Потолок
+    /// взят с запасом внутри измеренного диапазона; выше него начинает мешать и другое —
+    /// арифметика самого центра в окне идёт на
+    /// <see cref="BigFloat.MinimumPrecisionBits"/> (≈115 десятичных цифр).
+    /// </summary>
+    private const double MaxZoom = 1e50;
+
+    private const double MinZoom = 0.000000000000001;
+    private double _renderedZoom = 1;
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
 
@@ -86,7 +127,11 @@ public partial class NovaWindow : Window
         {
             SaveName = name, Timestamp = DateTime.Now, Variant = _variant,
             FractalType = _variant == NovaVariant.Julia ? "NovaJulia" : "NovaMandelbrot",
-            CenterX = _centerX, CenterY = _centerY, Zoom = _zoom, Threshold = threshold, Iterations = iterations,
+            CenterX = _deepZoomEngaged ? _centerXExact.ToDecimalClamped() : _centerX,
+            CenterY = _deepZoomEngaged ? _centerYExact.ToDecimalClamped() : _centerY,
+            CenterXExact = _deepZoomEngaged ? _centerXExact.ToInvariantString() : null,
+            CenterYExact = _deepZoomEngaged ? _centerYExact.ToInvariantString() : null,
+            Zoom = _zoom, Threshold = threshold, Iterations = iterations,
             PReal = pRe, PImaginary = pIm, Z0Real = zRe, Z0Imaginary = zIm, M = m, CReal = cRe, CImaginary = cIm,
             UseSmoothColoring = ColoringBox.SelectedIndex == 1,
             Palette = _paletteManager.ActivePalette.Clone(_paletteManager.ActivePalette.Name)
@@ -96,9 +141,11 @@ public partial class NovaWindow : Window
     public void LoadState(NovaState state)
     {
         _renderCts?.Cancel(); _centerX = state.CenterX; _centerY = state.CenterY; _zoom = Math.Clamp(state.Zoom, MinZoom, MaxZoom);
+        RestoreCenter(state);
         PRealBox.Text = Format(state.PReal); PImaginaryBox.Text = Format(state.PImaginary); Z0RealBox.Text = Format(state.Z0Real); Z0ImaginaryBox.Text = Format(state.Z0Imaginary);
         CRealBox.Text = Format(state.CReal); CImaginaryBox.Text = Format(state.CImaginary); MBox.Text = Format(state.M);
-        IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture); ThresholdBox.Text = Format(state.Threshold); ZoomBox.Text = FormatZoom(_zoom);
+        IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture); ThresholdBox.Text = Format(state.Threshold);
+        _updatingControls = true; ZoomBox.Text = FormatZoom(_zoom); _updatingControls = false;
         ColoringBox.SelectedIndex = state.UseSmoothColoring ? 1 : 0; _paletteManager.ActivePalette = state.Palette.Clone($"Загружено: {state.SaveName}");
         UpdatePreviewTransform(); ScheduleRender(); ScheduleMapRender();
     }
@@ -112,7 +159,16 @@ public partial class NovaWindow : Window
     private void Parameter_OnChanged(object sender, EventArgs e) => ScheduleRender();
     private void MapFormulaParameter_OnChanged(object sender, EventArgs e) { ScheduleRender(); ScheduleMapRender(); }
     private void JuliaMapParameter_OnChanged(object sender, EventArgs e) { ScheduleRender(); DrawMapMarker(); }
-    private void ZoomBox_OnChanged(object sender, TextChangedEventArgs e) { if (TryRead(ZoomBox.Text, out decimal z)) { _zoom = Math.Clamp(z, MinZoom, MaxZoom); UpdatePreviewTransform(); ScheduleRender(); } }
+    private void ZoomBox_OnChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_updatingControls) return;
+        if (!double.TryParse(ZoomBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double zoom) &&
+            !double.TryParse(ZoomBox.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out zoom)) return;
+        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        SyncDeepZoomState();
+        UpdatePreviewTransform();
+        ScheduleRender();
+    }
     private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e) { var dialog = new MandelbrotPaletteWindow(_paletteManager) { Owner = this }; dialog.PaletteApplied += (_, _) => ScheduleRender(); dialog.ShowDialog(); }
@@ -145,8 +201,8 @@ public partial class NovaWindow : Window
             baked.Render(SavePreviewLayer);
             baked.Freeze();
             StablePreviewImage.Source = baked;
-            _renderedCenterX = _centerX;
-            _renderedCenterY = _centerY;
+            _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
+            _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
             _renderedZoom = _zoom;
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
@@ -188,7 +244,13 @@ public partial class NovaWindow : Window
             if (token.IsCancellationRequested) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; return; }
             FlushVisualizationEvents(session, true);
             BitmapSource completed = session.Bitmap.Clone(); completed.Freeze(); StablePreviewImage.Source = completed; CanvasImage.Source = null;
-            _renderedCenterX = state.CenterX; _renderedCenterY = state.CenterY; _renderedZoom = state.Zoom; _hasRenderedFrame = true; UpdatePreviewTransform();
+            _renderedCenterXExact = state.CenterXExact is { Length: > 0 } renderedX
+                ? BigFloat.Parse(renderedX)
+                : BigFloat.FromDecimal(state.CenterX);
+            _renderedCenterYExact = state.CenterYExact is { Length: > 0 } renderedY
+                ? BigFloat.Parse(renderedY)
+                : BigFloat.FromDecimal(state.CenterY);
+            _renderedZoom = state.Zoom; _hasRenderedFrame = true; UpdatePreviewTransform();
             StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек. Стратегия: {strategy}.";
         }
         catch (OperationCanceledException) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; }
@@ -236,6 +298,7 @@ public partial class NovaWindow : Window
         if (_variant != NovaVariant.Julia || JuliaMapHost.ActualWidth <= 2 || JuliaMapHost.ActualHeight <= 2) return;
         NovaState state; try { state = CaptureState("map"); } catch { return; }
         state.Variant = NovaVariant.Mandelbrot; state.CenterX = 0; state.CenterY = 0; state.Zoom = 1; state.Iterations = 100;
+        state.CenterXExact = null; state.CenterYExact = null;
         _mapCts?.Dispose(); _mapCts = new CancellationTokenSource(); CancellationToken token = _mapCts.Token;
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(JuliaMapHost);
         int width = Math.Max(160, surface.PixelWidth);
@@ -261,6 +324,7 @@ public partial class NovaWindow : Window
     private void JuliaMapPreview_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         NovaState state; try { state = CaptureState("selector"); } catch (Exception ex) { StatusText.Text = ex.Message; return; }
+        state.CenterXExact = null; state.CenterYExact = null;
         var selector = new NovaParameterSelectorWindow(state) { Owner = this };
         selector.CoordinatesSelected += (real, imaginary) => { CRealBox.Text = Format(real); CImaginaryBox.Text = Format(imaginary); DrawMapMarker(); ScheduleRender(); };
         selector.ShowDialog();
@@ -309,12 +373,124 @@ public partial class NovaWindow : Window
     private int GetThreadCount() => ThreadsBox.SelectedItem?.ToString() == "Auto" ? Environment.ProcessorCount : Math.Max(1, Convert.ToInt32(ThreadsBox.SelectedItem, CultureInfo.InvariantCulture));
     private void SetRendering(bool value, string? status = null) { _isRendering = value; CancelButton.IsEnabled = value; if (!value) RenderProgress.Value = 0; if (status is not null) StatusText.Text = status; }
     private void CanvasHost_OnSizeChanged(object sender, SizeChangedEventArgs e) { UpdatePreviewTransform(); ScheduleRender(); }
-    private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e) { CommitAndBakePreview(); Point mouse = e.GetPosition(CanvasHost); var before = ScreenToWorld(mouse); _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.2m : 1m / 1.2m), MinZoom, MaxZoom); var after = ScreenToWorld(mouse); _centerX += before.X - after.X; _centerY += before.Y - after.Y; UpdatePreviewTransform(); ZoomBox.Text = FormatZoom(_zoom); ScheduleRender(); }
+    private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        // Запекаем до изменения зума: снимок должен соответствовать прежнему виду.
+        CommitAndBakePreview();
+        Point mouse = e.GetPosition(CanvasHost);
+        double width = Math.Max(1, CanvasHost.ActualWidth);
+        double fractionX = mouse.X / width - 0.5;
+        double fractionY = Math.Max(1, CanvasHost.ActualHeight) / 2 - mouse.Y;
+
+        double previousZoom = _zoom;
+        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.2 : 1 / 1.2), MinZoom, MaxZoom);
+
+        // Точка под курсором остаётся на месте. Прежняя формула «мир до минус мир после»,
+        // записанная через разность ширин области: сам сдвиг мал и укладывается в double, а
+        // ApplyCenterShift кладёт его в BigFloat-центр на глубине и в decimal на мелком зуме.
+        double viewWidthDelta = (double)BaseScale / previousZoom - (double)BaseScale / _zoom;
+        SyncDeepZoomState();
+        ApplyCenterShift(fractionX * viewWidthDelta, fractionY / width * viewWidthDelta);
+
+        UpdatePreviewTransform();
+        _updatingControls = true; ZoomBox.Text = FormatZoom(_zoom); _updatingControls = false;
+        ScheduleRender();
+    }
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e) { CommitAndBakePreview(); _panning = true; _lastPanPoint = e.GetPosition(CanvasHost); CanvasHost.CaptureMouse(); Mouse.OverrideCursor = Cursors.SizeAll; }
-    private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e) { if (!_panning) return; Point current = e.GetPosition(CanvasHost); var before = ScreenToWorld(_lastPanPoint); var after = ScreenToWorld(current); _centerX += before.X - after.X; _centerY += before.Y - after.Y; _lastPanPoint = current; UpdatePreviewTransform(); }
+    private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_panning) return;
+        Point current = e.GetPosition(CanvasHost);
+        double width = Math.Max(1, CanvasHost.ActualWidth);
+        double viewWidth = (double)BaseScale / _zoom;
+        ApplyCenterShift((_lastPanPoint.X - current.X) / width * viewWidth,
+            (current.Y - _lastPanPoint.Y) / width * viewWidth);
+        _lastPanPoint = current;
+        UpdatePreviewTransform();
+    }
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e) { if (!_panning) return; _panning = false; CanvasHost.ReleaseMouseCapture(); Mouse.OverrideCursor = null; ScheduleRender(); }
-    private (decimal X, decimal Y) ScreenToWorld(Point p) { decimal width = (decimal)Math.Max(1, CanvasHost.ActualWidth), scale = BaseScale / _zoom; return (_centerX + ((decimal)p.X - width / 2) * scale / width, _centerY + ((decimal)Math.Max(1, CanvasHost.ActualHeight) / 2 - (decimal)p.Y) * scale / width); }
-    private void UpdatePreviewTransform() { if (!_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0 || CanvasHost.ActualWidth <= 0) return; double scale = (double)(_zoom / _renderedZoom), width = CanvasHost.ActualWidth; decimal currentScale = BaseScale / _zoom; _previewScale.ScaleX = _previewScale.ScaleY = scale; _previewTranslation.X = (double)((_renderedCenterX - _centerX) / currentScale) * width; _previewTranslation.Y = (double)((_centerY - _renderedCenterY) / currentScale) * width; }
+
+    /// <summary>
+    /// Прибавляет к центру небольшой сдвиг в мировых координатах. На глубине сдвиг уходит в
+    /// BigFloat-центр (decimal-приближение обновляется следом), на мелком зуме — в decimal.
+    /// </summary>
+    private void ApplyCenterShift(double shiftX, double shiftY)
+    {
+        if (_deepZoomEngaged)
+        {
+            _centerXExact += BigFloat.FromDouble(shiftX);
+            _centerYExact += BigFloat.FromDouble(shiftY);
+            _centerX = _centerXExact.ToDecimalClamped();
+            _centerY = _centerYExact.ToDecimalClamped();
+        }
+        else
+        {
+            _centerX += (decimal)shiftX;
+            _centerY += (decimal)shiftY;
+        }
+    }
+
+    /// <summary>
+    /// Заводит или глушит ведение центра в BigFloat по текущему зуму. Вверх через порог центр
+    /// переносится из decimal, вниз decimal снова становится источником истины.
+    /// </summary>
+    private void SyncDeepZoomState()
+    {
+        bool shouldEngage = _zoom >= DeepZoomThreshold;
+        if (shouldEngage && !_deepZoomEngaged)
+        {
+            _centerXExact = BigFloat.FromDecimal(_centerX);
+            _centerYExact = BigFloat.FromDecimal(_centerY);
+            _deepZoomEngaged = true;
+        }
+        else if (!shouldEngage && _deepZoomEngaged)
+        {
+            _centerX = _centerXExact.ToDecimalClamped();
+            _centerY = _centerYExact.ToDecimalClamped();
+            _deepZoomEngaged = false;
+        }
+    }
+
+    /// <summary>
+    /// Восстанавливает центр из сохранения. Строки произвольной точности есть только у
+    /// глубоких сохранений; когда они есть, decimal-поля пересобираются из них, а не наоборот.
+    /// </summary>
+    private void RestoreCenter(NovaState state)
+    {
+        _deepZoomEngaged = false;
+        if (state.CenterXExact is { Length: > 0 } exactX && state.CenterYExact is { Length: > 0 } exactY)
+        {
+            try
+            {
+                _centerXExact = BigFloat.Parse(exactX);
+                _centerYExact = BigFloat.Parse(exactY);
+                _deepZoomEngaged = _zoom >= DeepZoomThreshold;
+                if (_deepZoomEngaged)
+                {
+                    _centerX = _centerXExact.ToDecimalClamped();
+                    _centerY = _centerYExact.ToDecimalClamped();
+                    return;
+                }
+            }
+            catch (FormatException)
+            {
+                // Повреждённая строка — остаётся decimal-приближение из того же сохранения.
+            }
+        }
+        SyncDeepZoomState();
+    }
+
+    private void UpdatePreviewTransform()
+    {
+        if (!_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0 || CanvasHost.ActualWidth <= 0) return;
+        double width = CanvasHost.ActualWidth;
+        double currentScale = (double)BaseScale / _zoom;
+        BigFloat currentCenterX = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
+        BigFloat currentCenterY = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
+        _previewScale.ScaleX = _previewScale.ScaleY = _zoom / _renderedZoom;
+        _previewTranslation.X = (_renderedCenterXExact - currentCenterX).ToDouble() / currentScale * width;
+        _previewTranslation.Y = (currentCenterY - _renderedCenterYExact).ToDouble() / currentScale * width;
+    }
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e) => FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost, ToggleControlsButton, 300, ScheduleRender);
     private void Window_OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen(); }
     private void ToggleFullscreen() { if (!_isFullscreen) { _previousWindowStyle = WindowStyle; _previousWindowState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; } else { WindowStyle = _previousWindowStyle; WindowState = _previousWindowState; } _isFullscreen = !_isFullscreen; }
@@ -326,7 +502,7 @@ public partial class NovaWindow : Window
     /// Зум показывается восемью значащими цифрами: большое значение уходит в
     /// экспоненциальную запись (8.1707708E+09) и помещается в поле целиком.
     /// </summary>
-    private static string FormatZoom(decimal value) => value.ToString("G8", CultureInfo.InvariantCulture);
+    private static string FormatZoom(double value) => value.ToString("G8", CultureInfo.InvariantCulture);
     private sealed class RenderSession(WriteableBitmap bitmap, int count, int width, int height) { public WriteableBitmap Bitmap { get; } = bitmap; public int Count { get; } = count; public int Width { get; } = width; public int Height { get; } = height; public int Completed { get; set; } public ConcurrentQueue<TileEvent> Events { get; } = new(); }
     private readonly record struct TileEvent(bool Start, MandelbrotRenderTile Tile, byte[]? Pixels);
 }

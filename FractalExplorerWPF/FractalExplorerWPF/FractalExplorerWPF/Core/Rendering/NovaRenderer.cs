@@ -6,16 +6,40 @@ using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Core.Rendering;
 
-public static class NovaRenderer
+public static partial class NovaRenderer
 {
     private const decimal BaseScale = 4m;
     private const decimal DecimalScaleThreshold = 4m / 2_000_000_000m;
 
+    /// <summary>
+    /// Масштаб кадра для плоских (double и decimal) ступеней. Деление осталось в
+    /// <see cref="decimal"/>, хотя <see cref="NovaState.Zoom"/> стал double: так округление
+    /// совпадает с прежним бит-в-бит. Верхний кламп защищает приведение к decimal — выше
+    /// <see cref="DeepZoomThreshold"/> кадр считает пертурбационный движок, а сюда попадают
+    /// только вырожденная опорная орбита и нулевая степень, то есть однородные кадры, где
+    /// масштаб уже ни на что не влияет.
+    /// </summary>
+    private static decimal PlainScale(NovaState state) =>
+        BaseScale / Math.Max(0.000000000000001m, (decimal)Math.Clamp(state.Zoom, 1e-15, 1e25));
+
     public static byte[]? RenderTile(NovaState state, int canvasWidth, int canvasHeight,
         MandelbrotRenderTile tile, CancellationToken token, bool selectorPalette = false)
     {
+        if (ShouldUseDeepZoom(state))
+            return RenderDeepZoomTile(state, canvasWidth, canvasHeight, tile, token, selectorPalette);
+
+        return RenderPlainTile(state, canvasWidth, canvasHeight, tile, token, selectorPalette);
+    }
+
+    /// <summary>
+    /// Плоские ступени целиком. Выделены из <see cref="RenderTile"/>, чтобы глубокий путь мог
+    /// откатиться на них при вырожденной опорной орбите, не проходя проверку зума заново.
+    /// </summary>
+    private static byte[]? RenderPlainTile(NovaState state, int canvasWidth, int canvasHeight,
+        MandelbrotRenderTile tile, CancellationToken token, bool selectorPalette)
+    {
         byte[] pixels = new byte[checked(tile.Width * tile.Height * 4)];
-        decimal scale = BaseScale / Math.Max(0.000000000000001m, state.Zoom);
+        decimal scale = PlainScale(state);
         for (int localY = 0; localY < tile.Height; localY++)
         {
             if (token.IsCancellationRequested) return null;
@@ -40,7 +64,20 @@ public static class NovaRenderer
     public static void Render(NovaState state, byte[] pixels, int width, int height, int stride,
         int threadCount, CancellationToken token, Action<int>? progress = null)
     {
-        decimal scale = BaseScale / Math.Max(0.000000000000001m, state.Zoom);
+        if (ShouldUseDeepZoom(state))
+        {
+            RenderDeepZoom(state, pixels, width, height, stride, threadCount, token, progress);
+            return;
+        }
+
+        RenderPlain(state, pixels, width, height, stride, threadCount, token, progress);
+    }
+
+    /// <inheritdoc cref="RenderPlainTile"/>
+    private static void RenderPlain(NovaState state, byte[] pixels, int width, int height, int stride,
+        int threadCount, CancellationToken token, Action<int>? progress)
+    {
+        decimal scale = PlainScale(state);
         long completed = 0;
         Parallel.For(0, height, new ParallelOptions
         {
