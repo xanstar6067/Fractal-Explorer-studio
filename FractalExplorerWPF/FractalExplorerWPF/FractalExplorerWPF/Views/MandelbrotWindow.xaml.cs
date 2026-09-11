@@ -15,7 +15,9 @@ using FractalExplorerWPF.Models;
 using Microsoft.Win32;
 using Point = System.Windows.Point;
 using MediaColor = System.Windows.Media.Color;
+using FractalExplorerWPF.Infrastructure.Serialization;
 using BigFloat = FractalExplorerWPF.Core.NewtonMath.BigFloat;
+using FloatExp = FractalExplorerWPF.Core.NewtonMath.FloatExp;
 
 namespace FractalExplorerWPF.Views;
 
@@ -38,7 +40,7 @@ public partial class MandelbrotWindow : Window
     private Point _lastPanPoint;
     private decimal _centerX;
     private decimal _centerY;
-    private double _zoom;
+    private FloatExp _zoom;
 
     // «Второй двигатель»: при _zoom >= DeepZoomThreshold центр ведётся здесь, в
     // произвольной точности, а _centerX/_centerY держатся как ближайшее decimal-приближение
@@ -50,13 +52,26 @@ public partial class MandelbrotWindow : Window
     // Порог включения «второго двигателя» (пертурбация + BigFloat-центр).
     private const double DeepZoomThreshold = 1e25;
 
-    // Верхняя граница зума. Раньше 5e28 — упор в тип decimal, затем 1e50 — до перехода на
-    // масштабированную δ. Теперь опорная орбита рендера считается с адаптивной точностью
-    // мантиссы (растёт от глубины зума), а δ на пиксель за ~1e72 автоматически переходит в
-    // FloatExp. 1e90 — консервативный потолок Фазы 1: арифметика центра здесь (пан/зум,
-    // ApplyCenterShift) всё ещё идёт на 384 битах и до ~1e90 не теряет значимых цифр;
-    // выше сначала нужны точность центра на UI-потоке и ступень BLA (иначе упор по времени).
-    private const double MaxZoom = 1e90;
+    // Верхняя граница зума. История: 5e28 — упор в тип decimal; 1e50 — до перехода на
+    // масштабированную δ; 1e90 — пока арифметика центра на UI-потоке шла на фиксированных
+    // 384 битах. Сейчас ограничений этого рода нет:
+    //  • сам зум — FloatExp, поэтому потолок double (1.8e308) больше не при чём;
+    //  • сетка кадра (ширина вида и δc на пиксель) — тоже FloatExp, поэтому шаг пикселя не
+    //    схлопывается в ноль и не уходит в денормали;
+    //  • точность мантиссы опорной орбиты адаптивна (PlanDeepZoom), а центр на UI-потоке
+    //    ведётся с такой же адаптивной точностью (см. CenterPrecisionScope);
+    //  • δ на пиксель за ~1e72 переходит в FloatExp, производная Distance Estimation — тоже.
+    // 1e1000 — осознанный практический потолок, а не упор типа: на такой глубине опорная
+    // орбита считается на ~3456 битах мантиссы, и миллион итераций занимает около 20 секунд.
+    private static readonly FloatExp MaxZoom = FloatExp.Pow10(1000);
+
+    // Нижняя граница зума — как была.
+    private static readonly FloatExp MinZoom = FloatExp.FromDouble(0.01);
+
+    // Потолок числа итераций. Совпадает с MandelbrotFamilyRenderer.BlaMaxOrbitLength: таблица
+    // BLA строится только для орбит не длиннее этого значения, и выход за него лишал бы
+    // глубокий зум пропуска итераций (то есть практически применимой скорости).
+    private const int MaxIterations = MandelbrotFamilyRenderer.BlaMaxOrbitLength;
 
     // Потолок зума по вариантам:
     //  • Mandelbrot/Julia — полный MaxZoom (адаптивная точность + FloatExp-δ + BLA);
@@ -70,7 +85,7 @@ public partial class MandelbrotWindow : Window
     //    zᵖ·|z|ᵖ растёт заметно резче Multibrot той же p (эффективно ~2p), поэтому потолок
     //    консервативнее; отрицательная и дробная степень остаются на decimal и фактически
     //    упираются в его предел (~1e28) — граничный случай наравне с дробным Generalized.
-    private double EffectiveMaxZoom => _definition.Variant switch
+    private FloatExp EffectiveMaxZoom => _definition.Variant switch
     {
         MandelbrotVariant.Mandelbrot or MandelbrotVariant.Julia => MaxZoom,
         MandelbrotVariant.BurningShip or MandelbrotVariant.JuliaBurningShip
@@ -86,7 +101,7 @@ public partial class MandelbrotWindow : Window
     // (UpdateCoarsePreviewTransform) переставал двигаться. BigFloat-вычитание её сохраняет.
     private BigFloat _renderedCenterXExact;
     private BigFloat _renderedCenterYExact;
-    private double _renderedZoom;
+    private FloatExp _renderedZoom;
     private int _stablePixelWidth;
     private int _stablePixelHeight;
     private RenderSession? _activeSession;
@@ -172,7 +187,10 @@ public partial class MandelbrotWindow : Window
 
     public MandelbrotState CaptureState(string saveName)
     {
-        int iterations = ReadInt(IterationsBox.Text, "итерации", 50, 1_000_000);
+        // Потолок совпадает с BlaMaxOrbitLength: за ним таблица BLA не строится и глубокий
+        // зум проваливается в рендер без пропуска итераций, то есть становится неприменимо
+        // медленным. На 1e1000 счёт идёт о сотнях тысяч итераций, так что запас есть.
+        int iterations = ReadInt(IterationsBox.Text, "итерации", 50, MaxIterations);
         decimal threshold = ReadDecimal(ThresholdBox.Text, "порог выхода", 0.1m, 1_000m);
         decimal power = _definition.HasPower
             ? ReadDecimal(PowerBox.Text, "степень", _definition.Variant == MandelbrotVariant.Simonobrot ? -12m : 0.1m, 12m)
@@ -250,7 +268,7 @@ public partial class MandelbrotWindow : Window
         _updatingControls = true;
         _centerX = state.CenterX;
         _centerY = state.CenterY;
-        _zoom = Math.Clamp(state.Zoom, 0.01, EffectiveMaxZoom);
+        _zoom = FloatExp.Clamp(state.Zoom, MinZoom, EffectiveMaxZoom);
         _deepZoomEngaged = false;
         if (state.CenterXExact is { Length: > 0 } exactX && state.CenterYExact is { Length: > 0 } exactY)
         {
@@ -275,7 +293,7 @@ public partial class MandelbrotWindow : Window
         if (!_deepZoomEngaged) SyncDeepZoomState();
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
         ThresholdBox.Text = state.Threshold.ToString(CultureInfo.InvariantCulture);
-        ZoomBox.Text = _zoom.ToString("G8", CultureInfo.InvariantCulture);
+        ZoomBox.Text = FloatExpJsonConverter.ToDisplay(_zoom);
         PowerBox.Text = state.Power.ToString(CultureInfo.InvariantCulture);
         InversionBox.IsChecked = state.UseInversion;
         JuliaRealBox.Text = state.JuliaCReal.ToString(CultureInfo.InvariantCulture);
@@ -356,14 +374,142 @@ public partial class MandelbrotWindow : Window
         Parameter_OnChanged(sender, e);
     }
 
+    // Ввод зума принимает и обычное число, и научную нотацию любой глубины («1e750»):
+    // колесом мыши до 1e1000 пришлось бы щёлкнуть несколько тысяч раз, поэтому прямой ввод
+    // показателя — основной способ попасть на большую глубину.
     private void ZoomBox_OnTextChanged(object sender, EventArgs e)
     {
-        if (!_updatingControls && TryReadDouble(ZoomBox.Text, out double zoom) && double.IsFinite(zoom) && zoom > 0)
+        if (!_updatingControls && FloatExp.TryParse(ZoomBox.Text, out FloatExp zoom) && zoom.Sign > 0)
         {
-            _zoom = Math.Clamp(zoom, 0.01, EffectiveMaxZoom);
+            _zoom = FloatExp.Clamp(zoom, MinZoom, EffectiveMaxZoom);
             SyncDeepZoomState();
             ScheduleRender();
         }
+    }
+
+    // ------------------------------------------------------------ поиск ядра (Newton)
+
+    private CancellationTokenSource? _nucleusCts;
+
+    /// <summary>
+    /// Нижняя граница предлагаемого зума относительно текущего. Оценка размера ядра надёжна,
+    /// но если она всё-таки промахнётся на много порядков вниз, пользователь не должен терять
+    /// вид целиком — возврат больше чем на два порядка назад не применяется.
+    /// </summary>
+    private const double NucleusZoomOutLimit = 100.0;
+
+    private async void NucleusButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await FindNucleusAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Отмена — штатный путь (повторное нажатие или закрытие окна).
+        }
+        catch (Exception exception)
+        {
+            SetNucleusStatus($"Поиск ядра не удался: {exception.Message}");
+        }
+    }
+
+    private async Task FindNucleusAsync()
+    {
+        MandelbrotState state;
+        try
+        {
+            state = CaptureState(string.Empty);
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, "Параметры", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!MandelbrotNewtonZoom.IsSupported(state.Variant, state.Power))
+        {
+            SetNucleusStatus(MandelbrotNewtonZoom.UnsupportedReason(state.Variant));
+            return;
+        }
+
+        _nucleusCts?.Cancel();
+        using var cts = new CancellationTokenSource();
+        _nucleusCts = cts;
+        NucleusButton.IsEnabled = false;
+        SetNucleusStatus("Поиск ядра: определяется период…");
+
+        try
+        {
+            var progress = new Progress<int>(percent =>
+                SetNucleusStatus($"Поиск ядра: {percent}%"));
+            MandelbrotNucleusResult result = await Task.Run(
+                () => MandelbrotNewtonZoom.FindNucleus(state, cts.Token, value => ((IProgress<int>)progress).Report(value)),
+                cts.Token);
+
+            if (!result.Found)
+            {
+                SetNucleusStatus(result.Message);
+                return;
+            }
+
+            ApplyNucleus(result);
+        }
+        finally
+        {
+            NucleusButton.IsEnabled = true;
+            if (ReferenceEquals(_nucleusCts, cts)) _nucleusCts = null;
+        }
+    }
+
+    /// <summary>
+    /// Переносит вид на найденное ядро. Зум выставляется первым: от него зависит разрядность
+    /// мантиссы, с которой разбирается точный центр (см. <see cref="CenterPrecisionScope"/>),
+    /// и разбор на старой точности потерял бы как раз те цифры, ради которых всё и считалось.
+    /// </summary>
+    private void ApplyNucleus(MandelbrotNucleusResult result)
+    {
+        FloatExp minimum = FloatExp.Max(MinZoom, _zoom / NucleusZoomOutLimit);
+        FloatExp target = FloatExp.Clamp(result.SuggestedZoom, minimum, EffectiveMaxZoom);
+        _zoom = target;
+
+        using (CenterPrecisionScope())
+        {
+            BigFloat nucleusX = BigFloat.Parse(result.CenterX);
+            BigFloat nucleusY = BigFloat.Parse(result.CenterY);
+            if (_zoom >= DeepZoomThreshold)
+            {
+                _centerXExact = nucleusX;
+                _centerYExact = nucleusY;
+                _centerX = nucleusX.ToDecimalClamped();
+                _centerY = nucleusY.ToDecimalClamped();
+                _deepZoomEngaged = true;
+            }
+            else
+            {
+                _centerX = nucleusX.ToDecimalClamped();
+                _centerY = nucleusY.ToDecimalClamped();
+                _deepZoomEngaged = false;
+            }
+        }
+
+        SetZoomText();
+        UpdateJuliaMapMarker();
+        UpdateCoarsePreviewTransform();
+        ScheduleRender();
+
+        string zoomText = FloatExpJsonConverter.ToDisplay(target);
+        string suggestedText = FloatExpJsonConverter.ToDisplay(result.SuggestedZoom);
+        SetNucleusStatus(target == result.SuggestedZoom
+            ? $"{result.Message} Зум: {zoomText}."
+            : $"{result.Message} Зум: {zoomText} (оценка по размеру ядра — {suggestedText}, " +
+              "ограничена потолком варианта или защитой от возврата назад).");
+    }
+
+    private void SetNucleusStatus(string text)
+    {
+        NucleusStatusText.Text = text;
+        NucleusStatusText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
@@ -549,7 +695,7 @@ public partial class MandelbrotWindow : Window
         _zoom = _definition.InitialZoom;
         _deepZoomEngaged = false;
         _updatingControls = true;
-        ZoomBox.Text = _zoom.ToString(CultureInfo.InvariantCulture);
+        ZoomBox.Text = FloatExpJsonConverter.ToDisplay(_zoom);
         _updatingControls = false;
         if (render) ScheduleRender();
     }
@@ -724,7 +870,7 @@ public partial class MandelbrotWindow : Window
         BitmapSource bitmap,
         BigFloat centerXExact,
         BigFloat centerYExact,
-        double zoom,
+        FloatExp zoom,
         int pixelWidth,
         int pixelHeight)
     {
@@ -774,7 +920,7 @@ public partial class MandelbrotWindow : Window
 
     private void UpdateCoarsePreviewTransform()
     {
-        if (_stableBitmap is null || _renderedZoom <= 0 || _zoom <= 0 ||
+        if (_stableBitmap is null || _renderedZoom.Sign <= 0 || _zoom.Sign <= 0 ||
             _stablePixelWidth <= 0 || _stablePixelHeight <= 0) return;
 
         // Всё считается в double: на зуме > ~1e25 шаг вида (3/zoom) уходит ниже нижней
@@ -783,25 +929,26 @@ public partial class MandelbrotWindow : Window
         // из BigFloat — единственного места, где она не съедается 28 цифрами decimal.
         double width = Math.Max(1, ImageLayer.ActualWidth);
         double height = Math.Max(1, ImageLayer.ActualHeight);
-        double renderedViewWidth = 3.0 / _renderedZoom;
-        double currentViewWidth = 3.0 / _zoom;
-        if (!double.IsFinite(renderedViewWidth) || !double.IsFinite(currentViewWidth) ||
-            renderedViewWidth <= 0 || currentViewWidth <= 0) return;
+        FloatExp renderedViewWidth = 3.0 / _renderedZoom;
+        FloatExp currentViewWidth = 3.0 / _zoom;
+        if (!renderedViewWidth.IsFinite || !currentViewWidth.IsFinite ||
+            renderedViewWidth.Sign <= 0 || currentViewWidth.Sign <= 0) return;
 
         double stableAspect = (double)_stablePixelHeight / _stablePixelWidth;
-        double renderedViewHeight = renderedViewWidth * stableAspect;
-        double currentViewHeight = currentViewWidth * height / width;
+        FloatExp renderedViewHeight = renderedViewWidth * stableAspect;
+        FloatExp currentViewHeight = currentViewWidth * height / width;
 
-        double scaleX = renderedViewWidth / currentViewWidth;
-        double scaleY = renderedViewHeight / currentViewHeight;
+        double scaleX = (renderedViewWidth / currentViewWidth).ToDouble();
+        double scaleY = (renderedViewHeight / currentViewHeight).ToDouble();
 
+        using var precision = CenterPrecisionScope();
         BigFloat currentCenterX = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
         BigFloat currentCenterY = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
-        double centerDeltaX = (_renderedCenterXExact - currentCenterX).ToDouble();
-        double centerDeltaY = (currentCenterY - _renderedCenterYExact).ToDouble();
+        FloatExp centerDeltaX = FloatExp.FromBigFloat(_renderedCenterXExact - currentCenterX);
+        FloatExp centerDeltaY = FloatExp.FromBigFloat(currentCenterY - _renderedCenterYExact);
 
-        double offsetX = centerDeltaX * width / currentViewWidth + width / 2.0 * (1 - scaleX);
-        double offsetY = centerDeltaY * height / currentViewHeight + height / 2.0 * (1 - scaleY);
+        double offsetX = (centerDeltaX * width / currentViewWidth).ToDouble() + width / 2.0 * (1 - scaleX);
+        double offsetY = (centerDeltaY * height / currentViewHeight).ToDouble() + height / 2.0 * (1 - scaleY);
         if (!double.IsFinite(scaleX) || !double.IsFinite(scaleY) ||
             !double.IsFinite(offsetX) || !double.IsFinite(offsetY)) return;
 
@@ -935,18 +1082,19 @@ public partial class MandelbrotWindow : Window
         double fractionX = mouse.X / width - 0.5;
         double fractionY = 0.5 - mouse.Y / height;
 
-        double previousZoom = _zoom;
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.5 : 1.0 / 1.5), 0.01, EffectiveMaxZoom);
+        FloatExp previousZoom = _zoom;
+        double step = WheelZoomStep;
+        _zoom = FloatExp.Clamp(_zoom * (e.Delta > 0 ? step : 1.0 / step), MinZoom, EffectiveMaxZoom);
 
         // Точка под курсором остаётся на месте: сдвиг центра = f · (viewOld − viewNew).
-        // Сам сдвиг мал и укладывается в double; ApplyCenterShift кладёт его в BigFloat-центр
-        // в глубоком режиме и в decimal — как раньше — в обычном.
-        double previousViewWidth = 3.0 / previousZoom;
-        double currentViewWidth = 3.0 / _zoom;
-        double previousViewHeight = previousViewWidth * height / width;
-        double currentViewHeight = currentViewWidth * height / width;
-        double shiftX = fractionX * (previousViewWidth - currentViewWidth);
-        double shiftY = fractionY * (previousViewHeight - currentViewHeight);
+        // Сдвиг ведётся в расширенном диапазоне: на большой глубине обе ширины вида уже вне
+        // double, а их разность тем более.
+        FloatExp previousViewWidth = 3.0 / previousZoom;
+        FloatExp currentViewWidth = 3.0 / _zoom;
+        FloatExp previousViewHeight = previousViewWidth * height / width;
+        FloatExp currentViewHeight = currentViewWidth * height / width;
+        FloatExp shiftX = fractionX * (previousViewWidth - currentViewWidth);
+        FloatExp shiftY = fractionY * (previousViewHeight - currentViewHeight);
 
         SyncDeepZoomState();
         ApplyCenterShift(shiftX, shiftY);
@@ -972,35 +1120,76 @@ public partial class MandelbrotWindow : Window
         Point current = e.GetPosition(CanvasHost);
         double width = Math.Max(1, CanvasHost.ActualWidth);
         double height = Math.Max(1, CanvasHost.ActualHeight);
-        double viewWidth = 3.0 / _zoom;
-        double viewHeight = viewWidth * height / width;
-        double shiftX = (_lastPanPoint.X - current.X) / width * viewWidth;
-        double shiftY = (current.Y - _lastPanPoint.Y) / height * viewHeight;
+        FloatExp viewWidth = 3.0 / _zoom;
+        FloatExp viewHeight = viewWidth * height / width;
+        FloatExp shiftX = (_lastPanPoint.X - current.X) / width * viewWidth;
+        FloatExp shiftY = (current.Y - _lastPanPoint.Y) / height * viewHeight;
         ApplyCenterShift(shiftX, shiftY);
         _lastPanPoint = current;
         UpdateCoarsePreviewTransform();
     }
 
     /// <summary>
-    /// Прибавляет к центру небольшой сдвиг в мировых координатах. В глубоком режиме сдвиг
-    /// уходит в <see cref="BigFloat"/>-центр (decimal-приближение обновляется следом),
-    /// в обычном — в decimal-центр по старой схеме.
+    /// Разрядность мантиссы для арифметики центра на UI-потоке. Ровно та же формула, что и у
+    /// опорной орбиты рендера (<c>PlanDeepZoom</c>), иначе пан и зум «залипали» бы раньше,
+    /// чем кадр теряет детали: сдвиг величиной 3/zoom просто утонул бы в округлении центра.
+    /// Ниже ~1e93 возвращает <see cref="BigFloat.MinimumPrecisionBits"/>, то есть прежнее
+    /// поведение сохраняется бит-в-бит.
     /// </summary>
-    private void ApplyCenterShift(double shiftX, double shiftY)
+    private int CenterPrecisionBits()
+    {
+        double zoomBits = _zoom.Sign > 0 && _zoom.IsFinite ? _zoom.Log2() : 0;
+        if (!double.IsFinite(zoomBits) || zoomBits < 0) zoomBits = 0;
+        int needed = (int)Math.Ceiling(zoomBits) + CenterPrecisionGuardBits;
+        int rounded = (needed + 63) / 64 * 64;
+        return Math.Max(BigFloat.MinimumPrecisionBits, rounded);
+    }
+
+    // Запас сверх log2(зума): субпиксельная точность центра и люфт на накопление сдвигов
+    // за сотни пан-событий без повторного рендера.
+    private const int CenterPrecisionGuardBits = 96;
+
+    /// <summary>
+    /// Область точности для любой арифметики над <see cref="_centerXExact"/>/
+    /// <see cref="_centerYExact"/>. <see cref="BigFloat"/> округляет результат каждой
+    /// операции до рабочей точности потока, поэтому без этой области сдвиг центра на
+    /// глубоком зуме терялся бы целиком.
+    /// </summary>
+    private BigFloat.PrecisionScope CenterPrecisionScope() => new(CenterPrecisionBits());
+
+    /// <summary>
+    /// Прибавляет к центру небольшой сдвиг в мировых координатах. В глубоком режиме сдвиг
+    /// уходит в <see cref="BigFloat"/>-центр с адаптивной точностью (decimal-приближение
+    /// обновляется следом), в обычном — в decimal-центр по старой схеме.
+    /// </summary>
+    private void ApplyCenterShift(FloatExp shiftX, FloatExp shiftY)
     {
         if (_deepZoomEngaged)
         {
-            _centerXExact += BigFloat.FromDouble(shiftX);
-            _centerYExact += BigFloat.FromDouble(shiftY);
+            using var precision = CenterPrecisionScope();
+            // ToBigFloat переносит мантиссу сдвига целиком, в отличие от FromDouble: сам
+            // сдвиг на глубоком зуме (~3/zoom) в double уже не представим.
+            _centerXExact += shiftX.ToBigFloat();
+            _centerYExact += shiftY.ToBigFloat();
             _centerX = _centerXExact.ToDecimalClamped();
             _centerY = _centerYExact.ToDecimalClamped();
         }
         else
         {
-            _centerX += (decimal)shiftX;
-            _centerY += (decimal)shiftY;
+            _centerX += (decimal)shiftX.ToDouble();
+            _centerY += (decimal)shiftY.ToDouble();
         }
     }
+
+    /// <summary>
+    /// Множитель зума на один щелчок колеса. Ctrl — крупный шаг (×10 за щелчок: от 1 до
+    /// 1e1000 это тысяча щелчков вместо пяти с лишним тысяч), Shift — точная подстройка,
+    /// без модификаторов — прежние ×1.5.
+    /// </summary>
+    private static double WheelZoomStep =>
+        (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 10.0
+        : (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 1.05
+        : 1.5;
 
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
@@ -1014,7 +1203,7 @@ public partial class MandelbrotWindow : Window
     private void SetZoomText()
     {
         _updatingControls = true;
-        ZoomBox.Text = _zoom.ToString("G8", CultureInfo.InvariantCulture);
+        ZoomBox.Text = FloatExpJsonConverter.ToDisplay(_zoom);
         _updatingControls = false;
     }
 
@@ -1029,6 +1218,7 @@ public partial class MandelbrotWindow : Window
         bool shouldEngage = _zoom >= DeepZoomThreshold;
         if (shouldEngage && !_deepZoomEngaged)
         {
+            using var precision = CenterPrecisionScope();
             _centerXExact = BigFloat.FromDecimal(_centerX);
             _centerYExact = BigFloat.FromDecimal(_centerY);
             _deepZoomEngaged = true;

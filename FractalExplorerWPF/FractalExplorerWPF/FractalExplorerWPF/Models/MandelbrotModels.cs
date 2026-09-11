@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using FractalExplorerWPF.Core.NewtonMath;
+using FractalExplorerWPF.Infrastructure.Serialization;
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
 using MediaColors = System.Windows.Media.Colors;
@@ -133,12 +135,15 @@ public sealed class MandelbrotState
     public string? CenterYExact { get; set; }
 
     /// <summary>
-    /// Коэффициент масштабирования. <see cref="double"/>, а не <see cref="decimal"/>: сам зум —
-    /// это множитель, 15–16 значащих цифр которого с запасом хватает, а верхняя граница
-    /// decimal (~7.9e28) была единственным, что мешало «второму двигателю» уходить глубже.
-    /// Точность позиции обеспечивают <see cref="CenterXExact"/>/<see cref="CenterYExact"/>.
+    /// Коэффициент масштабирования. <see cref="FloatExp"/> (double-мантисса + 32-битная
+    /// двоичная экспонента), а не <see cref="double"/>: сам зум — это множитель, 15–16
+    /// значащих цифр которого с запасом хватает, а вот его верхняя граница ограничивала
+    /// глубину напрямую — сначала потолок decimal (~7.9e28), затем потолок double (1.8e308).
+    /// Расширенная экспонента снимает и его. Точность позиции по-прежнему обеспечивают
+    /// <see cref="CenterXExact"/>/<see cref="CenterYExact"/>, а не зум.
     /// </summary>
-    public double Zoom { get; set; } = 1;
+    [JsonConverter(typeof(FloatExpJsonConverter))]
+    public FloatExp Zoom { get; set; } = FloatExp.One;
     public int Iterations { get; set; } = 500;
     public decimal Threshold { get; set; } = 2;
     [JsonIgnore]

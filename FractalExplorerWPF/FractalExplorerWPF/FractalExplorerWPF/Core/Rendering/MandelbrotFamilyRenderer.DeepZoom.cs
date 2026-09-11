@@ -170,9 +170,10 @@ public static partial class MandelbrotFamilyRenderer
 
     private static DeepZoomPlan PlanDeepZoom(MandelbrotState state)
     {
-        double zoomBits = state.Zoom > 0 && double.IsFinite(state.Zoom)
-            ? System.Math.Log2(state.Zoom)
-            : 0;
+        // Log2 расширенного зума — его двоичная экспонента плюс log2 мантиссы, поэтому
+        // формула одинаково работает и на 1e25, и на 1e1000.
+        double zoomBits = state.Zoom.Sign > 0 && state.Zoom.IsFinite ? state.Zoom.Log2() : 0;
+        if (!double.IsFinite(zoomBits) || zoomBits < 0) zoomBits = 0;
 
         // Бит на разрешение соседних пикселей ≈ log2(zoom); удвоенный запас по числу
         // итераций поглощает накопление ошибки округления вдоль опорной орбиты; +48 —
@@ -192,40 +193,57 @@ public static partial class MandelbrotFamilyRenderer
     private static int RoundUpToMultiple(int value, int multiple) =>
         (value + multiple - 1) / multiple * multiple;
 
+    /// <summary>
+    /// Величина, обратная размеру пикселя — множитель нормировки расстояния для Distance
+    /// Estimation. Вне этого режима ядрам передаётся <see cref="FloatExp.One"/>, и
+    /// нормировка превращается в тождество.
+    /// </summary>
+    private static FloatExp PixelDistanceScale(FloatExp viewWidth, int width) =>
+        viewWidth.IsZero || !viewWidth.IsFinite ? FloatExp.One : width / viewWidth;
+
     private static PixelMetrics DeepZoomPixelDispatch(
         DeepZoomPlan plan,
         MandelbrotState state,
         ReferenceOrbit orbit,
         bool isJulia,
-        double deltaReal,
-        double deltaImaginary,
+        FloatExp deltaReal,
+        FloatExp deltaImaginary,
         double escapeSquared,
+        FloatExp distanceScale,
         CancellationToken token)
     {
+        // Все ядра, кроме FloatExp-пути, держат δ в обычном double: их варианты упираются в
+        // собственный, заметно более низкий потолок зума (см. EffectiveMaxZoom в окне), где
+        // сужение δc ещё не теряет значимости.
         // Варианты с отражением/сопряжением идут своим ядром (δ всегда в double: их потолок
         // зума ограничен раньше, чем double-δ перестаёт хватать — см. EffectiveMaxZoom).
         if (ReflectKindOf(state.Variant) is { } reflect)
-            return DeepZoomPixelReflected(state, orbit, reflect, isJulia, deltaReal, deltaImaginary,
-                escapeSquared, token);
+            return DeepZoomPixelReflected(state, orbit, reflect, isJulia,
+                deltaReal.ToDouble(), deltaImaginary.ToDouble(),
+                escapeSquared, distanceScale.ToDouble(), token);
 
         // Симоноброт целой степени: композиция возмущений zᵖ и |z|ᵖ=M^(p/2) (при нечётном p
         // множитель модуля несёт корень), δ в double, BLA — вещественная 2×2 (ведущий
         // линейный член не комплексный).
         int simonobrotPower = SimonobrotPowerOrZero(state);
         if (simonobrotPower >= 2)
-            return DeepZoomPixelSimonobrot(state, orbit, simonobrotPower, deltaReal, deltaImaginary,
-                escapeSquared, token);
+            return DeepZoomPixelSimonobrot(state, orbit, simonobrotPower,
+                deltaReal.ToDouble(), deltaImaginary.ToDouble(),
+                escapeSquared, distanceScale.ToDouble(), token);
 
         // Multibrot целой степени: биномиальное возмущение (δ в double, BLA с p-зависимым A).
         int multibrotPower = MultibrotPowerOrZero(state);
         if (multibrotPower >= 3)
-            return DeepZoomPixelMultibrot(state, orbit, multibrotPower, deltaReal, deltaImaginary,
-                escapeSquared, token);
+            return DeepZoomPixelMultibrot(state, orbit, multibrotPower,
+                deltaReal.ToDouble(), deltaImaginary.ToDouble(),
+                escapeSquared, distanceScale.ToDouble(), token);
         // p == 2 (или обычные Mandelbrot/Julia) — общий z²+c-путь ниже.
 
         return plan.UseFloatExpDelta
-            ? DeepZoomPixelFloatExp(state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token)
-            : DeepZoomPixel(state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token);
+            ? DeepZoomPixelFloatExp(state, orbit, isJulia, deltaReal, deltaImaginary,
+                escapeSquared, distanceScale, token)
+            : DeepZoomPixel(state, orbit, isJulia, deltaReal.ToDouble(), deltaImaginary.ToDouble(),
+                escapeSquared, distanceScale.ToDouble(), token);
     }
 
     // ------------------------------------------------------------------ entry points
@@ -251,8 +269,8 @@ public static partial class MandelbrotFamilyRenderer
         bool isJulia = IsJuliaVariant(state.Variant);
         bool trackHistogram = state.ColoringMode == MandelbrotColoringMode.Histogram;
         double escapeSquared = (double)(state.Threshold * state.Threshold);
-        double viewWidth = 3.0 / state.Zoom;
-        double viewHeight = viewWidth * canvasHeight / canvasWidth;
+        FloatExp viewWidth = 3.0 / state.Zoom;
+        FloatExp viewHeight = viewWidth * canvasHeight / canvasWidth;
 
         int stride = checked(tile.Width * 4);
         var buffer = new byte[checked(stride * tile.Height)];
@@ -261,14 +279,15 @@ public static partial class MandelbrotFamilyRenderer
         {
             if (token.IsCancellationRequested) return null;
             int y = tile.Y + localY;
-            double deltaImaginary = (0.5 - (double)y / canvasHeight) * viewHeight;
+            FloatExp deltaImaginary = (0.5 - (double)y / canvasHeight) * viewHeight;
             int row = localY * stride;
             for (int localX = 0; localX < tile.Width; localX++)
             {
                 int x = tile.X + localX;
-                double deltaReal = ((double)x / canvasWidth - 0.5) * viewWidth;
+                FloatExp deltaReal = ((double)x / canvasWidth - 0.5) * viewWidth;
                 PixelMetrics metrics = DeepZoomPixelDispatch(
-                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token);
+                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared,
+                    FloatExp.One, token);
                 // Тайловый предпросмотр (и Histogram здесь) — та же дешёвая локальная
                 // нормализация, что и в обычном RenderTile: полноценное выравнивание по
                 // CDF по кадру требует полного кадра (см. RenderDeepZoomHistogram).
@@ -333,8 +352,8 @@ public static partial class MandelbrotFamilyRenderer
 
         bool isJulia = IsJuliaVariant(state.Variant);
         double escapeSquared = (double)(state.Threshold * state.Threshold);
-        double viewWidth = 3.0 / state.Zoom;
-        double viewHeight = viewWidth * height / width;
+        FloatExp viewWidth = 3.0 / state.Zoom;
+        FloatExp viewHeight = viewWidth * height / width;
 
         if (state.ColoringMode == MandelbrotColoringMode.Histogram)
         {
@@ -356,13 +375,14 @@ public static partial class MandelbrotFamilyRenderer
         {
             if (token.IsCancellationRequested) { loopState.Stop(); return; }
             int row = y * stride;
-            double deltaImaginary = (0.5 - (double)y / height) * viewHeight;
+            FloatExp deltaImaginary = (0.5 - (double)y / height) * viewHeight;
             for (int x = 0; x < width; x++)
             {
                 if ((x & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return; }
-                double deltaReal = ((double)x / width - 0.5) * viewWidth;
+                FloatExp deltaReal = ((double)x / width - 0.5) * viewWidth;
                 PixelMetrics metrics = DeepZoomPixelDispatch(
-                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token);
+                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared,
+                    FloatExp.One, token);
                 Color color = ResolveColor(state, metrics, 0);
                 int offset = row + x * 4;
                 buffer[offset] = color.B;
@@ -392,8 +412,8 @@ public static partial class MandelbrotFamilyRenderer
         ReferenceOrbit orbit,
         bool isJulia,
         double escapeSquared,
-        double viewWidth,
-        double viewHeight,
+        FloatExp viewWidth,
+        FloatExp viewHeight,
         ParallelOptions options,
         CancellationToken token,
         Action<int>? reportProgress)
@@ -404,18 +424,19 @@ public static partial class MandelbrotFamilyRenderer
         object histogramLock = new();
         int scanRows = 0;
 
-        Parallel.For(0, height, options, (y, loopState) =>
+        // Счётчики бинов — по одному массиву на рабочий поток: см. RenderHistogram.
+        Parallel.For(0, height, options, () => new int[bins.Length], (y, loopState, localBins) =>
         {
-            if (token.IsCancellationRequested) { loopState.Stop(); return; }
-            var localBins = new int[bins.Length];
-            double deltaImaginary = (0.5 - (double)y / height) * viewHeight;
+            if (token.IsCancellationRequested) { loopState.Stop(); return localBins; }
+            FloatExp deltaImaginary = (0.5 - (double)y / height) * viewHeight;
             int row = y * width;
             for (int x = 0; x < width; x++)
             {
-                if ((x & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return; }
-                double deltaReal = ((double)x / width - 0.5) * viewWidth;
+                if ((x & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return localBins; }
+                FloatExp deltaReal = ((double)x / width - 0.5) * viewWidth;
                 PixelMetrics value = DeepZoomPixelDispatch(
-                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token);
+                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared,
+                    FloatExp.One, token);
                 smoothValues[row + x] = value.Smooth;
                 iterationValues[row + x] = value.Iterations;
                 int bin = state.HistogramInputUseSmooth
@@ -423,12 +444,16 @@ public static partial class MandelbrotFamilyRenderer
                     : System.Math.Clamp(value.Iterations, 0, state.Iterations);
                 localBins[bin]++;
             }
+            int done = Interlocked.Increment(ref scanRows);
+            reportProgress?.Invoke(done * 65 / height);
+            return localBins;
+        },
+        localBins =>
+        {
             lock (histogramLock)
             {
                 for (int i = 0; i < bins.Length; i++) bins[i] += localBins[i];
             }
-            int done = Interlocked.Increment(ref scanRows);
-            reportProgress?.Invoke(done * 65 / height);
         });
 
         if (token.IsCancellationRequested) return;
@@ -498,8 +523,8 @@ public static partial class MandelbrotFamilyRenderer
         ReferenceOrbit orbit,
         bool isJulia,
         double escapeSquared,
-        double viewWidth,
-        double viewHeight,
+        FloatExp viewWidth,
+        FloatExp viewHeight,
         ParallelOptions options,
         CancellationToken token,
         Action<int>? reportProgress)
@@ -507,23 +532,28 @@ public static partial class MandelbrotFamilyRenderer
         int sampleWidth = checked(width + 2);
         int sampleHeight = checked(height + 2);
         var distances = new float[checked(sampleWidth * sampleHeight)];
-        double pixelSize = viewWidth / width;
+        // Расстояния считаются сразу в единицах пикселя (см. комментарий выше): ядро
+        // получает обратный размер пикселя и возвращает уже нормированное значение. На
+        // сверхглубоком зуме абсолютное расстояние непредставимо ни во float поля, ни в
+        // double — представимо только это отношение.
+        FloatExp distanceScale = PixelDistanceScale(viewWidth, width);
         int sampledRows = 0;
 
         Parallel.For(0, sampleHeight, options, (sampleY, loopState) =>
         {
             if (token.IsCancellationRequested) { loopState.Stop(); return; }
             int y = sampleY - 1;
-            double deltaImaginary = (0.5 - (double)y / height) * viewHeight;
+            FloatExp deltaImaginary = (0.5 - (double)y / height) * viewHeight;
             int distanceRow = sampleY * sampleWidth;
             for (int sampleX = 0; sampleX < sampleWidth; sampleX++)
             {
                 if ((sampleX & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return; }
                 int x = sampleX - 1;
-                double deltaReal = ((double)x / width - 0.5) * viewWidth;
+                FloatExp deltaReal = ((double)x / width - 0.5) * viewWidth;
                 PixelMetrics metrics = DeepZoomPixelDispatch(
-                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token);
-                distances[distanceRow + sampleX] = StoreDistance(metrics.Distance / pixelSize);
+                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared,
+                    distanceScale, token);
+                distances[distanceRow + sampleX] = StoreDistance(metrics.Distance);
                 if (sampleX is > 0 && sampleX <= width && sampleY is > 0 && sampleY <= height)
                 {
                     Color baseColor = ResolveDistanceBaseColor(state, metrics);
@@ -553,9 +583,9 @@ public static partial class MandelbrotFamilyRenderer
     {
         bool isJulia = IsJuliaVariant(state.Variant);
         double escapeSquared = DistanceEstimationEscapeSquared(state);
-        double viewWidth = 3.0 / state.Zoom;
-        double viewHeight = viewWidth * canvasHeight / canvasWidth;
-        double pixelSize = viewWidth / canvasWidth;
+        FloatExp viewWidth = 3.0 / state.Zoom;
+        FloatExp viewHeight = viewWidth * canvasHeight / canvasWidth;
+        FloatExp distanceScale = PixelDistanceScale(viewWidth, canvasWidth);
 
         int stride = checked(tile.Width * 4);
         var buffer = new byte[checked(stride * tile.Height)];
@@ -567,15 +597,16 @@ public static partial class MandelbrotFamilyRenderer
         {
             if (token.IsCancellationRequested) return null;
             int y = tile.Y + sampleY - 1;
-            double deltaImaginary = (0.5 - (double)y / canvasHeight) * viewHeight;
+            FloatExp deltaImaginary = (0.5 - (double)y / canvasHeight) * viewHeight;
             int distanceRow = sampleY * sampleWidth;
             for (int sampleX = 0; sampleX < sampleWidth; sampleX++)
             {
                 int x = tile.X + sampleX - 1;
-                double deltaReal = ((double)x / canvasWidth - 0.5) * viewWidth;
+                FloatExp deltaReal = ((double)x / canvasWidth - 0.5) * viewWidth;
                 PixelMetrics metrics = DeepZoomPixelDispatch(
-                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared, token);
-                distances[distanceRow + sampleX] = StoreDistance(metrics.Distance / pixelSize);
+                    plan, state, orbit, isJulia, deltaReal, deltaImaginary, escapeSquared,
+                    distanceScale, token);
+                distances[distanceRow + sampleX] = StoreDistance(metrics.Distance);
                 if (sampleX is > 0 && sampleX <= tile.Width &&
                     sampleY is > 0 && sampleY <= tile.Height)
                 {
@@ -598,6 +629,20 @@ public static partial class MandelbrotFamilyRenderer
     // отлично обслуживается rebasing'ом — это обычный случай для глубокого «внешнего» вида.
     private static bool IsDegenerateOrbit(ReferenceOrbit orbit, int iterations) => orbit.Length < 4;
 
+    /// <summary>
+    /// Опорная орбита центра для анализа вида — сейчас для поиска периода атом-домена в
+    /// <see cref="MandelbrotNewtonZoom"/>. Берётся из того же кэша, что и рендер кадра,
+    /// поэтому сразу после отрисовки текущего состояния ничего не пересчитывается.
+    /// Значения — в double: для поиска <c>argmin |zₙ|</c> этого достаточно, а сама орбита
+    /// посчитана в <see cref="BigFloat"/> с адаптивной точностью.
+    /// </summary>
+    internal static (double[] Re, double[] Im, int Length) GetCenterOrbitForAnalysis(MandelbrotState state)
+    {
+        DeepZoomPlan plan = PlanDeepZoom(state);
+        ReferenceOrbit orbit = GetReferenceOrbit(state, plan.ReferenceBits);
+        return (orbit.Re, orbit.Im, orbit.Length);
+    }
+
     private static ReferenceOrbit GetReferenceOrbit(MandelbrotState state, int referenceBits)
     {
         string centerXRaw = state.CenterXExact is { Length: > 0 } exactX
@@ -610,7 +655,7 @@ public static partial class MandelbrotFamilyRenderer
         string key = string.Join('|',
             centerXRaw,
             centerYRaw,
-            state.Zoom.ToString(CultureInfo.InvariantCulture),
+            state.Zoom.ToInvariantString(),
             state.Iterations.ToString(CultureInfo.InvariantCulture),
             ((int)state.Variant).ToString(CultureInfo.InvariantCulture),
             state.JuliaCReal.ToString(CultureInfo.InvariantCulture),
@@ -721,7 +766,12 @@ public static partial class MandelbrotFamilyRenderer
         // null. δcmax — консервативная оценка |δc| по кадру (полная ширина вида 3/zoom), не
         // зависит от размера полотна, поэтому кэшируется вместе с орбитой.
         double escapeSquared = (double)(state.Threshold * state.Threshold);
-        double deltaCMax = state.Zoom > 0 && double.IsFinite(state.Zoom) ? 3.0 / state.Zoom : 0.0;
+        // δcmax ведётся в расширенном диапазоне: на зуме за 1.8e308 ширина вида в double
+        // обращается в ноль, и оценка «вклад δc в радиус применимости BLA» молча пропадала —
+        // радиусы выходили завышенными, то есть BLA применялся там, где уже не вправе.
+        FloatExp deltaCMax = state.Zoom.Sign > 0 && state.Zoom.IsFinite
+            ? 3.0 / state.Zoom
+            : FloatExp.Zero;
         bool complexLinearPart = reflect is null && simonobrotPower == 0;
         orbit.Bla = complexLinearPart
             ? BlaTable.Build(re, im, length, isJulia, escapeSquared, deltaCMax,
@@ -840,7 +890,8 @@ public static partial class MandelbrotFamilyRenderer
         bool estimateDistance,
         double escapeReal,
         double escapeImaginary,
-        Jacobian2 derivative)
+        Jacobian2 derivative,
+        double distanceScale)
     {
         double smooth = iteration;
         if (magnitudeSquared > 1)
@@ -857,7 +908,46 @@ public static partial class MandelbrotFamilyRenderer
             smooth,
             minTrap == double.MaxValue ? 0 : minTrap,
             iteration == 0 ? 0 : stripe / iteration,
-            estimateDistance ? EstimateDistance(escapeReal, escapeImaginary, derivative) : 0);
+            estimateDistance
+                ? EstimateDistance(escapeReal, escapeImaginary, derivative) * distanceScale
+                : 0);
+    }
+
+    /// <summary>
+    /// Шаг рекуррентности производной с накоплением в расширенном диапазоне — расширенный
+    /// двойник <see cref="AdvanceDerivative"/> для FloatExp-ядра. Якобиан шага остаётся
+    /// double: он зависит только от <c>z</c>, ограниченного радиусом бейлаута.
+    /// </summary>
+    private static Jacobian2Exp AdvanceDerivativeExp(
+        MandelbrotState state,
+        Jacobian2Exp derivative,
+        Jacobian2 parameterDerivative,
+        double currentReal,
+        double currentImaginary) =>
+        Jacobian2Exp.Multiply(GetIterationJacobian(state, currentReal, currentImaginary), derivative) +
+        parameterDerivative;
+
+    /// <summary>
+    /// Хвост FloatExp-ядра: то же, что <see cref="FinishDeepZoomPixel"/>, но расстояние
+    /// считается по расширенной производной и нормируется на размер пикселя внутри
+    /// расширенного диапазона (см. <see cref="EstimateDistanceExp"/>).
+    /// </summary>
+    private static PixelMetrics FinishDeepZoomPixelExp(
+        int iteration,
+        double magnitudeSquared,
+        double minTrap,
+        double stripe,
+        bool estimateDistance,
+        double escapeReal,
+        double escapeImaginary,
+        Jacobian2Exp derivative,
+        FloatExp distanceScale)
+    {
+        PixelMetrics metrics = FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
+            false, escapeReal, escapeImaginary, Jacobian2.Zero, 1.0);
+        return estimateDistance
+            ? metrics with { Distance = EstimateDistanceExp(escapeReal, escapeImaginary, derivative, distanceScale) }
+            : metrics;
     }
 
     private static PixelMetrics DeepZoomPixel(
@@ -867,6 +957,7 @@ public static partial class MandelbrotFamilyRenderer
         double deltaConstantReal,
         double deltaConstantImaginary,
         double escapeSquared,
+        double distanceScale,
         CancellationToken token)
     {
         int maxIterations = state.Iterations;
@@ -984,7 +1075,7 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
     }
 
     // Тот же алгоритм, что <see cref="DeepZoomPixel"/>, но отклонение δ ведётся в
@@ -996,22 +1087,25 @@ public static partial class MandelbrotFamilyRenderer
         MandelbrotState state,
         ReferenceOrbit orbit,
         bool isJulia,
-        double deltaConstantReal,
-        double deltaConstantImaginary,
+        FloatExp deltaConstantReal,
+        FloatExp deltaConstantImaginary,
         double escapeSquared,
+        FloatExp distanceScale,
         CancellationToken token)
     {
         int maxIterations = state.Iterations;
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
         bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
 
-        FloatExp deltaReal = FloatExp.FromDouble(isJulia ? deltaConstantReal : 0.0);
-        FloatExp deltaImaginary = FloatExp.FromDouble(isJulia ? deltaConstantImaginary : 0.0);
-        FloatExp addReal = FloatExp.FromDouble(isJulia ? 0.0 : deltaConstantReal);
-        FloatExp addImaginary = FloatExp.FromDouble(isJulia ? 0.0 : deltaConstantImaginary);
+        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
+        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
+        FloatExp addReal = isJulia ? FloatExp.Zero : deltaConstantReal;
+        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
+        // Производная для Distance Estimation здесь тоже расширенная: |D| растёт примерно как
+        // сам зум и за 1.8e308 в double не помещается (см. Jacobian2Exp).
+        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
@@ -1062,7 +1156,7 @@ public static partial class MandelbrotFamilyRenderer
                         state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
 
                 if (estimateDistance)
-                    derivative = AdvanceDerivative(state, derivative, parameterDerivative,
+                    derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
                         currentReal, currentImaginary);
 
                 // δ ← 2·Z·δ + δ² + δc
@@ -1110,8 +1204,8 @@ public static partial class MandelbrotFamilyRenderer
         if (!escaped)
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
-        return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative);
+        return FinishDeepZoomPixelExp(iteration, magnitudeSquared, minTrap, stripe,
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
     }
 
     // Пертурбационное ядро для отражённых вариантов (Burning Ship, Julia Burning Ship,
@@ -1128,6 +1222,7 @@ public static partial class MandelbrotFamilyRenderer
         double deltaConstantReal,
         double deltaConstantImaginary,
         double escapeSquared,
+        double distanceScale,
         CancellationToken token)
     {
         int maxIterations = state.Iterations;
@@ -1286,7 +1381,7 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
     }
 
     // Пертурбационное ядро Multibrot (Generalized) целой степени p ≥ 3: формула zᵖ+c.
@@ -1301,6 +1396,7 @@ public static partial class MandelbrotFamilyRenderer
         double deltaConstantReal,
         double deltaConstantImaginary,
         double escapeSquared,
+        double distanceScale,
         CancellationToken token)
     {
         int maxIterations = state.Iterations;
@@ -1437,7 +1533,7 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
     }
 
     // Пертурбационное ядро Симоноброта целой степени p: формула zᵖ·|z|ᵖ+c = zᵖ·M^(p/2)+c,
@@ -1458,6 +1554,7 @@ public static partial class MandelbrotFamilyRenderer
         double deltaConstantReal,
         double deltaConstantImaginary,
         double escapeSquared,
+        double distanceScale,
         CancellationToken token)
     {
         int maxIterations = state.Iterations;
@@ -1646,7 +1743,7 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
     }
 
     // ------------------------------------------------------------------ brute-force safety net
@@ -1676,7 +1773,10 @@ public static partial class MandelbrotFamilyRenderer
         int stride = checked(tile.Width * 4);
         var buffer = new byte[checked(stride * tile.Height)];
         var (centerX, centerY) = ProjectCenterToDouble(state);
-        double viewWidth = 3.0 / state.Zoom;
+        // Вырожденная опорная орбита означает почти однородный вид, поэтому сужение ширины
+        // вида до double безопасно: за 1.8e308 зума шаг пикселя обращается в ноль и все
+        // пиксели совпадают с центром — ровно то, что этот путь и без того рисует.
+        double viewWidth = (3.0 / state.Zoom).ToDouble();
         double viewHeight = viewWidth * canvasHeight / canvasWidth;
         bool trackHistogram = state.ColoringMode == MandelbrotColoringMode.Histogram;
 
@@ -1722,7 +1822,8 @@ public static partial class MandelbrotFamilyRenderer
             MaxDegreeOfParallelism = System.Math.Clamp(threads, 1, Environment.ProcessorCount)
         };
         var (centerX, centerY) = ProjectCenterToDouble(state);
-        double viewWidth = 3.0 / state.Zoom;
+        // См. RenderBruteForceTile: вид однороден, сужение до double здесь ничего не теряет.
+        double viewWidth = (3.0 / state.Zoom).ToDouble();
         double viewHeight = viewWidth * height / width;
         int completedRows = 0;
 

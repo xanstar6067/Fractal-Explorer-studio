@@ -1,3 +1,5 @@
+using FractalExplorerWPF.Core.NewtonMath;
+
 namespace FractalExplorerWPF.Core.Rendering;
 
 /// <summary>
@@ -26,9 +28,11 @@ public static partial class MandelbrotFamilyRenderer
     // того же рода расхождение, что переход decimal→пертурбация в Фазе 2).
     private const double BlaTolerance = 2.220446049250313e-16;
 
-    // Верхняя граница длины орбиты, для которой строится таблица (~160 МБ при 2M).
-    // При потолке в 1e6 итераций недостижима; чистая подстраховка по памяти.
-    private const int BlaMaxOrbitLength = 2_000_000;
+    // Верхняя граница длины орбиты, для которой строится таблица: пять double-массивов по
+    // ~2·L элементов — около 160 МБ при L = 2M (плюс 32 МБ самой орбиты). Совпадает с
+    // потолком итераций в окне (MaxIterations), поэтому BLA доступен на всём диапазоне
+    // настроек и нигде не отключается молча.
+    internal const int BlaMaxOrbitLength = 2_000_000;
 
     private sealed class BlaTable
     {
@@ -52,7 +56,7 @@ public static partial class MandelbrotFamilyRenderer
         /// слишком длинная.
         /// </summary>
         public static BlaTable? Build(
-            double[] re, double[] im, int length, bool isJulia, double escapeSquared, double deltaCMax,
+            double[] re, double[] im, int length, bool isJulia, double escapeSquared, FloatExp deltaCMax,
             int power = 2)
         {
             if (length < 4 || length > BlaMaxOrbitLength) return null;
@@ -166,7 +170,12 @@ public static partial class MandelbrotFamilyRenderer
                         double ry = System.Math.Sqrt(yR2);
                         // |δ_in| ≤ r_x  и  |A_x·δ_in + B_x·δc| ≤ r_y ⇒
                         // r_z = min( r_x , max(0, (r_y − |B_x|·δcmax) / |A_x|) )
-                        double bound = xAabs > 0.0 ? (ry - xBabs * deltaCMax) / xAabs : 0.0;
+                        // Произведение |B|·δcmax считается в расширенном диапазоне: |B| доходит
+                        // до ~1e308, а δcmax на глубоком зуме уже вне double — в double
+                        // произведение давало бы 0/NaN вместо настоящей оценки. Сам радиус
+                        // остаётся double: он ограничен tol·|Z|, то есть всегда в диапазоне.
+                        double bCorrection = (FloatExp.FromDouble(xBabs) * deltaCMax).ToDouble();
+                        double bound = xAabs > 0.0 ? (ry - bCorrection) / xAabs : 0.0;
                         double rz = System.Math.Min(rx, System.Math.Max(0.0, bound));
                         zR2 = rz * rz;
                     }

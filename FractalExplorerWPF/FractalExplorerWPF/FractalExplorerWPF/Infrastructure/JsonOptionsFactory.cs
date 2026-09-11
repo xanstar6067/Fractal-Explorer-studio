@@ -10,6 +10,7 @@ public static class JsonOptionsFactory
         var options = new JsonSerializerOptions { WriteIndented = true };
         options.Converters.Add(new WpfColorJsonConverter());
         options.Converters.Add(new NumericsComplexJsonConverter());
+        options.Converters.Add(new FloatExpJsonConverter());
         return options;
     }
 }

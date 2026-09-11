@@ -3,6 +3,7 @@ using System.Windows.Media;
 using FractalExplorer.Utilities;
 using FractalExplorerWPF.Models;
 using Color = System.Windows.Media.Color;
+using FractalExplorerWPF.Core.NewtonMath;
 
 namespace FractalExplorerWPF.Core.Rendering;
 
@@ -30,9 +31,17 @@ public static partial class MandelbrotFamilyRenderer
     // так что ничего не теряется.
     private const decimal DecimalViewWidthMinimum = 0.000000000000001m;
 
-    private static decimal DecimalViewWidth(double zoom)
+    // Верхняя граница зума для decimal-сетки. Зум расширенного диапазона (FloatExp) сюда
+    // приходит только на запасных путях, где сама ступень всё равно не тянет такую глубину,
+    // поэтому он просто зажимается потолком decimal.
+    private const double DecimalViewWidthZoomCeiling = 7.9e28;
+
+    private static decimal DecimalViewWidth(FloatExp zoom)
     {
-        double clamped = double.IsFinite(zoom) ? Math.Min(zoom, 7.9e28) : 7.9e28;
+        double asDouble = zoom.ToDouble();
+        double clamped = double.IsNaN(asDouble)
+            ? DecimalViewWidthZoomCeiling
+            : Math.Min(asDouble, DecimalViewWidthZoomCeiling);
         return 3m / Math.Max((decimal)clamped, DecimalViewWidthMinimum);
     }
 
@@ -450,15 +459,17 @@ public static partial class MandelbrotFamilyRenderer
         var bins = new int[state.Iterations + 1];
         object histogramLock = new();
 
-        Parallel.For(0, height, options, (y, loopState) =>
+        // Счётчики бинов — по одному массиву на рабочий поток (localInit/localFinally), а не
+        // на строку: при потолке итераций массив бинов занимает единицы мегабайт, и аллокация
+        // на каждую строку давала бы гигабайты мусора за кадр.
+        Parallel.For(0, height, options, () => new int[bins.Length], (y, loopState, localBins) =>
         {
-            if (token.IsCancellationRequested) { loopState.Stop(); return; }
-            var localBins = new int[bins.Length];
+            if (token.IsCancellationRequested) { loopState.Stop(); return localBins; }
             decimal im = state.CenterY + (0.5m - (decimal)y / height) * viewHeight;
             int row = y * width;
             for (int x = 0; x < width; x++)
             {
-                if ((x & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return; }
+                if ((x & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return localBins; }
                 decimal re = state.CenterX + ((decimal)x / width - 0.5m) * viewWidth;
                 PixelMetrics value = IterateAt(state, re, im, token);
                 smoothValues[row + x] = value.Smooth;
@@ -468,12 +479,16 @@ public static partial class MandelbrotFamilyRenderer
                     : Math.Clamp(value.Iterations, 0, state.Iterations);
                 localBins[bin]++;
             }
+            int done = Interlocked.Increment(ref scanRows);
+            progress?.Invoke(done * 65 / height);
+            return localBins;
+        },
+        localBins =>
+        {
             lock (histogramLock)
             {
                 for (int i = 0; i < bins.Length; i++) bins[i] += localBins[i];
             }
-            int done = Interlocked.Increment(ref scanRows);
-            progress?.Invoke(done * 65 / height);
         });
 
         if (token.IsCancellationRequested) return;
@@ -785,6 +800,64 @@ public static partial class MandelbrotFamilyRenderer
             value.M12 * scale,
             value.M21 * scale,
             value.M22 * scale);
+    }
+
+    /// <summary>
+    /// Тот же якобиан 2×2, но с элементами в <see cref="FloatExp"/>. Нужен Distance
+    /// Estimation на сверхглубоком зуме: |D| растёт примерно как сам зум, и за 1.8e308
+    /// double-версия переполняется, обращая расстояние в ноль (рельеф исчезал целиком).
+    /// Сам якобиан шага <see cref="GetIterationJacobian"/> остаётся double — он зависит
+    /// только от ограниченного радиусом бейлаута <c>z</c>.
+    /// </summary>
+    private readonly record struct Jacobian2Exp(FloatExp M11, FloatExp M12, FloatExp M21, FloatExp M22)
+    {
+        public static Jacobian2Exp Zero => new(FloatExp.Zero, FloatExp.Zero, FloatExp.Zero, FloatExp.Zero);
+        public static Jacobian2Exp Identity => new(FloatExp.One, FloatExp.Zero, FloatExp.Zero, FloatExp.One);
+
+        public static Jacobian2Exp FromDouble(Jacobian2 value) => new(
+            FloatExp.FromDouble(value.M11),
+            FloatExp.FromDouble(value.M12),
+            FloatExp.FromDouble(value.M21),
+            FloatExp.FromDouble(value.M22));
+
+        public bool IsFinite => M11.IsFinite && M12.IsFinite && M21.IsFinite && M22.IsFinite;
+
+        /// <summary>Произведение double-якобиана шага на накопленную расширенную производную.</summary>
+        public static Jacobian2Exp Multiply(Jacobian2 left, Jacobian2Exp right) => new(
+            right.M11 * left.M11 + right.M21 * left.M12,
+            right.M12 * left.M11 + right.M22 * left.M12,
+            right.M11 * left.M21 + right.M21 * left.M22,
+            right.M12 * left.M21 + right.M22 * left.M22);
+
+        public static Jacobian2Exp operator +(Jacobian2Exp left, Jacobian2 right) => new(
+            left.M11 + FloatExp.FromDouble(right.M11),
+            left.M12 + FloatExp.FromDouble(right.M12),
+            left.M21 + FloatExp.FromDouble(right.M21),
+            left.M22 + FloatExp.FromDouble(right.M22));
+    }
+
+    /// <summary>
+    /// Расстояние до границы в единицах пикселя: та же формула, что и
+    /// <see cref="EstimateDistance"/>, но производная — в расширенном диапазоне, а результат
+    /// сразу умножается на <paramref name="distanceScale"/> (величина, обратная размеру
+    /// пикселя). Именно произведение и остаётся в диапазоне double: абсолютное расстояние на
+    /// зуме 1e1000 само по себе непредставимо.
+    /// </summary>
+    private static double EstimateDistanceExp(
+        double zr, double zi, Jacobian2Exp derivative, FloatExp distanceScale)
+    {
+        if (!derivative.IsFinite) return 0;
+        double radiusSquared = zr * zr + zi * zi;
+        if (!(radiusSquared > 1) || !double.IsFinite(radiusSquared)) return 0;
+
+        FloatExp gradientX = (derivative.M11 * zr + derivative.M21 * zi) / radiusSquared;
+        FloatExp gradientY = (derivative.M12 * zr + derivative.M22 * zi) / radiusSquared;
+        FloatExp gradientLength = FloatExp.Sqrt(FloatExp.MagnitudeSquared(gradientX, gradientY));
+        if (gradientLength.IsZero || !gradientLength.IsFinite) return 0;
+
+        FloatExp distance = 0.5 * Math.Log(Math.Sqrt(radiusSquared)) / gradientLength * distanceScale;
+        double result = distance.ToDouble();
+        return result > 0 && double.IsFinite(result) ? result : 0;
     }
 
     private static void IterateOnceDecimal(

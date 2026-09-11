@@ -1,3 +1,5 @@
+using FractalExplorerWPF.Core.NewtonMath;
+
 namespace FractalExplorerWPF.Core.Rendering;
 
 /// <summary>
@@ -107,7 +109,7 @@ public static partial class MandelbrotFamilyRenderer
         /// (вариант обслуживает комплексная <see cref="BlaTable"/>).
         /// </summary>
         public static RealBlaTable? Build(
-            double[] re, double[] im, int length, bool isJulia, double escapeSquared, double deltaCMax,
+            double[] re, double[] im, int length, bool isJulia, double escapeSquared, FloatExp deltaCMax,
             ReflectKind? reflect, int simonobrotPower)
         {
             if (length < 4 || length > RealBlaMaxOrbitLength) return null;
@@ -368,7 +370,9 @@ public static partial class MandelbrotFamilyRenderer
                         double xBNorm = SpectralNorm2x2(xB11, xB12, xB21, xB22);
                         double rx = System.Math.Sqrt(xR2);
                         double ry = System.Math.Sqrt(yR2);
-                        double bound = xANorm > 0.0 ? (ry - xBNorm * deltaCMax) / xANorm : 0.0;
+                        // См. BlaTable.Build: вклад δc считается в расширенном диапазоне.
+                        double bCorrection = (FloatExp.FromDouble(xBNorm) * deltaCMax).ToDouble();
+                        double bound = xANorm > 0.0 ? (ry - bCorrection) / xANorm : 0.0;
                         double rz = System.Math.Min(rx, System.Math.Max(0.0, bound));
                         zR2 = double.IsFinite(rz) ? rz * rz : 0.0;
                     }

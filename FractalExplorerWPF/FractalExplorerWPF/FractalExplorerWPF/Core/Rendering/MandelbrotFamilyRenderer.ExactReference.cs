@@ -33,8 +33,10 @@ public static partial class MandelbrotFamilyRenderer
         double escapeSquared = estimateDistance
             ? DistanceEstimationEscapeSquared(state)
             : (double)(state.Threshold * state.Threshold);
-        double viewWidth = 3.0 / state.Zoom;
-        double viewHeight = viewWidth * height / width;
+        // Сетка кадра — в расширенном диапазоне, как и у основного движка: смещение пикселя
+        // на зуме за 1.8e308 в double обращается в ноль, и эталон рисовал бы один цвет.
+        FloatExp viewWidth = 3.0 / state.Zoom;
+        FloatExp viewHeight = viewWidth * height / width;
 
         var options = new ParallelOptions
         {
@@ -56,14 +58,15 @@ public static partial class MandelbrotFamilyRenderer
 
             BigFloat centerX = BigFloat.Parse(centerXRaw);
             BigFloat centerY = BigFloat.Parse(centerYRaw);
-            BigFloat imaginary = centerY + BigFloat.FromDouble((0.5 - (double)y / height) * viewHeight);
+            BigFloat imaginary = centerY + ((0.5 - (double)y / height) * viewHeight).ToBigFloat();
             int row = y * width * 4;
 
             for (int x = 0; x < width; x++)
             {
                 if ((x & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return; }
-                BigFloat real = centerX + BigFloat.FromDouble(((double)x / width - 0.5) * viewWidth);
-                PixelMetrics metrics = ExactIterate(state, real, imaginary, escapeSquared, token);
+                BigFloat real = centerX + (((double)x / width - 0.5) * viewWidth).ToBigFloat();
+                PixelMetrics metrics = ExactIterate(state, real, imaginary, escapeSquared,
+                    FloatExp.One, token);
                 Color color = ResolveColor(state, metrics, 0);
                 int offset = row + x * 4;
                 buffer[offset] = color.B;
@@ -90,8 +93,8 @@ public static partial class MandelbrotFamilyRenderer
         string centerXRaw,
         string centerYRaw,
         double escapeSquared,
-        double viewWidth,
-        double viewHeight,
+        FloatExp viewWidth,
+        FloatExp viewHeight,
         ParallelOptions options,
         CancellationToken token)
     {
@@ -99,7 +102,7 @@ public static partial class MandelbrotFamilyRenderer
         int sampleWidth = checked(width + 2);
         int sampleHeight = checked(height + 2);
         var distances = new float[checked(sampleWidth * sampleHeight)];
-        double pixelSize = viewWidth / width;
+        FloatExp distanceScale = PixelDistanceScale(viewWidth, width);
 
         Parallel.For(0, sampleHeight, options, (sampleY, loopState) =>
         {
@@ -109,16 +112,17 @@ public static partial class MandelbrotFamilyRenderer
             BigFloat centerX = BigFloat.Parse(centerXRaw);
             BigFloat centerY = BigFloat.Parse(centerYRaw);
             int y = sampleY - 1;
-            BigFloat imaginary = centerY + BigFloat.FromDouble((0.5 - (double)y / height) * viewHeight);
+            BigFloat imaginary = centerY + ((0.5 - (double)y / height) * viewHeight).ToBigFloat();
             int distanceRow = sampleY * sampleWidth;
 
             for (int sampleX = 0; sampleX < sampleWidth; sampleX++)
             {
                 if ((sampleX & 63) == 0 && token.IsCancellationRequested) { loopState.Stop(); return; }
                 int x = sampleX - 1;
-                BigFloat real = centerX + BigFloat.FromDouble(((double)x / width - 0.5) * viewWidth);
-                PixelMetrics metrics = ExactIterate(state, real, imaginary, escapeSquared, token);
-                distances[distanceRow + sampleX] = StoreDistance(metrics.Distance / pixelSize);
+                BigFloat real = centerX + (((double)x / width - 0.5) * viewWidth).ToBigFloat();
+                PixelMetrics metrics = ExactIterate(state, real, imaginary, escapeSquared,
+                    distanceScale, token);
+                distances[distanceRow + sampleX] = StoreDistance(metrics.Distance);
                 if (sampleX is > 0 && sampleX <= width && sampleY is > 0 && sampleY <= height)
                 {
                     Color baseColor = ResolveDistanceBaseColor(state, metrics);
@@ -133,7 +137,8 @@ public static partial class MandelbrotFamilyRenderer
     }
 
     private static PixelMetrics ExactIterate(
-        MandelbrotState state, BigFloat startReal, BigFloat startImaginary, double escapeSquared, CancellationToken token)
+        MandelbrotState state, BigFloat startReal, BigFloat startImaginary, double escapeSquared,
+        FloatExp distanceScale, CancellationToken token)
     {
         bool isJulia = IsJuliaVariant(state.Variant);
         ReflectKind? reflect = ReflectKindOf(state.Variant);
@@ -157,7 +162,9 @@ public static partial class MandelbrotFamilyRenderer
         bool escaped = false;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
+        // Производная — в расширенном диапазоне, как и у глубокого движка: иначе эталон
+        // переполнялся бы раньше проверяемого кода и перестал быть эталоном.
+        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         while (iteration < maxIterations)
@@ -165,7 +172,7 @@ public static partial class MandelbrotFamilyRenderer
             if ((iteration & 4095) == 0 && token.IsCancellationRequested) return default;
 
             if (estimateDistance)
-                derivative = AdvanceDerivative(state, derivative, parameterDerivative,
+                derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
                     zReal.ToDouble(), zImaginary.ToDouble());
 
             if (reflect is { } kind)
@@ -215,7 +222,7 @@ public static partial class MandelbrotFamilyRenderer
         if (!escaped)
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
-        return FinishDeepZoomPixel(iteration, magnitudeSquared, double.MaxValue, 0,
-            estimateDistance, escapeReal, escapeImaginary, derivative);
+        return FinishDeepZoomPixelExp(iteration, magnitudeSquared, double.MaxValue, 0,
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
     }
 }
