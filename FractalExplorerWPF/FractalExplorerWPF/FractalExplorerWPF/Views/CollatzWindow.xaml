@@ -7,8 +7,8 @@
         WindowStartupLocation="CenterOwner" KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
     <Window.Resources>
         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/></Style>
-        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Margin" Value="0,3,0,7"/><Setter Property="Padding" Value="6,3"/></Style>
-        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Margin" Value="0,3,0,7"/></Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/></Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Margin" Value="0,4,0,4"/></Style>
     </Window.Resources>
     <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
         <Grid.ColumnDefinitions><ColumnDefinition x:Name="ControlsColumn" Width="290"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -27,25 +27,25 @@
                     </ComboBox>
                     <TextBlock x:Name="VariationHintText" Margin="0,0,0,7"
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap"/>
-                    <Grid x:Name="PParameterPanel"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Параметр p"/><TextBox x:Name="PParameterBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                    <Grid x:Name="PParameterPanel"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Параметр p"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="PParameterBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
                     <StackPanel x:Name="QParameterPanel">
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Re(q)"/><TextBox x:Name="QRealParameterBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re(q)"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="QRealParameterBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                         </Grid>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Im(q)"/><TextBox x:Name="QImaginaryParameterBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im(q)"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="QImaginaryParameterBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                         </Grid>
                     </StackPanel>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Итерации"/><TextBox x:Name="IterationsBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Порог выхода"/><TextBox x:Name="ThresholdBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Порог выхода"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Приближение"/><TextBox x:Name="ZoomBox" Grid.Column="1" TextChanged="ZoomBox_OnChanged"/>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"/></StackPanel>
                     </Grid>
                     <TextBlock Text="Потоки ЦП"/><ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
                     <TextBlock Text="Сглаживание предпросмотра"/>

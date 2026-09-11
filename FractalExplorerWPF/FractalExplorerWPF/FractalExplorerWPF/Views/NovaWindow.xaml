@@ -5,8 +5,8 @@
         KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
     <Window.Resources>
         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/></Style>
-        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Margin" Value="0,3,0,6"/><Setter Property="Padding" Value="6,3"/></Style>
-        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Margin" Value="0,3,0,6"/></Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/></Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Margin" Value="0,4,0,4"/></Style>
     </Window.Resources>
     <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
         <Grid.ColumnDefinitions><ColumnDefinition x:Name="ControlsColumn" Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -31,17 +31,17 @@
                         <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox x:Name="CImaginaryBox" TextChanged="JuliaMapParameter_OnChanged"/></StackPanel>
                     </Grid>
                 </StackPanel>
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                    <TextBlock VerticalAlignment="Center" Text="Релаксация m"/><TextBox x:Name="MBox" Grid.Column="1" TextChanged="MapFormulaParameter_OnChanged"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Релаксация m"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
                 </Grid>
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                    <TextBlock VerticalAlignment="Center" Text="Итерации"/><TextBox x:Name="IterationsBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                 </Grid>
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                    <TextBlock VerticalAlignment="Center" Text="Порог"/><TextBox x:Name="ThresholdBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Порог"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                 </Grid>
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                    <TextBlock VerticalAlignment="Center" Text="Приближение"/><TextBox x:Name="ZoomBox" Grid.Column="1" TextChanged="ZoomBox_OnChanged"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"/></StackPanel>
                 </Grid>
                 <TextBlock Text="Потоки ЦП"/><ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
                 <TextBlock Text="SSAA"/><ComboBox x:Name="SsaaBox" SelectionChanged="Parameter_OnChanged">

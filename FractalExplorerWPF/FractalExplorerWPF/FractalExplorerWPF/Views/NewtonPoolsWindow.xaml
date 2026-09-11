@@ -13,12 +13,12 @@
         </Style>
         <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
             <Setter Property="MinHeight" Value="30"/>
-            <Setter Property="Margin" Value="0,3,0,8"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
         </Style>
         <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="MinHeight" Value="30"/>
             <Setter Property="Padding" Value="6,3"/>
-            <Setter Property="Margin" Value="0,3,0,8"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
         </Style>
     </Window.Resources>
 
@@ -63,16 +63,16 @@
                             </ComboBox>
 
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="Точность корней"/>
-                                <TextBox x:Name="RootToleranceBox" Grid.Column="1" Text="1e-6"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Точность корней"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootToleranceBox" Text="1e-6"/></StackPanel>
                             </Grid>
                             <Grid x:Name="RootSearchRadiusPanel">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="Радиус поиска"
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус поиска"
                                            ToolTip="Поиск выполняется вокруг точки 0 + 0i"/>
-                                <TextBox x:Name="RootSearchRadiusBox" Grid.Column="1" Text="8"
-                                         ToolTip="Радиус области поиска вокруг точки 0 + 0i"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootSearchRadiusBox" Text="8"
+                                         ToolTip="Радиус области поиска вокруг точки 0 + 0i"/></StackPanel>
                             </Grid>
                             <Button Content="Повторить поиск корней" Click="FindRootsButton_OnClick"/>
 
@@ -124,9 +124,9 @@
                     </ComboBox>
 
                     <Grid x:Name="HouseholderOrderPanel">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Порядок Householder"/>
-                        <TextBox x:Name="HouseholderOrderBox" Grid.Column="1" Text="3" TextChanged="Parameter_OnChanged"/>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Порядок Householder"/>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="HouseholderOrderBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
 
                     <StackPanel x:Name="RelaxedNewtonPanel" Margin="0,2,0,4">
@@ -139,27 +139,27 @@
 
                         <StackPanel x:Name="RelaxationPanel">
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="Re λ"/>
-                                <TextBox x:Name="RelaxationRealBox" Grid.Column="1" Text="1" TextChanged="Parameter_OnChanged"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re λ"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RelaxationRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="Im λ"/>
-                                <TextBox x:Name="RelaxationImaginaryBox" Grid.Column="1" Text="0" TextChanged="Parameter_OnChanged"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im λ"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RelaxationImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
 
                         <StackPanel x:Name="FixedInitialZPanel">
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="Re z₀"/>
-                                <TextBox x:Name="FixedInitialZRealBox" Grid.Column="1" Text="0.5" TextChanged="Parameter_OnChanged"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re z₀"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="FixedInitialZRealBox" Text="0.5" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="Im z₀"/>
-                                <TextBox x:Name="FixedInitialZImaginaryBox" Grid.Column="1" Text="0.5" TextChanged="Parameter_OnChanged"/>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im z₀"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="FixedInitialZImaginaryBox" Text="0.5" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
 
@@ -169,14 +169,14 @@
                     </StackPanel>
 
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Итерации"/>
-                        <TextBox x:Name="IterationsBox" Grid.Column="1" Text="500" TextChanged="Parameter_OnChanged"/>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" Text="500" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="92"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Приближение"/>
-                        <TextBox x:Name="ZoomBox" Grid.Column="1" Text="1" TextChanged="ZoomBox_OnTextChanged"/>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged"/></StackPanel>
                     </Grid>
 
                     <TextBlock Text="Потоки ЦП"/>

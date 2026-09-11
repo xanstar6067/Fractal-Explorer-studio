@@ -11,10 +11,10 @@
             <Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/>
         </Style>
         <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="Margin" Value="0,3,0,7"/><Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/>
         </Style>
         <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-            <Setter Property="Margin" Value="0,3,0,7"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
         </Style>
     </Window.Resources>
     <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
@@ -96,9 +96,9 @@
                     </Expander>
 
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Приближение"/>
-                        <TextBox x:Name="ZoomBox" Grid.Column="1" TextChanged="ZoomBox_OnTextChanged"/>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"/></StackPanel>
                     </Grid>
                     <TextBlock Text="Потоки ЦП"/>
                     <ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>

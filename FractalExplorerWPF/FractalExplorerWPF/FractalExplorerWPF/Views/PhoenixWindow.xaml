@@ -8,8 +8,8 @@
         Icon="../Assets/Icons/Phoenix.ico" KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
     <Window.Resources>
         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/></Style>
-        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Margin" Value="0,3,0,7"/><Setter Property="Padding" Value="6,3"/></Style>
-        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Margin" Value="0,3,0,7"/></Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/></Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Margin" Value="0,4,0,4"/></Style>
     </Window.Resources>
     <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
         <Grid.ColumnDefinitions><ColumnDefinition x:Name="ControlsColumn" Width="310"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -46,7 +46,7 @@
                     <Button Content="Исследовать плоскости C1/C2…" Click="ParameterSelector_OnClick"/>
 
                     <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="82"/><ColumnDefinition Width="12"/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Степени a / b"/>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Степени a / b"/>
                         <TextBox x:Name="PrimaryPowerBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                         <TextBox x:Name="SecondaryPowerBox" Grid.Column="3" TextChanged="Parameter_OnChanged"/>
                     </Grid>
@@ -64,12 +64,12 @@
                         </StackPanel>
                     </Expander>
 
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Итерации"/><TextBox x:Name="IterationsBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Радиус выхода"/><TextBox x:Name="ThresholdBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="Приближение"/><TextBox x:Name="ZoomBox" Grid.Column="1" TextChanged="ZoomBox_OnChanged"/></Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус выхода"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"/></StackPanel></Grid>
 
                     <TextBlock Text="Окрашивание"/>
                     <ComboBox x:Name="ColoringBox" SelectionChanged="ColoringBox_OnChanged">
@@ -89,22 +89,22 @@
                             <ComboBoxItem Content="Окружность" Tag="Circle"/>
                             <ComboBoxItem Content="Точка в начале координат" Tag="Point"/>
                         </ComboBox>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Радиус"/><TextBox x:Name="OrbitTrapRadiusBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Сила"/><TextBox x:Name="OrbitTrapStrengthBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="OrbitTrapRadiusBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="OrbitTrapStrengthBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     </StackPanel>
                     <StackPanel x:Name="StripePanel">
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Частота полос"/><TextBox x:Name="StripeFrequencyBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Сила полос"/><TextBox x:Name="StripeStrengthBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Частота полос"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="StripeFrequencyBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила полос"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="StripeStrengthBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     </StackPanel>
                     <StackPanel x:Name="PeriodPanel">
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Допуск цикла"/><TextBox x:Name="CycleToleranceBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Макс. период"/><TextBox x:Name="MaximumPeriodBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск цикла"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="CycleToleranceBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. период"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MaximumPeriodBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     </StackPanel>
 
                     <TextBlock Text="Потоки ЦП"/><ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>

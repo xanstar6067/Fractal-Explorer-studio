@@ -676,5 +676,14 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="8,5"/>
     </Style>
+    <!-- Подпись строки «название | поле ввода» в панелях параметров: центрируется по полю
+         и сжимается многоточием, чтобы длинный текст не отнимал ширину у самого поля. -->
+    <Style x:Key="ParameterRowLabelStyle" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,5,0"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}"/>
+    </Style>
+
     <Style TargetType="Separator"><Setter Property="Background" Value="{DynamicResource Theme.BorderBrush}"/></Style>
 </ResourceDictionary>
