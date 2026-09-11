@@ -21,7 +21,7 @@ namespace FractalExplorerWPF.Core.NewtonMath;
 /// радиусом бейлаута и в расширенном диапазоне не нуждаются. Позиция центра требует не
 /// диапазона, а разрядности мантиссы, и ведётся в <see cref="BigFloat"/>.
 /// </summary>
-public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>
+public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, IFormattable
 {
     /// <summary>Нормализованная мантисса: 0 либо |Mantissa| ∈ [1; 2).</summary>
     public readonly double Mantissa;
@@ -245,6 +245,15 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>
     private const int SignificantDigits = 17;
 
     /// <summary>
+    /// Предел десятичного показателя при разборе. Нужен не для точности, а чтобы ввод вида
+    /// <c>1e99999999</c> не уходил в <c>BigInteger.Pow(10, …)</c>: там показатель задаёт размер
+    /// целого числа напрямую, и такая строка съела бы память. Предел с запасом перекрывает
+    /// диапазон самого типа (двоичная экспонента ±2^30) и диапазон <see cref="BigFloat"/>
+    /// (±2^20 бит ≈ ±1e315653), за которыми значение всё равно насыщается.
+    /// </summary>
+    private const int MaximumDecimalExponent = 400_000;
+
+    /// <summary>
     /// Round-trip строка инвариантной культуры. В пределах диапазона double — обычный
     /// формат <c>"R"</c> (старые сохранения и привычный вид), вне него — научная нотация с
     /// точной (через <see cref="BigInteger"/>) десятичной мантиссой на
@@ -332,6 +341,16 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>
             direct != 0.0 && double.IsFinite(direct))
             return FromDouble(direct);
 
+        // Абсурдный показатель насыщаем до разбора — см. MaximumDecimalExponent.
+        int exponentMark = text.IndexOfAny(['e', 'E']);
+        if (exponentMark >= 0 &&
+            int.TryParse(text[(exponentMark + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture,
+                out int decimalExponent) &&
+            System.Math.Abs(decimalExponent) > MaximumDecimalExponent)
+            return decimalExponent < 0
+                ? default
+                : new FloatExp(text[0] == '-' ? double.NegativeInfinity : double.PositiveInfinity, 0);
+
         // BigFloat.Parse работает с мантиссой рабочей точности потока; 96 бит (абсолютный
         // минимум типа) с запасом хватает для 53-битного результата и не зависит от того,
         // какую точность выставил вызывающий поток.
@@ -354,4 +373,18 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>
     }
 
     public override string ToString() => ToInvariantString();
+
+    /// <summary>
+    /// Форматирование как у <see cref="double"/>, пока значение в его диапазоне: строки вида
+    /// <c>$"{zoom:G6}"</c> в существующем коде продолжают работать как раньше. За диапазоном
+    /// спецификатор неприменим, и возвращается научная нотация
+    /// (<see cref="ToInvariantString"/>).
+    /// </summary>
+    public string ToString(string? format, IFormatProvider? formatProvider)
+    {
+        double asDouble = ToDouble();
+        return double.IsFinite(asDouble) && (asDouble != 0.0 || IsZero)
+            ? asDouble.ToString(format, formatProvider)
+            : ToInvariantString();
+    }
 }

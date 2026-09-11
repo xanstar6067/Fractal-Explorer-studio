@@ -102,6 +102,12 @@ public static class MandelbrotNewtonZoom
     /// <see cref="BigFloat"/> и при большом периоде работает секунды — вызывать следует с
     /// фонового потока, передавая <paramref name="token"/> и <paramref name="reportProgress"/>
     /// (прогресс в процентах).
+    ///
+    /// Определение периода бесплатно, пока опорная орбита центра уже посчитана для текущих
+    /// параметров (обычный случай — сразу после отрисовки кадра). Если параметры с момента
+    /// последнего рендера менялись, к работе добавляется расчёт самой орбиты, и на большой
+    /// глубине при миллионе итераций он измеряется десятками секунд; отменить его нельзя —
+    /// кэш опорных орбит рендера токена не принимает.
     /// </summary>
     public static MandelbrotNucleusResult FindNucleus(
         MandelbrotState state, CancellationToken token, Action<int>? reportProgress = null)
@@ -139,6 +145,10 @@ public static class MandelbrotNewtonZoom
 
             (ComplexBigFloat value, ComplexBigFloat derivative) =
                 OrbitWithDerivative(nucleus, period, power, token);
+            // Прерванный обход орбиты возвращает частичный результат — использовать его как
+            // шаг Ньютона нельзя.
+            if (token.IsCancellationRequested)
+                return MandelbrotNucleusResult.Failure("Поиск ядра отменён.");
 
             if (derivative.MagnitudeSquared.IsZero)
                 return MandelbrotNucleusResult.Failure(
@@ -175,6 +185,8 @@ public static class MandelbrotNewtonZoom
         // --- 3. Оценка размера ядра и предлагаемый зум.
         reportProgress?.Invoke(92);
         FloatExp sizeMagnitude = EstimateNucleusSize(nucleus, period, power, token);
+        if (token.IsCancellationRequested)
+            return MandelbrotNucleusResult.Failure("Поиск ядра отменён.");
         FloatExp suggestedZoom = sizeMagnitude.Sign > 0 && sizeMagnitude.IsFinite
             ? 3.0 / (sizeMagnitude * FramingFactor)
             : state.Zoom;

@@ -274,6 +274,7 @@ public partial class MandelbrotWindow : Window
         {
             try
             {
+                using var precision = CenterPrecisionScope();
                 _centerXExact = BigFloat.Parse(exactX);
                 _centerYExact = BigFloat.Parse(exactY);
                 _deepZoomEngaged = _zoom >= DeepZoomThreshold;
@@ -457,8 +458,13 @@ public partial class MandelbrotWindow : Window
         }
         finally
         {
-            NucleusButton.IsEnabled = true;
-            if (ReferenceEquals(_nucleusCts, cts)) _nucleusCts = null;
+            // Кнопку возвращает только актуальный поиск: иначе завершение отменённого
+            // предыдущего разблокировало бы её посреди нового.
+            if (ReferenceEquals(_nucleusCts, cts))
+            {
+                _nucleusCts = null;
+                NucleusButton.IsEnabled = true;
+            }
         }
     }
 
@@ -759,12 +765,16 @@ public partial class MandelbrotWindow : Window
             FlushVisualizationEvents(session, true);
             BitmapSource completed = session.Bitmap.Clone();
             completed.Freeze();
-            BigFloat renderedCenterX = state.CenterXExact is { Length: > 0 } exactX
-                ? BigFloat.Parse(exactX)
-                : BigFloat.FromDecimal(state.CenterX);
-            BigFloat renderedCenterY = state.CenterYExact is { Length: > 0 } exactY
-                ? BigFloat.Parse(exactY)
-                : BigFloat.FromDecimal(state.CenterY);
+            BigFloat renderedCenterX, renderedCenterY;
+            using (CenterPrecisionScope(state.Zoom))
+            {
+                renderedCenterX = state.CenterXExact is { Length: > 0 } exactX
+                    ? BigFloat.Parse(exactX)
+                    : BigFloat.FromDecimal(state.CenterX);
+                renderedCenterY = state.CenterYExact is { Length: > 0 } exactY
+                    ? BigFloat.Parse(exactY)
+                    : BigFloat.FromDecimal(state.CenterY);
+            }
             SetStableBitmap(completed, renderedCenterX, renderedCenterY, state.Zoom, logicalWidth, logicalHeight);
             CanvasImage.Source = null;
             RenderOverlay.EndSession();
@@ -1136,9 +1146,9 @@ public partial class MandelbrotWindow : Window
     /// Ниже ~1e93 возвращает <see cref="BigFloat.MinimumPrecisionBits"/>, то есть прежнее
     /// поведение сохраняется бит-в-бит.
     /// </summary>
-    private int CenterPrecisionBits()
+    private static int CenterPrecisionBits(FloatExp zoom)
     {
-        double zoomBits = _zoom.Sign > 0 && _zoom.IsFinite ? _zoom.Log2() : 0;
+        double zoomBits = zoom.Sign > 0 && zoom.IsFinite ? zoom.Log2() : 0;
         if (!double.IsFinite(zoomBits) || zoomBits < 0) zoomBits = 0;
         int needed = (int)Math.Ceiling(zoomBits) + CenterPrecisionGuardBits;
         int rounded = (needed + 63) / 64 * 64;
@@ -1155,7 +1165,11 @@ public partial class MandelbrotWindow : Window
     /// операции до рабочей точности потока, поэтому без этой области сдвиг центра на
     /// глубоком зуме терялся бы целиком.
     /// </summary>
-    private BigFloat.PrecisionScope CenterPrecisionScope() => new(CenterPrecisionBits());
+    private BigFloat.PrecisionScope CenterPrecisionScope() => CenterPrecisionScope(_zoom);
+
+    /// <inheritdoc cref="CenterPrecisionScope()"/>
+    private static BigFloat.PrecisionScope CenterPrecisionScope(FloatExp zoom) =>
+        new(CenterPrecisionBits(zoom));
 
     /// <summary>
     /// Прибавляет к центру небольшой сдвиг в мировых координатах. В глубоком режиме сдвиг

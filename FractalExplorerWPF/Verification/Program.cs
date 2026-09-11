@@ -2934,7 +2934,19 @@ internal static class Program
         Check(BigFloat.WorkingPrecisionBits == BigFloat.MinimumPrecisionBits,
             "The precision scope must restore the thread default.");
 
-        Console.WriteLine("[diag] FloatExp: range, pixel grid, round-trip, ordering and BigFloat bridge OK");
+        // (g) An absurd exponent must saturate instead of expanding a BigInteger of that many
+        //     digits — the zoom box accepts free text, so "1e99999999" is reachable input.
+        var guardTimer = Stopwatch.StartNew();
+        Check(!FloatExp.Parse("1e99999999").IsFinite, "An absurd positive exponent must saturate to infinity.");
+        Check(FloatExp.Parse("1e-99999999").IsZero, "An absurd negative exponent must saturate to zero.");
+        Check(!FloatExp.Parse("-1e2000000000").IsFinite, "An absurd negative-signed exponent must saturate.");
+        guardTimer.Stop();
+        Check(guardTimer.ElapsedMilliseconds < 1000,
+            $"Parsing an absurd exponent must be refused immediately, took {guardTimer.ElapsedMilliseconds} ms.");
+        Check(FloatExp.Parse("1e1000") == FloatExp.Pow10(1000),
+            "A plausible exponent must still be parsed exactly.");
+
+        Console.WriteLine("[diag] FloatExp: range, pixel grid, round-trip, ordering, BigFloat bridge and parse guard OK");
     }
 
     // The zoom field is serialized as a JSON number while it fits double (so save files
