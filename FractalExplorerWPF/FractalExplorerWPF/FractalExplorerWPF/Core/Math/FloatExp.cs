@@ -39,6 +39,13 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, I
     // насыщение проверяется по этой границе.
     private const int ExponentLimit = 1 << 30;
 
+    // Предел десятичного показателя для разбора строк и <see cref="Pow10"/>. Нужен не для
+    // точности, а чтобы «1e99999999» не уходило в BigInteger.Pow(10, …): там показатель задаёт
+    // размер целого числа напрямую, и такая строка съела бы память. Предел с запасом
+    // перекрывает и диапазон самого типа (двоичная экспонента ±2^30), и диапазон BigFloat
+    // (±2^20 бит ≈ ±1e315653), за которыми значение всё равно насыщается.
+    private const int MaximumDecimalExponent = 400_000;
+
     private FloatExp(double mantissa, int exponent)
     {
         Mantissa = mantissa;
@@ -125,20 +132,20 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, I
     /// <summary>Десятичный логарифм |значения|; для нуля — <see cref="double.NegativeInfinity"/>.</summary>
     public double Log10() => Log2() * 0.30102999566398120;
 
-    /// <summary>10 в целой степени. Точна в пределах 53-битной мантиссы.</summary>
+    /// <summary>
+    /// 10 в целой степени — правильно округлённая до 53 бит мантиссы. Степень раскрывается
+    /// точно в <see cref="BigInteger"/> и округляется один раз: возведение в квадрат самого
+    /// <see cref="FloatExp"/> копило бы ошибку по одному ulp на умножение, и тогда
+    /// <c>Pow10(1000)</c> не совпадал бы с <c>Parse("1e1000")</c>.
+    /// </summary>
     public static FloatExp Pow10(int power)
     {
-        FloatExp result = One;
-        FloatExp factor = FromDouble(10.0);
-        int remaining = System.Math.Abs(power);
-        while (remaining > 0)
-        {
-            if ((remaining & 1) != 0) result *= factor;
-            factor *= factor;
-            remaining >>= 1;
-        }
+        if (System.Math.Abs(power) > MaximumDecimalExponent)
+            return power > 0 ? new FloatExp(double.PositiveInfinity, 0) : default;
 
-        return power >= 0 ? result : One / result;
+        using var precision = new BigFloat.PrecisionScope(BigFloat.MinimumPrecisionBits);
+        BigFloat magnitude = BigFloat.FromScaled(BigInteger.Pow(10, System.Math.Abs(power)), 0);
+        return FromBigFloat(power >= 0 ? magnitude : BigFloat.One / magnitude);
     }
 
     public static FloatExp Abs(FloatExp value) =>
@@ -243,15 +250,6 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, I
 
     /// <summary>Число значащих десятичных цифр в <see cref="ToInvariantString"/>.</summary>
     private const int SignificantDigits = 17;
-
-    /// <summary>
-    /// Предел десятичного показателя при разборе. Нужен не для точности, а чтобы ввод вида
-    /// <c>1e99999999</c> не уходил в <c>BigInteger.Pow(10, …)</c>: там показатель задаёт размер
-    /// целого числа напрямую, и такая строка съела бы память. Предел с запасом перекрывает
-    /// диапазон самого типа (двоичная экспонента ±2^30) и диапазон <see cref="BigFloat"/>
-    /// (±2^20 бит ≈ ±1e315653), за которыми значение всё равно насыщается.
-    /// </summary>
-    private const int MaximumDecimalExponent = 400_000;
 
     /// <summary>
     /// Round-trip строка инвариантной культуры. В пределах диапазона double — обычный
