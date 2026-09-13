@@ -358,8 +358,8 @@ public static class BigFloatMath
         }
 
         int shift = -value.Exponent;
-        BigInteger magnitude = BigInteger.Abs(value.Mantissa);
-        magnitude = (magnitude + (BigInteger.One << (shift - 1))) >> shift;
+        BigMantissa magnitude = BigMantissa.Abs(value.Mantissa);
+        magnitude = (magnitude + (BigMantissa.One << (shift - 1))) >> shift;
         return BigFloat.FromScaled(value.Sign < 0 ? -magnitude : magnitude, 0);
     }
 }

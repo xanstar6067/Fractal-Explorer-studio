@@ -66,6 +66,14 @@ public static partial class CollatzRenderer
     /// Рабочая точность мантиссы для кадра: цифры зума + запас
     /// <see cref="BaselinePrecisionBits"/> + поправка на длину орбиты. Округляется вверх до
     /// 32 бит и не опускается ниже 128 — иначе ступень не имела бы смысла против decimal.
+    ///
+    /// Верхний потолок 4096 — чисто защитный: при потолке зума 1e50 (<c>CollatzWindow.MaxZoom</c>)
+    /// и любом практическом числе итераций формула никогда не поднимается выше нескольких
+    /// сотен бит, так что потолок недостижим через интерфейс. Число подобрано не произвольно:
+    /// оно совпадает с границей, на которую рассчитана ёмкость <see cref="BigMantissa"/> (см.
+    /// её описание и <see cref="BigFloat"/>) — собственной мантиссы без выделений памяти в
+    /// куче, пришедшей на смену <see cref="System.Numerics.BigInteger"/> ради устранения
+    /// главного источника аллокаций на этой ступени (см. историю коммитов).
     /// </summary>
     internal static int PlanPrecisionBits(CollatzState state)
     {
@@ -74,7 +82,7 @@ public static partial class CollatzRenderer
         int iterations = Math.Max(1, state.Iterations);
         int iterationBits = 2 * (32 - System.Numerics.BitOperations.LeadingZeroCount((uint)iterations));
         int needed = zoomBits + iterationBits + BaselinePrecisionBits;
-        return ForcePrecisionBitsForTests ?? Math.Clamp((needed + 31) / 32 * 32, 128, 8192);
+        return ForcePrecisionBitsForTests ?? Math.Clamp((needed + 31) / 32 * 32, 128, 4096);
     }
 
     /// <summary>

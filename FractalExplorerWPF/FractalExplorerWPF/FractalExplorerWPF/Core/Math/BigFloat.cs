@@ -6,15 +6,16 @@ namespace FractalExplorerWPF.Core.NewtonMath;
 
 /// <summary>
 /// Компактное число с плавающей запятой произвольной (фиксированной) точности:
-/// значение = <see cref="Mantissa"/> · 2^<see cref="Exponent"/>. Мантисса — знаковый
-/// <see cref="BigInteger"/>, после каждой операции округляется до
+/// значение = <see cref="Mantissa"/> · 2^<see cref="Exponent"/>. Мантисса — знаковая
+/// <see cref="BigMantissa"/> (собственная арифметика фиксированной ёмкости без выделений
+/// памяти в куче — см. её описание), после каждой операции округляется до
 /// <see cref="PrecisionBits"/> значащих бит.
 ///
-/// Тип нужен только «второму двигателю» глубокого зума Мандельброта: он хранит
-/// центр области и опорную точку с точностью, недостижимой для <see cref="decimal"/>
-/// (≈28 десятичных цифр). Набор операций намеренно минимален — сложение, вычитание,
-/// умножение, квадратный корень, сравнение и конвертации, которых достаточно для навигации
-/// и построения опорной орбиты.
+/// Тип нужен только «второму двигателю» глубокого зума Мандельброта, прямой итерации
+/// Коллатца и опорным орбитам Nova/Phoenix: он хранит центр области и опорную точку/орбиту с
+/// точностью, недостижимой для <see cref="decimal"/> (≈28 десятичных цифр). Набор операций
+/// намеренно минимален — сложение, вычитание, умножение, квадратный корень, сравнение и
+/// конвертации, которых достаточно для навигации и построения опорной орбиты.
 /// </summary>
 public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
 {
@@ -77,42 +78,39 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
     // log10(2): перевод «значащих бит мантиссы» в «десятичные цифры».
     private const double Log10Of2 = 0.30102999566398120;
 
-    public BigInteger Mantissa { get; }
+    public BigMantissa Mantissa { get; }
     public int Exponent { get; }
 
-    private BigFloat(BigInteger mantissa, int exponent)
+    private BigFloat(BigMantissa mantissa, int exponent)
     {
         if (mantissa.IsZero)
         {
-            Mantissa = BigInteger.Zero;
+            Mantissa = BigMantissa.Zero;
             Exponent = 0;
             return;
         }
 
         int precisionBits = WorkingPrecisionBits;
-        int bitLength = (int)mantissa.GetBitLength();
-        if (bitLength > precisionBits)
-        {
-            int shift = bitLength - precisionBits;
-            int sign = mantissa.Sign;
-            BigInteger magnitude = BigInteger.Abs(mantissa);
-            // Округление к ближайшему (half-up по модулю).
-            magnitude = (magnitude + (BigInteger.One << (shift - 1))) >> shift;
-            mantissa = sign < 0 ? -magnitude : magnitude;
-            exponent += shift;
-        }
+        BigMantissa rounded = BigMantissa.RoundAndCanonicalizeCopy(
+            mantissa.AsSpan(), mantissa.Sign, precisionBits, ref exponent);
+        Mantissa = rounded;
+        Exponent = rounded.IsZero ? 0 : exponent;
+    }
 
-        // Убираем младшие нулевые биты — держит мантиссу компактной и канонизирует значение.
-        int trailing = (int)BigInteger.TrailingZeroCount(mantissa);
-        if (trailing > 0)
-        {
-            mantissa >>= trailing;
-            exponent += trailing;
-        }
-
-        Mantissa = mantissa;
+    /// <summary>
+    /// Заводит значение из мантиссы, уже округлённой и канонизированной вызывающим (см.
+    /// <c>*Rounded</c>-методы <see cref="BigMantissa"/>) — без повторного округления. Отдельная
+    /// сигнатура вместо перегрузки нужна ровно затем, чтобы не спутать с округляющим
+    /// конструктором выше.
+    /// </summary>
+    private BigFloat(BigMantissa alreadyRoundedMantissa, int exponent, byte _)
+    {
+        Mantissa = alreadyRoundedMantissa;
         Exponent = exponent;
     }
+
+    private static BigFloat FromAlreadyRounded(BigMantissa mantissa, int exponent) =>
+        mantissa.IsZero ? Zero : new BigFloat(mantissa, exponent, 0);
 
     public static BigFloat Zero => default;
 
@@ -130,13 +128,13 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
     /// </summary>
     public int BinaryExponent => Mantissa.IsZero
         ? int.MinValue
-        : (int)BigInteger.Abs(Mantissa).GetBitLength() + Exponent;
+        : Mantissa.GetBitLength() + Exponent;
 
     public static BigFloat Abs(BigFloat value) => value.Sign < 0 ? -value : value;
 
-    private static BigFloat FromRawRounded(BigInteger mantissa, int exponent) => new(mantissa, exponent);
+    private static BigFloat FromRawRounded(BigMantissa mantissa, int exponent) => new(mantissa, exponent);
 
-    public static BigFloat FromInt(long value) => new(value, 0);
+    public static BigFloat FromInt(long value) => new(BigMantissa.FromLong(value), 0);
 
     public static BigFloat FromDouble(double value)
     {
@@ -147,22 +145,22 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
         int exponentField = (int)((bits >> 52) & 0x7FF);
         long fraction = bits & 0xF_FFFF_FFFF_FFFF;
 
-        BigInteger mantissa;
+        long mantissaMagnitude;
         int exponent;
         if (exponentField == 0)
         {
             // Субнормальное число.
-            mantissa = fraction;
+            mantissaMagnitude = fraction;
             exponent = -1022 - 52;
         }
         else
         {
-            mantissa = fraction | (1L << 52);
+            mantissaMagnitude = fraction | (1L << 52);
             exponent = exponentField - 1023 - 52;
         }
 
-        if (negative) mantissa = -mantissa;
-        return new BigFloat(mantissa, exponent);
+        long mantissaValue = negative ? -mantissaMagnitude : mantissaMagnitude;
+        return new BigFloat(BigMantissa.FromLong(mantissaValue), exponent);
     }
 
     public static BigFloat FromDecimal(decimal value)
@@ -178,7 +176,7 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
         magnitude = (magnitude << 32) | (uint)parts[0];
 
         BigInteger numerator = negative ? -magnitude : magnitude;
-        if (scale == 0) return new BigFloat(numerator, 0);
+        if (scale == 0) return new BigFloat(BigMantissa.FromBigInteger(numerator), 0);
         return FromRatio(numerator, BigInteger.Pow(10, scale));
     }
 
@@ -230,11 +228,17 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
 
         int decimalExponent = exponentPart - fractionDigits;
         if (decimalExponent >= 0)
-            return new BigFloat(mantissa * BigInteger.Pow(10, decimalExponent), 0);
+            return new BigFloat(BigMantissa.FromBigInteger(mantissa * BigInteger.Pow(10, decimalExponent)), 0);
         return FromRatio(mantissa, BigInteger.Pow(10, -decimalExponent));
     }
 
-    /// <summary>Округлённое значение num / den с рабочей точностью.</summary>
+    /// <summary>
+    /// Округлённое значение num / den с рабочей точностью. Редкий путь (разбор строки,
+    /// <see cref="FromDecimal"/>, общее деление <see cref="BigFloat"/> на <see cref="BigFloat"/>) —
+    /// считается через <see cref="System.Numerics.BigInteger"/>: он вызывается самое большее
+    /// один раз на строку кадра, а не на каждый пиксель каждой итерации, поэтому случайная
+    /// аллокация здесь не стоит переписывания деления «длинное на длинное» на лимбы.
+    /// </summary>
     private static BigFloat FromRatio(BigInteger numerator, BigInteger denominator)
     {
         if (numerator.IsZero) return Zero;
@@ -253,29 +257,50 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
         // Округление к ближайшему по остатку.
         if ((remainder << 1) >= absDenominator) quotient += 1;
         if (sign < 0) quotient = -quotient;
-        return new BigFloat(quotient, -shift);
+        return new BigFloat(BigMantissa.FromBigInteger(quotient), -shift);
     }
 
     public static BigFloat operator -(BigFloat value) => FromRawRounded(-value.Mantissa, value.Exponent);
 
+    /// <summary>
+    /// Сложение с разными экспонентами (общий случай) отбрасывает меньшее по модулю слагаемое
+    /// целиком, когда разница экспонент превышает <see cref="BigMantissa.AlignShiftShortCircuitBits"/>
+    /// — без этого пришлось бы выравнивать мантиссы сдвигом на произвольно большую разницу
+    /// экспонент (экспонента — <see cref="int"/>, разница может достигать десятков миллионов), а
+    /// у временного буфера сдвига есть предел.
+    ///
+    /// Отбрасывание здесь математически точное, а не приближённое: после выравнивания биты
+    /// меньшего слагаемого занимают позиции строго ниже той, что решает округление результата
+    /// (единственный бит непосредственно под срезом определяет округление, более младшие биты
+    /// не влияют на исход вовсе). Достаточное условие для этого — разница экспонент больше
+    /// суммы битовых длин обоих операндов; порог взят с большим запасом над максимумом
+    /// ~4096+4096, который когда-либо реально даёт любой планировщик точности в движке (см.
+    /// клампы в рендерерах).
+    /// </summary>
     public static BigFloat operator +(BigFloat left, BigFloat right)
     {
         if (left.IsZero) return right;
         if (right.IsZero) return left;
 
-        if (left.Exponent == right.Exponent)
-            return new BigFloat(left.Mantissa + right.Mantissa, left.Exponent);
+        int precisionBits = WorkingPrecisionBits;
 
-        if (left.Exponent > right.Exponent)
+        if (left.Exponent == right.Exponent)
         {
-            BigInteger aligned = left.Mantissa << (left.Exponent - right.Exponent);
-            return new BigFloat(aligned + right.Mantissa, right.Exponent);
+            int exponent = left.Exponent;
+            BigMantissa mantissa = BigMantissa.AddRounded(left.Mantissa, right.Mantissa, precisionBits, ref exponent);
+            return FromAlreadyRounded(mantissa, exponent);
         }
-        else
-        {
-            BigInteger aligned = right.Mantissa << (right.Exponent - left.Exponent);
-            return new BigFloat(left.Mantissa + aligned, left.Exponent);
-        }
+
+        BigFloat big = left.Exponent > right.Exponent ? left : right;
+        BigFloat small = left.Exponent > right.Exponent ? right : left;
+        long diff = (long)big.Exponent - small.Exponent;
+
+        if (diff > BigMantissa.AlignShiftShortCircuitBits) return FromRawRounded(big.Mantissa, big.Exponent);
+
+        int resultExponent = small.Exponent;
+        BigMantissa resultMantissa = BigMantissa.AddAlignedRounded(
+            big.Mantissa, (int)diff, small.Mantissa, precisionBits, ref resultExponent);
+        return FromAlreadyRounded(resultMantissa, resultExponent);
     }
 
     public static BigFloat operator -(BigFloat left, BigFloat right) => left + (-right);
@@ -303,7 +328,7 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
 
     /// <summary>Значение mantissa·2^exponent с округлением до рабочей точности и с
     /// ограничением экспоненты сверху и снизу.</summary>
-    private static BigFloat Scaled(BigInteger mantissa, long exponent)
+    private static BigFloat Scaled(BigMantissa mantissa, long exponent)
     {
         if (mantissa.IsZero) return Zero;
         if (exponent < MinimumExponent) return Zero;
@@ -312,7 +337,12 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
     }
 
     /// <summary>Значение mantissa·2^exponent, округлённое до рабочей точности.</summary>
-    public static BigFloat FromScaled(BigInteger mantissa, int exponent) => Scaled(mantissa, exponent);
+    public static BigFloat FromScaled(BigMantissa mantissa, int exponent) => Scaled(mantissa, exponent);
+
+    /// <summary>Перегрузка для редких случаев, где мантисса уже посчитана в
+    /// <see cref="System.Numerics.BigInteger"/> (π/ln2 по Мэчину — см. <see cref="BigFloatMath"/>).</summary>
+    public static BigFloat FromScaled(BigInteger mantissa, int exponent) =>
+        Scaled(BigMantissa.FromBigInteger(mantissa), exponent);
 
     /// <summary>
     /// Умножение на 2^shift. Меняется только экспонента, поэтому операция точная —
@@ -324,38 +354,69 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
     public static BigFloat operator *(BigFloat left, BigFloat right)
     {
         if (left.IsZero || right.IsZero) return Zero;
-        return Scaled(left.Mantissa * right.Mantissa, (long)left.Exponent + right.Exponent);
+        long rawExponent = (long)left.Exponent + right.Exponent;
+        if (rawExponent < MinimumExponent) return Zero;
+        if (rawExponent > MaximumExponent) rawExponent = MaximumExponent;
+        int exponent = (int)rawExponent;
+        BigMantissa mantissa = BigMantissa.MultiplyRounded(left.Mantissa, right.Mantissa, WorkingPrecisionBits, ref exponent);
+        return FromAlreadyRounded(mantissa, exponent);
     }
 
-    public static BigFloat operator *(BigFloat left, long right) =>
-        left.IsZero || right == 0 ? Zero : Scaled(left.Mantissa * right, left.Exponent);
+    public static BigFloat operator *(BigFloat left, long right)
+    {
+        if (left.IsZero || right == 0) return Zero;
+        int exponent = left.Exponent;
+        BigMantissa mantissa = BigMantissa.MultiplyLongRounded(left.Mantissa, right, WorkingPrecisionBits, ref exponent);
+        return FromAlreadyRounded(mantissa, exponent);
+    }
 
     /// <summary>
-    /// Деление с рабочей точностью. Считается как отношение мантисс через
-    /// <see cref="FromRatio"/> с последующим сложением экспонент: вычитания близких величин
-    /// здесь нет, поэтому погрешность результата — одно округление.
+    /// Деление с рабочей точностью. Общее деление (оба операнда — произвольные
+    /// <see cref="BigFloat"/>) остаётся редким путём через <see cref="System.Numerics.BigInteger"/>
+    /// (см. <see cref="FromRatio"/>) — вызывается самое большее раз на строку кадра, а не в
+    /// теле формулы орбиты.
     /// </summary>
     public static BigFloat operator /(BigFloat left, BigFloat right)
     {
         if (right.IsZero) throw new DivideByZeroException("Деление BigFloat на ноль.");
         if (left.IsZero) return Zero;
-        BigFloat ratio = FromRatio(left.Mantissa, right.Mantissa);
+        BigFloat ratio = FromRatio(left.Mantissa.ToBigInteger(), right.Mantissa.ToBigInteger());
         return Scaled(ratio.Mantissa, (long)ratio.Exponent + left.Exponent - right.Exponent);
     }
 
-    /// <summary>Деление на небольшое целое — знаменатели членов ряда Тейлора.</summary>
+    /// <summary>
+    /// Деление на небольшое целое — знаменатели членов ряда Тейлора в
+    /// <see cref="BigFloatMath"/>, то есть самая горячая операция деления в движке (десятки
+    /// раз на каждый шаг орбиты Коллатца). Однолимбовым делителем считается без обращения к
+    /// <see cref="System.Numerics.BigInteger"/> — см. <see cref="BigMantissa.DivideScaledBySmall"/>.
+    /// </summary>
     public static BigFloat operator /(BigFloat left, long right)
     {
         if (right == 0) throw new DivideByZeroException("Деление BigFloat на ноль.");
         if (left.IsZero) return Zero;
-        BigFloat ratio = FromRatio(left.Mantissa, right);
-        return Scaled(ratio.Mantissa, (long)ratio.Exponent + left.Exponent);
+
+        ulong divisor = right < 0
+            ? (right == long.MinValue ? 0x8000_0000_0000_0000UL : (ulong)(-right))
+            : (ulong)right;
+        int sign = left.Sign * (right < 0 ? -1 : 1);
+
+        int numeratorBits = left.Mantissa.GetBitLength();
+        int denominatorBits = 64 - System.Numerics.BitOperations.LeadingZeroCount(divisor);
+        int shift = WorkingPrecisionBits + 2 - (numeratorBits - denominatorBits);
+        if (shift < 0) shift = 0;
+
+        BigMantissa quotient = BigMantissa.DivideScaledBySmall(
+            BigMantissa.Abs(left.Mantissa), divisor, shift, out bool roundUp);
+        if (roundUp) quotient = BigMantissa.AddOne(quotient);
+        if (sign < 0) quotient = -quotient;
+        return Scaled(quotient, (long)left.Exponent - shift);
     }
 
     /// <summary>
     /// Квадратный корень с рабочей точностью. Нужен нечётной степени Симоноброта:
-    /// <c>|z|ᵖ = M^(p/2) = Mᵠ·√M</c> при <c>p = 2q+1</c>, где <c>M = |z|²</c>.
-    /// Отрицательный аргумент — ошибка вызывающего (в движке под корнем всегда сумма
+    /// <c>|z|ᵖ = M^(p/2) = Mᵠ·√M</c> при <c>p = 2q+1</c>, где <c>M = |z|²</c>. Считается через
+    /// <see cref="System.Numerics.BigInteger"/> (вызывается раз на шаг опорной орбиты, а не на
+    /// пиксель). Отрицательный аргумент — ошибка вызывающего (в движке под корнем всегда сумма
     /// квадратов).
     /// </summary>
     public static BigFloat Sqrt(BigFloat value)
@@ -369,12 +430,12 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
         // погрешность «floor» целого корня — не более 1 младшего бита, то есть на восемь
         // разрядов ниже позиции округления, которое дальше делает конструктор.
         int targetBits = 2 * (WorkingPrecisionBits + 8);
-        int shift = targetBits - (int)value.Mantissa.GetBitLength();
+        int shift = targetBits - value.Mantissa.GetBitLength();
         if (shift < 0) shift = 0;
         if ((((long)value.Exponent - shift) & 1L) != 0) shift++;
 
-        BigInteger root = IntegerSquareRoot(value.Mantissa << shift);
-        return new BigFloat(root, (value.Exponent - shift) / 2);
+        BigInteger root = IntegerSquareRoot(value.Mantissa.ToBigInteger() << shift);
+        return new BigFloat(BigMantissa.FromBigInteger(root), (value.Exponent - shift) / 2);
     }
 
     /// <summary>
@@ -406,13 +467,22 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
     public double ToDouble()
     {
         if (IsZero) return 0;
-        int bitLength = (int)Mantissa.GetBitLength();
+        int bitLength = Mantissa.GetBitLength();
+        double magnitude;
+        int extraExponent;
         if (bitLength <= 53)
-            return (double)Mantissa * System.Math.ScaleB(1.0, Exponent);
-
-        int shift = bitLength - 53;
-        BigInteger reduced = Mantissa >> shift;
-        return (double)reduced * System.Math.ScaleB(1.0, Exponent + shift);
+        {
+            magnitude = Mantissa.ToDoubleMagnitude();
+            extraExponent = 0;
+        }
+        else
+        {
+            int shift = bitLength - 53;
+            magnitude = (BigMantissa.Abs(Mantissa) >> shift).ToDoubleMagnitude();
+            extraExponent = shift;
+        }
+        double signedMagnitude = Mantissa.Sign < 0 ? -magnitude : magnitude;
+        return signedMagnitude * System.Math.ScaleB(1.0, Exponent + extraExponent);
     }
 
     /// <summary>Ближайшее <see cref="decimal"/>; при выходе за диапазон — насыщение к границе.</summary>
@@ -439,12 +509,17 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
         return ToInvariantString(System.Math.Max(SerializationFractionDigits, significantDigits));
     }
 
+    /// <summary>
+    /// Вывод десятичной строки — редкий путь (сериализация сохранений, статус UI), считается
+    /// через <see cref="System.Numerics.BigInteger"/> ровно как раньше.
+    /// </summary>
     public string ToInvariantString(int maxFractionDigits)
     {
         if (IsZero) return "0";
 
-        bool negative = Mantissa.Sign < 0;
-        BigInteger magnitude = BigInteger.Abs(Mantissa);
+        BigInteger signedMantissa = Mantissa.ToBigInteger();
+        bool negative = signedMantissa.Sign < 0;
+        BigInteger magnitude = BigInteger.Abs(signedMantissa);
 
         if (Exponent >= 0)
         {
@@ -513,7 +588,7 @@ public readonly struct BigFloat : IComparable<BigFloat>, IEquatable<BigFloat>
     public static bool operator ==(BigFloat left, BigFloat right) => left.Equals(right);
     public static bool operator !=(BigFloat left, BigFloat right) => !left.Equals(right);
 
-    public bool Equals(BigFloat other) => Mantissa == other.Mantissa && Exponent == other.Exponent;
+    public bool Equals(BigFloat other) => Mantissa.Equals(other.Mantissa) && Exponent == other.Exponent;
     public override bool Equals(object? obj) => obj is BigFloat other && Equals(other);
     public override int GetHashCode() => HashCode.Combine(Mantissa, Exponent);
     public override string ToString() => ToInvariantString(40);

@@ -92,20 +92,21 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, I
     public static FloatExp FromBigFloat(BigFloat value)
     {
         if (value.Mantissa.IsZero) return default;
-        BigInteger mantissa = value.Mantissa;
-        int bits = (int)BigInteger.Abs(mantissa).GetBitLength();
+        BigMantissa mantissa = value.Mantissa;
+        int bits = mantissa.GetBitLength();
         long exponent = value.Exponent;
         if (bits > 53)
         {
             int drop = bits - 53;
             int sign = mantissa.Sign;
-            BigInteger magnitude = BigInteger.Abs(mantissa);
-            magnitude = (magnitude + (BigInteger.One << (drop - 1))) >> drop;
+            BigMantissa magnitude = BigMantissa.Abs(mantissa);
+            magnitude = (magnitude + (BigMantissa.One << (drop - 1))) >> drop;
             mantissa = sign < 0 ? -magnitude : magnitude;
             exponent += drop;
         }
 
-        return Normalize((double)mantissa, exponent);
+        double signedMagnitude = mantissa.Sign < 0 ? -mantissa.ToDoubleMagnitude() : mantissa.ToDoubleMagnitude();
+        return Normalize(signedMagnitude, exponent);
     }
 
     /// <summary>Точное (мантисса переносится целиком) значение как <see cref="BigFloat"/>.</summary>
