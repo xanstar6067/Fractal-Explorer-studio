@@ -313,6 +313,7 @@ internal static class Program
         VerifyZoomSerialization();
         await VerifyExtremeZoomAsync(Palette);
         await VerifyNewtonNucleusAsync(Palette);
+        await VerifyFloatExpDeltaVariantsAsync(Palette);
     }
 
     // Phase 7: Histogram coloring moved onto the deep engine (RenderDeepZoomHistogram) — the
@@ -2686,6 +2687,194 @@ internal static class Program
             Console.WriteLine($"[diag] real BLA speed {label}: off {offMs:F0}ms, on {onMs:F0}ms, x{offMs / onMs:F2}");
             Check(offMs / onMs >= minimumRatio,
                 $"Real BLA speed on {label}: x{offMs / onMs:F2}, expected at least x{minimumRatio:F2}.");
+        }
+    }
+
+    // Phase 11: FloatExp-δ for the reflected variants, Multibrot and Simonobrot — the same
+    // plan switch (PlanDeepZoom.UseFloatExpDelta) that already gates the z²+c kernel now
+    // also gates DeepZoomPixelReflectedFloatExp/MultibrotFloatExp/SimonobrotFloatExp, lifting
+    // their double-δ ceiling (was 1e50/1e40/1e30) up to the shared MaxZoom.
+    //   1. Overlap band: wherever both δ representations are valid, the FloatExp kernel must
+    //      be bit-identical to the trusted double kernel (the same technique as Phase 1 for
+    //      z²+c) — reusing the Real BLA fixtures (1e28-1e45, far below FloatExpDeltaZoomBits
+    //      ≈ 8.8e71) for the reflected/Simonobrot families, and the existing Multibrot
+    //      fixtures forced onto the deep engine at a shallow zoom for the Multibrot family
+    //      (it has no natural deep fixture below the threshold in this file).
+    //   2. Extreme smoke test: a real zoom of 1e300 — orders of magnitude past every old
+    //      ceiling. The same ~60-70 digit centers used above no longer resolve real boundary
+    //      structure at this depth (their own precision runs out long before), so — exactly
+    //      like the Mandelbrot/Julia check at 1e120/1e300 — only completion, full-frame fill
+    //      and precision restoration are checked, plus that the reference orbit actually
+    //      stayed non-degenerate (proving the new kernel really ran, not the brute-force
+    //      fallback).
+    private static async Task VerifyFloatExpDeltaVariantsAsync(Func<MandelbrotPalette> palette)
+    {
+        static int CountRgbDiffering(byte[] a, byte[] b)
+        {
+            int n = 0;
+            for (int pixel = 0; pixel * 4 < a.Length; pixel++)
+            {
+                int o = pixel * 4;
+                if (a[o] != b[o] || a[o + 1] != b[o + 1] || a[o + 2] != b[o + 2]) n++;
+            }
+            return n;
+        }
+
+        async Task<byte[]> RenderAsync(MandelbrotState state, bool? forceFloatExp, bool? forceDeep, int w, int h)
+        {
+            byte[] pixels = new byte[w * h * 4];
+            MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = forceFloatExp;
+            MandelbrotFamilyRenderer.ForceDeepZoomForTests = forceDeep;
+            try
+            {
+                await Task.Run(() => MandelbrotFamilyRenderer.Render(state, pixels, w, h, w * 4, CancellationToken.None));
+            }
+            finally
+            {
+                MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = null;
+                MandelbrotFamilyRenderer.ForceDeepZoomForTests = null;
+            }
+            return pixels;
+        }
+
+        const int w = 120, h = 80, total = w * h;
+
+        const string burningShipX = "-0.81350985269959441502640438927923405594718016208354671578096";
+        const string burningShipY = "1.15385056973366263716386423762505110184996148623201569967787";
+        const string celticX = "-0.891865646507391491113368732535744974340110083129727811184488";
+        const string celticY = "1.544758206384140070271947748309466179897357707661851201063699";
+        const string simonobrot4X = "0.279452570816264365821172574207784238378988855076446292869889";
+        const string simonobrot4Y = "1.018073395776969286854111772196867045308653990469452818298968";
+        const string simonobrot3X = "-0.202832656913406719584951309136145088020207829768900793575531";
+        const string simonobrot3Y = "1.112011809221549716846392243745997167999832561088051678883473";
+
+        MandelbrotState ExactState(
+            MandelbrotVariant variant, string centreX, string centreY, double zoom,
+            decimal power = 2m, decimal juliaReal = 0m, decimal juliaImaginary = 0m,
+            int iterations = 6000) => new()
+            {
+                Variant = variant,
+                CenterX = decimal.Parse(centreX[..Math.Min(centreX.Length, 20)], CultureInfo.InvariantCulture),
+                CenterY = decimal.Parse(centreY[..Math.Min(centreY.Length, 20)], CultureInfo.InvariantCulture),
+                CenterXExact = centreX,
+                CenterYExact = centreY,
+                Power = power,
+                JuliaCReal = juliaReal,
+                JuliaCImaginary = juliaImaginary,
+                Zoom = zoom,
+                Iterations = iterations,
+                Threshold = 2m,
+                Threads = 2,
+                Palette = palette(),
+            };
+
+        // 1a. Reflected + Simonobrot: already-proven deep fixtures, naturally past
+        // PerturbationZoomThreshold but far below FloatExpDeltaZoomBits.
+        (string Label, MandelbrotState State)[] overlapFixtures =
+        {
+            ("BurningShip 1e45", ExactState(MandelbrotVariant.BurningShip, burningShipX, burningShipY, 1.0e45)),
+            ("Celtic 3e30", ExactState(MandelbrotVariant.Celtic, celticX, celticY, 3.1622776601683795e30)),
+            ("Simonobrot p4 1e28", ExactState(MandelbrotVariant.Simonobrot, simonobrot4X, simonobrot4Y, 1.0e28, power: 4m)),
+            ("Simonobrot p3 1e28 (odd, sqrt)", ExactState(MandelbrotVariant.Simonobrot, simonobrot3X, simonobrot3Y, 1.0e28, power: 3m)),
+        };
+
+        foreach ((string label, MandelbrotState state) in overlapFixtures)
+        {
+            byte[] doubleDelta = await RenderAsync(state, forceFloatExp: false, forceDeep: null, w, h);
+            byte[] floatExpDelta = await RenderAsync(state, forceFloatExp: true, forceDeep: null, w, h);
+            int differing = CountRgbDiffering(doubleDelta, floatExpDelta);
+            Console.WriteLine($"[diag] FloatExp-δ overlap {label}: double vs FloatExp {differing}/{total} px differ");
+            Check(doubleDelta.Where((_, index) => index % 4 != 3).Any(value => value != 0),
+                $"Overlap fixture must carry structure ({label}).");
+            Check(differing == 0,
+                $"FloatExp-δ diverges from double-δ on {differing}/{total} px ({label}) inside the overlap band.");
+        }
+
+        // 1b. Multibrot: no natural deep fixture below the threshold in this file — reuse the
+        // shallow-zoom, forced-deep-engine trick from VerifyMultibrotDeepZoomAsync. What
+        // matters is that both kernels run the same code over the same reference orbit and δc,
+        // not the literal zoom value.
+        (int Power, decimal Cx, decimal Cy)[] multibrotCases =
+        {
+            (5, -0.540000m, 0.600000m),
+            (8, 0.660000m, 0.000000m),
+        };
+        foreach ((int power, decimal cx, decimal cy) in multibrotCases)
+        {
+            var state = new MandelbrotState
+            {
+                Variant = MandelbrotVariant.Generalized,
+                Power = power,
+                CenterX = cx,
+                CenterY = cy,
+                Zoom = 300.0,
+                Iterations = 2000,
+                Threads = 2,
+                Palette = palette()
+            };
+            byte[] doubleDelta = await RenderAsync(state, forceFloatExp: false, forceDeep: true, w, h);
+            byte[] floatExpDelta = await RenderAsync(state, forceFloatExp: true, forceDeep: true, w, h);
+            int differing = CountRgbDiffering(doubleDelta, floatExpDelta);
+            Console.WriteLine($"[diag] FloatExp-δ overlap Multibrot p={power}: double vs FloatExp {differing}/{total} px differ");
+            Check(doubleDelta.Where((_, index) => index % 4 != 3).Any(value => value != 0),
+                $"Multibrot p={power} overlap fixture must carry structure.");
+            Check(differing == 0,
+                $"FloatExp-δ diverges from double-δ on {differing}/{total} px (Multibrot p={power}).");
+        }
+
+        // 2. Extreme smoke test: a real zoom of 1e300, orders of magnitude past every old
+        // per-variant ceiling (1e50/1e40/1e30) and the FloatExpDeltaZoomBits threshold.
+        const int ew = 40, eh = 28;
+        (string Label, MandelbrotState State)[] extremeFixtures =
+        {
+            ("BurningShip 1e300", ExactState(MandelbrotVariant.BurningShip, burningShipX, burningShipY, 1.0e300, iterations: 1500)),
+            ("Simonobrot p4 1e300", ExactState(MandelbrotVariant.Simonobrot, simonobrot4X, simonobrot4Y, 1.0e300, power: 4m, iterations: 1500)),
+            ("Simonobrot p3 1e300 (odd, sqrt)", ExactState(MandelbrotVariant.Simonobrot, simonobrot3X, simonobrot3Y, 1.0e300, power: 3m, iterations: 1500)),
+        };
+        foreach ((string label, MandelbrotState state) in extremeFixtures)
+        {
+            (double[] _, double[] _, int orbitLength) = MandelbrotFamilyRenderer.GetCenterOrbitForAnalysis(state);
+            Console.WriteLine($"[diag] FloatExp-δ extreme {label}: reference orbit length {orbitLength}/{state.Iterations + 1}");
+            Check(orbitLength > 4, $"Extreme fixture must produce a non-degenerate reference orbit ({label}), got length {orbitLength}.");
+
+            int progress = 0;
+            byte[] pixels = new byte[ew * eh * 4];
+            await Task.Run(() => MandelbrotFamilyRenderer.Render(state, pixels, ew, eh, ew * 4,
+                CancellationToken.None, value => progress = value));
+            Check(progress == 100, $"Extreme FloatExp-δ render must complete with 100% progress ({label}).");
+            Check(pixels.Where((_, index) => index % 4 == 3).All(value => value == 255),
+                $"Extreme FloatExp-δ render must fill every pixel ({label}).");
+            Check(BigFloat.WorkingPrecisionBits == BigFloat.MinimumPrecisionBits,
+                $"Extreme FloatExp-δ render must restore the calling thread's working precision ({label}).");
+        }
+
+        // Multibrot needs a real deep zoom (not the forced-engine Zoom=300 trick) to reach
+        // FloatExpDeltaZoomBits through the production gate.
+        {
+            var state = new MandelbrotState
+            {
+                Variant = MandelbrotVariant.Generalized,
+                Power = 5,
+                CenterX = -0.540000m,
+                CenterY = 0.600000m,
+                Zoom = 1.0e300,
+                Iterations = 800,
+                Threads = 2,
+                Palette = palette()
+            };
+            (double[] _, double[] _, int orbitLength) = MandelbrotFamilyRenderer.GetCenterOrbitForAnalysis(state);
+            Console.WriteLine($"[diag] FloatExp-δ extreme Multibrot p=5 1e300: reference orbit length {orbitLength}/{state.Iterations + 1}");
+            Check(orbitLength > 4, $"Extreme Multibrot fixture must produce a non-degenerate reference orbit, got length {orbitLength}.");
+
+            int progress = 0;
+            byte[] pixels = new byte[ew * eh * 4];
+            await Task.Run(() => MandelbrotFamilyRenderer.Render(state, pixels, ew, eh, ew * 4,
+                CancellationToken.None, value => progress = value));
+            Check(progress == 100, "Extreme FloatExp-δ render must complete with 100% progress (Multibrot p=5 1e300).");
+            Check(pixels.Where((_, index) => index % 4 == 3).All(value => value == 255),
+                "Extreme FloatExp-δ render must fill every pixel (Multibrot p=5 1e300).");
+            Check(BigFloat.WorkingPrecisionBits == BigFloat.MinimumPrecisionBits,
+                "Extreme FloatExp-δ render must restore the calling thread's working precision (Multibrot p=5 1e300).");
         }
     }
 

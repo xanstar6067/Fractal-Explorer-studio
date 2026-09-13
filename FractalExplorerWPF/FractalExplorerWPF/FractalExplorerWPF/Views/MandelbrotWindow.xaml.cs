@@ -74,24 +74,22 @@ public partial class MandelbrotWindow : Window
     private const int MaxIterations = MandelbrotFamilyRenderer.BlaMaxOrbitLength;
 
     // Потолок зума по вариантам:
-    //  • Mandelbrot/Julia — полный MaxZoom (адаптивная точность + FloatExp-δ + BLA);
-    //  • отражённые (Burning Ship, Tricorn, Buffalo, Celtic и их Julia) — пертурбация со
-    //    свёрнутым δ и вещественной 2×2 BLA, но δ всегда в double, поэтому консервативные 1e50;
-    //  • Generalized — глубокий движок только для целой степени p∈[2,12] (биномиальное
-    //    возмущение + BLA); дробная степень остаётся на decimal и на таком зуме даёт
-    //    однородную картинку — граничный случай наравне с Histogram/DE;
-    //  • Simonobrot — глубокий движок для целой степени p∈[2,12] любой чётности (композиция
-    //    возмущений zᵖ и |z|ᵖ, у нечётной p модуль несёт √M; вещественная 2×2 BLA); формула
-    //    zᵖ·|z|ᵖ растёт заметно резче Multibrot той же p (эффективно ~2p), поэтому потолок
-    //    консервативнее; отрицательная и дробная степень остаются на decimal и фактически
-    //    упираются в его предел (~1e28) — граничный случай наравне с дробным Generalized.
+    //  • Mandelbrot/Julia, отражённые (Burning Ship, Tricorn, Buffalo, Celtic и их Julia),
+    //    Generalized и Simonobrot — все теперь на одном движке (адаптивная точность опорной
+    //    орбиты + FloatExp-δ за FloatExpDeltaZoomBits + BLA, комплексная либо вещественная
+    //    2×2), поэтому общий потолок MaxZoom. Дробная степень Generalized и дробная/
+    //    отрицательная степень Simonobrot вне глубокого движка (BigFloat не умеет pow/имеет
+    //    полюс в нуле) остаются на decimal и фактически упираются в его предел (~1e28) —
+    //    граничный случай наравне с Histogram/DE на вырожденной орбите, как и раньше. У
+    //    Generalized/Simonobrot высокой целой степени (до p=12) шаг опорной орбиты в BigFloat
+    //    дороже (O(p) умножений), поэтому на глубоком зуме с большим числом итераций рендер
+    //    объективно медленнее, чем у z²+c, — практический компромисс, а не потолок типа.
     private FloatExp EffectiveMaxZoom => _definition.Variant switch
     {
-        MandelbrotVariant.Mandelbrot or MandelbrotVariant.Julia => MaxZoom,
-        MandelbrotVariant.BurningShip or MandelbrotVariant.JuliaBurningShip
-            or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic => 1e50,
-        MandelbrotVariant.Generalized => 1e40,
-        MandelbrotVariant.Simonobrot => 1e30,
+        MandelbrotVariant.Mandelbrot or MandelbrotVariant.Julia
+            or MandelbrotVariant.BurningShip or MandelbrotVariant.JuliaBurningShip
+            or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic
+            or MandelbrotVariant.Generalized or MandelbrotVariant.Simonobrot => MaxZoom,
         _ => 5e28,
     };
 
