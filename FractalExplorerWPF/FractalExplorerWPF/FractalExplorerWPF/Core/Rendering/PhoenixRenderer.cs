@@ -11,13 +11,14 @@ public static partial class PhoenixRenderer
 
     /// <summary>
     /// Масштаб кадра для плоской (double) ступени. Деление осталось в <see cref="decimal"/>,
-    /// хотя <see cref="PhoenixState.Zoom"/> стал double: так округление совпадает с прежним
+    /// хотя <see cref="PhoenixState.Zoom"/> давно не decimal: так округление совпадает с прежним
     /// бит-в-бит. Верхний кламп 1e15 защищает приведение к decimal — выше этого зума кадр
     /// считает пертурбационный движок, а сюда попадает только вырожденная опорная орбита
-    /// (однородный кадр, где масштаб уже не важен).
+    /// (однородный кадр, где масштаб уже не важен). За пределами double зум обращается в ∞ и
+    /// тоже упирается в кламп.
     /// </summary>
     private static double PlainScale(PhoenixState state) =>
-        (double)(BaseScale / Math.Max(0.000000000001m, (decimal)Math.Clamp(state.Zoom, 1e-12, 1e15)));
+        (double)(BaseScale / Math.Max(0.000000000001m, (decimal)Math.Clamp(state.Zoom.ToDouble(), 1e-12, 1e15)));
 
     private readonly record struct ComplexValue(double Real, double Imaginary)
     {

@@ -1,3 +1,7 @@
+using System.Text.Json.Serialization;
+using FractalExplorerWPF.Core.NewtonMath;
+using FractalExplorerWPF.Infrastructure.Serialization;
+
 namespace FractalExplorerWPF.Models;
 
 public enum PhoenixPlaneMode
@@ -59,11 +63,12 @@ public sealed class PhoenixState
     public string? CenterYExact { get; set; }
 
     /// <summary>
-    /// Масштаб. <see cref="double"/>, а не decimal: пертурбационный движок уводит зум далеко
-    /// за 1e28, где decimal переполняется. Старые сохранения читаются без изменений — в JSON
-    /// это просто число.
+    /// Масштаб. <see cref="FloatExp"/>, а не double: сверхглубокий зум уходит за 1.8e308, где
+    /// double уже не представим. В диапазоне double значение пишется в JSON обычным числом,
+    /// поэтому прежние сохранения (где зум был decimal, затем double) читаются без изменений.
     /// </summary>
-    public double Zoom { get; set; } = 1;
+    [JsonConverter(typeof(FloatExpJsonConverter))]
+    public FloatExp Zoom { get; set; } = FloatExp.One;
     public decimal Threshold { get; set; } = 4;
     public int Iterations { get; set; } = 100;
     public decimal C1Real { get; set; } = 0.56m;

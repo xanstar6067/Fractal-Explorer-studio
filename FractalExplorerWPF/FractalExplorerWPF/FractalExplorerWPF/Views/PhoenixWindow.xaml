@@ -69,7 +69,12 @@
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус выхода"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"/></StackPanel></Grid>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"
+                                 ToolTip="Принимается и научная нотация: 1e500. Колесо мыши — ×1.2 за щелчок, с Ctrl — ×10, с Shift — ×1.05"/></StackPanel></Grid>
+                    <Button x:Name="NucleusButton" Content="Навести на ядро" Click="NucleusButton_OnClick"
+                            ToolTip="Метод Ньютона уточняет центр до ближайшей точки, чья орбита проходит через ноль (ядро мини-копии), и подбирает зум под её размер. Только для классического варианта."/>
+                    <TextBlock x:Name="NucleusStatusText" Margin="0,2,0,4" TextWrapping="Wrap" Visibility="Collapsed"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
 
                     <TextBlock Text="Окрашивание"/>
                     <ComboBox x:Name="ColoringBox" SelectionChanged="ColoringBox_OnChanged">

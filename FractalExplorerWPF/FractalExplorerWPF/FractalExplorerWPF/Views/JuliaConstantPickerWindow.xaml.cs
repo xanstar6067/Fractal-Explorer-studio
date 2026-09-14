@@ -14,6 +14,9 @@ namespace FractalExplorerWPF.Views;
 
 public partial class JuliaConstantPickerWindow : Window
 {
+    /// <summary>Половина длины луча перекрестья в пикселях — как у маркеров других карт выбора.</summary>
+    private const double MarkerArm = 9;
+
     private readonly MandelbrotVariant _sourceVariant;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(260) };
     private CancellationTokenSource? _renderCts;
@@ -22,7 +25,6 @@ public partial class JuliaConstantPickerWindow : Window
     private Point _lastPoint;
     private decimal _panSelectedReal;
     private decimal _panSelectedImaginary;
-    private readonly TranslateTransform _panTransform = new();
     private decimal _centerX;
     private decimal _centerY;
     private decimal _zoom;
@@ -30,6 +32,17 @@ public partial class JuliaConstantPickerWindow : Window
     private readonly decimal _maxReal;
     private readonly decimal _minImaginary;
     private readonly decimal _maxImaginary;
+
+    /// <summary>
+    /// Вид, которым посчитан показанный кадр. Пока новый кадр не готов, прежний растягивается и
+    /// сдвигается под текущий вид (<see cref="UpdatePreviewTransform"/>) — зум и перетаскивание
+    /// отзываются сразу, а не после рендера, и маркер стоит на картинке, а не обгоняет её.
+    /// </summary>
+    private decimal _renderedCenterX;
+    private decimal _renderedCenterY;
+    private decimal _renderedZoom;
+    private double _renderedAspect = 1;
+    private bool _hasRenderedFrame;
 
     public decimal SelectedReal { get; private set; }
     public decimal SelectedImaginary { get; private set; }
@@ -52,7 +65,6 @@ public partial class JuliaConstantPickerWindow : Window
         }
 
         InitializeComponent();
-        PreviewImage.RenderTransform = _panTransform;
         HeaderText.Text = sourceVariant == MandelbrotVariant.BurningShip
             ? "Карта «Горящего корабля»"
             : "Карта множества Мандельброта";
@@ -67,7 +79,7 @@ public partial class JuliaConstantPickerWindow : Window
         _centerX = (_minReal + _maxReal) / 2m;
         _centerY = (_minImaginary + _maxImaginary) / 2m;
         _zoom = 3m / (_maxReal - _minReal);
-        UpdateMarker();
+        UpdateView();
     }
 
     private void ScheduleRender()
@@ -89,7 +101,10 @@ public partial class JuliaConstantPickerWindow : Window
         StatusText.Text = "Рендер карты...";
         try
         {
+            // Вид фиксируется до рендера: пока кадр считается, пользователь может сдвинуть или
+            // приблизить карту, и готовый кадр надо сопоставить с тем видом, которым он посчитан.
             MandelbrotState state = CreateMapState();
+            decimal renderedZoom = _zoom;
             byte[] pixels = new byte[checked(width * height * 4)];
             await Task.Run(() => MandelbrotFamilyRenderer.Render(
                 state, pixels, width, height, width * 4, cts.Token));
@@ -99,10 +114,13 @@ public partial class JuliaConstantPickerWindow : Window
                 PixelFormats.Bgra32, null, pixels, width * 4);
             bitmap.Freeze();
             PreviewImage.Source = bitmap;
-            _panTransform.X = 0;
-            _panTransform.Y = 0;
+            _renderedCenterX = state.CenterX;
+            _renderedCenterY = state.CenterY;
+            _renderedZoom = renderedZoom;
+            _renderedAspect = (double)height / Math.Max(1, width);
+            _hasRenderedFrame = true;
             StatusText.Text = $"C = {SelectedReal:G10} {(SelectedImaginary < 0 ? "−" : "+")} {Math.Abs(SelectedImaginary):G10}i";
-            UpdateMarker();
+            UpdateView();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -142,15 +160,25 @@ public partial class JuliaConstantPickerWindow : Window
         }
     };
 
+    /// <summary>
+    /// Множитель зума на щелчок колеса: без модификаторов прежние ×1.35, с Ctrl — ×10, с Shift —
+    /// точные ×1.05. Та же раскладка модификаторов, что у окон фракталов.
+    /// </summary>
+    private static decimal WheelZoomStep =>
+        (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 10m
+        : (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 1.05m
+        : 1.35m;
+
     private void MapHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         Point mouse = e.GetPosition(MapHost);
         (decimal X, decimal Y) before = ScreenToWorld(mouse);
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.35m : 1m / 1.35m), 0.05m, 1_000_000m);
+        decimal step = WheelZoomStep;
+        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? step : 1m / step), 0.05m, 1_000_000m);
         (decimal X, decimal Y) after = ScreenToWorld(mouse);
         _centerX += before.X - after.X;
         _centerY += before.Y - after.Y;
-        UpdateMarker();
+        UpdateView();
         ScheduleRender();
         e.Handled = true;
     }
@@ -188,17 +216,14 @@ public partial class JuliaConstantPickerWindow : Window
     {
         if (!_panning || e.MiddleButton != MouseButtonState.Pressed) return;
         Point current = e.GetPosition(MapHost);
-        Vector screenDelta = current - _lastPoint;
         (decimal X, decimal Y) before = ScreenToWorld(_lastPoint);
         (decimal X, decimal Y) after = ScreenToWorld(current);
         _centerX += before.X - after.X;
         _centerY += before.Y - after.Y;
-        _panTransform.X += screenDelta.X;
-        _panTransform.Y += screenDelta.Y;
         _lastPoint = current;
         SelectedReal = _panSelectedReal;
         SelectedImaginary = _panSelectedImaginary;
-        UpdateMarker();
+        UpdateView();
         e.Handled = true;
     }
 
@@ -224,6 +249,48 @@ public partial class JuliaConstantPickerWindow : Window
             _centerY + (0.5m - (decimal)point.Y / height) * viewHeight);
     }
 
+    /// <summary>
+    /// Картинка и маркер обновляются одним вызовом: обе величины считаются от одного и того же
+    /// текущего вида, поэтому при зуме и перетаскивании они двигаются синхронно.
+    /// </summary>
+    private void UpdateView()
+    {
+        UpdatePreviewTransform();
+        UpdateMarker();
+    }
+
+    /// <summary>
+    /// Растягивает и сдвигает уже посчитанный кадр под текущий вид. Картинка растянута на всю
+    /// карту, поэтому точка изображения (u, v) — это мировая точка отрисованного вида; её место
+    /// на экране в текущем виде линейно по u и v, отсюда матрица без поворота.
+    /// </summary>
+    private void UpdatePreviewTransform()
+    {
+        if (!IsInitialized || !_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0) return;
+        double width = Math.Max(1, MapHost.ActualWidth);
+        double height = Math.Max(1, MapHost.ActualHeight);
+
+        double currentViewWidth = 3.0 / (double)_zoom;
+        double currentViewHeight = currentViewWidth * height / width;
+        double renderedViewWidth = 3.0 / (double)_renderedZoom;
+        double renderedViewHeight = renderedViewWidth * _renderedAspect;
+
+        double scaleX = renderedViewWidth / currentViewWidth;
+        double scaleY = renderedViewHeight / currentViewHeight;
+        double offsetX = ((double)(_renderedCenterX - _centerX) - renderedViewWidth / 2 + currentViewWidth / 2)
+                         * width / currentViewWidth;
+        double offsetY = ((double)(_centerY - _renderedCenterY) + currentViewHeight / 2 - renderedViewHeight / 2)
+                         * height / currentViewHeight;
+        if (!double.IsFinite(scaleX) || !double.IsFinite(scaleY) ||
+            !double.IsFinite(offsetX) || !double.IsFinite(offsetY)) return;
+
+        PreviewImage.RenderTransform = new MatrixTransform(scaleX, 0, 0, scaleY, offsetX, offsetY);
+    }
+
+    /// <summary>
+    /// Маркер выбранной C — небольшое перекрестье в точке, а не линии через всю карту: на
+    /// развёрнутой карте длинные лучи закрывали как раз ту структуру, по которой C выбирают.
+    /// </summary>
     private void UpdateMarker()
     {
         if (!IsInitialized) return;
@@ -233,13 +300,13 @@ public partial class JuliaConstantPickerWindow : Window
         decimal viewHeight = viewWidth * (decimal)height / (decimal)width;
         double x = (double)((SelectedReal - (_centerX - viewWidth / 2m)) / viewWidth) * width;
         double y = (double)(((_centerY + viewHeight / 2m) - SelectedImaginary) / viewHeight) * height;
-        bool visible = x >= 0 && x <= width && y >= 0 && y <= height;
+        bool visible = x >= -MarkerArm && x <= width + MarkerArm && y >= -MarkerArm && y <= height + MarkerArm;
         MarkerLayer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         if (!visible) return;
-        HorizontalMarker.X1 = 0; HorizontalMarker.X2 = width;
+        HorizontalMarker.X1 = x - MarkerArm; HorizontalMarker.X2 = x + MarkerArm;
         HorizontalMarker.Y1 = y; HorizontalMarker.Y2 = y;
         VerticalMarker.X1 = x; VerticalMarker.X2 = x;
-        VerticalMarker.Y1 = 0; VerticalMarker.Y2 = height;
+        VerticalMarker.Y1 = y - MarkerArm; VerticalMarker.Y2 = y + MarkerArm;
     }
 
     private void SetConstantText()
@@ -288,7 +355,7 @@ public partial class JuliaConstantPickerWindow : Window
 
     private void MapHost_OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        UpdateMarker();
+        UpdateView();
         ScheduleRender();
     }
 

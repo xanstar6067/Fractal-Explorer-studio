@@ -21,7 +21,7 @@
             <StackPanel>
                 <TextBlock x:Name="HeaderText" FontSize="20" FontWeight="SemiBold"/>
                 <TextBlock Margin="0,3,12,8" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                           Text="Щёлкните по карте, чтобы выбрать C. Колесо — масштаб, средняя кнопка — перемещение." TextWrapping="Wrap"/>
+                           Text="Щёлкните по карте, чтобы выбрать C. Колесо — масштаб (Ctrl — ×10, Shift — точно), средняя кнопка — перемещение." TextWrapping="Wrap"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="6,0">
                 <TextBlock Text="Re(C)"/>
@@ -42,8 +42,8 @@
             <Grid>
                 <Image x:Name="PreviewImage" Stretch="Fill" SnapsToDevicePixels="True"/>
                 <Canvas x:Name="MarkerLayer" IsHitTestVisible="False">
-                    <Line x:Name="HorizontalMarker" Stroke="LimeGreen" StrokeThickness="1.5"/>
-                    <Line x:Name="VerticalMarker" Stroke="LimeGreen" StrokeThickness="1.5"/>
+                    <Line x:Name="HorizontalMarker" Stroke="LimeGreen" StrokeThickness="2"/>
+                    <Line x:Name="VerticalMarker" Stroke="LimeGreen" StrokeThickness="2"/>
                 </Canvas>
             </Grid>
         </Border>

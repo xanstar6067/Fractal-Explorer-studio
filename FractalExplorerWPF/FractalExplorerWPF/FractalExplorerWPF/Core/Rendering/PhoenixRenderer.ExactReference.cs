@@ -23,20 +23,20 @@ public static partial class PhoenixRenderer
     {
         int referenceBits = PlanReferenceBits(state) + extraBits;
         var pixels = new byte[checked(width * height * 4)];
-        double viewWidth = DeepViewWidth(state);
+        FloatExp viewWidth = DeepViewWidth(state);
 
         Parallel.For(0, height, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
             y =>
             {
                 using var precision = new BigFloat.PrecisionScope(referenceBits);
-                // Геометрия дословно как в глубоком пути: смещение пикселя считается в double
+                // Геометрия дословно как в глубоком пути: смещение пикселя считается в FloatExp
                 // и лишь потом прибавляется к точному центру — иначе сравнение проверяло бы
                 // ещё и разницу раскладки, а не только орбиту.
-                double deltaImaginary = (height / 2.0 - y) * viewWidth / width;
+                FloatExp deltaImaginary = (height / 2.0 - y) * viewWidth / width;
                 for (int x = 0; x < width; x++)
                 {
                     if (token.IsCancellationRequested) return;
-                    double deltaReal = (x - width / 2.0) * viewWidth / width;
+                    FloatExp deltaReal = (x - width / 2.0) * viewWidth / width;
                     PixelMetrics metrics = IterateExact(state, deltaReal, deltaImaginary);
                     WritePixel(pixels, (y * width + x) * 4, ResolveColor(state, metrics));
                 }
@@ -45,7 +45,7 @@ public static partial class PhoenixRenderer
         return pixels;
     }
 
-    private static PixelMetrics IterateExact(PhoenixState state, double deltaReal, double deltaImaginary)
+    private static PixelMetrics IterateExact(PhoenixState state, FloatExp deltaReal, FloatExp deltaImaginary)
     {
         BigFloat centerX = state.CenterXExact is { Length: > 0 } exactX
             ? BigFloat.Parse(exactX)
@@ -54,8 +54,9 @@ public static partial class PhoenixRenderer
             ? BigFloat.Parse(exactY)
             : BigFloat.FromDecimal(state.CenterY);
 
-        BigFloat pixelReal = centerX + BigFloat.FromDouble(deltaReal);
-        BigFloat pixelImaginary = centerY + BigFloat.FromDouble(deltaImaginary);
+        // ToBigFloat переносит мантиссу смещения целиком — и за пределами диапазона double.
+        BigFloat pixelReal = centerX + deltaReal.ToBigFloat();
+        BigFloat pixelImaginary = centerY + deltaImaginary.ToBigFloat();
 
         bool parameterPlane = state.PlaneMode == PhoenixPlaneMode.ParameterC1;
         bool automaticStart = state.SecondaryPower > 0 &&

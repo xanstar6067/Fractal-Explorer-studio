@@ -22,7 +22,8 @@ internal static class Program
     //   без аргументов / all — всё;
     //   manager  — только менеджер сохранений;
     //   deep     — только глубокий зум (включает extreme);
-    //   extreme  — только сверхглубокий зум (FloatExp-зум, 1e1000) и поиск ядра по Ньютону.
+    //   extreme  — только сверхглубокий зум (FloatExp-зум, 1e1000) и поиск ядра по Ньютону;
+    //   phoenix  — только глубокий и сверхглубокий зум Феникса.
     [STAThread]
     private static int Main(string[] args)
     {
@@ -37,8 +38,9 @@ internal static class Program
                 if (group is "all" or "manager") await VerifyManagerAsync();
                 if (group is "all" or "deep") await VerifyDeepZoomAsync();
                 if (group is "extreme") await VerifyExtremeZoomGroupAsync();
-                if (group is not ("all" or "manager" or "deep" or "extreme"))
-                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme.");
+                if (group is "phoenix") await VerifyPhoenixDeepZoomAsync();
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix"))
+                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix.");
                 Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)
@@ -314,6 +316,9 @@ internal static class Program
         await VerifyExtremeZoomAsync(Palette);
         await VerifyNewtonNucleusAsync(Palette);
         await VerifyFloatExpDeltaVariantsAsync(Palette);
+        // В составе deep эти проверки уже выполнены из VerifyPhoenixDeepZoomAsync, поэтому
+        // здесь — только при запуске одной группы extreme.
+        if (!_phoenixExtremeVerified) await VerifyPhoenixExtremeZoomAsync();
     }
 
     // Phase 7: Histogram coloring moved onto the deep engine (RenderDeepZoomHistogram) — the
@@ -1982,13 +1987,16 @@ internal static class Program
                 "Dynamic and parameter planes must not collide in the orbit cache.");
         }
 
-        // 7. Граница применимости движка — самый чувствительный кадр, какой удалось построить:
-        //    центр в точке границы (найдена бинарным поиском между заведомо внутренней и
-        //    заведомо внешней точками), а число итераций подобрано так, что вся область
-        //    вылетает за радиус в пределах одного шага. Здесь ошибка δ, накопленная за орбиту,
-        //    видна в чистом виде: одного шага разницы хватает, чтобы перекрасить половину
-        //    кадра. Проверка фиксирует, что на потолке зума окна расхождение остаётся на
-        //    уровне отдельных пикселей, и что дальше движок пускать нельзя.
+        // 7. Фронт выхода — самый чувствительный кадр, какой удалось построить: центр в точке
+        //    границы (бинарный поиск между заведомо внутренней и заведомо внешней точками), а
+        //    число итераций подобрано так, что вся область вылетает за радиус в пределах одного
+        //    шага. Прежде эта проверка считалась пределом движка и задавала потолок окна 1e24,
+        //    но разбор показал иное: на шаге решения разброс |z|² по всему кадру меньше 2⁻⁵²
+        //    относительно (на 1e28 — 3.43203826028866…, различие в 16-м знаке), и такой кадр не
+        //    различает никакой рендер, ведущий z в double. Эталон различает его только потому,
+        //    что итерирует z в BigFloat. Это свойство кадра, а не накопление ошибки δ: на кадрах
+        //    со структурой расхождения с глубиной не растут (см. VerifyPhoenixExtremeZoomAsync).
+        //    Проверка остаётся стражем точности до глубины, где кадр ещё различим.
         {
             const string borderX = "0.3605697876341732992373786585816072";
             const string borderY =
@@ -2059,6 +2067,32 @@ internal static class Program
 
             // И обратно: обычное сохранение с мелким зумом не должно обзаводиться строками
             // точного центра — иначе они начнут расходиться с decimal-полями.
+            // Сверхглубокий зум: центр длиннее тысячи знаков. Окно обязано разобрать его с
+            // точностью, поднятой под зум (иначе BigFloat.Parse округлит до рабочих 384 бит), и
+            // вернуть без потерь, а зум — вне диапазона double — сохранить как есть.
+            string longX, longY;
+            using (new BigFloat.PrecisionScope(2048))
+            {
+                longX = (BigFloat.FromInt(2) + (4.0 / FloatExp.Pow10(500) * 0.123456789).ToBigFloat()).ToInvariantString();
+                longY = (4.0 / FloatExp.Pow10(500) * -0.0371).ToBigFloat().ToInvariantString();
+            }
+            PhoenixState extreme = AtExactCenter(
+                View(1, PhoenixVariant.Classic, PhoenixColoringMode.Smooth, iterations: 300), longX, longY);
+            extreme.Zoom = FloatExp.Pow10(500);
+            window.LoadState(extreme);
+            PhoenixState capturedExtreme = window.CaptureState("round-trip-extreme");
+            Check(capturedExtreme.Zoom == extreme.Zoom, "The window must round-trip a 1e500 zoom unchanged.");
+            // Окно разбирает центр с точностью под зум, а не с 2048 битами, поэтому сравнение
+            // «бит в бит» здесь неверно; требование — потеря заведомо меньше пикселя.
+            using (new BigFloat.PrecisionScope(2048))
+            {
+                FloatExp pixelFraction = 4.0 / extreme.Zoom * Math.ScaleB(1.0, -60);
+                FloatExp driftX = FloatExp.Abs(FloatExp.FromBigFloat(BigFloat.Parse(capturedExtreme.CenterXExact!) - BigFloat.Parse(longX)));
+                FloatExp driftY = FloatExp.Abs(FloatExp.FromBigFloat(BigFloat.Parse(capturedExtreme.CenterYExact!) - BigFloat.Parse(longY)));
+                Check(driftX < pixelFraction && driftY < pixelFraction,
+                    $"The window must round-trip a 1e500 exact center to far below a pixel: drift {driftX}, {driftY}.");
+            }
+
             window.LoadState(View(700, PhoenixVariant.Classic, PhoenixColoringMode.Smooth));
             PhoenixState shallow = window.CaptureState("round-trip-shallow");
             Check(shallow.CenterXExact is null && shallow.CenterYExact is null,
@@ -2066,8 +2100,289 @@ internal static class Program
             window.Close();
         }
 
+        // 10. Параметрическая плоскость при b > 0. Опорная константа C1 в этой плоскости — центр
+        //     кадра, и член C1·ΔG возмущения обязан её учитывать. Ядро долго подставляло сюда
+        //     ноль: при b = 0 ΔG ≡ 0 и ошибка не видна, поэтому проверка 1 (b = 0) её пропускала,
+        //     а на кадрах со структурой при b = 1 расходилось 2357 пикселей из 2816.
+        foreach ((int secondary, double centerX, double centerY) in new[] { (1, -1.6, -0.2), (2, 0.2, 0.0) })
+        {
+            PhoenixState state = View(20, PhoenixVariant.Classic, PhoenixColoringMode.Smooth,
+                PhoenixPlaneMode.ParameterC1, secondaryPower: secondary, centerX: centerX, centerY: centerY);
+            byte[] shallow = await RenderAsync(state, false, w, h);
+            byte[] deep = await RenderAsync(state, true, w, h);
+            int differing = CountDiffering(shallow, deep);
+            Check(CountEdges(shallow, w) > 150,
+                $"The b={secondary} parameter-plane fixture must show structure, or the check proves nothing.");
+            Check(differing * 100 <= total * 2,
+                $"Phoenix parameter plane with b={secondary} must match the plain path: {differing}/{total} differ.");
+        }
+
+        // Гибридное ядро и линейный пропуск (PhoenixRenderer.Extended) — отдельной функцией:
+        // её же запускает группа extreme.
+        await VerifyPhoenixExtremeZoomAsync();
+
         Check(BigFloat.WorkingPrecisionBits == BigFloat.MinimumPrecisionBits,
             "Phoenix deep-zoom checks must leave the working precision restored.");
+    }
+
+    // Сверхглубокий зум Феникса: зум и сетка кадра в FloatExp, гибридное ядро (δ в FloatExp,
+    // пока мало, дальше double) и линейный пропуск начала орбиты (PhoenixRenderer.Extended).
+    //
+    // Прежний потолок 1e24 держался на кадре «весь кадр вылетает за один шаг» (проверка 7 в
+    // VerifyPhoenixDeepZoomAsync): там разброс |z|² по кадру на шаге решения меньше 2⁻⁵²
+    // относительно, и такой кадр не различает никакой рендер, ведущий z в double. На кадрах со
+    // структурой точность пертурбации относительная и с глубиной не падает — поэтому здесь
+    // проверяется не «насколько глубоко можно», а три механизма, которыми снята стена
+    // представления чисел, и полное совпадение с точным BigFloat-эталоном на 1e300/1e1000.
+    //
+    // Глубокие фикстуры со структурой на любой глубине строятся без поиска и без длинных
+    // констант — это отталкивающие неподвижные точки, лежащие на границе:
+    //   • β-точка «базилики» (C2 = 0, c1 = −1): z* = (1 + √5)/2, множитель 3.24;
+    //   • седло Феникса с памятью (c1 = −1, C2 = −0.5): пара (2, 2) неподвижна, z₋₁ = 2 точно
+    //     представим в decimal, собственные числа 2 ± √3.5. Это единственная фикстура, где
+    //     на сверхглубине работает и член памяти C2·δₙ₋₁.
+    private static bool _phoenixExtremeVerified;
+
+    private static async Task VerifyPhoenixExtremeZoomAsync()
+    {
+        _phoenixExtremeVerified = true;
+        static MandelbrotPalette Palette() => new()
+        {
+            Colors = [Colors.White, Colors.Red, Colors.Black],
+            InteriorColor = Colors.Black,
+            IsGradient = true
+        };
+
+        static PhoenixState State(FloatExp zoom, string centerX, string centerY, int iterations,
+            PhoenixVariant variant = PhoenixVariant.Classic, PhoenixColoringMode coloring = PhoenixColoringMode.Smooth,
+            PhoenixPlaneMode plane = PhoenixPlaneMode.Julia, decimal c1 = 0.56667m, decimal c2 = -0.5m,
+            decimal initialPrevious = 0m)
+        {
+            var state = new PhoenixState
+            {
+                Zoom = zoom, Iterations = iterations, Threshold = 4m, C1Real = c1, C2Real = c2,
+                InitialPreviousReal = initialPrevious, PlaneMode = plane, Variant = variant,
+                PrimaryPower = 2, SecondaryPower = 0, ColoringMode = coloring,
+                OrbitTrapMode = PhoenixOrbitTrapMode.Circle, OrbitTrapRadius = 0.5, OrbitTrapStrength = 1.5,
+                StripeFrequency = 3, StripeStrength = 0.65, CycleTolerance = 1e-7, MaximumDetectedPeriod = 32,
+                Palette = Palette(),
+                CenterXExact = centerX, CenterYExact = centerY
+            };
+            using (new BigFloat.PrecisionScope(Math.Max(BigFloat.MinimumPrecisionBits, (int)zoom.Log2() + 128)))
+            {
+                state.CenterX = BigFloat.Parse(centerX).ToDecimalClamped();
+                state.CenterY = BigFloat.Parse(centerY).ToDecimalClamped();
+            }
+            return state;
+        }
+
+        static async Task<byte[]> RenderAsync(PhoenixState state, int width, int height,
+            bool? forceDeep = true, bool? forceExtended = null, bool? forceSkip = null)
+        {
+            byte[] pixels = new byte[width * height * 4];
+            PhoenixRenderer.ForceDeepZoomForTests = forceDeep;
+            PhoenixRenderer.ForceExtendedDeltaForTests = forceExtended;
+            PhoenixRenderer.ForceLinearSkipForTests = forceSkip;
+            try
+            {
+                await Task.Run(() => PhoenixRenderer.Render(state, pixels, width, height, width * 4,
+                    Environment.ProcessorCount, CancellationToken.None));
+            }
+            finally
+            {
+                PhoenixRenderer.ForceDeepZoomForTests = null;
+                PhoenixRenderer.ForceExtendedDeltaForTests = null;
+                PhoenixRenderer.ForceLinearSkipForTests = null;
+            }
+            return pixels;
+        }
+
+        static int CountDiffering(byte[] a, byte[] b)
+        {
+            int differing = 0;
+            for (int offset = 0; offset < a.Length; offset += 4)
+                if (a[offset] != b[offset] || a[offset + 1] != b[offset + 1] || a[offset + 2] != b[offset + 2])
+                    differing++;
+            return differing;
+        }
+
+        static int CountColors(byte[] pixels) => Enumerable.Range(0, pixels.Length / 4)
+            .Select(pixel => pixels[pixel * 4] | pixels[pixel * 4 + 1] << 8 | pixels[pixel * 4 + 2] << 16)
+            .Distinct().Count();
+
+        const int w = 64, h = 44, total = w * h;
+
+        // 1. Полоса перекрытия: там, где верно и прежнее double-ядро, гибридное обязано совпасть
+        //    с ним бит-в-бит без пропуска (в double-режиме это те же выражения, а FloatExp
+        //    округляет мантиссу ровно как double) и почти бит-в-бит с пропуском. Кадры — со
+        //    структурой (132–1178 рёбер в VerifyPhoenixDeepZoomAsync), все варианты свёрток и
+        //    режимы окраски, читающие метрики по всей орбите: пропуск подменяет их префиксами
+        //    опорной орбиты.
+        (string X, string Y, double Zoom)[] overlap =
+        [
+            ("0.3605697876341732990634970411179978", "0.9162050700524670653999492733755535", 1.15e18),
+            ("0.3605697876341732992373786585380622", "0.9162050700524670649253011924481502", 1.98e28),
+        ];
+        int worstPlain = 0, worstSkip = 0;
+        foreach ((string centerX, string centerY, double zoom) in overlap)
+        foreach (PhoenixVariant variant in Enum.GetValues<PhoenixVariant>())
+        foreach (PhoenixColoringMode coloring in new[]
+                 {
+                     PhoenixColoringMode.Smooth, PhoenixColoringMode.OrbitTrap, PhoenixColoringMode.StripeAverage,
+                     PhoenixColoringMode.TriangleInequalityAverage, PhoenixColoringMode.Period
+                 })
+        {
+            PhoenixState state = State(zoom, centerX, centerY, 300, variant, coloring);
+            byte[] reference = await RenderAsync(state, w, h, true, false);
+            byte[] stepped = await RenderAsync(state, w, h, true, true, false);
+            byte[] skipped = await RenderAsync(state, w, h, true, true, true);
+            int plain = CountDiffering(reference, stepped), skip = CountDiffering(reference, skipped);
+            worstPlain = Math.Max(worstPlain, plain);
+            worstSkip = Math.Max(worstSkip, skip);
+            Check(plain == 0,
+                $"The hybrid kernel must match the double kernel bit-for-bit where both are valid " +
+                $"({variant}, {coloring}, {zoom:0.0e+0}): {plain}/{total} differ.");
+            Check(skip * 100 <= total,
+                $"The linear skip must stay within 1% of the double kernel ({variant}, {coloring}, {zoom:0.0e+0}): " +
+                $"{skip}/{total} differ.");
+        }
+        Console.WriteLine($"[diag] phoenix hybrid overlap worst: stepped {worstPlain}, skipped {worstSkip} of {total}");
+
+        // 2. Сверхглубина против точного эталона. Эталон итерирует каждый пиксель напрямую в
+        //    BigFloat и не делит с гибридным ядром ни пропуска, ни FloatExp-арифметики.
+        string betaX;
+        using (new BigFloat.PrecisionScope(4096))
+            betaX = ((BigFloat.One + BigFloat.Sqrt(BigFloat.FromInt(5))) / 2L).ToInvariantString();
+        foreach (int digits in new[] { 300, 1000 })
+        foreach (bool memory in new[] { false, true })
+        {
+            FloatExp zoom = FloatExp.Pow10(digits);
+            int iterations = digits * 2 + 400;
+            PhoenixState state = memory
+                ? State(zoom, "2", "0", iterations, c1: -1m, c2: -0.5m, initialPrevious: 2m)
+                : State(zoom, betaX, "0", iterations, c1: -1m, c2: 0m);
+            string label = $"{(memory ? "saddle" : "beta")} 1e{digits}";
+
+            PhoenixRenderer.SkippedIterationsForTests = 0;
+            byte[] frame = await RenderAsync(state, w, h, forceDeep: null);
+            long skippedPerPixel = Interlocked.Read(ref PhoenixRenderer.SkippedIterationsForTests) / total;
+            int colors = CountColors(frame);
+            Console.WriteLine($"[diag] phoenix extreme {label}: {colors} colors, skip {skippedPerPixel}/{iterations} per pixel");
+            Check(colors >= 5,
+                $"The {label} Phoenix frame must show structure, or the comparison proves nothing: {colors} colors.");
+            Check(skippedPerPixel > iterations / 4,
+                $"The linear skip must engage at {label}: {skippedPerPixel} iterations per pixel.");
+            Check(frame.Where((_, index) => index % 4 == 3).All(alpha => alpha == 255),
+                $"The {label} Phoenix frame must fill every pixel.");
+
+            const int sw = 32, sh = 22;
+            byte[] deep = await RenderAsync(state, sw, sh, forceDeep: null);
+            byte[] stepped = await RenderAsync(state, sw, sh, true, true, false);
+            byte[] exact = await Task.Run(() =>
+                PhoenixRenderer.RenderExactReferenceForTests(state, sw, sh, 64, CancellationToken.None));
+            int vsExact = CountDiffering(deep, exact), vsStepped = CountDiffering(deep, stepped);
+            Console.WriteLine($"[diag] phoenix extreme {label} 32x22: {vsExact} vs exact, {vsStepped} skip-vs-stepped");
+            Check(CountColors(exact) >= 4, $"The {label} exact reference must show structure.");
+            Check(vsExact <= 1,
+                $"Phoenix at {label} must match the exact BigFloat reference: {vsExact}/{sw * sh} differ.");
+            Check(vsStepped <= 1,
+                $"The linear skip must match the stepped hybrid kernel at {label}: {vsStepped}/{sw * sh} differ.");
+        }
+
+        // 3. Тайл на сверхглубине совпадает с полным кадром: у тайла своя точка входа и раскладка,
+        //    а таблица пропуска у них общая из кэша.
+        {
+            PhoenixState state = State(FloatExp.Pow10(1000), "2", "0", 2400, c1: -1m, c2: -0.5m, initialPrevious: 2m);
+            byte[] full = await RenderAsync(state, w, h, forceDeep: null);
+            byte[]? tile = await Task.Run(() => PhoenixRenderer.RenderTile(state, w, h,
+                new MandelbrotRenderTile(16, 12, 24, 16, 1, 1), CancellationToken.None));
+            Check(tile is not null, "The extreme-zoom Phoenix tile must render.");
+            int tileDiffering = 0;
+            for (int localY = 0; localY < 16; localY++)
+            for (int localX = 0; localX < 24; localX++)
+            {
+                int tileOffset = (localY * 24 + localX) * 4;
+                int fullOffset = ((12 + localY) * w + 16 + localX) * 4;
+                if (tile![tileOffset] != full[fullOffset] || tile[tileOffset + 1] != full[fullOffset + 1] ||
+                    tile[tileOffset + 2] != full[fullOffset + 2]) tileDiffering++;
+            }
+            Check(tileDiffering == 0,
+                $"The extreme-zoom Phoenix tile must match the full frame exactly: {tileDiffering}/384 differ.");
+        }
+
+        // 4. Поиск ядра методом Ньютона. Глубокий кадр — окрестность известного ядра периода
+        //    2754 на 1e13 (найдено спуском по ядрам): период «круга кадра» обязан найти ядро в
+        //    самом кадре. argmin |zₙ| на этом кадре выбирал деталь в 14 ширинах кадра, а со
+        //    смещением в другую сторону — в 2e7 ширинах.
+        {
+            const string nucleusX = "0.1029169992623730679694709500956184183749";
+            const string nucleusY = "0.5760704950584760330336597447061809753958";
+            const double zoom = 5.25e13;
+            foreach (double offset in new[] { 0.23, -0.31 })
+            {
+                string centerX, centerY;
+                using (new BigFloat.PrecisionScope(400))
+                {
+                    centerX = (BigFloat.Parse(nucleusX) + BigFloat.FromDouble(4.0 / zoom * offset)).ToInvariantString();
+                    centerY = (BigFloat.Parse(nucleusY) + BigFloat.FromDouble(4.0 / zoom * offset * 0.7)).ToInvariantString();
+                }
+                PhoenixState state = State(zoom, centerX, centerY, 9000);
+                PhoenixNucleusResult result = await Task.Run(() => PhoenixNewtonZoom.FindNucleus(state, CancellationToken.None));
+                Console.WriteLine($"[diag] phoenix newton deep offset {offset}: {result.Message} zoom→{result.SuggestedZoom}");
+                Check(result.Found && result.DriftInViews < 1.0,
+                    $"Newton must find a nucleus inside the deep Phoenix frame (offset {offset}): {result.Message}");
+                Check(result.NewtonSteps <= 12, $"Newton must converge quadratically: {result.NewtonSteps} steps.");
+                Check(result.SuggestedZoom > zoom / 100 && result.SuggestedZoom.IsFinite,
+                    $"The suggested zoom must frame the nearby detail: {result.SuggestedZoom}.");
+            }
+
+            // Динамическая плоскость на мелком зуме, параметрическая при b > 0 — ядро найдено, и
+            // кадр на предложенном зуме показывает структуру.
+            var shallowCases = new (string Label, PhoenixState State)[]
+            {
+                ("julia", State(270, "0.1", "0.5753747091373043", 600)),
+                ("parameter b=1", State(20, "-1.6", "-0.2", 400, plane: PhoenixPlaneMode.ParameterC1)),
+            };
+            shallowCases[1].State.SecondaryPower = 1;
+            foreach ((string label, PhoenixState state) in shallowCases)
+            {
+                state.CenterXExact = null;
+                state.CenterYExact = null;
+                PhoenixNucleusResult result = await Task.Run(() => PhoenixNewtonZoom.FindNucleus(state, CancellationToken.None));
+                Check(result.Found && result.DriftInViews < 1.0, $"Newton must find a Phoenix {label} nucleus: {result.Message}");
+                PhoenixState framed = State(result.SuggestedZoom, result.CenterX, result.CenterY,
+                    Math.Max(state.Iterations, result.Period * 4 + 200), plane: state.PlaneMode);
+                framed.SecondaryPower = state.SecondaryPower;
+                Check(CountColors(await RenderAsync(framed, w, h, forceDeep: null)) >= 10,
+                    $"The Phoenix {label} frame at the suggested zoom must show structure.");
+            }
+
+            // Вырожденный корень (c1 = 0 при нулевом старте даёт zₙ ≡ 0) и неаналитичный вариант
+            // — честный отказ, а не «ядро».
+            PhoenixState trivial = State(8, "0.35", "0.95", 400, plane: PhoenixPlaneMode.ParameterC1);
+            trivial.CenterXExact = null;
+            trivial.CenterYExact = null;
+            PhoenixNucleusResult trivialResult = PhoenixNewtonZoom.FindNucleus(trivial, CancellationToken.None);
+            Check(!trivialResult.Found || !(BigFloat.Parse(trivialResult.CenterX).IsZero && BigFloat.Parse(trivialResult.CenterY).IsZero),
+                "Newton must never report the degenerate c1 = 0 root as a nucleus.");
+            PhoenixState tricorn = State(20, "0.2", "-0.4", 400, PhoenixVariant.Tricorn, plane: PhoenixPlaneMode.ParameterC1);
+            Check(!PhoenixNewtonZoom.FindNucleus(tricorn, CancellationToken.None).Found,
+                "Newton must refuse the non-analytic Tricorn Phoenix.");
+        }
+
+        // 5. Зум за пределами double переживает JSON-сохранение.
+        {
+            PhoenixState state = State(FloatExp.Pow10(777), "2", "0", 500, c1: -1m, c2: -0.5m, initialPrevious: 2m);
+            string json = System.Text.Json.JsonSerializer.Serialize(new List<PhoenixState> { state }, JsonOptionsFactory.Create());
+            PhoenixState restored = System.Text.Json.JsonSerializer.Deserialize<List<PhoenixState>>(json, JsonOptionsFactory.Create())![0];
+            Check(restored.Zoom == state.Zoom, $"A 1e777 Phoenix zoom must survive JSON: {restored.Zoom}.");
+            PhoenixState legacy = System.Text.Json.JsonSerializer.Deserialize<List<PhoenixState>>(
+                "[{\"Zoom\": 1.5e20, \"Iterations\": 300}]", JsonOptionsFactory.Create())![0];
+            Check(legacy.Zoom == FloatExp.FromDouble(1.5e20), "An old numeric Phoenix zoom must still load.");
+        }
+
+        Check(BigFloat.WorkingPrecisionBits == BigFloat.MinimumPrecisionBits,
+            "Phoenix extreme-zoom checks must leave the working precision restored.");
     }
 
     // Phase 6: Simonobrot of even integer power p=2q — composition of two exact binomial

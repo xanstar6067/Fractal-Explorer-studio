@@ -35,6 +35,11 @@ namespace FractalExplorerWPF.Core.Rendering;
 ///
 /// Все семь режимов окраски обслуживаются одним проходом: каждый читает восстановленное
 /// <c>z = Z + δ</c>, а двухпроходных режимов (гистограмма, оценка расстояния) у Феникса нет.
+///
+/// Здесь — double-ядро <see cref="DeepZoomPixel"/> и общая инфраструктура. За порогом
+/// <see cref="ExtendedDeltaBits"/> кадр считает гибридное ядро со сверхглубокой ступени
+/// (<c>PhoenixRenderer.Extended</c>): зум и сетка кадра в <see cref="FloatExp"/>, δ в FloatExp
+/// пока мало, и линейный пропуск начала орбиты.
 /// </summary>
 public static partial class PhoenixRenderer
 {
@@ -98,12 +103,19 @@ public static partial class PhoenixRenderer
     /// </summary>
     internal static int PlanReferenceBits(PhoenixState state)
     {
-        double zoomBits = state.Zoom > 0 && double.IsFinite(state.Zoom) ? Math.Log2(state.Zoom) : 0;
+        double zoomBits = ZoomBits(state.Zoom);
         int iterationBits = 32 - System.Numerics.BitOperations.LeadingZeroCount(
             (uint)Math.Max(state.Iterations, 2));
         int needed = (int)Math.Ceiling(zoomBits) + 2 * iterationBits + 48;
         int rounded = Math.Max(BigFloat.MinimumPrecisionBits, (needed + 63) / 64 * 64);
         return ForceReferenceBitsForTests ?? rounded;
+    }
+
+    /// <summary>Двоичный логарифм зума; для нуля, отрицательного и нечислового значения — 0.</summary>
+    private static double ZoomBits(FloatExp zoom)
+    {
+        double bits = zoom.Sign > 0 && zoom.IsFinite ? zoom.Log2() : 0;
+        return double.IsFinite(bits) ? bits : 0;
     }
 
     // ------------------------------------------------------------------ reference orbit
@@ -123,6 +135,16 @@ public static partial class PhoenixRenderer
 
         /// <summary>Опорная орбита вышла за радиус раньше, чем достигла числа итераций.</summary>
         public required bool Escaped;
+
+        /// <summary>
+        /// Константа c1 опорной точки в double. В динамической плоскости это просто параметр
+        /// формулы, в параметрической — центр кадра: ядру она нужна в члене <c>C1·ΔG</c>, а
+        /// разбирать точную строку центра заново на каждый тайл было бы дорого.
+        /// </summary>
+        public required double C1Real;
+
+        /// <inheritdoc cref="C1Real"/>
+        public required double C1Imaginary;
     }
 
     private static readonly object _orbitLock = new();
@@ -151,7 +173,7 @@ public static partial class PhoenixRenderer
         string key = string.Join('|',
             centerXRaw,
             centerYRaw,
-            state.Zoom.ToString("R", CultureInfo.InvariantCulture),
+            state.Zoom.ToInvariantString(),
             state.Iterations.ToString(CultureInfo.InvariantCulture),
             ((int)state.PlaneMode).ToString(CultureInfo.InvariantCulture),
             ((int)state.Variant).ToString(CultureInfo.InvariantCulture),
@@ -261,7 +283,14 @@ public static partial class PhoenixRenderer
             currentImaginary = nextImaginary;
         }
 
-        return new ReferenceOrbit { Re = re, Im = im, Length = length, Escaped = escaped };
+        return new ReferenceOrbit
+        {
+            Re = re, Im = im, Length = length, Escaped = escaped,
+            // В динамической плоскости — то же приведение decimal → double, что у плоской
+            // ступени: иначе константа могла бы разойтись с ней на ulp.
+            C1Real = parameterPlane ? c1Real.ToDouble() : (double)state.C1Real,
+            C1Imaginary = parameterPlane ? c1Imaginary.ToDouble() : (double)state.C1Imaginary
+        };
     }
 
     /// <summary>
@@ -455,16 +484,22 @@ public static partial class PhoenixRenderer
         public readonly double C1Real, C1Imaginary, C2Real, C2Imaginary;
         public readonly double ThresholdSquared;
         public readonly int PrimaryPower, SecondaryPower, DominantPower;
+
+        /// <summary>Старшая степень возмущения <c>max(2, a, b)</c> — задаёт порог FloatExp-δ.</summary>
+        public readonly int DeltaPower;
         public readonly PhoenixVariant Variant;
         public readonly bool ParameterPlane;
 
-        public DeepParameters(PhoenixState state)
+        public DeepParameters(PhoenixState state, ReferenceOrbit orbit)
         {
             ParameterPlane = state.PlaneMode == PhoenixPlaneMode.ParameterC1;
-            // В параметрической плоскости c1 — это сам пиксель, и опорное значение равно
-            // центру кадра; в ядро оно приходит через опорную орбиту, а здесь не нужно.
-            C1Real = ParameterPlane ? 0 : (double)state.C1Real;
-            C1Imaginary = ParameterPlane ? 0 : (double)state.C1Imaginary;
+            // Опорное c1. В параметрической плоскости это центр кадра, и он обязателен: член
+            // C1·ΔG возмущения — это вклад опорной константы при сдвиге z. Прежде здесь стоял
+            // ноль («опорное значение приходит через орбиту»), и при b > 0 кадр параметрической
+            // плоскости расходился с плоской ступенью почти целиком; при b = 0 ΔG ≡ 0, и ошибка
+            // была не видна.
+            C1Real = orbit.C1Real;
+            C1Imaginary = orbit.C1Imaginary;
             C2Real = (double)state.C2Real;
             C2Imaginary = (double)state.C2Imaginary;
             // Умножение в decimal и лишь потом приведение — ровно как в плоской ступени.
@@ -472,6 +507,7 @@ public static partial class PhoenixRenderer
             PrimaryPower = state.PrimaryPower;
             SecondaryPower = state.SecondaryPower;
             DominantPower = Math.Max(state.PrimaryPower, state.SecondaryPower);
+            DeltaPower = Math.Max(2, DominantPower);
             Variant = state.Variant;
         }
     }
@@ -680,9 +716,13 @@ public static partial class PhoenixRenderer
     /// перенос проходит заметно чаще — порядка нескольких раз на пиксель, и там он работает
     /// по существу.
     ///
-    /// Первый случай и задаёт потолок зума окна: когда переносов нет, ошибка δ копится по всей
-    /// орбите без сброса, который у семейства Мандельброта даёт регулярное ребазирование.
-    /// Поднять потолок можно не лучшим выбором момента, а только удвоенной разрядностью δ.
+    /// Прежде считалось, что первый случай и задаёт потолок зума: ошибка δ копится без сброса.
+    /// Разбор кадра «на грани выхода» показал другое — там разброс |z| по кадру на шаге решения
+    /// ниже разрядности double, и кадр не различим ни для какого double-рендера. Условие «не
+    /// хуже» к тому же гарантирует главное: пара переносится, лишь когда её значения уже порядка
+    /// самих z, то есть когда информация кадра усилена выше ошибки округления перенесённых
+    /// значений. Поэтому точность пертурбации относительная и от глубины не зависит (см.
+    /// <c>PhoenixRenderer.Extended</c>).
     /// </summary>
     private static void TryRebase(
         ReferenceOrbit orbit,
@@ -739,13 +779,19 @@ public static partial class PhoenixRenderer
     /// <c>(x − width/2)·scale/width</c>, включая порядок умножения и деления: обе оси делятся
     /// на <b>ширину</b> полотна (пиксели квадратные), а координата берётся по краю пикселя, без
     /// сдвига на полпикселя. Иначе на самом пороге глубокий кадр разъезжался бы с плоским.
+    ///
+    /// Ширина и смещения пикселей ведутся в <see cref="FloatExp"/>: за 1.8e308 зум в double не
+    /// представим, а шаг сетки обращается в ноль задолго до этого. В пределах диапазона double
+    /// каждая операция <see cref="FloatExp"/> округляет мантиссу ровно как double, поэтому
+    /// смещения совпадают с прежним double-вычислением бит-в-бит.
     /// </summary>
-    private static double DeepViewWidth(PhoenixState state) => 4.0 / state.Zoom;
+    private static FloatExp DeepViewWidth(PhoenixState state) => 4.0 / state.Zoom;
 
     private static void RenderDeepZoom(PhoenixState state, byte[] pixels, int width, int height,
         int stride, int threadCount, CancellationToken token, Action<int>? progress)
     {
-        ReferenceOrbit orbit = GetReferenceOrbit(state, PlanReferenceBits(state));
+        DeepZoomPlan plan = PlanDeepZoom(state);
+        ReferenceOrbit orbit = GetReferenceOrbit(state, plan.ReferenceBits);
         if (IsDegenerateOrbit(orbit))
         {
             // Опереться не на что: центр вылетел за радиус за считаные шаги, а значит и весь
@@ -755,8 +801,9 @@ public static partial class PhoenixRenderer
             return;
         }
 
-        var parameters = new DeepParameters(state);
-        double viewWidth = DeepViewWidth(state);
+        var parameters = new DeepParameters(state, orbit);
+        LinearSkipTable? skip = plan.UseExtendedDelta ? GetLinearSkipTable(state, orbit, parameters) : null;
+        FloatExp viewWidth = DeepViewWidth(state);
         long completed = 0;
 
         Parallel.For(0, height,
@@ -764,12 +811,13 @@ public static partial class PhoenixRenderer
             y =>
             {
                 int row = y * stride;
-                double deltaImaginary = (height / 2.0 - y) * viewWidth / width;
+                FloatExp deltaImaginary = (height / 2.0 - y) * viewWidth / width;
                 for (int x = 0; x < width; x++)
                 {
                     if ((x & 63) == 0) token.ThrowIfCancellationRequested();
-                    double deltaReal = (x - width / 2.0) * viewWidth / width;
-                    PixelMetrics metrics = DeepZoomPixel(state, orbit, parameters, deltaReal, deltaImaginary, token);
+                    FloatExp deltaReal = (x - width / 2.0) * viewWidth / width;
+                    PixelMetrics metrics = DeepZoomPixelDispatch(state, orbit, parameters, plan, skip,
+                        deltaReal, deltaImaginary, token);
                     WritePixel(pixels, row + x * 4, ResolveColor(state, metrics));
                 }
 
@@ -782,26 +830,52 @@ public static partial class PhoenixRenderer
     private static byte[]? RenderDeepZoomTile(PhoenixState state, int canvasWidth, int canvasHeight,
         MandelbrotRenderTile tile, CancellationToken token)
     {
-        ReferenceOrbit orbit = GetReferenceOrbit(state, PlanReferenceBits(state));
+        DeepZoomPlan plan = PlanDeepZoom(state);
+        ReferenceOrbit orbit = GetReferenceOrbit(state, plan.ReferenceBits);
         if (IsDegenerateOrbit(orbit))
             return RenderPlainTile(state, canvasWidth, canvasHeight, tile, token);
 
-        var parameters = new DeepParameters(state);
-        double viewWidth = DeepViewWidth(state);
+        var parameters = new DeepParameters(state, orbit);
+        LinearSkipTable? skip = plan.UseExtendedDelta ? GetLinearSkipTable(state, orbit, parameters) : null;
+        FloatExp viewWidth = DeepViewWidth(state);
         byte[] pixels = new byte[checked(tile.Width * tile.Height * 4)];
 
         for (int localY = 0; localY < tile.Height; localY++)
         {
             if (token.IsCancellationRequested) return null;
-            double deltaImaginary = (canvasHeight / 2.0 - (tile.Y + localY)) * viewWidth / canvasWidth;
+            FloatExp deltaImaginary = (canvasHeight / 2.0 - (tile.Y + localY)) * viewWidth / canvasWidth;
             for (int localX = 0; localX < tile.Width; localX++)
             {
                 if ((localX & 31) == 0 && token.IsCancellationRequested) return null;
-                double deltaReal = (tile.X + localX - canvasWidth / 2.0) * viewWidth / canvasWidth;
-                PixelMetrics metrics = DeepZoomPixel(state, orbit, parameters, deltaReal, deltaImaginary, token);
+                FloatExp deltaReal = (tile.X + localX - canvasWidth / 2.0) * viewWidth / canvasWidth;
+                PixelMetrics metrics = DeepZoomPixelDispatch(state, orbit, parameters, plan, skip,
+                    deltaReal, deltaImaginary, token);
                 WritePixel(pixels, (localY * tile.Width + localX) * 4, ResolveColor(state, metrics));
             }
         }
         return token.IsCancellationRequested ? null : pixels;
+    }
+
+    /// <summary>
+    /// Выбор ядра по плану кадра: до порога <see cref="ExtendedDeltaBits"/> — прежнее
+    /// double-ядро <see cref="DeepZoomPixel"/> без единой изменённой строки, за ним —
+    /// гибридное <see cref="DeepZoomPixelExtended"/>.
+    /// </summary>
+    private static PixelMetrics DeepZoomPixelDispatch(
+        PhoenixState state, ReferenceOrbit orbit, in DeepParameters parameters, DeepZoomPlan plan,
+        LinearSkipTable? skip, FloatExp deltaReal, FloatExp deltaImaginary, CancellationToken token) =>
+        plan.UseExtendedDelta
+            ? DeepZoomPixelExtended(state, orbit, parameters, skip, deltaReal, deltaImaginary, token)
+            : DeepZoomPixel(state, orbit, parameters, deltaReal.ToDouble(), deltaImaginary.ToDouble(), token);
+
+    /// <summary>
+    /// Опорная орбита центра для анализа вне рендера (поиск ядра методом Ньютона). Индексация
+    /// та же, что у движка: <c>Re[n + 1]</c> — это <c>zₙ</c>. Орбита берётся из того же кэша,
+    /// поэтому сразу после отрисовки кадра вызов ничего не стоит.
+    /// </summary>
+    internal static (double[] Re, double[] Im, int Length) GetCenterOrbitForAnalysis(PhoenixState state)
+    {
+        ReferenceOrbit orbit = GetReferenceOrbit(state, PlanReferenceBits(state));
+        return (orbit.Re, orbit.Im, orbit.Length);
     }
 }
