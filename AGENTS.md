@@ -80,7 +80,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `Views/InverseCollatzTreeWindow.xaml` / `.xaml.cs` | Визуализация обратного дерева целочисленного Коллатца: радиальная/древовидная раскладка, фильтры, раскраска и анимация роста. Связаны `Models/InverseCollatzModels.cs`, `Core/Rendering/InverseCollatzTreeRenderer.cs`, `Infrastructure/InverseCollatzSaveStore.cs`. |
 | `Views/JuliaGalleryWindow.xaml` / `.xaml.cs` | Пакетная галерея множеств Жюлиа по сетке констант `C`; поддерживает классический Julia и Julia Burning Ship и открывает выбранный вариант для исследования. Использует модели и рендерер семейства Мандельброта. |
 | `Views/LSystemWindow.xaml` / `.xaml.cs` | Редактор L-систем и черепашьей графики: аксиома, правила, пресеты, параметры интерпретации и анимированное построение. Связан `Models/LSystemModels.cs` и `Core/Rendering/LSystemEngine.cs`. |
-| `Views/MandelbrotWindow.xaml` / `.xaml.cs` | Универсальный исследователь семейства Мандельброта/Жюлиа: Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, generalized Multibrot, Julia и Julia Burning Ship; масштабирование, варианты окрашивания, палитры, сохранения и экспорт. Для Mandelbrot/Julia поддерживает глубокий зум до 1e1000: зум и сетка кадра ведутся в `FloatExp` (мантисса double + 32-битная двоичная экспонента), точность мантиссы опорной орбиты и центра адаптивна, δ на пиксель и производная Distance Estimation за ~1e72 переходят в `FloatExp`. Ввод зума принимает научную нотацию, колесо мыши с Ctrl даёт шаг ×10. Кнопка «Навести на минимандельброт» уточняет центр методом Ньютона (`Core/Rendering/MandelbrotNewtonZoom.cs`). Остальные варианты сохраняют прежние потолки (1e50 отражённые, 1e40 Multibrot, 1e30 Симоноброт). Связаны `Models/MandelbrotModels.cs`, `Core/Rendering/MandelbrotFamilyRenderer.cs`, `Core/Rendering/MandelbrotNewtonZoom.cs`, `Core/Rendering/MandelbrotTileScheduler.cs`, `Core/Math/FloatExp.cs`, `Infrastructure/MandelbrotSaveStore.cs`. |
+| `Views/MandelbrotWindow.xaml` / `.xaml.cs` | Универсальный исследователь семейства Мандельброта/Жюлиа: Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, generalized Multibrot, Julia и Julia Burning Ship; масштабирование, варианты окрашивания, палитры, сохранения и экспорт. Все варианты (Mandelbrot, Julia, отражённые Burning Ship/Tricorn/Buffalo/Celtic и их Julia, Multibrot и Симоноброт целой степени) считаются одним пертурбационным движком с BLA и поддерживают глубокий зум до 1e1000: зум и сетка кадра ведутся в `FloatExp` (мантисса double + 32-битная двоичная экспонента), точность мантиссы опорной орбиты и центра адаптивна (`BigFloat` на `BigMantissa` без аллокаций), δ на пиксель и производная Distance Estimation за ~1e72 переходят в `FloatExp`. Дробная и отрицательная степень Multibrot/Симоноброта остаются на `decimal` и фактически упираются в его точность (~1e28). Ввод зума принимает научную нотацию, колесо мыши с Ctrl даёт шаг ×10. Кнопка «Навести на минимандельброт» уточняет центр методом Ньютона (`Core/Rendering/MandelbrotNewtonZoom.cs`). Связаны `Models/MandelbrotModels.cs`, `Core/Rendering/MandelbrotFamilyRenderer.cs` (и частичные `.DeepZoom.cs`, `.Bla.cs`, `.RealBla.cs`, `.ExactReference.cs`), `Core/Rendering/MandelbrotNewtonZoom.cs`, `Core/Rendering/MandelbrotTileScheduler.cs`, `Core/Math/FloatExp.cs`, `Core/Math/BigFloat.cs`, `Core/Math/BigMantissa.cs`, `Infrastructure/MandelbrotSaveStore.cs`. |
 | `Views/MathematicalLaboratoryWindow.xaml` / `.xaml.cs` | Универсальное окно математических лабораторий: арифметика по модулю, Паскаль modulo N, рациональные числа, геометрия простых, последовательность Рекамана, филлотаксис, инверсия окружностей/Мёбиус, апериодические мозаики, гиперболическая геометрия, диаграммы Вороного/релаксация Ллойда, торические и Лиссажу-узлы/косы, Brownian motion/Lévy flights, Kleinian/Schottky groups, Fourier Epicycles и фигуры Хладни/интерференция. Связаны `Models/MathematicalLaboratoryModels.cs`, `Core/Rendering/MathematicalLaboratoryRenderer.cs`, `Core/Rendering/AdvancedMathematicalLaboratoryRenderer.cs`, `Infrastructure/MathematicalLaboratorySaveStore.cs`. |
 | `Views/NewtonPoolsWindow.xaml` / `.xaml.cs` | Бассейны притяжения корней для методов Newton, Halley и Householder: выражение, параметры итераций, корни, окрашивание, сохранения и экспорт. Связаны `Models/NewtonModels.cs`, `Core/Rendering/NewtonPoolsEngine.cs`, `Core/Rendering/NewtonRootFinder.cs`, `Core/Math/NewtonExpressionParser.cs`, `Infrastructure/NewtonSaveStore.cs`. |
 | `Views/NovaWindow.xaml` / `.xaml.cs` | Семейство Nova в режимах Mandelbrot и Julia: комплексная степень, начальное значение, релаксация, константа `C`, палитра, сохранения и экспорт. Поддерживает глубокий зум до 1e50: выше 1.5e9 кадр считает пертурбационный движок с опорной орбитой в `BigFloat`, а центр ведётся в `BigFloat`. Целая степень раскладывается биномиально, дробная и комплексная — через `log1p`/`expm1`. Связаны `Models/NovaModels.cs`, `Core/Rendering/NovaRenderer.cs`, `Core/Rendering/NovaRenderer.DeepZoom.cs`, `Core/Rendering/NovaRenderer.ExactReference.cs`, `Core/Math/BigFloatMath.cs`, `Core/Math/ComplexBigFloat.cs`, `Infrastructure/NovaSaveStore.cs`. |
@@ -139,6 +139,35 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `perturbation theory/perturbation theory/perturbation theory/MainWindow.xaml` / `.xaml.cs` | Упрощённый исследователь классического Мандельброта: переключение между perturbation (три режима точности double/decimal) и классическим движком основной WPF-версии (автоматическая точность), быстрые масштабирование и перемещение полотна, фиксированные палитры, плавная и дискретная окраска, время рендера для сравнения. Сохранений и редактора палитр нет. |
 
 Движок находится в `perturbation theory/perturbation theory/perturbation theory/Core/Rendering/PerturbationRenderer.cs`. Описание, ограничения точности и команды запуска — в `perturbation theory/README.md`. Численная проверка — отдельный консольный проект `perturbation theory/Verification/Verification.csproj`.
+
+## Скриншоты окон для документации
+
+`FractalExplorerWPF/ScreenshotGen/` — консольный инструмент, который открывает
+каждое WPF-окно приложения по одному (далеко за пределами экрана, невидимо
+для пользователя) и сохраняет его как PNG с настоящей рамкой Windows. Он
+покрывает буквально весь каталог из «Каталога всех WPF-окон» выше: все пункты
+`FractalCatalog.cs`, их «уникальные инструменты» (редакторы палитр,
+трансформаций, выбор параметров) и общие служебные окна.
+
+Используй его, когда пользователь просит (пере)сделать скриншоты для README
+или аналогичной документации — после заметных визуальных изменений (тема,
+раскладка) или после добавления нового окна/фрактала/лаборатории. Не
+запускай его по своей инициативе для обычных задач правки кода — это
+самостоятельный, не входящий в основное решение инструмент, вызываемый явно:
+
+```powershell
+dotnet build .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj
+dotnet run --project .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj -- .\Pictures\V2_0_WPF
+```
+
+Полный набор — около 70 окон и несколько минут; аргумент `smoke` в конце
+команды запускает только 4 быстрых скриншота для проверки, что инструмент
+работает. Устройство инструмента (подмена `Application.ResourceAssembly`,
+захват через склейку `PrintWindow`+`RenderTargetBitmap`, ожидание конца
+рендера по приватному `_isRendering`) и порядок поддержки при изменениях в
+приложении — в `FractalExplorerWPF/ScreenshotGen/README.md`. При добавлении,
+удалении или переименовании WPF-окна обновляй заодно и список внутри
+инструмента (см. его README), не только таблицы окон в этом файле.
 
 ## Сборка и проверка
 
