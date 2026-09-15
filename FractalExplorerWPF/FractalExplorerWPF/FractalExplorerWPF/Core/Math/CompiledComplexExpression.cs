@@ -6,7 +6,7 @@ namespace FractalExplorerWPF.Core.NewtonMath;
 /// Компактное постфиксное представление комплексного выражения для горячего цикла рендера.
 /// Не использует словари, рекурсию AST и выделения памяти для обычных формул.
 /// </summary>
-internal sealed class CompiledComplexExpression
+internal sealed partial class CompiledComplexExpression
 {
     private const int StackAllocationLimit = 128;
     private readonly Instruction[] _instructions;
@@ -16,6 +16,7 @@ internal sealed class CompiledComplexExpression
     {
         _instructions = instructions;
         _maxStackDepth = Math.Max(1, maxStackDepth);
+        InitializePerturbationLayout(out _left, out _right, out _auxiliary, out _slotCount);
     }
 
     public int InstructionCount => _instructions.Length;

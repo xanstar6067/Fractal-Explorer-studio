@@ -217,6 +217,107 @@ public readonly struct ComplexBigFloat : IEquatable<ComplexBigFloat>
         return exponent > 0 ? result : One / result;
     }
 
+    /// <summary>sin z = sin x·ch y + i·cos x·sh y.</summary>
+    public static ComplexBigFloat Sin(ComplexBigFloat value)
+    {
+        BigFloatMath.SinCos(value.Real, out BigFloat sine, out BigFloat cosine);
+        BigFloatMath.SinhCosh(value.Imaginary, out BigFloat hyperbolicSine, out BigFloat hyperbolicCosine);
+        return new ComplexBigFloat(sine * hyperbolicCosine, cosine * hyperbolicSine);
+    }
+
+    /// <summary>cos z = cos x·ch y − i·sin x·sh y.</summary>
+    public static ComplexBigFloat Cos(ComplexBigFloat value)
+    {
+        BigFloatMath.SinCos(value.Real, out BigFloat sine, out BigFloat cosine);
+        BigFloatMath.SinhCosh(value.Imaginary, out BigFloat hyperbolicSine, out BigFloat hyperbolicCosine);
+        return new ComplexBigFloat(cosine * hyperbolicCosine, -(sine * hyperbolicSine));
+    }
+
+    /// <summary>sin z и cos z за один проход — вещественные sin/cos и sh/ch у них общие.</summary>
+    public static void SinCos(ComplexBigFloat value, out ComplexBigFloat sin, out ComplexBigFloat cos)
+    {
+        BigFloatMath.SinCos(value.Real, out BigFloat sine, out BigFloat cosine);
+        BigFloatMath.SinhCosh(value.Imaginary, out BigFloat hyperbolicSine, out BigFloat hyperbolicCosine);
+        sin = new ComplexBigFloat(sine * hyperbolicCosine, cosine * hyperbolicSine);
+        cos = new ComplexBigFloat(cosine * hyperbolicCosine, -(sine * hyperbolicSine));
+    }
+
+    /// <summary>sh z и ch z за один проход: sh z = sh x·cos y + i·ch x·sin y, ch z = ch x·cos y + i·sh x·sin y.</summary>
+    public static void SinhCosh(ComplexBigFloat value, out ComplexBigFloat sinh, out ComplexBigFloat cosh)
+    {
+        BigFloatMath.SinhCosh(value.Real, out BigFloat hyperbolicSine, out BigFloat hyperbolicCosine);
+        BigFloatMath.SinCos(value.Imaginary, out BigFloat sine, out BigFloat cosine);
+        sinh = new ComplexBigFloat(hyperbolicSine * cosine, hyperbolicCosine * sine);
+        cosh = new ComplexBigFloat(hyperbolicCosine * cosine, hyperbolicSine * sine);
+    }
+
+    /// <summary>
+    /// Главная ветвь квадратного корня, как у <see cref="Complex.Sqrt"/>: Re ≥ 0, разрез по
+    /// отрицательной полуоси. Вещественная формула выбирается по знаку Re z, чтобы под корнем
+    /// складывались, а не вычитались близкие величины.
+    /// </summary>
+    public static ComplexBigFloat Sqrt(ComplexBigFloat value)
+    {
+        if (value.Real.IsZero && value.Imaginary.IsZero) return Zero;
+        BigFloat modulus = BigFloat.Sqrt(value.MagnitudeSquared);
+        if (value.Real.Sign >= 0)
+        {
+            BigFloat root = BigFloat.Sqrt(BigFloat.ScaleByPowerOfTwo(modulus + value.Real, -1));
+            return new ComplexBigFloat(root, value.Imaginary / BigFloat.ScaleByPowerOfTwo(root, 1));
+        }
+
+        BigFloat other = BigFloat.Sqrt(BigFloat.ScaleByPowerOfTwo(modulus - value.Real, -1));
+        BigFloat real = BigFloat.Abs(value.Imaginary) / BigFloat.ScaleByPowerOfTwo(other, 1);
+        return new ComplexBigFloat(real, value.Imaginary.Sign < 0 ? -other : other);
+    }
+
+    /// <summary>arcsin z = −i·ln(iz + √(1 − z²)) — главная ветвь, совпадающая с <see cref="Complex.Asin"/> вне разрезов.</summary>
+    public static ComplexBigFloat Asin(ComplexBigFloat value)
+    {
+        int precision = BigFloat.WorkingPrecisionBits;
+        ComplexBigFloat result;
+        using (var scope = new BigFloat.PrecisionScope(precision + 2 * GuardBits))
+        {
+            var rotated = new ComplexBigFloat(-value.Imaginary, value.Real);
+            ComplexBigFloat logarithm = Log(rotated + Sqrt(1 - value * value));
+            result = new ComplexBigFloat(logarithm.Imaginary, -logarithm.Real);
+        }
+        return Rounded(result);
+    }
+
+    /// <summary>arccos z = π/2 − arcsin z.</summary>
+    public static ComplexBigFloat Acos(ComplexBigFloat value)
+    {
+        int precision = BigFloat.WorkingPrecisionBits;
+        ComplexBigFloat result;
+        using (var scope = new BigFloat.PrecisionScope(precision + 2 * GuardBits))
+        {
+            ComplexBigFloat arcsine = Asin(value);
+            result = new ComplexBigFloat(BigFloat.ScaleByPowerOfTwo(BigFloatMath.Pi, -1) - arcsine.Real, -arcsine.Imaginary);
+        }
+        return Rounded(result);
+    }
+
+    /// <summary>arctg z = (i/2)·(ln(1 − iz) − ln(1 + iz)) — дословно формула <see cref="Complex.Atan"/>.</summary>
+    public static ComplexBigFloat Atan(ComplexBigFloat value)
+    {
+        int precision = BigFloat.WorkingPrecisionBits;
+        ComplexBigFloat result;
+        using (var scope = new BigFloat.PrecisionScope(precision + 2 * GuardBits))
+        {
+            var rotated = new ComplexBigFloat(-value.Imaginary, value.Real);
+            ComplexBigFloat difference = Log(1 - rotated) - Log(1 + rotated);
+            result = new ComplexBigFloat(
+                -BigFloat.ScaleByPowerOfTwo(difference.Imaginary, -1),
+                BigFloat.ScaleByPowerOfTwo(difference.Real, -1));
+        }
+        return Rounded(result);
+    }
+
+    private static ComplexBigFloat Rounded(ComplexBigFloat value) => new(
+        BigFloat.FromScaled(value.Real.Mantissa, value.Real.Exponent),
+        BigFloat.FromScaled(value.Imaginary.Mantissa, value.Imaginary.Exponent));
+
     public override string ToString() =>
         $"{Real.ToInvariantString(30)} + {Imaginary.ToInvariantString(30)}i";
 }

@@ -1,5 +1,8 @@
 using System.Numerics;
+using System.Text.Json.Serialization;
 using System.Windows.Media;
+using FractalExplorerWPF.Core.NewtonMath;
+using FractalExplorerWPF.Infrastructure.Serialization;
 using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Models;
@@ -88,9 +91,25 @@ public sealed class NewtonState
     public string FractalType { get; set; } = "NewtonPools";
     public string Formula { get; set; } = "z^3-1";
     public int MaxIterations { get; set; } = 500;
-    public double Zoom { get; set; } = 1;
+
+    /// <summary>
+    /// Зум в расширенном диапазоне (до 1e1000). В пределах double пишется числом, поэтому
+    /// сохранения с прежним double-зумом читаются без изменений.
+    /// </summary>
+    [JsonConverter(typeof(FloatExpJsonConverter))]
+    public FloatExp Zoom { get; set; } = FloatExp.One;
+
     public double CenterX { get; set; }
     public double CenterY { get; set; }
+
+    /// <summary>
+    /// Центр в произвольной точности — инвариантная строка, заполняется только на глубоком зуме.
+    /// У обычных сохранений null, и тогда центр задают <see cref="CenterX"/>/<see cref="CenterY"/>.
+    /// </summary>
+    public string? CenterXExact { get; set; }
+
+    /// <inheritdoc cref="CenterXExact"/>
+    public string? CenterYExact { get; set; }
     public NewtonIterationMethod IterationMethod { get; set; }
     public int HouseholderOrder { get; set; } = 3;
     public NewtonRelaxedPlaneMode RelaxedPlaneMode { get; set; }

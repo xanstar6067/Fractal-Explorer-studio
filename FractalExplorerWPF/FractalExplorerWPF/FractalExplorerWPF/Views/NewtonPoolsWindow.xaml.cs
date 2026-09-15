@@ -14,6 +14,7 @@ using FractalExplorerWPF.Core.NewtonMath;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Infrastructure;
+using FractalExplorerWPF.Infrastructure.Serialization;
 using FractalExplorerWPF.Models;
 using Microsoft.Win32;
 using Brushes = System.Windows.Media.Brushes;
@@ -42,11 +43,25 @@ public partial class NewtonPoolsWindow : Window
     private Point _lastPanPoint;
     private double _centerX;
     private double _centerY;
-    private double _zoom = 1;
-    private double _renderedCenterX;
-    private double _renderedCenterY;
-    private double _renderedZoom = 1;
+    private FloatExp _zoom = FloatExp.One;
+
+    /// <summary>
+    /// Центр в произвольной точности. Ведётся начиная с <see cref="NewtonPoolsEngine.DeepZoomThreshold"/>,
+    /// когда double перестаёт различать соседние пиксели; ниже порога источник истины —
+    /// <see cref="_centerX"/>/<see cref="_centerY"/>.
+    /// </summary>
+    private BigFloat _centerXExact, _centerYExact;
+    private bool _deepZoomEngaged;
+    private BigFloat _renderedCenterXExact, _renderedCenterYExact;
+    private FloatExp _renderedZoom = FloatExp.One;
     private bool _hasRenderedFrame;
+
+    private static readonly FloatExp MinZoom = FloatExp.FromDouble(0.001);
+
+    /// <summary>Потолок зума — 1e1000, как у семейства Мандельброта и Феникса.</summary>
+    private static readonly FloatExp MaxZoom = FloatExp.Pow10(1000);
+
+    private const int CenterPrecisionGuardBits = 96;
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
@@ -129,8 +144,10 @@ public partial class NewtonPoolsWindow : Window
             Formula = _appliedFormula,
             MaxIterations = iterations,
             Zoom = _zoom,
-            CenterX = _centerX,
-            CenterY = _centerY,
+            CenterX = _deepZoomEngaged ? _centerXExact.ToDouble() : _centerX,
+            CenterY = _deepZoomEngaged ? _centerYExact.ToDouble() : _centerY,
+            CenterXExact = _deepZoomEngaged ? _centerXExact.ToInvariantString() : null,
+            CenterYExact = _deepZoomEngaged ? _centerYExact.ToInvariantString() : null,
             IterationMethod = SelectedMethod,
             HouseholderOrder = order,
             RelaxedPlaneMode = SelectedRelaxedPlaneMode,
@@ -152,9 +169,32 @@ public partial class NewtonPoolsWindow : Window
         FormulaPresetBox.SelectedIndex = -1;
         FormulaBox.Text = state.Formula;
         IterationsBox.Text = state.MaxIterations.ToString(CultureInfo.InvariantCulture);
-        _zoom = Math.Clamp(state.Zoom, 0.001, 1_000_000_000_000);
+        _zoom = state.Zoom.Sign > 0 && state.Zoom.IsFinite ? FloatExp.Clamp(state.Zoom, MinZoom, MaxZoom) : FloatExp.One;
         _centerX = state.CenterX;
         _centerY = state.CenterY;
+        _deepZoomEngaged = false;
+        if (state.CenterXExact is { Length: > 0 } exactX && state.CenterYExact is { Length: > 0 } exactY)
+        {
+            try
+            {
+                // Разбор округляет до рабочей точности потока — на глубине её поднимаем заранее.
+                using var precision = CenterPrecisionScope();
+                _centerXExact = BigFloat.Parse(exactX);
+                _centerYExact = BigFloat.Parse(exactY);
+                _deepZoomEngaged = _zoom >= NewtonPoolsEngine.DeepZoomThreshold;
+                if (_deepZoomEngaged)
+                {
+                    _centerX = _centerXExact.ToDouble();
+                    _centerY = _centerYExact.ToDouble();
+                }
+            }
+            catch (FormatException)
+            {
+                // Испорченная строка точного центра — не повод не открыть сохранение.
+                _deepZoomEngaged = false;
+            }
+        }
+        if (!_deepZoomEngaged) SyncDeepZoomState();
         SetZoomText();
         MethodBox.SelectedIndex = (int)state.IterationMethod;
         HouseholderOrderBox.Text = Math.Clamp(state.HouseholderOrder, 2, 12).ToString(CultureInfo.InvariantCulture);
@@ -341,14 +381,14 @@ public partial class NewtonPoolsWindow : Window
         double height = RootOverlay.ActualHeight;
         if (width <= 0 || height <= 0) return;
 
-        double worldWidth = BaseScale / Math.Max(0.001, _zoom);
         IReadOnlyList<Color> colors = NewtonPaletteManager.AdjustColors(_paletteManager.ActivePalette, _formulaEngine.Roots.Count);
         for (int index = 0; index < _formulaEngine.Roots.Count; index++)
         {
             Complex root = _formulaEngine.Roots[index];
-            double x = width / 2 + (root.Real - _centerX) * width / worldWidth;
-            double y = height / 2 - (root.Imaginary - _centerY) * width / worldWidth;
-            if (x < -80 || x > width + 80 || y < -30 || y > height + 30) continue;
+            (double offsetX, double offsetY) = RootScreenOffset(root, width);
+            double x = width / 2 + offsetX;
+            double y = height / 2 - offsetY;
+            if (!(x >= -80 && x <= width + 80 && y >= -30 && y <= height + 30)) continue;
 
             Color color = colors[index % colors.Count];
             var marker = new Ellipse
@@ -382,6 +422,25 @@ public partial class NewtonPoolsWindow : Window
             Canvas.SetTop(label, y - 11);
             RootOverlay.Children.Add(label);
         }
+    }
+
+    /// <summary>
+    /// Смещение корня от центра полотна в экранных пикселях. На глубине разность считается в
+    /// BigFloat: и центр, и сама разность там уже вне разрядности double.
+    /// </summary>
+    private (double X, double Y) RootScreenOffset(Complex root, double width)
+    {
+        if (!_deepZoomEngaged)
+        {
+            double worldWidth = BaseScale / Math.Max(0.001, _zoom.ToDouble());
+            return ((root.Real - _centerX) * width / worldWidth, (root.Imaginary - _centerY) * width / worldWidth);
+        }
+
+        FloatExp viewWidth = BaseScale / _zoom;
+        using var precision = CenterPrecisionScope();
+        FloatExp offsetX = FloatExp.FromBigFloat(BigFloat.FromDouble(root.Real) - _centerXExact) / viewWidth * width;
+        FloatExp offsetY = FloatExp.FromBigFloat(BigFloat.FromDouble(root.Imaginary) - _centerYExact) / viewWidth * width;
+        return (offsetX.ToDouble(), offsetY.ToDouble());
     }
 
     private bool TryReadRootSettings(out double tolerance, out double radius, out string error)
@@ -594,9 +653,10 @@ public partial class NewtonPoolsWindow : Window
     private void ZoomBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
         if (_updatingZoomText) return;
-        if (TryReadDouble(ZoomBox.Text, out double zoom))
+        if (FloatExp.TryParse(ZoomBox.Text.Trim().Replace(',', '.'), out FloatExp zoom) && zoom.Sign > 0)
         {
-            _zoom = Math.Clamp(zoom, 0.001, 1_000_000_000_000);
+            _zoom = FloatExp.Clamp(zoom, MinZoom, MaxZoom);
+            SyncDeepZoomState();
             UpdatePreviewTransform();
             ScheduleRender();
         }
@@ -712,14 +772,24 @@ public partial class NewtonPoolsWindow : Window
             completed.Freeze();
             StablePreviewImage.Source = completed;
             CanvasImage.Source = null;
-            _renderedCenterX = state.CenterX;
-            _renderedCenterY = state.CenterY;
+            // Центр — из состояния, которым кадр посчитан: за время рендера вид могли сдвинуть.
+            using (CenterPrecisionScope(state.Zoom))
+            {
+                _renderedCenterXExact = state.CenterXExact is { Length: > 0 } renderedX
+                    ? BigFloat.Parse(renderedX)
+                    : BigFloat.FromDouble(state.CenterX);
+                _renderedCenterYExact = state.CenterYExact is { Length: > 0 } renderedY
+                    ? BigFloat.Parse(renderedY)
+                    : BigFloat.FromDouble(state.CenterY);
+            }
             _renderedZoom = state.Zoom;
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
             RenderOverlay.EndSession();
             _activeSession = null;
-            StatusText.Text = $"Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. Корней: {_formulaEngine.Roots.Count}. Стратегия: {strategy}";
+            string engineName = engine.ShouldUseDeepZoom() ? "глубокий движок" : "double";
+            StatusText.Text = $"Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. Корней: {_formulaEngine.Roots.Count}. " +
+                              $"Зум {FloatExpJsonConverter.ToDisplay(state.Zoom)} ({engineName}). Стратегия: {strategy}";
         }
         catch (OperationCanceledException)
         {
@@ -796,8 +866,8 @@ public partial class NewtonPoolsWindow : Window
             baked.Render(ImageLayer);
             baked.Freeze();
             StablePreviewImage.Source = baked;
-            _renderedCenterX = _centerX;
-            _renderedCenterY = _centerY;
+            _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDouble(_centerX);
+            _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDouble(_centerY);
             _renderedZoom = _zoom;
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
@@ -839,7 +909,9 @@ public partial class NewtonPoolsWindow : Window
             MaxIterations = state.MaxIterations,
             CenterX = state.CenterX,
             CenterY = state.CenterY,
-            Scale = BaseScale / Math.Max(0.001, state.Zoom),
+            CenterXExact = state.CenterXExact,
+            CenterYExact = state.CenterYExact,
+            Zoom = state.Zoom,
             IterationMethod = state.IterationMethod,
             HouseholderOrder = state.HouseholderOrder,
             RelaxedPlaneMode = state.RelaxedPlaneMode,
@@ -884,23 +956,43 @@ public partial class NewtonPoolsWindow : Window
     {
         CommitAndBakePreview();
         Point mouse = e.GetPosition(CanvasHost);
-        Point before = ScreenToWorld(mouse);
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.2 : 1 / 1.2), 0.001, 1_000_000_000_000);
-        Point after = ScreenToWorld(mouse);
-        _centerX += before.X - after.X;
-        _centerY += before.Y - after.Y;
+        double width = Math.Max(1, CanvasHost.ActualWidth);
+        double height = Math.Max(1, CanvasHost.ActualHeight);
+        double fractionX = mouse.X / width - 0.5;
+        double fractionY = height / 2 - mouse.Y;
+
+        FloatExp previousZoom = _zoom;
+        double step = WheelZoomStep;
+        _zoom = FloatExp.Clamp(_zoom * (e.Delta > 0 ? step : 1 / step), MinZoom, MaxZoom);
+
+        // Точка под курсором остаётся на месте. Сдвиг — разность ширин области в FloatExp: на
+        // глубине сами ширины вне double, а ApplyCenterShift кладёт сдвиг в BigFloat-центр.
+        FloatExp viewWidthDelta = BaseScale / previousZoom - BaseScale / _zoom;
+        SyncDeepZoomState();
+        ApplyCenterShift(fractionX * viewWidthDelta, fractionY / width * viewWidthDelta);
+
         UpdatePreviewTransform();
         SetZoomText();
         ScheduleRender();
         e.Handled = true;
     }
 
+    /// <summary>Множитель зума на щелчок колеса: ×1.2, с Ctrl — ×10, с Shift — точные ×1.05.</summary>
+    private static double WheelZoomStep =>
+        (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 10.0
+        : (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 1.05
+        : 1.2;
+
+    /// <summary>
+    /// Зум показывается восемью значащими цифрами, за пределами double — короткой научной
+    /// нотацией (1.2345678e+1000); поле принимает обе записи.
+    /// </summary>
     private void SetZoomText()
     {
         _updatingZoomText = true;
         try
         {
-            ZoomBox.Text = _zoom.ToString("0.####", CultureInfo.InvariantCulture);
+            ZoomBox.Text = FloatExpJsonConverter.ToDisplay(_zoom);
         }
         finally
         {
@@ -922,10 +1014,10 @@ public partial class NewtonPoolsWindow : Window
     {
         if (!_isPanning) return;
         Point current = e.GetPosition(CanvasHost);
-        Point before = ScreenToWorld(_lastPanPoint);
-        Point after = ScreenToWorld(current);
-        _centerX += before.X - after.X;
-        _centerY += before.Y - after.Y;
+        double width = Math.Max(1, CanvasHost.ActualWidth);
+        FloatExp viewWidth = BaseScale / _zoom;
+        ApplyCenterShift((_lastPanPoint.X - current.X) / width * viewWidth,
+            (current.Y - _lastPanPoint.Y) / width * viewWidth);
         _lastPanPoint = current;
         UpdatePreviewTransform();
     }
@@ -939,25 +1031,85 @@ public partial class NewtonPoolsWindow : Window
         ScheduleRender();
     }
 
-    private Point ScreenToWorld(Point point)
+    /// <summary>
+    /// Прибавляет к центру сдвиг в мировых координатах: на глубине — в BigFloat-центр с
+    /// адаптивной точностью (double-приближение обновляется следом), на мелком зуме — в double.
+    /// </summary>
+    private void ApplyCenterShift(FloatExp shiftX, FloatExp shiftY)
     {
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double scale = BaseScale / _zoom;
-        return new Point(_centerX + (point.X - width / 2) * scale / width,
-            _centerY - (point.Y - Math.Max(1, CanvasHost.ActualHeight) / 2) * scale / width);
+        if (_deepZoomEngaged)
+        {
+            using var precision = CenterPrecisionScope();
+            // ToBigFloat переносит мантиссу сдвига целиком: на глубине сам сдвиг в double не представим.
+            _centerXExact += shiftX.ToBigFloat();
+            _centerYExact += shiftY.ToBigFloat();
+            _centerX = _centerXExact.ToDouble();
+            _centerY = _centerYExact.ToDouble();
+        }
+        else
+        {
+            _centerX += shiftX.ToDouble();
+            _centerY += shiftY.ToDouble();
+        }
+    }
+
+    /// <summary>
+    /// Разрядность арифметики центра на UI-потоке: биты на разрешение пикселей (log2 зума) плюс
+    /// запас на субпиксельную точность и сотни сдвигов пана без повторного рендера.
+    /// </summary>
+    private static int CenterPrecisionBits(FloatExp zoom)
+    {
+        double zoomBits = zoom.Sign > 0 && zoom.IsFinite ? zoom.Log2() : 0;
+        if (!double.IsFinite(zoomBits) || zoomBits < 0) zoomBits = 0;
+        int needed = (int)Math.Ceiling(zoomBits) + CenterPrecisionGuardBits;
+        return Math.Max(BigFloat.MinimumPrecisionBits, (needed + 63) / 64 * 64);
+    }
+
+    private BigFloat.PrecisionScope CenterPrecisionScope() => CenterPrecisionScope(_zoom);
+
+    private static BigFloat.PrecisionScope CenterPrecisionScope(FloatExp zoom) => new(CenterPrecisionBits(zoom));
+
+    /// <summary>
+    /// Заводит или глушит ведение центра в BigFloat по текущему зуму: вверх через порог центр
+    /// переносится из double, вниз double снова становится источником истины.
+    /// </summary>
+    private void SyncDeepZoomState()
+    {
+        bool shouldEngage = _zoom >= NewtonPoolsEngine.DeepZoomThreshold;
+        if (shouldEngage && !_deepZoomEngaged)
+        {
+            using var precision = CenterPrecisionScope();
+            _centerXExact = BigFloat.FromDouble(_centerX);
+            _centerYExact = BigFloat.FromDouble(_centerY);
+            _deepZoomEngaged = true;
+        }
+        else if (!shouldEngage && _deepZoomEngaged)
+        {
+            _centerX = _centerXExact.ToDouble();
+            _centerY = _centerYExact.ToDouble();
+            _deepZoomEngaged = false;
+        }
     }
 
     private void UpdatePreviewTransform()
     {
         UpdateRootOverlay();
-        if (!_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0 || CanvasHost.ActualWidth <= 0) return;
-        double scale = _zoom / _renderedZoom;
-        double currentScale = BaseScale / _zoom;
+        if (!_hasRenderedFrame || _renderedZoom.Sign <= 0 || _zoom.Sign <= 0 || CanvasHost.ActualWidth <= 0) return;
+        // Отношение зумов и сдвиг в ширинах кадра — порядка единицы, но сами зумы и разность
+        // центров на глубине вне double: всё считается в FloatExp и лишь в конце в пиксели.
+        double scale = (_zoom / _renderedZoom).ToDouble();
+        FloatExp currentScale = BaseScale / _zoom;
         double width = CanvasHost.ActualWidth;
+        using var precision = CenterPrecisionScope();
+        BigFloat currentCenterX = _deepZoomEngaged ? _centerXExact : BigFloat.FromDouble(_centerX);
+        BigFloat currentCenterY = _deepZoomEngaged ? _centerYExact : BigFloat.FromDouble(_centerY);
+        double translationX = (FloatExp.FromBigFloat(_renderedCenterXExact - currentCenterX) / currentScale * width).ToDouble();
+        double translationY = (FloatExp.FromBigFloat(currentCenterY - _renderedCenterYExact) / currentScale * width).ToDouble();
+        if (!double.IsFinite(scale) || !double.IsFinite(translationX) || !double.IsFinite(translationY)) return;
         _previewScale.ScaleX = scale;
         _previewScale.ScaleY = scale;
-        _previewTranslation.X = (_renderedCenterX - _centerX) / currentScale * width;
-        _previewTranslation.Y = (_centerY - _renderedCenterY) / currentScale * width;
+        _previewTranslation.X = translationX;
+        _previewTranslation.Y = translationY;
     }
 
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e)

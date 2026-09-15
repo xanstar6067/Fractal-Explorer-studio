@@ -176,7 +176,7 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged" ToolTip="Число или научная нотация, например 1e300; до 1e1000"/></StackPanel>
                     </Grid>
 
                     <TextBlock Text="Потоки ЦП"/>
@@ -206,7 +206,7 @@
                                  AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                     </Expander>
                     <TextBlock Margin="0,12,0,0" Foreground="{DynamicResource Theme.DisabledTextBrush}"
-                               TextWrapping="Wrap" Text="Колесо мыши: масштаб. Левая кнопка: перемещение. F11: полноэкранный режим."/>
+                               TextWrapping="Wrap" Text="Колесо мыши: масштаб (Ctrl — ×10, Shift — точно), глубокий зум до 1e1000. Левая кнопка: перемещение. F11: полноэкранный режим."/>
                 </StackPanel>
             </ScrollViewer>
         </Border>

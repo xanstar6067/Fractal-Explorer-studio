@@ -295,7 +295,7 @@ public static class SaveManagerConfigurations
     private static string DescribeNewton(NewtonState state)
     {
         string details = $"{Prefix(state.Timestamp)} · Метод: {state.IterationMethod} · Итерации: {state.MaxIterations}\n" +
-                         $"Формула: {state.Formula} · Масштаб: {state.Zoom:0.####}\n" +
+                         $"Формула: {state.Formula} · Масштаб: {state.Zoom:G8}\n" +
                          $"Корней: {state.Roots.Count} · Точность: {state.RootTolerance:G3} · Поиск: {state.RootSearchMode}";
         if (state.IterationMethod == NewtonIterationMethod.RelaxedNewton)
         {

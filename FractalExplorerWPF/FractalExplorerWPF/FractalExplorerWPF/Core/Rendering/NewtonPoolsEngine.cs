@@ -7,10 +7,19 @@ using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Core.Rendering;
 
-public sealed class NewtonPoolsEngine
+/// <summary>
+/// Движок бассейнов Ньютона. Здесь — плоская double-ступень и общая часть; выше
+/// <see cref="DeepZoomThreshold"/> кадр считает пертурбационный движок из
+/// <c>NewtonPoolsEngine.DeepZoom</c>.
+/// </summary>
+public sealed partial class NewtonPoolsEngine
 {
+    /// <summary>Ширина видимой области при зуме 1.</summary>
+    public const double BaseViewWidth = 3.0;
+
     private const double DiagnosticEscapeRadius = 1e6;
     private const double DerivativeZeroTolerance = 1e-14;
+    private const int HistoryCapacity = 16;
     private ExpressionNode? _formula;
     private ExpressionNode? _firstDerivative;
     private ExpressionNode? _secondDerivative;
@@ -23,11 +32,28 @@ public sealed class NewtonPoolsEngine
     private NewtonIterationMethod _iterationMethod;
     private double _rootTolerance = 1e-6;
     private double _rootSearchRadius = 8;
+    private string _formulaText = string.Empty;
 
     public int MaxIterations { get; set; } = 500;
+
+    /// <summary>Центр области в double — источник координат плоской ступени.</summary>
     public double CenterX { get; set; }
+
+    /// <inheritdoc cref="CenterX"/>
     public double CenterY { get; set; }
-    public double Scale { get; set; } = 3;
+
+    /// <summary>
+    /// Точный центр — инвариантная строка произвольной точности. Заполняется на глубоком зуме;
+    /// если пусто, глубокий движок берёт <see cref="CenterX"/>/<see cref="CenterY"/>.
+    /// </summary>
+    public string? CenterXExact { get; set; }
+
+    /// <inheritdoc cref="CenterXExact"/>
+    public string? CenterYExact { get; set; }
+
+    /// <summary>Коэффициент зума: ширина области — <see cref="BaseViewWidth"/>/Zoom.</summary>
+    public FloatExp Zoom { get; set; } = FloatExp.One;
+
     public IReadOnlyList<Complex> Roots { get; private set; } = [];
     public Color[] RootColors { get; set; } = [];
     public Color BackgroundColor { get; set; } = Colors.Black;
@@ -85,6 +111,7 @@ public sealed class NewtonPoolsEngine
             _compiledFormula = CompiledComplexExpression.Compile(_formula);
             _compiledFirstDerivative = CompiledComplexExpression.Compile(_firstDerivative);
             _compiledSecondDerivative = CompiledComplexExpression.Compile(_secondDerivative);
+            _formulaText = expression;
             if (IterationMethod == NewtonIterationMethod.Householder) BuildInverseDerivatives();
             else ClearInverseDerivatives();
             if (discoverRoots) FindRoots();
@@ -116,6 +143,7 @@ public sealed class NewtonPoolsEngine
             _compiledFormula = null;
             _compiledFirstDerivative = null;
             _compiledSecondDerivative = null;
+            _formulaText = string.Empty;
             ClearInverseDerivatives();
             Roots = [];
             RootSearchStrategy = "Ошибка формулы";
@@ -159,35 +187,17 @@ public sealed class NewtonPoolsEngine
             return;
         }
 
-        if (diagnosticsEnabled)
-            RenderDiagnosticToBuffer(buffer, width, height, stride, threadCount, cancellationToken, reportProgress);
+        if (ShouldUseDeepZoom())
+            RenderDeepRows(buffer, width, height, stride, threadCount, cancellationToken, reportProgress, diagnosticsEnabled);
         else
-            RenderNormalToBuffer(buffer, width, height, stride, threadCount, cancellationToken, reportProgress);
+            RenderRows(buffer, width, height, stride, threadCount, cancellationToken, reportProgress, diagnosticsEnabled);
     }
 
-    private void RenderNormalToBuffer(
-        byte[] buffer,
-        int width,
-        int height,
-        int stride,
-        int threadCount,
-        CancellationToken cancellationToken,
-        Action<int>? reportProgress)
-    {
-        RenderRows(buffer, width, height, stride, threadCount, cancellationToken, reportProgress, diagnostics: false);
-    }
-
-    private void RenderDiagnosticToBuffer(
-        byte[] buffer,
-        int width,
-        int height,
-        int stride,
-        int threadCount,
-        CancellationToken cancellationToken,
-        Action<int>? reportProgress)
-    {
-        RenderRows(buffer, width, height, stride, threadCount, cancellationToken, reportProgress, diagnostics: true);
-    }
+    /// <summary>
+    /// Шаг сетки плоской ступени. Порядок операций — прежний <c>Scale/width</c> при
+    /// <c>Scale = 3/max(0.001, zoom)</c>, поэтому кадры ниже порога совпадают с прежними бит-в-бит.
+    /// </summary>
+    private double PlainUnitsPerPixel(int width) => BaseViewWidth / Math.Max(0.001, Zoom.ToDouble()) / width;
 
     private void RenderRows(
         byte[] buffer,
@@ -199,9 +209,8 @@ public sealed class NewtonPoolsEngine
         Action<int>? reportProgress,
         bool diagnostics)
     {
-
         long completedRows = 0;
-        double unitsPerPixel = Scale / width;
+        double unitsPerPixel = PlainUnitsPerPixel(width);
         bool lambdaPlane = UsesLambdaParameterPlane;
         var options = new ParallelOptions
         {
@@ -228,7 +237,7 @@ public sealed class NewtonPoolsEngine
                 }
                 else
                 {
-                    int iteration = IterateNormal(ref z, lambda);
+                    int iteration = ContinueNormal(ref z, lambda, 0);
                     color = GetPixelColor(z, iteration);
                 }
                 int offset = row + x * 4;
@@ -251,24 +260,10 @@ public sealed class NewtonPoolsEngine
             return buffer;
         }
 
-        return diagnosticsEnabled
-            ? RenderDiagnosticTile(buffer, tile, canvasWidth, canvasHeight, token)
-            : RenderNormalTile(buffer, tile, canvasWidth, canvasHeight, token);
+        return ShouldUseDeepZoom()
+            ? RenderDeepTile(buffer, tile, canvasWidth, canvasHeight, token, diagnosticsEnabled)
+            : RenderTileCore(buffer, tile, canvasWidth, canvasHeight, token, diagnosticsEnabled);
     }
-
-    private byte[]? RenderNormalTile(
-        byte[] buffer,
-        MandelbrotRenderTile tile,
-        int canvasWidth,
-        int canvasHeight,
-        CancellationToken token) => RenderTileCore(buffer, tile, canvasWidth, canvasHeight, token, diagnostics: false);
-
-    private byte[]? RenderDiagnosticTile(
-        byte[] buffer,
-        MandelbrotRenderTile tile,
-        int canvasWidth,
-        int canvasHeight,
-        CancellationToken token) => RenderTileCore(buffer, tile, canvasWidth, canvasHeight, token, diagnostics: true);
 
     private byte[]? RenderTileCore(
         byte[] buffer,
@@ -278,7 +273,7 @@ public sealed class NewtonPoolsEngine
         CancellationToken token,
         bool diagnostics)
     {
-        double unitsPerPixel = Scale / canvasWidth;
+        double unitsPerPixel = PlainUnitsPerPixel(canvasWidth);
         bool lambdaPlane = UsesLambdaParameterPlane;
         for (int localY = 0; localY < tile.Height; localY++)
         {
@@ -301,7 +296,7 @@ public sealed class NewtonPoolsEngine
                 }
                 else
                 {
-                    int iteration = IterateNormal(ref z, lambda);
+                    int iteration = ContinueNormal(ref z, lambda, 0);
                     color = GetPixelColor(z, iteration);
                 }
                 int offset = (localY * tile.Width + localX) * 4;
@@ -314,9 +309,12 @@ public sealed class NewtonPoolsEngine
     private bool UsesLambdaParameterPlane =>
         IterationMethod == NewtonIterationMethod.RelaxedNewton && RelaxedPlaneMode == NewtonRelaxedPlaneMode.LambdaPlane;
 
-    private int IterateNormal(ref Complex z, Complex lambda)
+    /// <summary>
+    /// Итерация обычной раскраски с итерации <paramref name="iteration"/>. Глубокий движок
+    /// передаёт сюда пиксель, когда его отклонение от опорной орбиты выросло до порядка double.
+    /// </summary>
+    private int ContinueNormal(ref Complex z, Complex lambda, int iteration)
     {
-        int iteration = 0;
         double toleranceSquared = RootTolerance * RootTolerance;
         while (iteration < MaxIterations)
         {
@@ -346,27 +344,36 @@ public sealed class NewtonPoolsEngine
         if (_compiledFormula is null || _compiledFirstDerivative is null)
             throw new InvalidOperationException("Сначала задайте корректную формулу.");
 
-        Span<Complex> history = stackalloc Complex[16];
+        Span<Complex> history = stackalloc Complex[HistoryCapacity];
         int historyCount = 0;
         int historyNext = 0;
-        Complex z = initialPoint;
-        Complex lastValue = new(double.NaN, double.NaN);
-        AddHistory(history, ref historyCount, ref historyNext, z);
+        AddHistory(history, ref historyCount, ref historyNext, initialPoint);
+        return ContinueDiagnostic(initialPoint, lambda, 0, history, historyCount, historyNext,
+            new Complex(double.NaN, double.NaN));
+    }
 
-        for (int iteration = 0; iteration < MaxIterations; iteration++)
+    /// <summary>
+    /// Диагностическая итерация с итерации <paramref name="startIteration"/>. История уже
+    /// содержит текущую точку <paramref name="z"/> последней записью.
+    /// </summary>
+    private NewtonOrbitResult ContinueDiagnostic(Complex z, Complex lambda, int startIteration,
+        Span<Complex> history, int historyCount, int historyNext, Complex lastValue)
+    {
+        double toleranceSquared = RootTolerance * RootTolerance;
+        for (int iteration = startIteration; iteration < MaxIterations; iteration++)
         {
             if (!IsFinite(z))
                 return CreateOrbitResult(NewtonOrbitOutcome.NonFinite, iteration, z, lastValue);
             if (IsEscaped(z))
                 return CreateOrbitResult(NewtonOrbitOutcome.Escaped, iteration, z, lastValue);
 
-            Complex f = _compiledFormula.Evaluate(z);
+            Complex f = _compiledFormula!.Evaluate(z);
             lastValue = f;
             if (!IsFinite(f))
                 return CreateOrbitResult(NewtonOrbitOutcome.NonFinite, iteration, z, f);
 
             int rootIndex = FindKnownRootIndex(z);
-            if (f == Complex.Zero || MagnitudeSquared(f) <= RootTolerance * RootTolerance || rootIndex >= 0)
+            if (f == Complex.Zero || MagnitudeSquared(f) <= toleranceSquared || rootIndex >= 0)
                 return CreateOrbitResult(NewtonOrbitOutcome.ConvergedToRoot, iteration, z, f, rootIndex);
 
             int cyclePeriod = DetectCycle(history, historyCount, historyNext);
@@ -383,10 +390,17 @@ public sealed class NewtonPoolsEngine
             AddHistory(history, ref historyCount, ref historyNext, z);
         }
 
+        return FinishDiagnostic(z, history, historyCount, historyNext, lastValue);
+    }
+
+    /// <summary>Итог диагностики, когда лимит итераций исчерпан.</summary>
+    private NewtonOrbitResult FinishDiagnostic(Complex z, Span<Complex> history, int historyCount, int historyNext,
+        Complex lastValue)
+    {
         if (!IsFinite(z)) return CreateOrbitResult(NewtonOrbitOutcome.NonFinite, MaxIterations, z, lastValue);
         if (IsEscaped(z)) return CreateOrbitResult(NewtonOrbitOutcome.Escaped, MaxIterations, z, lastValue);
 
-        Complex finalValue = _compiledFormula.Evaluate(z);
+        Complex finalValue = _compiledFormula!.Evaluate(z);
         if (!IsFinite(finalValue)) return CreateOrbitResult(NewtonOrbitOutcome.NonFinite, MaxIterations, z, finalValue);
         int finalRootIndex = FindKnownRootIndex(z);
         if (finalValue == Complex.Zero || MagnitudeSquared(finalValue) <= RootTolerance * RootTolerance || finalRootIndex >= 0)
@@ -445,9 +459,11 @@ public sealed class NewtonPoolsEngine
         }
     }
 
+    private double CycleTolerance => Math.Clamp(RootTolerance * 4, 1e-10, 1e-4);
+
     private int DetectCycle(Span<Complex> history, int historyCount, int historyNext)
     {
-        double tolerance = Math.Clamp(RootTolerance * 4, 1e-10, 1e-4);
+        double tolerance = CycleTolerance;
         if (historyCount < 4) return 0;
 
         Complex latest = GetRecent(history, historyNext, 0);
@@ -472,6 +488,27 @@ public sealed class NewtonPoolsEngine
         return 0;
     }
 
+    /// <summary>
+    /// Есть ли среди пар, которые сравнивает <see cref="DetectCycle"/>, хоть одна близкая с
+    /// запасом <paramref name="toleranceFactor"/>. Если нет — поиск цикла у любой точки,
+    /// отличающейся от этой истории на ничтожную долю, заведомо ничего не находит.
+    /// </summary>
+    private bool HistoryHasClosePairs(Span<Complex> history, int historyCount, int historyNext, double toleranceFactor)
+    {
+        if (historyCount < 4) return false;
+        double tolerance = CycleTolerance * toleranceFactor;
+        if (AreClose(GetRecent(history, historyNext, 0), GetRecent(history, historyNext, 1), tolerance)) return true;
+        for (int period = 2; period <= 8; period++)
+        {
+            if (historyCount < period * 2) break;
+            for (int offset = 0; offset < period; offset++)
+                if (AreClose(GetRecent(history, historyNext, offset),
+                        GetRecent(history, historyNext, offset + period), tolerance))
+                    return true;
+        }
+        return false;
+    }
+
     private int FindKnownRootIndex(Complex z)
     {
         int nearest = -1;
@@ -484,6 +521,15 @@ public sealed class NewtonPoolsEngine
             nearestDistanceSquared = distanceSquared;
         }
         return nearestDistanceSquared <= RootTolerance * RootTolerance ? nearest : -1;
+    }
+
+    /// <summary>Квадрат расстояния до ближайшего известного корня (или +∞, если корней нет).</summary>
+    private double NearestRootDistanceSquared(Complex z)
+    {
+        double nearest = double.PositiveInfinity;
+        foreach (Complex root in Roots)
+            nearest = Math.Min(nearest, MagnitudeSquared(z - root));
+        return nearest;
     }
 
     private static void AddHistory(Span<Complex> history, ref int count, ref int next, Complex value)
