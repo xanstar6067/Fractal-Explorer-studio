@@ -133,7 +133,7 @@ public readonly record struct NewtonOrbitResult(
     int RootIndex = -1,
     int CyclePeriod = 0);
 
-public sealed record NewtonRootColorItem(int Index, Complex Root, Color Color)
+public sealed record NewtonRootColorItem(int Index, Complex Root, Color Color, string? CustomLabel = null)
 {
     public SolidColorBrush Brush
     {
@@ -145,7 +145,7 @@ public sealed record NewtonRootColorItem(int Index, Complex Root, Color Color)
         }
     }
 
-    public string Label => $"Корень {Index + 1}: {Format(Root.Real)} {(Root.Imaginary < 0 ? '−' : '+')} {Format(Math.Abs(Root.Imaginary))}i";
+    public string Label => CustomLabel ?? $"Корень {Index + 1}: {Format(Root.Real)} {(Root.Imaginary < 0 ? '−' : '+')} {Format(Math.Abs(Root.Imaginary))}i";
     public string Hex => $"#{Color.A:X2}{Color.R:X2}{Color.G:X2}{Color.B:X2}";
 
     private static string Format(double value) => value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);

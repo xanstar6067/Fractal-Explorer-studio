@@ -15,7 +15,7 @@ using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
 
 // No visible windows or screen capture. The snapshot callback supplies synthetic pixels.
-internal static class Program
+internal static partial class Program
 {
     // Необязательный фильтр групп проверок — полный набор идёт больше десяти минут, и при
     // работе над одной темой ждать его целиком незачем:
@@ -24,7 +24,8 @@ internal static class Program
     //   deep     — только глубокий зум (включает extreme);
     //   extreme  — только сверхглубокий зум (FloatExp-зум, 1e1000) и поиск ядра по Ньютону;
     //   phoenix  — только глубокий и сверхглубокий зум Феникса;
-    //   newton   — только глубокий и сверхглубокий зум бассейнов Ньютона.
+    //   newton   — только глубокий и сверхглубокий зум бассейнов Ньютона;
+    //   basins   — только бассейны Мюллера, Лагерра, секущих, рациональных отображений и циклов.
     [STAThread]
     private static int Main(string[] args)
     {
@@ -41,8 +42,9 @@ internal static class Program
                 if (group is "extreme") await VerifyExtremeZoomGroupAsync();
                 if (group is "phoenix") await VerifyPhoenixDeepZoomAsync();
                 if (group is "newton") await VerifyNewtonDeepZoomAsync();
-                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton"))
-                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton.");
+                if (group is "all" or "basins") VerifyBasinExplorers();
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins"))
+                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins.");
                 Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)

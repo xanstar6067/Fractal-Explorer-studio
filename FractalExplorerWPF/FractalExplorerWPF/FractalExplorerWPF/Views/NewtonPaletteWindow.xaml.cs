@@ -14,6 +14,7 @@ public partial class NewtonPaletteWindow : Window
 {
     private readonly NewtonPaletteManager _manager;
     private readonly IReadOnlyList<Complex> _roots;
+    private readonly IReadOnlyList<string>? _labels;
     private readonly ColorSelectionService _colorSelectionService = ColorSelectionService.Default;
     private readonly List<Color> _editingColors = [];
     private NewtonColorPalette? _selected;
@@ -22,11 +23,24 @@ public partial class NewtonPaletteWindow : Window
     public event EventHandler? PaletteApplied;
 
     public NewtonPaletteWindow(NewtonPaletteManager manager, IReadOnlyList<Complex> roots)
+        : this(manager, roots, null, null, showGradientOption: true)
+    {
+    }
+
+    /// <summary>
+    /// Палитра для произвольного списка бассейнов: окно бассейнов Мюллера, Лагерра, секущих и
+    /// отображений передаёт свои подписи строк и заголовок вместо «Корень k». Яркостью там
+    /// управляет режим раскраски окна, поэтому флажок градиента можно скрыть.
+    /// </summary>
+    public NewtonPaletteWindow(NewtonPaletteManager manager, IReadOnlyList<Complex> targets,
+        IReadOnlyList<string>? targetLabels, string? heading, bool showGradientOption)
     {
         InitializeComponent();
         _manager = manager;
-        _roots = roots;
-        RootCountText.Text = $"Найдено корней в формуле: {_roots.Count}";
+        _roots = targets;
+        _labels = targetLabels;
+        RootCountText.Text = heading ?? $"Найдено корней в формуле: {_roots.Count}";
+        if (!showGradientOption) GradientBox.Visibility = Visibility.Collapsed;
         RefreshPaletteList(_manager.ActivePalette);
     }
 
@@ -173,7 +187,8 @@ public partial class NewtonPaletteWindow : Window
     private void RefreshColors(int selectedIndex)
     {
         List<NewtonRootColorItem> items = _editingColors.Select((color, index) =>
-            new NewtonRootColorItem(index, index < _roots.Count ? _roots[index] : Complex.Zero, color)).ToList();
+            new NewtonRootColorItem(index, index < _roots.Count ? _roots[index] : Complex.Zero, color,
+                _labels is not null && index < _labels.Count ? _labels[index] : null)).ToList();
         RootColorsList.ItemsSource = items;
         PreviewRootColors.ItemsSource = items;
         RootColorsList.SelectedIndex = items.Count == 0 ? -1 : Math.Clamp(selectedIndex, 0, items.Count - 1);
@@ -201,7 +216,9 @@ public partial class NewtonPaletteWindow : Window
         BackgroundButton.IsEnabled = editable;
         EditRootButton.IsEnabled = editable && RootColorsList.SelectedIndex >= 0;
         EditHint.Text = editable
-            ? "Карточки цветов и секции превью кликабельны. Число цветов привязано к найденным корням формулы."
+            ? _labels is null
+                ? "Карточки цветов и секции превью кликабельны. Число цветов привязано к найденным корням формулы."
+                : "Карточки цветов и секции превью кликабельны. Число цветов привязано к найденным бассейнам."
             : "Встроенная палитра доступна только для просмотра и применения. Создайте копию для редактирования.";
     }
 

@@ -16,11 +16,33 @@ internal static class NewtonRootFinder
     {
         roots = [];
         degree = 0;
-        if (!TryGetCoefficients(formula, out Complex[] coefficients)) return false;
+        if (!TryGetPolynomialCoefficients(formula, out Complex[] coefficients)) return false;
 
-        coefficients = Trim(coefficients);
         degree = coefficients.Length - 1;
         if (degree <= 0) return true;
+        return TrySolvePolynomial(coefficients, requestedTolerance, out roots);
+    }
+
+    /// <summary>
+    /// Коэффициенты полинома по возрастанию степени (старший ненулевой — последний), если выражение —
+    /// полином от z с комплексными коэффициентами.
+    /// </summary>
+    internal static bool TryGetPolynomialCoefficients(ExpressionNode formula, out Complex[] coefficients)
+    {
+        if (!TryGetCoefficients(formula, out coefficients)) return false;
+        coefficients = Trim(coefficients);
+        return true;
+    }
+
+    /// <summary>
+    /// Корни полинома степени ≥ 1 методом Аберта—Эрлиха с полировкой и слиянием кратных.
+    /// Возвращает false, если старший коэффициент нулевой или нечисловой.
+    /// </summary>
+    internal static bool TrySolvePolynomial(Complex[] polynomial, double requestedTolerance, out IReadOnlyList<Complex> roots)
+    {
+        roots = [];
+        Complex[] coefficients = Trim(polynomial);
+        if (coefficients.Length <= 1) return coefficients.Length == 1;
 
         Complex leading = coefficients[^1];
         if (!IsFinite(leading) || leading == Complex.Zero) return false;
@@ -462,7 +484,7 @@ internal static class NewtonRootFinder
         return Trim(result);
     }
 
-    private static Complex[] Trim(Complex[] coefficients)
+    internal static Complex[] Trim(Complex[] coefficients)
     {
         int last = coefficients.Length - 1;
         while (last > 0 && coefficients[last] == Complex.Zero) last--;

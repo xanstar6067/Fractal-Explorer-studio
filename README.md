@@ -28,7 +28,7 @@
 
 ### Возможности
 
-- **49 пунктов каталога:** 47 визуализаций (22 фрактала комплексной динамики и стохастики, 9 динамических систем, 18 математических лабораторий) и 2 галереи констант Julia.
+- **54 пункта каталога:** 52 визуализации (27 фракталов комплексной динамики и стохастики, 9 динамических систем, 18 математических лабораторий) и 2 галереи констант Julia.
 - **Интерактивное исследование:** масштабирование колесом мыши, перемещение холста, сброс вида и полноэкранный режим.
 - **Асинхронный рендеринг на CPU:** настройка числа потоков, отмена вычисления, индикаторы прогресса и восемь схем появления плиток.
 - **Гибкое окрашивание:** встроенные и пользовательские палитры, плавные и дискретные режимы, Histogram, Orbit Trap, Stripe Average и Distance Estimation с псевдо-3D освещением для семейства Mandelbrot.
@@ -44,7 +44,7 @@
 | --- | --- |
 | Множество Мандельброта | Mandelbrot, Burning Ship, Tricorn (Mandelbar), Buffalo, Celtic Mandelbrot, Simonobrot, Generalized Mandelbrot |
 | Множество Жюлиа | Julia, Julia Burning Ship и две галереи констант `C` |
-| Итерируемые функции | Newton Pools+, Phoenix, Collatz, Nova Mandelbrot, Nova Julia, Buddhabrot / Anti-Buddhabrot |
+| Итерируемые функции | Newton Pools+, бассейны методов Мюллера, Лагерра и секущих, бассейны рациональных отображений и периодических циклов, Phoenix, Collatz, Nova Mandelbrot, Nova Julia, Buddhabrot / Anti-Buddhabrot |
 | Итерируемые и самоподобные | IFS Барнсли / Хейуэя, Фрактальное пламя, Серпинский — игра хаоса |
 | Геометрические и стохастические фракталы | Аполлонова прокладка, DLA — диффузионно-ограниченная агрегация |
 | Динамические системы и хаос | Lyapunov, Logistic Map, Bifurcation, Lorenz, Rössler, Hénon, Ikeda, странные 2D-аттракторы, Gray–Scott |
@@ -91,7 +91,7 @@
 
 #### Бассейны притяжения и другие итерационные семейства
 
-Newton Pools+ поддерживает методы Newton, Halley и Householder с собственной палитрой корней. Phoenix — двухпанельный исследователь параметрических плоскостей `C1`/`C2` со сверхглубоким зумом. Nova и Коллатца — комплексные обобщения с глубоким зумом до 1e50.
+Newton Pools+ поддерживает методы Newton, Halley и Householder с собственной палитрой корней. Рядом — ещё пять исследователей бассейнов в общем окне: методы Мюллера (тройка начальных приближений), Лагерра (с картой расхождения с Ньютоном) и секущих (включая срезы четырёхмерного пространства состояний), а также рациональные отображения и периодические циклы, где точки раскрашиваются по конечному притягивающему циклу. Phoenix — двухпанельный исследователь параметрических плоскостей `C1`/`C2` со сверхглубоким зумом. Nova и Коллатца — комплексные обобщения с глубоким зумом до 1e50.
 
 <table>
 <tr>
@@ -289,7 +289,7 @@ Below is a screenshot demonstration of essentially every window in the applicati
 
 ### Features
 
-- **49 catalog entries:** 47 visualizations (22 complex-dynamics/stochastic fractals, 9 dynamical systems, 18 mathematical laboratories) and 2 Julia constant galleries.
+- **54 catalog entries:** 52 visualizations (27 complex-dynamics/stochastic fractals, 9 dynamical systems, 18 mathematical laboratories) and 2 Julia constant galleries.
 - **Interactive exploration:** cursor-centered mouse-wheel zoom, canvas panning, view reset, and full-screen mode.
 - **Asynchronous CPU rendering:** configurable thread count, cancellation, progress indicators, and eight tile scheduling patterns.
 - **Flexible coloring:** built-in and custom palettes, smooth and discrete modes, plus Histogram, Orbit Trap, Stripe Average, and Distance Estimation with pseudo-3D lighting for the Mandelbrot family.
@@ -305,7 +305,7 @@ Below is a screenshot demonstration of essentially every window in the applicati
 | --- | --- |
 | Mandelbrot set | Mandelbrot, Burning Ship, Tricorn (Mandelbar), Buffalo, Celtic Mandelbrot, Simonobrot, Generalized Mandelbrot |
 | Julia set | Julia, Julia Burning Ship, and two constant-`C` galleries |
-| Iterated functions | Newton Pools+, Phoenix, Collatz, Nova Mandelbrot, Nova Julia, Buddhabrot / Anti-Buddhabrot |
+| Iterated functions | Newton Pools+, Müller, Laguerre and secant basins, rational map and periodic cycle basins, Phoenix, Collatz, Nova Mandelbrot, Nova Julia, Buddhabrot / Anti-Buddhabrot |
 | Iterated and self-similar | Barnsley / Heighway IFS, Fractal Flame, Sierpiński chaos game |
 | Geometric and stochastic fractals | Apollonian gasket, DLA (diffusion-limited aggregation) |
 | Dynamical systems and chaos | Lyapunov, Logistic Map, Bifurcation, Lorenz, Rössler, Hénon, Ikeda, strange 2D attractors, Gray–Scott |
@@ -352,7 +352,7 @@ The classic Julia set and its "Burning Ship" variant are available both as stand
 
 #### Attraction basins and other iterated families
 
-Newton Pools+ supports the Newton, Halley, and Householder methods with its own root palette. Phoenix is a two-panel explorer of the `C1`/`C2` parameter planes with extreme deep zoom. Nova and Collatz are complex generalizations with deep zoom down to 1e50.
+Newton Pools+ supports the Newton, Halley, and Householder methods with its own root palette. Five more basin explorers share one window: Müller's method (a triple of starting points), Laguerre's method (with a disagreement map against Newton), the secant method (including slices of its four-dimensional state space), rational maps, and periodic cycles, where points are colored by their final attracting cycle. Phoenix is a two-panel explorer of the `C1`/`C2` parameter planes with extreme deep zoom. Nova and Collatz are complex generalizations with deep zoom down to 1e50.
 
 <table>
 <tr>

@@ -377,6 +377,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (BasinExplorerCatalog.TryParseLaunchKey(_selectedItem?.LaunchKey, out BasinExplorerKind basinKind))
+        {
+            new BasinExplorerWindow(basinKind) { Owner = this }.Show();
+            return;
+        }
+
         if (_selectedItem?.LaunchKey == "NewtonPools")
         {
             new NewtonPoolsWindow { Owner = this }.Show();

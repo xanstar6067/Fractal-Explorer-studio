@@ -1,0 +1,387 @@
+<Window x:Class="FractalExplorerWPF.Views.BasinExplorerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
+        xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
+        Title="Бассейны притяжения" Width="1160" Height="740"
+        MinWidth="900" MinHeight="560" WindowStartupLocation="CenterOwner"
+        Icon="../Assets/Icons/NewtonPool.ico" KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
+    <Window.Resources>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style x:Key="HintTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="ControlsColumn" Width="310"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border x:Name="ControlsHost" Grid.Column="0" Margin="10" Padding="14"
+                Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock x:Name="PanelTitleText" FontSize="18" FontWeight="SemiBold" Text="Бассейны притяжения"/>
+                    <TextBlock x:Name="KindDescriptionText" Style="{StaticResource HintTextStyle}" Margin="0,6,0,0"/>
+
+                    <TextBlock Margin="0,10,0,0" Text="Готовый пример"/>
+                    <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_OnSelectionChanged"/>
+
+                    <StackPanel x:Name="FormulaPanel">
+                        <TextBlock x:Name="FormulaLabel" Text="Функция f(z)"/>
+                        <TextBox x:Name="FormulaBox" Height="56" AcceptsReturn="False" TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top"
+                                 ToolTip="Поддерживаются z, i, pi, e, числа, +, −, *, /, ^, sin, cos, tan, exp, log, sqrt и гиперболические функции."/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="RationalFormulaPanel">
+                        <TextBlock Text="Числитель P(z)"/>
+                        <TextBox x:Name="NumeratorBox" ToolTip="Полином от z; можно использовать параметр c, например z^2+c"/>
+                        <TextBlock Text="Знаменатель Q(z)"/>
+                        <TextBox x:Name="DenominatorBox" ToolTip="Полином от z; для полиномиального отображения — 1"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ParameterCPanel">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re c"/>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ParameterCRealBox" Text="0" TextChanged="ParameterC_OnChanged"/></StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im c"/>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ParameterCImaginaryBox" Text="0" TextChanged="ParameterC_OnChanged"/></StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition x:Name="RandomFormulaColumn" Width="44"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="Применить формулу" Click="ApplyFormulaButton_OnClick"/>
+                        <Button x:Name="RandomFormulaButton" Grid.Column="1" Margin="6,4,0,4" Content="⚂"
+                                ToolTip="Случайный корректный полином" Click="RandomFormulaButton_OnClick"/>
+                    </Grid>
+
+                    <Expander x:Name="RootsExpander" Margin="0,8,0,4" Header="Поиск и корни" IsExpanded="True">
+                        <StackPanel Margin="0,6,0,0">
+                            <TextBlock Text="Стратегия поиска"/>
+                            <ComboBox x:Name="RootSearchModeBox" SelectedIndex="0"
+                                      SelectionChanged="RootSearchModeBox_OnSelectionChanged">
+                                <ComboBoxItem Content="Авто: полином / адаптивно"/>
+                                <ComboBoxItem Content="Всегда адаптивный"/>
+                                <ComboBoxItem Content="Только вручную"/>
+                            </ComboBox>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Точность корней"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootToleranceBox" Text="1e-6" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid x:Name="RootSearchRadiusPanel">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус поиска"
+                                           ToolTip="Поиск выполняется вокруг точки 0 + 0i"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootSearchRadiusBox" Text="8"/></StackPanel>
+                            </Grid>
+                            <Button Content="Повторить поиск корней" Click="ApplyFormulaButton_OnClick"/>
+                            <TextBlock x:Name="RootCountText" Style="{StaticResource HintTextStyle}" Text="Корней: 0"/>
+                            <ListBox x:Name="RootListBox" Height="86" Margin="0,0,0,4"/>
+                            <TextBlock Text="Ручной корень"/>
+                            <TextBox x:Name="ManualRootBox" ToolTip="Например: 1+2*i или -0.5*i"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Button Margin="0,0,3,4" Content="Добавить" Click="AddRootButton_OnClick"/>
+                                <Button Grid.Column="1" Margin="3,0,0,4" Content="Удалить" Click="RemoveRootButton_OnClick"/>
+                            </Grid>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander x:Name="AttractorsExpander" Margin="0,8,0,4" Header="Аттракторы и циклы" IsExpanded="True">
+                        <StackPanel Margin="0,6,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. период"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MaxPeriodBox" Text="8"
+                                         ToolTip="Циклы периодов 1…N; изменение применяется повторным поиском"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск цикла"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="CycleToleranceBox" Text="1e-6" TextChanged="Parameter_OnChanged"
+                                         ToolTip="Орбита считается пришедшей в цикл, когда подходит к его точке ближе допуска (× max(1, |q|))"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус затравок"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="AttractorSearchRadiusBox" Text="3"
+                                         ToolTip="Сетка затравок для поиска циклов — квадрат вокруг 0 + 0i"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус ухода"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="EscapeRadiusBox" Text="1e6" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <TextBlock Text="Бесконечность"/>
+                            <ComboBox x:Name="InfinityHandlingBox" SelectedIndex="0" SelectionChanged="InfinityHandlingBox_OnSelectionChanged">
+                                <ComboBoxItem Content="Авто"/>
+                                <ComboBoxItem Content="Всегда аттрактор (отдельный цвет)"/>
+                                <ComboBoxItem Content="Уход — цвет фона"/>
+                            </ComboBox>
+                            <TextBlock x:Name="InfinityText" Style="{StaticResource HintTextStyle}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Button Margin="0,4,3,4" Content="Найти заново" Click="ApplyFormulaButton_OnClick"
+                                        ToolTip="Повторный поиск по критическим точкам и сетке затравок"/>
+                                <Button Grid.Column="1" Margin="3,4,0,4" Content="Искать в виде" Click="SearchInViewButton_OnClick"
+                                        ToolTip="Добавить циклы, найденные из сетки точек видимой области"/>
+                            </Grid>
+                            <TextBlock x:Name="AttractorCountText" Style="{StaticResource HintTextStyle}" Text="Аттракторов: 0"/>
+                            <ListBox x:Name="AttractorListBox" Height="110" Margin="0,0,0,4"/>
+                            <TextBlock Text="Затравка (правая кнопка на полотне)"/>
+                            <TextBox x:Name="SeedBox" ToolTip="Точка, из орбиты которой ищется цикл, например 0.3-0.1*i"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Button Margin="0,0,3,4" Content="Искать от точки" Click="SearchFromSeedButton_OnClick"/>
+                                <Button Grid.Column="1" Margin="3,0,0,4" Content="Удалить цикл" Click="RemoveAttractorButton_OnClick"/>
+                            </Grid>
+                            <StackPanel x:Name="PeriodFilterPanel">
+                                <TextBlock Text="Показывать бассейны"/>
+                                <ComboBox x:Name="PeriodFilterBox" SelectionChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <StackPanel x:Name="MullerPanel" Margin="0,6,0,0">
+                        <TextBlock Text="Начальная тройка"/>
+                        <ComboBox x:Name="MullerSeedModeBox" SelectedIndex="0" SelectionChanged="MethodMode_OnSelectionChanged">
+                            <ComboBoxItem Content="Симметричная: z − h, z + h, z"/>
+                            <ComboBoxItem Content="Отстающая: z − 2h, z − h, z"/>
+                            <ComboBoxItem Content="Якоря: a, b, z"/>
+                        </ComboBox>
+                        <StackPanel x:Name="MullerOffsetPanel">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re h"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerOffsetRealBox" Text="0.25" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im h"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerOffsetImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel x:Name="MullerAnchorsPanel">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re a"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorARealBox" Text="-1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im a"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorAImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re b"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorBRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im b"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorBImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        <TextBlock x:Name="MullerHintText" Style="{StaticResource HintTextStyle}"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="LaguerrePanel" Margin="0,6,0,0">
+                        <CheckBox x:Name="LaguerreAutoDegreeBox" Margin="0,4" IsChecked="True"
+                                  Content="n = степень полинома (авто)" Checked="MethodMode_OnSelectionChanged"
+                                  Unchecked="MethodMode_OnSelectionChanged"/>
+                        <Grid x:Name="LaguerreDegreePanel">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Параметр n"/>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="LaguerreDegreeBox" Text="3" TextChanged="Parameter_OnChanged"
+                                     ToolTip="Вещественное n ≥ 1; при n = 1 шаг совпадает с Ньютоном"/></StackPanel>
+                        </Grid>
+                        <TextBlock Text="Показать"/>
+                        <ComboBox x:Name="LaguerreComparisonBox" SelectedIndex="0" SelectionChanged="MethodMode_OnSelectionChanged">
+                            <ComboBoxItem Content="Бассейны Лагерра"/>
+                            <ComboBoxItem Content="Бассейны Ньютона (сравнение)"/>
+                            <ComboBoxItem Content="Расхождение: Лагерр ≠ Ньютон"/>
+                        </ComboBox>
+                        <TextBlock x:Name="LaguerreHintText" Style="{StaticResource HintTextStyle}"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="SecantPanel" Margin="0,6,0,0">
+                        <TextBlock Text="Плоскость начальных состояний"/>
+                        <ComboBox x:Name="SecantPlaneModeBox" SelectedIndex="0" SelectionChanged="MethodMode_OnSelectionChanged">
+                            <ComboBoxItem Content="x₀ фиксирована, пиксель — x₁"/>
+                            <ComboBoxItem Content="Пара: x₀ = z − h, x₁ = z"/>
+                            <ComboBoxItem Content="Срез пространства (x₀, x₁)"/>
+                        </ComboBox>
+                        <StackPanel x:Name="SecantFirstPointPanel">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re x₀"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantFirstRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im x₀"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantFirstImaginaryBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel x:Name="SecantOffsetPanel">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re h"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantOffsetRealBox" Text="0.25" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im h"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantOffsetImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel x:Name="SecantSlicePanel">
+                            <TextBlock Text="Горизонтальная ось"/>
+                            <ComboBox x:Name="SecantHorizontalAxisBox" SelectedIndex="0" SelectionChanged="MethodMode_OnSelectionChanged">
+                                <ComboBoxItem Content="Re x₀"/>
+                                <ComboBoxItem Content="Im x₀"/>
+                                <ComboBoxItem Content="Re x₁"/>
+                                <ComboBoxItem Content="Im x₁"/>
+                            </ComboBox>
+                            <TextBlock Text="Вертикальная ось"/>
+                            <ComboBox x:Name="SecantVerticalAxisBox" SelectedIndex="2" SelectionChanged="MethodMode_OnSelectionChanged">
+                                <ComboBoxItem Content="Re x₀"/>
+                                <ComboBoxItem Content="Im x₀"/>
+                                <ComboBoxItem Content="Re x₁"/>
+                                <ComboBoxItem Content="Im x₁"/>
+                            </ComboBox>
+                            <TextBlock Style="{StaticResource HintTextStyle}" Text="База — значения двух координат, не выбранных осями:"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₀: Re"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX0RealBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₀: Im"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX0ImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₁: Re"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX1RealBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₁: Im"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX1ImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                        </StackPanel>
+                        <TextBlock x:Name="SecantHintText" Style="{StaticResource HintTextStyle}"/>
+                    </StackPanel>
+
+                    <Expander Margin="0,8,0,4" Header="Раскраска и маркеры" IsExpanded="True">
+                        <StackPanel Margin="0,6,0,0">
+                            <TextBlock Text="Режим раскраски"/>
+                            <ComboBox x:Name="ColoringModeBox" SelectionChanged="ColoringModeBox_OnSelectionChanged"/>
+                            <Grid x:Name="ShadingScalePanel">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Шкала яркости"
+                                           ToolTip="Число итераций (на период цикла), за которое яркость падает вдвое"/>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ShadingScaleBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
+                            </Grid>
+                            <TextBlock x:Name="ColoringHintText" Style="{StaticResource HintTextStyle}"/>
+                            <TextBlock Text="Маркеры"/>
+                            <ComboBox x:Name="MarkerModeBox" SelectionChanged="MarkerModeBox_OnSelectionChanged"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" Text="200" TextChanged="Parameter_OnChanged"/></StackPanel>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged"
+                                 ToolTip="Число или научная нотация, например 1e6; до 1e12 (вычисления в double)"/></StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="Потоки ЦП"/>
+                    <ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
+
+                    <TextBlock Text="Сглаживание предпросмотра"/>
+                    <ComboBox x:Name="PreviewSsaaBox" SelectedIndex="0" SelectionChanged="Parameter_OnChanged">
+                        <ComboBoxItem Content="1×" Tag="1"/>
+                        <ComboBoxItem Content="2×" Tag="2"/>
+                        <ComboBoxItem Content="3×" Tag="3"/>
+                        <ComboBoxItem Content="4×" Tag="4"/>
+                    </ComboBox>
+
+                    <Button Content="Запустить рендер" Click="RenderButton_OnClick"/>
+                    <Button x:Name="CancelButton" Content="Отмена" IsEnabled="False" Click="CancelButton_OnClick"/>
+                    <Button Content="Настроить палитру" Click="PaletteButton_OnClick"/>
+                    <Button Content="Менеджер сохранений" Click="SavesButton_OnClick"/>
+                    <Button Content="Сохранить изображение" Click="ExportButton_OnClick"/>
+
+                    <TextBlock Margin="0,12,0,4" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Прогресс"/>
+                    <ProgressBar x:Name="RenderProgress" Height="20" Minimum="0" Maximum="100"/>
+                    <TextBlock x:Name="StatusText" Margin="0,8,0,0"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap" Text="Готово"/>
+
+                    <Expander Margin="0,12,0,0" Header="Формула и диагностика">
+                        <TextBox x:Name="DebugOutput" Margin="0,6,0,0" MinHeight="110" IsReadOnly="True"
+                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                    </Expander>
+                    <TextBlock x:Name="NavigationHintText" Margin="0,12,0,0" Foreground="{DynamicResource Theme.DisabledTextBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" Background="Black" ClipToBounds="True"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7"
+                theme:ThemeContract.IgnoreAudit="True" SizeChanged="CanvasHost_OnSizeChanged"
+                MouseWheel="CanvasHost_OnMouseWheel" MouseLeftButtonDown="CanvasHost_OnMouseLeftButtonDown"
+                MouseMove="CanvasHost_OnMouseMove" MouseLeftButtonUp="CanvasHost_OnMouseLeftButtonUp"
+                MouseRightButtonDown="CanvasHost_OnMouseRightButtonDown">
+            <Grid>
+                <Grid x:Name="ImageLayer" ClipToBounds="True">
+                    <Grid x:Name="SavePreviewLayer" ClipToBounds="True">
+                        <Image x:Name="StablePreviewImage" Stretch="Fill" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Grid>
+                </Grid>
+                <Canvas x:Name="MarkerOverlay" ClipToBounds="True" IsHitTestVisible="False"/>
+                <controls:RenderProgressOverlay x:Name="RenderOverlay" IsHitTestVisible="False"/>
+            </Grid>
+        </Border>
+
+        <Button x:Name="ToggleControlsButton" Grid.Column="1" Style="{StaticResource FractalPanelToggleButtonStyle}"
+                Content="✕" ToolTip="Скрыть панель параметров" Click="ToggleControlsButton_OnClick"/>
+    </Grid>
+</Window>

@@ -408,6 +408,25 @@ internal static class Program
                 return;
             }
 
+            if (BasinExplorerCatalog.TryParseLaunchKey(key, out BasinExplorerKind basinKind))
+            {
+                Window? w = await CaptureAsync(() => new BasinExplorerWindow(basinKind), "basins-" + Kebab(basinKind.ToString()), 1600);
+                // Общий редактор палитр Ньютона с подписями циклов — один раз, на окне периодических циклов.
+                if (w != null && basinKind == BasinExplorerKind.PeriodicCycles)
+                {
+                    var mgr = (NewtonPaletteManager)GetMember(w, "_paletteManager")!;
+                    object engine = GetMember(w, "_engine")!;
+                    var attractors = (IReadOnlyList<BasinAttractor>)GetMember(engine, "Attractors")!;
+                    await CaptureChildAsync(w, new NewtonPaletteWindow(mgr,
+                        attractors.Select(a => a.IsInfinity || a.Points.Count == 0 ? System.Numerics.Complex.Zero : a.Points[0]).ToArray(),
+                        attractors.Select((a, index) => a.ShortLabel(index)).ToArray(),
+                        $"Аттракторов: {attractors.Count}. Цвет фона — уходящие и нераспознанные орбиты.",
+                        showGradientOption: false), "basins-palette-editor");
+                }
+                SafeCloseIfAny(w);
+                return;
+            }
+
             switch (key)
             {
                 case "JuliaGallery":

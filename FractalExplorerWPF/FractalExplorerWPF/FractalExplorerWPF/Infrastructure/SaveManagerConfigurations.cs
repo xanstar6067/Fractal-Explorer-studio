@@ -75,6 +75,23 @@ public static class SaveManagerConfigurations
         PointsOfInterest = PresetManager.GetNewtonPresets()
     };
 
+    public static SaveManagerConfiguration<BasinExplorerState> ForBasinExplorer(
+        BasinExplorerWindow window, BasinExplorerSaveStore store) => new()
+    {
+        WindowTitle = $"Сохранение/Загрузка: {window.DisplayTitle}",
+        FractalIdentifier = BasinExplorerCatalog.GetDefinition(window.Kind).SaveFilePrefix,
+        LoadStates = store.Load,
+        SaveStates = store.Save,
+        CaptureState = window.CaptureState,
+        CapturePreview = window.CaptureCurrentPreview,
+        LoadState = window.LoadState,
+        RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName,
+        GetTimestamp = state => state.Timestamp,
+        GetDetails = DescribeBasinExplorer,
+        PointsOfInterest = BasinExplorerCatalog.GetPresets(window.Kind)
+    };
+
     public static SaveManagerConfiguration<NovaState> ForNova(
         NovaWindow window, NovaSaveStore store, NovaVariant variant) => new()
     {
@@ -306,6 +323,36 @@ public static class SaveManagerConfigurations
         if (state.DiagnosticColoringMode != NewtonDiagnosticColoringMode.Disabled)
             details += $"\nДиагностика: {state.DiagnosticColoringMode}";
         return details;
+    }
+
+    private static string DescribeBasinExplorer(BasinExplorerState state)
+    {
+        string formula = state.Kind == BasinExplorerKind.RationalMap
+            ? $"R(z) = ({state.Numerator}) / ({state.Denominator})"
+            : $"f(z) = {state.Formula}";
+        string details = $"{Prefix(state.Timestamp)} · Итерации: {state.MaxIterations} · Масштаб: {state.Zoom:G6}\n{formula}";
+        if (!BasinExplorerCatalog.UsesRoots(state.Kind))
+        {
+            int cycles = state.Attractors.Count(attractor => !attractor.IsInfinity);
+            return details + $" · c = {FormatComplex(state.ParameterC)}\n" +
+                   $"Циклов: {(state.UseSavedAttractors ? cycles.ToString() : "ищутся при загрузке")} · " +
+                   $"Макс. период: {state.MaxPeriod} · Допуск: {state.CycleTolerance:G3} · Раскраска: {state.ColoringMode}";
+        }
+
+        details += $"\nКорней: {state.Roots.Count} · Точность: {state.RootTolerance:G3} · Раскраска: {state.ColoringMode}";
+        return state.Kind switch
+        {
+            BasinExplorerKind.Muller => details + $"\nТройка: {state.MullerSeedMode} · " + (state.MullerSeedMode == MullerSeedMode.FixedAnchors
+                ? $"a = {FormatComplex(state.MullerAnchorA)}, b = {FormatComplex(state.MullerAnchorB)}"
+                : $"h = {FormatComplex(state.MullerOffset)}"),
+            BasinExplorerKind.Laguerre => details + $"\nn = {(state.LaguerreAutoDegree ? "степень полинома" : state.LaguerreDegree.ToString("G6"))} · Показ: {state.LaguerreComparison}",
+            _ => details + $"\nПлоскость: {state.SecantPlaneMode}" + state.SecantPlaneMode switch
+            {
+                SecantPlaneMode.FixedFirstPoint => $" · x₀ = {FormatComplex(state.SecantFirstPoint)}",
+                SecantPlaneMode.OffsetPair => $" · h = {FormatComplex(state.SecantOffset)}",
+                _ => $" · оси {state.SecantHorizontalAxis}/{state.SecantVerticalAxis}"
+            }
+        };
     }
 
     private static string DescribeCollatz(CollatzState state)
