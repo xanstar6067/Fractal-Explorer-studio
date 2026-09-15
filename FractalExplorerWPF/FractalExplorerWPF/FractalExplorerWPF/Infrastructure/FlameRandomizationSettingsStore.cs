@@ -10,7 +10,7 @@ public static class FlameRandomizationSettingsStore
 
     public static FlameRandomizationSettings Load()
     {
-        string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string path = AppPaths.GetSettingsFile(FileName);
         if (!File.Exists(path))
             return new FlameRandomizationSettings();
 
@@ -28,7 +28,7 @@ public static class FlameRandomizationSettingsStore
     public static void Save(FlameRandomizationSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile(FileName));
         string temporaryPath = path + ".tmp";
         File.WriteAllText(temporaryPath,
             JsonSerializer.Serialize(settings.Clone().Normalize(), JsonOptionsFactory.Create()));

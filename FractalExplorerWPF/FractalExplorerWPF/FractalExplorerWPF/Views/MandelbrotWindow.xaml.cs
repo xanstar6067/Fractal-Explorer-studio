@@ -105,7 +105,6 @@ public partial class MandelbrotWindow : Window
     private RenderSession? _activeSession;
 
     internal string SaveManagerDisplayName => _definition.DisplayName;
-    internal string SaveManagerIdentifier => _definition.Identifier;
     internal MandelbrotVariant SaveManagerVariant => _definition.Variant;
 
     public MandelbrotWindow(MandelbrotVariant variant, decimal? juliaReal = null, decimal? juliaImaginary = null)

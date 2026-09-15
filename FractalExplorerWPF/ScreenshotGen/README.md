@@ -46,6 +46,9 @@ dotnet run --project .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj -- 
   вызывает `InitializeComponent()` и `ThemeManager.Initialize(app)` напрямую,
   не вызывая `Run()` — событие `Startup` (которое создало бы реальное
   `MainWindow` и показало его пользователю) так и не срабатывает.
+- **Свой каталог данных.** До создания окон вызывается
+  `AppPaths.OverrideDataRoot(<bin>/ScreenshotData)`: скриншоты не зависят от
+  сохранений, палитр и выбранной темы пользователя в AppData и не пишут туда.
 - **Подмена `Application.ResourceAssembly`.** `pack://application:,,,/...`
   по умолчанию резолвится в сборку .exe (`ScreenshotGen`), а превью и другие
   ресурсы зашиты в `FractalExplorerWPF.dll`. Публичный сеттер свойства к

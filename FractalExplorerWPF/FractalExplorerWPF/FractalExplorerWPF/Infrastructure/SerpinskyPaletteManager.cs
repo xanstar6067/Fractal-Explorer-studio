@@ -36,8 +36,7 @@ public sealed class SerpinskyPaletteManager
 
     public void SaveCustomPalettes()
     {
-        AppPaths.EnsureSavesDirectory();
-        string filePath = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string filePath = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
         File.WriteAllText(
             filePath,
             JsonSerializer.Serialize(
@@ -47,7 +46,7 @@ public sealed class SerpinskyPaletteManager
 
     private void LoadCustomPalettes()
     {
-        string filePath = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string filePath = AppPaths.GetPaletteFile(FileName);
         if (!File.Exists(filePath))
         {
             return;

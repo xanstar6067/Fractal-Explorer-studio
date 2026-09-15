@@ -50,6 +50,10 @@ internal static class Program
         // сеттер бросает исключение), поэтому подменяем закрытое поле напрямую.
         ForceResourceAssembly(typeof(MainWindow).Assembly);
 
+        // Скриншоты не должны зависеть от сохранений, палитр и выбранной темы пользователя в
+        // AppData: у инструмента свой пустой каталог данных рядом с его exe.
+        AppPaths.OverrideDataRoot(Path.Combine(AppContext.BaseDirectory, "ScreenshotData"));
+
         // Настоящий App вместо голого Application: иначе не подключаются
         // Theming/ThemeStyles.xaml и активная тема (стили типа
         // FractalPanelToggleButtonStyle), которые использует почти каждое окно.

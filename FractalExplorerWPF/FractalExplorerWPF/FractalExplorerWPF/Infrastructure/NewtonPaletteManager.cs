@@ -39,7 +39,7 @@ public sealed class NewtonPaletteManager
 
     public void SaveCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
         File.WriteAllText(path, JsonSerializer.Serialize(
             Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
     }
@@ -70,7 +70,7 @@ public sealed class NewtonPaletteManager
 
     private void LoadCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string path = AppPaths.GetPaletteFile(FileName);
         if (!File.Exists(path)) return;
         List<NewtonColorPalette>? custom = JsonSerializer.Deserialize<List<NewtonColorPalette>>(
             File.ReadAllText(path), JsonOptionsFactory.Create());

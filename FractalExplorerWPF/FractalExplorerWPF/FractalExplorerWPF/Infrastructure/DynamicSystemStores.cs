@@ -6,27 +6,19 @@ using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Infrastructure;
 
-public sealed class DynamicSystemSaveStore(DynamicSystemKind kind)
-{
-    private string FilePath => Path.Combine(AppPaths.SavesDirectory, $"{kind}_saves.json");
-    public List<DynamicSystemState> Load()
+public sealed class DynamicSystemSaveStore(DynamicSystemKind kind) : FractalSaveStore<DynamicSystemState>(
+    kind.ToString(),
+    state => state.SaveName,
+    state =>
     {
-        if (!File.Exists(FilePath)) return [];
-        List<DynamicSystemState> states = JsonSerializer.Deserialize<List<DynamicSystemState>>(File.ReadAllText(FilePath), JsonOptionsFactory.Create()) ?? [];
-        foreach (DynamicSystemState state in states) state.Kind = kind;
-        return states;
-    }
-    public void Save(IEnumerable<DynamicSystemState> states)
-    {
-        AppPaths.EnsureSavesDirectory();
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(states, JsonOptionsFactory.Create()));
-    }
-}
+        state.Kind = kind;
+        return true;
+    });
 
 public sealed class DynamicPaletteStore
 {
     private readonly DynamicSystemKind _kind;
-    private string FilePath => Path.Combine(AppPaths.SavesDirectory, _kind == DynamicSystemKind.Lyapunov ? "lyapunov_palettes.json" : "logistic_map_palettes.json");
+    private string FilePath => AppPaths.GetPaletteFile(_kind == DynamicSystemKind.Lyapunov ? "lyapunov_palettes.json" : "logistic_map_palettes.json");
     public DynamicPaletteStore(DynamicSystemKind kind) => _kind = kind;
 
     public List<DynamicPalette> Load()
@@ -67,8 +59,7 @@ public sealed class DynamicPaletteStore
 
     public void Save(IEnumerable<DynamicPalette> palettes)
     {
-        AppPaths.EnsureSavesDirectory();
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
+        File.WriteAllText(AppPaths.EnsureDirectoryFor(FilePath), JsonSerializer.Serialize(palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
     }
 
     private static DynamicPalette P(string name, string mode, params Color[] colors) => new() { Name = name, Mode = mode, Colors = colors.ToList(), IsBuiltIn = true };

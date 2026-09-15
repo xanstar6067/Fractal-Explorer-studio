@@ -10,7 +10,7 @@ public static class IfsRandomizationSettingsStore
 
     public static IfsRandomizationSettings Load()
     {
-        string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string path = AppPaths.GetSettingsFile(FileName);
         if (!File.Exists(path)) return new IfsRandomizationSettings();
         try
         {
@@ -26,7 +26,7 @@ public static class IfsRandomizationSettingsStore
     public static void Save(IfsRandomizationSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile(FileName));
         string temporaryPath = path + ".tmp";
         File.WriteAllText(temporaryPath,
             JsonSerializer.Serialize(settings.Clone().Normalize(), JsonOptionsFactory.Create()));

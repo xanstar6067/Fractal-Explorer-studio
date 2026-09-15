@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="О программе"
         Width="600"
-        Height="440"
+        Height="500"
         MinWidth="520"
-        MinHeight="400"
+        MinHeight="460"
         ResizeMode="CanResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
@@ -55,6 +55,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Margin="0,0,12,14"
@@ -73,20 +74,33 @@
                 </Hyperlink>
             </TextBlock>
 
-            <TextBlock Grid.Row="2" Margin="0,0,12,0"
+            <TextBlock Grid.Row="2" Margin="0,0,12,20"
+                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                       Text="Данные:"/>
+            <TextBlock x:Name="DataFolderText"
+                       Grid.Row="2" Grid.Column="1" Margin="0,0,0,20"
+                       TextWrapping="Wrap"
+                       ToolTip="Сохранения, превью, палитры, темы, настройки и журнал ошибок"/>
+
+            <TextBlock Grid.Row="3" Margin="0,0,12,0"
                        Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                        Text="Описание:"/>
-            <TextBlock Grid.Row="2" Grid.Column="1"
+            <TextBlock Grid.Row="3" Grid.Column="1"
                        LineHeight="22"
                        TextWrapping="Wrap"
                        Text="Fractal Explorer Studio — это WPF-приложение на C#, которое позволяет генерировать, исследовать и настраивать множество фракталов с гибким управлением цветом, интерактивными селекторами параметров, сохранением состояний и экспортом изображений в высоком качестве."/>
         </Grid>
 
-        <Button Grid.Row="3"
-                Width="100"
-                Margin="0,24,0,0"
-                HorizontalAlignment="Right"
-                IsCancel="True"
-                Content="Закрыть"/>
+        <DockPanel Grid.Row="3" Margin="0,24,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left"
+                    Padding="14,0"
+                    Content="Открыть папку с данными"
+                    ToolTip="Сохранения, превью, палитры, темы, настройки и журнал ошибок"
+                    Click="OpenDataFolder_OnClick"/>
+            <Button DockPanel.Dock="Right"
+                    Width="100"
+                    IsCancel="True"
+                    Content="Закрыть"/>
+        </DockPanel>
     </Grid>
 </Window>

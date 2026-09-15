@@ -10,7 +10,7 @@ public static class FavoriteFractalsStore
     {
         try
         {
-            string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+            string path = AppPaths.GetSettingsFile(FileName);
             return File.Exists(path)
                 ? new HashSet<string>(
                     File.ReadAllLines(path).Where(line => !string.IsNullOrWhiteSpace(line)),
@@ -24,7 +24,7 @@ public static class FavoriteFractalsStore
     {
         try
         {
-            string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+            string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile(FileName));
             File.WriteAllLines(path, favorites);
         }
         catch

@@ -32,14 +32,14 @@ public sealed class GrayScottPaletteManager
 
     public void SaveCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
         File.WriteAllText(path, JsonSerializer.Serialize(
             Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
     }
 
     private void LoadCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string path = AppPaths.GetPaletteFile(FileName);
         if (!File.Exists(path)) return;
         List<GrayScottPalette>? custom = JsonSerializer.Deserialize<List<GrayScottPalette>>(
             File.ReadAllText(path), JsonOptionsFactory.Create());

@@ -17,7 +17,7 @@ internal sealed class ImageExportSettings
 
 internal static class ImageExportSettingsStore
 {
-    private static string SettingsPath => Path.Combine(AppPaths.EnsureSavesDirectory(), "image-export-settings.json");
+    private static string SettingsPath => AppPaths.GetSettingsFile("image-export-settings.json");
 
     public static ImageExportSettings Load(int fallbackWidth, int fallbackHeight)
     {
@@ -47,7 +47,7 @@ internal static class ImageExportSettingsStore
     {
         try
         {
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, JsonOptionsFactory.Create()));
+            File.WriteAllText(AppPaths.EnsureDirectoryFor(SettingsPath), JsonSerializer.Serialize(settings, JsonOptionsFactory.Create()));
         }
         catch
         {

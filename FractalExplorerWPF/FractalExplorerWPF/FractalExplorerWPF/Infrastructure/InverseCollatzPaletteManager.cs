@@ -34,7 +34,7 @@ public sealed class InverseCollatzPaletteManager
 
     public void SaveCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
         string temporary = path + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(
             Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
@@ -43,7 +43,7 @@ public sealed class InverseCollatzPaletteManager
 
     private void LoadCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+        string path = AppPaths.GetPaletteFile(FileName);
         if (!File.Exists(path)) return;
         List<InverseCollatzPalette>? custom = JsonSerializer.Deserialize<List<InverseCollatzPalette>>(
             File.ReadAllText(path), JsonOptionsFactory.Create());

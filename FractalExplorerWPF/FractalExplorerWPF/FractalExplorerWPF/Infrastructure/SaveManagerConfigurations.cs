@@ -9,9 +9,7 @@ public static class SaveManagerConfigurations
         MathematicalLaboratoryWindow window, MathematicalLaboratorySaveStore store) => new()
     {
         WindowTitle = $"Сохранение/Загрузка: {window.LaboratoryTitle}",
-        FractalIdentifier = $"MathematicalLaboratory_{window.LaboratoryKind}",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -27,9 +25,7 @@ public static class SaveManagerConfigurations
         MandelbrotWindow window, MandelbrotSaveStore store) => new()
     {
         WindowTitle = $"Сохранение/Загрузка: {window.SaveManagerDisplayName}",
-        FractalIdentifier = window.SaveManagerIdentifier,
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -44,9 +40,7 @@ public static class SaveManagerConfigurations
         SerpinskyWindow window, SerpinskySaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Серпинский",
-        FractalIdentifier = "Serpinsky",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -62,9 +56,7 @@ public static class SaveManagerConfigurations
         NewtonPoolsWindow window, NewtonSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Бассейны Ньютона",
-        FractalIdentifier = "NewtonPools",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -79,9 +71,7 @@ public static class SaveManagerConfigurations
         BasinExplorerWindow window, BasinExplorerSaveStore store) => new()
     {
         WindowTitle = $"Сохранение/Загрузка: {window.DisplayTitle}",
-        FractalIdentifier = BasinExplorerCatalog.GetDefinition(window.Kind).SaveFilePrefix,
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -96,9 +86,7 @@ public static class SaveManagerConfigurations
         NovaWindow window, NovaSaveStore store, NovaVariant variant) => new()
     {
         WindowTitle = $"Сохранение/Загрузка: {(variant == NovaVariant.Julia ? "Nova Julia" : "Nova Mandelbrot")}",
-        FractalIdentifier = variant == NovaVariant.Julia ? "NovaJulia" : "NovaMandelbrot",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -112,9 +100,7 @@ public static class SaveManagerConfigurations
         PhoenixWindow window, PhoenixSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Феникс",
-        FractalIdentifier = "Phoenix",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -130,9 +116,7 @@ public static class SaveManagerConfigurations
         CollatzWindow window, CollatzSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Коллатц",
-        FractalIdentifier = "Collatz",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -147,9 +131,7 @@ public static class SaveManagerConfigurations
         InverseCollatzTreeWindow window, InverseCollatzSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Обратное дерево Коллатца",
-        FractalIdentifier = "InverseCollatzTree",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -170,9 +152,7 @@ public static class SaveManagerConfigurations
         DomainColoringWindow window, DomainColoringSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Domain Coloring",
-        FractalIdentifier = "DomainColoring",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -190,9 +170,7 @@ public static class SaveManagerConfigurations
         BuddhabrotWindow window, BuddhabrotSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Буддаброт",
-        FractalIdentifier = "Buddhabrot",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = window.LoadState,
@@ -207,9 +185,7 @@ public static class SaveManagerConfigurations
         FlameWindow window, FlameSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Flame",
-        FractalIdentifier = "Flame",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = state => window.LoadState(state.Clone()),
@@ -225,9 +201,7 @@ public static class SaveManagerConfigurations
         IfsWindow window, IfsSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: IFS",
-        FractalIdentifier = "IFS",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = state => window.LoadState(state.Clone()),
@@ -243,9 +217,7 @@ public static class SaveManagerConfigurations
         ApollonianWindow window, ApollonianSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Аполлонова прокладка",
-        FractalIdentifier = "ApollonianGasket",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = state => window.LoadState(state.Clone()),
@@ -261,9 +233,7 @@ public static class SaveManagerConfigurations
         DlaWindow window, DlaSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: DLA",
-        FractalIdentifier = "DLA",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = state => window.LoadState(state.Clone()),
@@ -279,9 +249,7 @@ public static class SaveManagerConfigurations
         GrayScottWindow window, GrayScottSaveStore store) => new()
     {
         WindowTitle = "Сохранение/Загрузка: Gray–Scott",
-        FractalIdentifier = "GrayScott",
-        LoadStates = store.Load,
-        SaveStates = store.Save,
+        Store = store,
         CaptureState = window.CaptureState,
         CapturePreview = window.CaptureCurrentPreview,
         LoadState = state => window.LoadState(state.Clone()),

@@ -64,14 +64,14 @@ public class MandelbrotPaletteManager
 
     public void SaveCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.EnsureSavesDirectory(), _fileName);
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(_fileName));
         File.WriteAllText(path, JsonSerializer.Serialize(
             Palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
     }
 
     private void LoadCustomPalettes()
     {
-        string path = Path.Combine(AppPaths.SavesDirectory, _fileName);
+        string path = AppPaths.GetPaletteFile(_fileName);
         if (!File.Exists(path)) return;
         List<MandelbrotPalette>? custom = JsonSerializer.Deserialize<List<MandelbrotPalette>>(
             File.ReadAllText(path), JsonOptionsFactory.Create());

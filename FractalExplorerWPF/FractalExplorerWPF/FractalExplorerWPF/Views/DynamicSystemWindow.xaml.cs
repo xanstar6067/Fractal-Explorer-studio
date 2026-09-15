@@ -304,7 +304,7 @@ public partial class DynamicSystemWindow : Window
             DynamicSystemKind.Attractors2D => Attractor2DPointsOfInterest(),
             _ => []
         };
-        SaveManagerWindow.Open(this,new SaveManagerConfiguration<DynamicSystemState>{WindowTitle=$"Сохранение/Загрузка: {DisplayName(_kind)}",FractalIdentifier=_kind.ToString(),LoadStates=_saves.Load,SaveStates=s=>_saves.Save(s),CaptureState=CaptureState,CapturePreview=CaptureCurrentPreview,LoadState=LoadState,RenderPreviewAsync=RenderStatePreviewAsync,GetName=s=>s.SaveName,GetTimestamp=s=>s.Timestamp,GetDetails=s=>$"{s.Timestamp:g} · {Details(s)}",PointsOfInterest=presets});
+        SaveManagerWindow.Open(this,new SaveManagerConfiguration<DynamicSystemState>{WindowTitle=$"Сохранение/Загрузка: {DisplayName(_kind)}",Store=_saves,CaptureState=CaptureState,CapturePreview=CaptureCurrentPreview,LoadState=LoadState,RenderPreviewAsync=RenderStatePreviewAsync,GetName=s=>s.SaveName,GetTimestamp=s=>s.Timestamp,GetDetails=s=>$"{s.Timestamp:g} · {Details(s)}",PointsOfInterest=presets});
     }
 
     private static IReadOnlyList<DynamicSystemState> Attractor2DPointsOfInterest() =>

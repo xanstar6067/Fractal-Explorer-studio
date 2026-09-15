@@ -20,7 +20,7 @@ internal static partial class Program
     // Необязательный фильтр групп проверок — полный набор идёт больше десяти минут, и при
     // работе над одной темой ждать его целиком незачем:
     //   без аргументов / all — всё;
-    //   manager  — только менеджер сохранений;
+    //   manager  — менеджер сохранений, хранилище по файлу на сохранение, Корзина и миграции данных;
     //   deep     — только глубокий зум (включает extreme);
     //   extreme  — только сверхглубокий зум (FloatExp-зум, 1e1000) и поиск ядра по Ньютону;
     //   phoenix  — только глубокий и сверхглубокий зум Феникса;
@@ -32,12 +32,18 @@ internal static partial class Program
         string group = args.Length > 0 ? args[0].Trim().ToLowerInvariant() : "all";
         int result = 0;
         _ = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        // Никакая проверка не должна читать или писать настоящие данные пользователя в AppData.
+        AppPaths.OverrideDataRoot(Path.Combine(AppContext.BaseDirectory, "VerificationData", "Shared"));
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         Dispatcher.CurrentDispatcher.InvokeAsync(async () =>
         {
             try
             {
-                if (group is "all" or "manager") await VerifyManagerAsync();
+                if (group is "all" or "manager")
+                {
+                    VerifyUserData();
+                    await VerifyManagerAsync();
+                }
                 if (group is "all" or "deep") await VerifyDeepZoomAsync();
                 if (group is "extreme") await VerifyExtremeZoomGroupAsync();
                 if (group is "phoenix") await VerifyPhoenixDeepZoomAsync();
@@ -60,19 +66,17 @@ internal static partial class Program
 
     private static async Task VerifyManagerAsync()
     {
-        string id = "Verification_" + Guid.NewGuid().ToString("N");
-        string directory = Path.Combine(AppPaths.SavesDirectory, "SavePrevData", id);
-        var a = new State("A", new DateTime(2026, 1, 2));
-        var b = new State("B", new DateTime(2026, 1, 1));
+        using var sandbox = DataSandbox.Create("manager");
+        var store = new FractalSaveStore<State>("Verification", state => state.Name);
+        store.Save(new State("A", new DateTime(2026, 1, 2)));
+        store.Save(new State("B", new DateTime(2026, 1, 1)));
         var preset = new State("Preset", DateTime.MinValue);
-        List<State> saved = [a, b];
         List<PendingRender> jobs = [];
         int captures = 0;
         BitmapSource? snapshot = Pixel(17);
         var configuration = new SaveManagerConfiguration<State>
         {
-            WindowTitle = "Verification", FractalIdentifier = id,
-            LoadStates = () => saved.ToList(), SaveStates = states => saved = states.ToList(),
+            WindowTitle = "Verification", Store = store,
             CaptureState = name => new State(name, new DateTime(2026, 1, 3)),
             CapturePreview = (_, _) => { captures++; return snapshot; },
             LoadState = _ => { }, GetName = state => state.Name,
@@ -88,97 +92,103 @@ internal static partial class Program
         var view = new SaveManagerControl();
         var window = new Window { Content = view };
         using var controller = new SaveManagerController<State>(window, view, configuration);
-        try
+
+        Select(view, "B"); Select(view, "A");
+        Check(jobs.Count == 0 && captures == 0, "Selection must neither render nor capture.");
+        Check(Image(view) is null, "Missing preview must be empty.");
+
+        view.SaveName = "Snapshot";
+        Click(view, "SaveButton");
+        Check(captures == 1 && jobs.Count == 0, "Saving must copy the frame without rendering.");
+        Check(store.Load().Any(state => state.Name == "Snapshot"), "Saving must write the state to its own file.");
+        string snapshotPath = SavePreviewPath(store, "Snapshot");
+        byte[] originalPng = File.ReadAllBytes(snapshotPath);
+        Select(view, "B");
+        Check(Image(view) is null, "Switching to an uncached entry must clear the old image.");
+        Select(view, "Snapshot");
+        Check(ReadPixel(Image(view)!) == 17 && jobs.Count == 0, "Cached snapshot must survive selection.");
+
+        Click(view, "RenderPreviewButton");
+        PendingRender oldJob = jobs[^1];
+        oldJob.Progress.Report(60); await DrainAsync();
+        var progressBar = (ProgressBar)view.FindName("PreviewProgress");
+        Check(!progressBar.IsIndeterminate && progressBar.Value == 60, "Renderer progress must reach the UI.");
+        oldJob.Progress.Report(30); await DrainAsync();
+        Check(progressBar.Value == 60, "Out-of-order progress must not go backwards.");
+        Select(view, "B");
+        Check(oldJob.Token.IsCancellationRequested && jobs.Count == 1, "Switching cancels without starting another render.");
+        Click(view, "RenderPreviewButton");
+        PendingRender newJob = jobs[^1];
+        oldJob.Progress.Report(95);
+        oldJob.Completion.SetResult(Pixel(99));
+        await DrainAsync();
+        Check(Image(view) is null && progressBar.IsIndeterminate, "Stale image and progress must be discarded.");
+        Check(File.ReadAllBytes(snapshotPath).SequenceEqual(originalPng), "Stale render must not rewrite the original PNG.");
+        newJob.Completion.SetResult(Pixel(42)); await DrainAsync();
+        Check(ReadPixel(Image(view)!) == 42 && File.Exists(SavePreviewPath(store, "B")), "Manual render must update its own entry.");
+
+        byte[] beforeCancel = File.ReadAllBytes(SavePreviewPath(store, "B"));
+        Click(view, "RenderPreviewButton");
+        PendingRender cancelled = jobs[^1];
+        Click(view, "CancelPreviewButton");
+        Check(cancelled.Token.IsCancellationRequested, "Cancel button must signal cancellation.");
+        cancelled.Completion.SetResult(Pixel(70)); await DrainAsync();
+        Check(ReadPixel(Image(view)!) == 42, "Cancelled render must preserve the image.");
+        Check(File.ReadAllBytes(SavePreviewPath(store, "B")).SequenceEqual(beforeCancel), "Cancelled render must preserve the PNG.");
+        Click(view, "RenderPreviewButton");
+        jobs[^1].Completion.SetException(new InvalidOperationException("test render failure"));
+        await DrainAsync();
+        Check(((TextBlock)view.FindName("StatusText")).Text.Contains("test render failure"), "Render error must be visible.");
+        Check(File.ReadAllBytes(SavePreviewPath(store, "B")).SequenceEqual(beforeCancel), "Failed render must preserve the PNG.");
+        Check(sandbox.Recycled.Count == 0, "Nothing may be recycled before a preview is actually replaced.");
+        Click(view, "RenderPreviewButton");
+        jobs[^1].Completion.SetResult(Pixel(43)); await DrainAsync();
+        Check(ReadPixel(Image(view)!) == 43 && ReadPixel(LoadPng(SavePreviewPath(store, "B"))) == 43, "A new render must replace the PNG.");
+        Check(sandbox.Recycled.Count == 1 && sandbox.Recycled[0].Original == Path.GetFullPath(SavePreviewPath(store, "B")) &&
+              File.ReadAllBytes(sandbox.Recycled[0].Stored).SequenceEqual(beforeCancel),
+            "The replaced preview must go to the Recycle Bin instead of vanishing.");
+
+        File.WriteAllText(SavePreviewPath(store, "A"), "invalid png");
+        int beforeSelection = jobs.Count;
+        Select(view, "A");
+        Check(Image(view) is null && jobs.Count == beforeSelection, "Corrupt PNG must not start a render.");
+        snapshot = null;
+        view.SaveName = "NoFrame"; Click(view, "SaveButton");
+        Check(store.Load().Any(state => state.Name == "NoFrame") && Image(view) is null,
+            "A missing frame must not prevent saving the state.");
+        Check(jobs.Count == beforeSelection, "Missing frame must not trigger rendering.");
+
+        File.WriteAllText(Path.Combine(store.DirectoryPath, "damaged.json"), "{ damaged");
+        var damagedView = new SaveManagerControl();
+        using (new SaveManagerController<State>(new Window { Content = damagedView }, damagedView, configuration))
         {
-            Select(view, "B"); Select(view, "A");
-            Check(jobs.Count == 0 && captures == 0, "Selection must neither render nor capture.");
-            Check(Image(view) is null, "Missing preview must be empty.");
-
-            view.SaveName = "Snapshot";
-            Click(view, "SaveButton");
-            Check(captures == 1 && jobs.Count == 0, "Saving must copy the frame without rendering.");
-            State captured = saved.Single(state => state.Name == "Snapshot");
-            string snapshotPath = PreviewPath(directory, captured);
-            byte[] originalPng = File.ReadAllBytes(snapshotPath);
-            Select(view, "B");
-            Check(Image(view) is null, "Switching to an uncached entry must clear the old image.");
-            Select(view, "Snapshot");
-            Check(ReadPixel(Image(view)!) == 17 && jobs.Count == 0, "Cached snapshot must survive selection.");
-
-            Click(view, "RenderPreviewButton");
-            PendingRender oldJob = jobs[^1];
-            oldJob.Progress.Report(60); await DrainAsync();
-            var progressBar = (ProgressBar)view.FindName("PreviewProgress");
-            Check(!progressBar.IsIndeterminate && progressBar.Value == 60, "Renderer progress must reach the UI.");
-            oldJob.Progress.Report(30); await DrainAsync();
-            Check(progressBar.Value == 60, "Out-of-order progress must not go backwards.");
-            Select(view, "B");
-            Check(oldJob.Token.IsCancellationRequested && jobs.Count == 1, "Switching cancels without starting another render.");
-            Click(view, "RenderPreviewButton");
-            PendingRender newJob = jobs[^1];
-            oldJob.Progress.Report(95);
-            oldJob.Completion.SetResult(Pixel(99));
-            await DrainAsync();
-            Check(Image(view) is null && progressBar.IsIndeterminate, "Stale image and progress must be discarded.");
-            Check(File.ReadAllBytes(snapshotPath).SequenceEqual(originalPng), "Stale render must not rewrite the original PNG.");
-            newJob.Completion.SetResult(Pixel(42)); await DrainAsync();
-            Check(ReadPixel(Image(view)!) == 42 && File.Exists(PreviewPath(directory, b)), "Manual render must update its own entry.");
-
-            byte[] beforeCancel = File.ReadAllBytes(PreviewPath(directory, b));
-            Click(view, "RenderPreviewButton");
-            PendingRender cancelled = jobs[^1];
-            Click(view, "CancelPreviewButton");
-            Check(cancelled.Token.IsCancellationRequested, "Cancel button must signal cancellation.");
-            cancelled.Completion.SetResult(Pixel(70)); await DrainAsync();
-            Check(ReadPixel(Image(view)!) == 42, "Cancelled render must preserve the image.");
-            Check(File.ReadAllBytes(PreviewPath(directory, b)).SequenceEqual(beforeCancel), "Cancelled render must preserve the PNG.");
-            Click(view, "RenderPreviewButton");
-            jobs[^1].Completion.SetException(new InvalidOperationException("test render failure"));
-            await DrainAsync();
-            Check(((TextBlock)view.FindName("StatusText")).Text.Contains("test render failure"), "Render error must be visible.");
-            Check(File.ReadAllBytes(PreviewPath(directory, b)).SequenceEqual(beforeCancel), "Failed render must preserve the PNG.");
-
-            File.WriteAllText(PreviewPath(directory, a), "invalid png");
-            int beforeSelection = jobs.Count;
-            Select(view, "A");
-            Check(Image(view) is null && jobs.Count == beforeSelection, "Corrupt PNG must not start a render.");
-            snapshot = null;
-            view.SaveName = "NoFrame"; Click(view, "SaveButton");
-            Check(saved.Any(state => state.Name == "NoFrame") && Image(view) is null,
-                "A missing frame must not prevent saving the state.");
-            Check(jobs.Count == beforeSelection, "Missing frame must not trigger rendering.");
-
-            var points = (CheckBox)view.FindName("PointsOfInterestCheckBox");
-            points.IsChecked = true;
-            Check(jobs.Count == beforeSelection, "Selecting a preset must not render.");
-            Check(((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Presets must support manual rendering.");
-            Click(view, "RenderPreviewButton"); jobs[^1].Completion.SetResult(Pixel(55)); await DrainAsync();
-            points.IsChecked = false; points.IsChecked = true;
-            Check(ReadPixel(Image(view)!) == 55 && jobs.Count == beforeSelection + 1, "Preset preview must be cached.");
-
-            var reopenedView = new SaveManagerControl();
-            var reopenedWindow = new Window { Content = reopenedView };
-            using (var reopened = new SaveManagerController<State>(reopenedWindow, reopenedView, configuration))
-            {
-                Select(reopenedView, "Snapshot");
-                Check(ReadPixel(Image(reopenedView)!) == 17, "Reopening must load the saved PNG.");
-            }
-            Click(view, "RenderPreviewButton");
-            PendingRender closing = jobs[^1];
-            controller.Dispose();
-            Check(closing.Token.IsCancellationRequested, "Closing must cancel the render.");
-            closing.Progress.Report(80); closing.Completion.SetResult(Pixel(88)); await DrainAsync();
-            Check(ReadPixel(Image(view)!) == 55, "Closed manager must ignore pending results.");
+            Check(((ListBox)damagedView.FindName("SavesList")).Items.Count == 4 &&
+                  ((TextBlock)damagedView.FindName("StatusText")).Text.Contains("damaged.json"),
+                "A damaged save file must be reported while the other saves stay listed.");
         }
-        finally
+
+        var points = (CheckBox)view.FindName("PointsOfInterestCheckBox");
+        points.IsChecked = true;
+        Check(jobs.Count == beforeSelection, "Selecting a preset must not render.");
+        Check(((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Presets must support manual rendering.");
+        Click(view, "RenderPreviewButton"); jobs[^1].Completion.SetResult(Pixel(55)); await DrainAsync();
+        points.IsChecked = false; points.IsChecked = true;
+        Check(ReadPixel(Image(view)!) == 55 && jobs.Count == beforeSelection + 1, "Preset preview must be cached.");
+        Check(File.Exists(store.GetPointOfInterestPreviewPath("Preset")), "Preset previews must live in the points-of-interest folder.");
+
+        var reopenedView = new SaveManagerControl();
+        var reopenedWindow = new Window { Content = reopenedView };
+        using (var reopened = new SaveManagerController<State>(reopenedWindow, reopenedView, configuration))
         {
-            // Only delete this run's generated fixtures, never the application's saves.
-            string fullPath = Path.GetFullPath(directory);
-            string expectedRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Saves", "SavePrevData")) + Path.DirectorySeparatorChar;
-            if (!fullPath.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase) || Path.GetFileName(fullPath) != id)
-                throw new InvalidOperationException("Unexpected verification directory.");
-            if (Directory.Exists(fullPath)) Directory.Delete(fullPath, true);
+            Select(reopenedView, "Snapshot");
+            Check(ReadPixel(Image(reopenedView)!) == 17, "Reopening must load the saved PNG.");
         }
+        Click(view, "RenderPreviewButton");
+        PendingRender closing = jobs[^1];
+        controller.Dispose();
+        Check(closing.Token.IsCancellationRequested, "Closing must cancel the render.");
+        closing.Progress.Report(80); closing.Completion.SetResult(Pixel(88)); await DrainAsync();
+        Check(ReadPixel(Image(view)!) == 55, "Closed manager must ignore pending results.");
     }
 
     private static async Task VerifyDeepZoomAsync()
@@ -3713,8 +3723,14 @@ internal static partial class Program
     {
         byte[] pixels = new byte[4]; bitmap.CopyPixels(pixels, 4, 0); return pixels[0];
     }
-    private static string PreviewPath(string directory, State state) =>
-        Path.Combine(directory, $"{state.Name}_{state.Timestamp:yyyyMMdd_HHmmss_fffffff}.png");
+    private static string SavePreviewPath(FractalSaveStore<State> store, string name) =>
+        Path.Combine(store.DirectoryPath, name + ".png");
+    private static BitmapSource LoadPng(string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        BitmapSource bitmap = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+        bitmap.Freeze(); return bitmap;
+    }
     // ---------------------------------------------------------------- extended-range zoom
     // The zoom factor, the frame grid and the Distance Estimation derivative moved from
     // double to FloatExp (double mantissa + 32-bit binary exponent), lifting the depth

@@ -41,6 +41,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 ├── Models/                        # модели UI, параметров, палитр и сохранений
 ├── Infrastructure/
 │   ├── ColorPicking/              # выбор цвета и экранная пипетка
+│   ├── Migrations/                # версии данных, миграции, перенос старой папки Saves
 │   └── Serialization/             # JSON-конвертеры
 │                                  # также хранилища, настройки, экспорт и сервисы
 ├── Theming/                       # темы, стили и их хранение
@@ -110,12 +111,12 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 | Окно и файлы | Назначение |
 |---|---|
-| `Views/AboutWindow.xaml` / `.xaml.cs` | Диалог «О программе»: название, версия и справочная информация. |
+| `Views/AboutWindow.xaml` / `.xaml.cs` | Диалог «О программе»: название, версия и справочная информация, путь к папке пользовательских данных и кнопка её открытия в проводнике. |
 | `Views/CrashDialogWindow.xaml` / `.xaml.cs` | Диалог восстановления после необработанного исключения: краткое описание, разворачиваемые подробности, копирование, открытие журнала и выбор «продолжить работу» / «закрыть приложение». Показывается из `Infrastructure/GlobalExceptionHandler.cs`; журнал пишет `Infrastructure/CrashLogger.cs`. |
 | `Views/ColorPickerWindow.xaml` / `.xaml.cs` | Полноразмерный общий диалог выбора цвета, построенный вокруг `Controls/ColorPickerPanel`. |
 | `Views/ImageExportManagerWindow.xaml` / `.xaml.cs` | Универсальный менеджер экспорта изображения: размеры, SSAA, формат/путь, прогресс, отмена и вызов переданного render callback. Конфигурация находится в `Infrastructure/ImageExportConfiguration.cs`. |
 | `Views/QuickSwitcherWindow.xaml` / `.xaml.cs` | Быстрый переключатель по каталогу фракталов (Ctrl+K из `MainWindow`): фильтрация по названию и категории, навигация стрелками, запуск по Enter. |
-| `Views/SaveManagerWindow.xaml` / `.xaml.cs` | Универсальная оболочка менеджера состояний: сохраняет текущий кадр полотна как PNG-превью, открывает, загружает и удаляет сохранения; пересчёт превью запускается только вручную с прогрессом и отменой. Использует `Controls/SaveManagerControl` и конфигурации из `Infrastructure/SaveManagerConfigurations.cs`. |
+| `Views/SaveManagerWindow.xaml` / `.xaml.cs` | Универсальная оболочка менеджера состояний: сохраняет текущий кадр полотна как PNG-превью, открывает, загружает и удаляет сохранения (по файлу на запись; удалённые и заменённые файлы и превью уходят в Корзину); пересчёт превью запускается только вручную с прогрессом и отменой. Использует `Controls/SaveManagerControl`, конфигурации из `Infrastructure/SaveManagerConfigurations.cs` и хранилище `Infrastructure/FractalSaveStore.cs`. |
 | `Views/ThemeColorPickerWindow.xaml` / `.xaml.cs` | Компактный выбор одного цвета специально для редактора темы. |
 | `Views/ThemeEditorWindow.xaml` / `.xaml.cs` | Создание, редактирование, импорт, выбор и сохранение тем оформления приложения. Основная логика тем находится в `Theming/`. |
 
@@ -130,6 +131,28 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `Controls/RenderProgressOverlay.cs` | Общий оверлей состояния и прогресса рендера. |
 
 При добавлении, удалении, переименовании или изменении назначения WPF-окна либо общего контрола обязательно обновляй этот каталог в том же изменении.
+
+## Пользовательские данные, сохранения и миграции
+
+Все данные пользователя лежат в `%LOCALAPPDATA%\Fractal Explorer Studio` (`Infrastructure/AppPaths.cs`), а не рядом с exe. Папку открывает кнопка в окне «О программе».
+
+```text
+Saves\<режим>\<имя>.json + <имя>.png   # по файлу на сохранение, превью рядом с ним
+PointsOfInterest\<режим>\<имя>.png     # превью встроенных точек интереса (кэш)
+Palettes\  Themes\  Settings\  Logs\   # палитры, темы, настройки, журнал ошибок
+Backups\                               # копии файлов, изменённых миграциями
+data-version.json                      # достигнутая версия каталога данных
+```
+
+Правила:
+
+- Путь к любому пользовательскому файлу — только через `AppPaths` (`GetSavesDirectory`, `GetPaletteFile`, `GetThemeFile`, `GetSettingsFile`, `EnsureDirectoryFor`). Не писать в `AppContext.BaseDirectory`.
+- Сохранения режима — наследник `FractalSaveStore<TState>` (`Infrastructure/FractalSaveStore.cs`, классы `*SaveStore.cs`). Категория — имя каталога в `Saves\`; переименовывать её можно только вместе с миграцией.
+- **Удаляемые и заменяемые сохранения и превью не стираются бесследно, а уходят в Корзину Windows** через `Infrastructure/RecycleBin.cs`: удаление записи, перезапись под тем же именем, пересчёт превью. `File.Delete` для них не использовать — только для собственных временных файлов.
+- Изменение формата отдельного сохранения (переименование или перенос свойства, смена единиц) — `SaveFormatUpgrade` в конец списка в `Infrastructure/Migrations/SaveFormat.cs`. Каждый файл несёт `SaveFormatVersion`; недостающие апгрейды применяются в памяти при чтении, на диск файл переписывается при следующем сохранении. Выпущенные апгрейды не править и не удалять — по ним читаются старые файлы, в том числе скопированные пользователем из резервных копий.
+- Изменение раскладки каталога данных, палитр или настроек — новый `IUserDataMigration` с версией на единицу больше последней в конец списка в `Infrastructure/Migrations/UserDataMigrator.cs`. Шаг должен быть повторяемым (может выполниться снова после сбоя); существующие файлы менять через `context.RewriteFile` или предварительный `context.BackUp`. Миграции выполняются в `App.xaml.cs` до загрузки тем и окон; сбой шага не блокирует запуск и повторяется при следующем старте.
+- Шаг 1 (`Migration001ImportLegacyExeFolder`) переносит папку `Saves` рядом с exe из версий до 2.0 включительно: списки `*_saves.json` раскладываются по файлам, превью из `SavePrevData` встают рядом, палитры, темы и настройки копируются. Старая папка только читается.
+- Проверки и инструменты не трогают настоящие данные: `AppPaths.OverrideDataRoot` перенаправляет каталог (Verification — в `bin/.../VerificationData`, ScreenshotGen — в `bin/.../ScreenshotData`), `RecycleBin.SendOverrideForTests` подменяет Корзину.
 
 ## Отдельный эксперимент perturbation theory
 
@@ -186,7 +209,7 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 ```
 
 Полный набор идёт больше десяти минут. Первым аргументом можно ограничить группу:
-`manager` — только менеджер сохранений, `deep` — глубокий зум, `extreme` — сверхглубокий зум
+`manager` — менеджер сохранений, хранилище по файлу на сохранение, Корзина и миграции данных, `deep` — глубокий зум, `extreme` — сверхглубокий зум
 Мандельброта и Феникса (`FloatExp`-зум до 1e1000) и поиск ядра по Ньютону, `phoenix` — только
 глубокий и сверхглубокий зум Феникса, `basins` — только бассейны Мюллера, Лагерра, секущих,
 рациональных отображений и циклов (несколько секунд):

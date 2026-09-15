@@ -8,7 +8,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class BuddhabrotPaletteManager
 {
-    private string FilePath => Path.Combine(AppPaths.SavesDirectory, "buddhabrot_palettes.json");
+    private string FilePath => AppPaths.GetPaletteFile("buddhabrot_palettes.json");
     public List<BuddhabrotColorPalette> Palettes { get; } = CreateBuiltIns();
     public BuddhabrotColorPalette ActivePalette { get; set; }
 
@@ -28,8 +28,7 @@ public sealed class BuddhabrotPaletteManager
 
     public void Save()
     {
-        AppPaths.EnsureSavesDirectory();
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(Palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
+        File.WriteAllText(AppPaths.EnsureDirectoryFor(FilePath), JsonSerializer.Serialize(Palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
     }
 
     public static Color Evaluate(BuddhabrotColorPalette palette, double normalized, int renderIterations)

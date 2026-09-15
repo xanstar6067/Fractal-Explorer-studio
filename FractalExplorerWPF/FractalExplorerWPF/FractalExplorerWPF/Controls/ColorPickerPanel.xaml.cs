@@ -296,7 +296,7 @@ public partial class ColorPickerPanel : UserControl
     {
         try
         {
-            string path = Path.Combine(AppPaths.SavesDirectory, "color_picker_custom_colors.json");
+            string path = AppPaths.GetSettingsFile("color_picker_custom_colors.json");
             if (!File.Exists(path)) return;
             List<string?>? values = JsonSerializer.Deserialize<List<string?>>(File.ReadAllText(path));
             if (values is null) return;
@@ -310,7 +310,7 @@ public partial class ColorPickerPanel : UserControl
     {
         try
         {
-            string path = Path.Combine(AppPaths.EnsureSavesDirectory(), "color_picker_custom_colors.json");
+            string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile("color_picker_custom_colors.json"));
             File.WriteAllText(path, JsonSerializer.Serialize(_customColors.Select(color => color is Color value ? ToHex(value) : null)));
         }
         catch { }

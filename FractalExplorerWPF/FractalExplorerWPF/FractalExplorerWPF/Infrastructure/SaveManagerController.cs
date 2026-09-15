@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -11,9 +10,8 @@ namespace FractalExplorerWPF.Infrastructure;
 public sealed class SaveManagerConfiguration<TState> where TState : class
 {
     public required string WindowTitle { get; init; }
-    public required string FractalIdentifier { get; init; }
-    public required Func<List<TState>> LoadStates { get; init; }
-    public required Action<IReadOnlyCollection<TState>> SaveStates { get; init; }
+    /// <summary>Хранилище режима: по файлу на сохранение, превью рядом, удаление — в Корзину.</summary>
+    public required FractalSaveStore<TState> Store { get; init; }
     public required Func<string, TState> CaptureState { get; init; }
     public required Func<int, int, BitmapSource?> CapturePreview { get; init; }
     public required Action<TState> LoadState { get; init; }
@@ -26,15 +24,20 @@ public sealed class SaveManagerConfiguration<TState> where TState : class
     public int PreviewHeight { get; init; } = 320;
 }
 
-public sealed record SaveManagerEntry<TState>(TState State, string DisplayName, bool IsPointOfInterest)
-    where TState : class;
+/// <param name="Slot">Файл сохранения; <c>null</c> — встроенная точка интереса.</param>
+/// <param name="PreviewPath">PNG-превью: рядом с файлом сохранения или в каталоге точек интереса.</param>
+public sealed record SaveManagerEntry<TState>(TState State, string DisplayName, SaveSlot<TState>? Slot, string PreviewPath)
+    where TState : class
+{
+    public bool IsPointOfInterest => Slot is null;
+}
 
 public sealed class SaveManagerController<TState> : IDisposable where TState : class
 {
     private readonly Window _window;
     private readonly SaveManagerControl _view;
     private readonly SaveManagerConfiguration<TState> _configuration;
-    private List<TState> _states = [];
+    private List<SaveSlot<TState>> _slots = [];
     private List<SaveManagerEntry<TState>> _entries = [];
     private CancellationTokenSource? _previewCts;
     private bool _isRendering;
@@ -62,34 +65,40 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
 
     private void RefreshStates(string? selectName = null)
     {
+        string? damagedWarning = null;
         try
         {
-            _states = _configuration.LoadStates()
-                .OrderByDescending(_configuration.GetTimestamp)
+            SaveLoadResult<TState> result = _configuration.Store.LoadSlots();
+            _slots = result.Slots
+                .OrderByDescending(slot => _configuration.GetTimestamp(slot.State))
                 .ToList();
+            if (result.DamagedFiles.Count > 0)
+            {
+                damagedWarning = $"Не удалось прочитать файлы сохранений ({result.DamagedFiles.Count}): " +
+                                 string.Join(", ", result.DamagedFiles.Take(3).Select(Path.GetFileName)) +
+                                 (result.DamagedFiles.Count > 3 ? ", …" : string.Empty);
+            }
             PopulateEntries(selectName);
         }
         catch (Exception ex)
         {
             MessageBox.Show(_window, ex.Message, "Ошибка загрузки сохранений", MessageBoxButton.OK, MessageBoxImage.Error);
-            _states = [];
+            _slots = [];
             PopulateEntries();
         }
+
+        if (damagedWarning is not null && !_view.IsPointsOfInterestMode) _view.SetStatus(damagedWarning);
     }
 
     private void PopulateEntries(string? selectName = null)
     {
-        bool pointsMode = _view.IsPointsOfInterestMode;
-        IEnumerable<TState> source = pointsMode
-            ? _configuration.PointsOfInterest.OrderBy(_configuration.GetName)
-            : _states;
-
-        _entries = source.Select(state => new SaveManagerEntry<TState>(
-            state,
-            pointsMode
-                ? _configuration.GetName(state)
-                : $"{_configuration.GetName(state)} ({_configuration.GetTimestamp(state):yyyy-MM-dd HH:mm:ss})",
-            pointsMode)).ToList();
+        _entries = _view.IsPointsOfInterestMode
+            ? _configuration.PointsOfInterest.OrderBy(_configuration.GetName).Select(state =>
+                new SaveManagerEntry<TState>(state, _configuration.GetName(state), null,
+                    _configuration.Store.GetPointOfInterestPreviewPath(_configuration.GetName(state)))).ToList()
+            : _slots.Select(slot => new SaveManagerEntry<TState>(slot.State,
+                $"{_configuration.GetName(slot.State)} ({_configuration.GetTimestamp(slot.State):yyyy-MM-dd HH:mm:ss})",
+                slot, slot.PreviewPath)).ToList();
 
         _view.SetItems(_entries);
         _view.SelectedItem = selectName is null
@@ -137,8 +146,8 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
             return;
         }
 
-        int existingIndex = _states.FindIndex(state =>
-            _configuration.GetName(state).Equals(name, StringComparison.OrdinalIgnoreCase));
+        int existingIndex = _slots.FindIndex(slot =>
+            _configuration.GetName(slot.State).Equals(name, StringComparison.OrdinalIgnoreCase));
         if (existingIndex >= 0 && MessageBox.Show(_window,
                 $"Сохранение с именем «{name}» уже существует. Перезаписать?", "Подтверждение",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
@@ -162,18 +171,11 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
                 captureError = ex.Message;
             }
 
-            TState? previous = existingIndex >= 0 ? _states[existingIndex] : null;
-            var updated = new List<TState>(_states);
-            if (existingIndex >= 0) updated[existingIndex] = state;
-            else updated.Add(state);
-            _configuration.SaveStates(updated);
-            _states = updated;
-            var savedEntry = new SaveManagerEntry<TState>(state, name, false);
-            bool previewSaved = snapshot is not null && SaveCachedPreview(savedEntry, snapshot);
-            if (previous is not null && GetPreviewPath(new(previous, name, false)) != GetPreviewPath(savedEntry))
-                DeleteCachedPreview(new(previous, name, false));
-            // A failed capture must not leave an unrelated image when overwriting the same key.
-            if (!previewSaved) DeleteCachedPreview(savedEntry);
+            // При перезаписи прежние JSON и превью уходят в Корзину внутри Save.
+            SaveSlot<TState> slot = _configuration.Store.Save(state, existingIndex >= 0 ? _slots[existingIndex] : null);
+            bool previewSaved = snapshot is not null && SaveCachedPreview(slot.PreviewPath, snapshot);
+            // Без свежего кадра под тем же именем не должна остаться чужая картинка.
+            if (!previewSaved) RecycleBin.TrySend(slot.PreviewPath);
             RefreshStates(name);
             if (snapshot is not null) _view.SetPreview(snapshot);
             _view.SetStatus(previewSaved ? "Сохранено с текущим кадром."
@@ -189,10 +191,10 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
 
     private void View_OnDeleteRequested(object? sender, EventArgs e)
     {
-        if (SelectedEntry is not { IsPointOfInterest: false } entry) return;
+        if (SelectedEntry is not { Slot: { } slot } entry) return;
         string name = _configuration.GetName(entry.State);
-        if (MessageBox.Show(_window, $"Вы уверены, что хотите удалить сохранение «{name}»?", "Подтверждение",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        if (MessageBox.Show(_window, $"Удалить сохранение «{name}»?\n\nФайл сохранения и его превью будут перемещены в Корзину.",
+                "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
             return;
         }
@@ -201,11 +203,9 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         {
             CancelPreview();
             UpdateButtonStates();
-            var updated = _states.Where(state => !ReferenceEquals(state, entry.State)).ToList();
-            _configuration.SaveStates(updated);
-            _states = updated;
-            DeleteCachedPreview(entry);
+            _configuration.Store.Delete(slot);
             RefreshStates();
+            _view.SetStatus($"Сохранение «{name}» перемещено в Корзину.");
         }
         catch (Exception ex)
         {
@@ -282,7 +282,7 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
 
             if (!preview.IsFrozen && preview.CanFreeze) preview.Freeze();
             _view.SetPreview(preview);
-            bool cacheSaved = SaveCachedPreview(entry, preview);
+            bool cacheSaved = SaveCachedPreview(entry.PreviewPath, preview);
             _view.SetStatus(cacheSaved
                 ? $"Превью обновлено за {stopwatch.Elapsed.TotalSeconds:F1} сек."
                 : "Превью показано, но PNG записать не удалось.");
@@ -340,20 +340,10 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         _view.SetBusy(false);
     }
 
-    private string GetPreviewPath(SaveManagerEntry<TState> entry)
-    {
-        TState state = entry.State;
-        string directory = Path.Combine(AppPaths.SavesDirectory, "SavePrevData", MakeSafeFileName(_configuration.FractalIdentifier));
-        if (entry.IsPointOfInterest) directory = Path.Combine(directory, "PointsOfInterest");
-        string name = MakeSafeFileName(_configuration.GetName(state));
-        string timestamp = _configuration.GetTimestamp(state).ToString("yyyyMMdd_HHmmss_fffffff", CultureInfo.InvariantCulture);
-        return Path.Combine(directory, $"{name}_{timestamp}.png");
-    }
-
-    private bool TryLoadCachedPreview(SaveManagerEntry<TState> entry, out BitmapSource? preview)
+    private static bool TryLoadCachedPreview(SaveManagerEntry<TState> entry, out BitmapSource? preview)
     {
         preview = null;
-        string path = GetPreviewPath(entry);
+        string path = entry.PreviewPath;
         if (!File.Exists(path)) return false;
 
         try
@@ -374,22 +364,22 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         }
     }
 
-    private bool SaveCachedPreview(SaveManagerEntry<TState> entry, BitmapSource preview)
+    /// <summary>Записывает PNG; прежнее превью по этому пути уходит в Корзину, а не стирается.</summary>
+    private static bool SaveCachedPreview(string path, BitmapSource preview)
     {
-        string path = GetPreviewPath(entry);
         string? directory = Path.GetDirectoryName(path);
         if (directory is null) return false;
 
         try
         {
             Directory.CreateDirectory(directory);
-            string temporaryPath = path + $".tmp_{Guid.NewGuid():N}";
+            string temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
             try
             {
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(preview));
                 using (FileStream stream = File.Create(temporaryPath)) encoder.Save(stream);
-                File.Move(temporaryPath, path, true);
+                RecycleBin.ReplaceWith(temporaryPath, path);
             }
             finally
             {
@@ -401,27 +391,6 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         {
             return false;
         }
-    }
-
-    private void DeleteCachedPreview(SaveManagerEntry<TState> entry)
-    {
-        try
-        {
-            string path = GetPreviewPath(entry);
-            if (File.Exists(path)) File.Delete(path);
-        }
-        catch (Exception)
-        {
-            // Ошибка очистки превью не должна мешать сохранению или удалению состояния.
-        }
-    }
-
-    private static string MakeSafeFileName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "Save";
-        char[] invalid = Path.GetInvalidFileNameChars();
-        string safe = new(value.Select(character => invalid.Contains(character) ? '_' : character).ToArray());
-        return string.IsNullOrWhiteSpace(safe) ? "Save" : safe.Trim();
     }
 
     public void Dispose()

@@ -10,7 +10,7 @@ public static class RenderPatternPreferenceStore
     {
         try
         {
-            string path = Path.Combine(AppPaths.SavesDirectory, FileName);
+            string path = AppPaths.GetSettingsFile(FileName);
             return File.Exists(path) && int.TryParse(File.ReadAllText(path), out int value)
                 ? Math.Clamp(value, 0, 7)
                 : 0;
@@ -22,7 +22,7 @@ public static class RenderPatternPreferenceStore
     {
         try
         {
-            string path = Path.Combine(AppPaths.EnsureSavesDirectory(), FileName);
+            string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile(FileName));
             File.WriteAllText(path, Math.Clamp(selectedIndex, 0, 7).ToString());
         }
         catch

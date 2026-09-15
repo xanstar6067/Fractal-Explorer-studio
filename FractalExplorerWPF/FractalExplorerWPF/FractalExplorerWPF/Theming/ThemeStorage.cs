@@ -6,8 +6,8 @@ namespace FractalExplorerWPF.Theming;
 
 internal static class ThemeStorage
 {
-    private static string ThemesPath => Path.Combine(AppPaths.EnsureSavesDirectory(), "themes.json");
-    private static string PreferencesPath => Path.Combine(AppPaths.EnsureSavesDirectory(), "theme-preferences.json");
+    private static string ThemesPath => AppPaths.EnsureDirectoryFor(AppPaths.GetThemeFile("themes.json"));
+    private static string PreferencesPath => AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile("theme-preferences.json"));
 
     public static IReadOnlyList<ThemeDefinition> LoadCustomThemes()
     {
