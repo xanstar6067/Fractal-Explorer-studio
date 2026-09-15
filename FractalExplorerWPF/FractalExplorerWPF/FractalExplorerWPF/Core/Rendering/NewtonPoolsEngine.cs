@@ -317,11 +317,12 @@ public sealed class NewtonPoolsEngine
     private int IterateNormal(ref Complex z, Complex lambda)
     {
         int iteration = 0;
+        double toleranceSquared = RootTolerance * RootTolerance;
         while (iteration < MaxIterations)
         {
             Complex f = _compiledFormula!.Evaluate(z);
             if (!IsFinite(f) || f == Complex.Zero) break;
-            if ((f.Magnitude <= RootTolerance || (iteration & 7) == 7) && IsNearKnownRoot(z)) break;
+            if ((MagnitudeSquared(f) <= toleranceSquared || (iteration & 7) == 7) && IsNearKnownRoot(z)) break;
 
             Complex step = IterationMethod switch
             {
@@ -365,7 +366,7 @@ public sealed class NewtonPoolsEngine
                 return CreateOrbitResult(NewtonOrbitOutcome.NonFinite, iteration, z, f);
 
             int rootIndex = FindKnownRootIndex(z);
-            if (f == Complex.Zero || f.Magnitude <= RootTolerance || rootIndex >= 0)
+            if (f == Complex.Zero || MagnitudeSquared(f) <= RootTolerance * RootTolerance || rootIndex >= 0)
                 return CreateOrbitResult(NewtonOrbitOutcome.ConvergedToRoot, iteration, z, f, rootIndex);
 
             int cyclePeriod = DetectCycle(history, historyCount, historyNext);
@@ -388,7 +389,7 @@ public sealed class NewtonPoolsEngine
         Complex finalValue = _compiledFormula.Evaluate(z);
         if (!IsFinite(finalValue)) return CreateOrbitResult(NewtonOrbitOutcome.NonFinite, MaxIterations, z, finalValue);
         int finalRootIndex = FindKnownRootIndex(z);
-        if (finalValue == Complex.Zero || finalValue.Magnitude <= RootTolerance || finalRootIndex >= 0)
+        if (finalValue == Complex.Zero || MagnitudeSquared(finalValue) <= RootTolerance * RootTolerance || finalRootIndex >= 0)
             return CreateOrbitResult(NewtonOrbitOutcome.ConvergedToRoot, MaxIterations, z, finalValue, finalRootIndex);
         int finalCyclePeriod = DetectCycle(history, historyCount, historyNext);
         return finalCyclePeriod is >= 2 and <= 8
@@ -474,15 +475,15 @@ public sealed class NewtonPoolsEngine
     private int FindKnownRootIndex(Complex z)
     {
         int nearest = -1;
-        double nearestDistance = double.MaxValue;
+        double nearestDistanceSquared = double.MaxValue;
         for (int index = 0; index < Roots.Count; index++)
         {
-            double distance = (z - Roots[index]).Magnitude;
-            if (distance >= nearestDistance) continue;
+            double distanceSquared = MagnitudeSquared(z - Roots[index]);
+            if (distanceSquared >= nearestDistanceSquared) continue;
             nearest = index;
-            nearestDistance = distance;
+            nearestDistanceSquared = distanceSquared;
         }
-        return nearestDistance <= RootTolerance ? nearest : -1;
+        return nearestDistanceSquared <= RootTolerance * RootTolerance ? nearest : -1;
     }
 
     private static void AddHistory(Span<Complex> history, ref int count, ref int next, Complex value)
@@ -499,10 +500,17 @@ public sealed class NewtonPoolsEngine
         return history[index];
     }
 
-    private static bool AreClose(Complex left, Complex right, double tolerance) =>
-        (left - right).Magnitude <= tolerance * Math.Max(1, Math.Max(left.Magnitude, right.Magnitude));
+    private static bool AreClose(Complex left, Complex right, double tolerance)
+    {
+        double maxMagnitudeSquared = Math.Max(MagnitudeSquared(left), MagnitudeSquared(right));
+        double scale = maxMagnitudeSquared > 1 ? Math.Sqrt(maxMagnitudeSquared) : 1;
+        double threshold = tolerance * scale;
+        return MagnitudeSquared(left - right) <= threshold * threshold;
+    }
 
-    private static bool IsEffectivelyZero(Complex value) => value.Magnitude <= DerivativeZeroTolerance;
+    private static bool IsEffectivelyZero(Complex value) => MagnitudeSquared(value) <= DerivativeZeroTolerance * DerivativeZeroTolerance;
+
+    private static double MagnitudeSquared(Complex value) => value.Real * value.Real + value.Imaginary * value.Imaginary;
 
     private static bool IsEscaped(Complex value) =>
         Math.Abs(value.Real) > DiagnosticEscapeRadius || Math.Abs(value.Imaginary) > DiagnosticEscapeRadius;
@@ -615,8 +623,9 @@ public sealed class NewtonPoolsEngine
 
     private bool IsNearKnownRoot(Complex z)
     {
+        double toleranceSquared = RootTolerance * RootTolerance;
         foreach (Complex root in Roots)
-            if ((z - root).Magnitude <= RootTolerance) return true;
+            if (MagnitudeSquared(z - root) <= toleranceSquared) return true;
         return false;
     }
 
@@ -624,15 +633,15 @@ public sealed class NewtonPoolsEngine
     {
         if (RootColors.Length == 0 || Roots.Count == 0) return BackgroundColor;
         int rootIndex = -1;
-        double distance = double.MaxValue;
+        double distanceSquared = double.MaxValue;
         for (int index = 0; index < Roots.Count; index++)
         {
-            double candidate = (z - Roots[index]).Magnitude;
-            if (candidate >= distance) continue;
-            distance = candidate;
+            double candidate = MagnitudeSquared(z - Roots[index]);
+            if (candidate >= distanceSquared) continue;
+            distanceSquared = candidate;
             rootIndex = index;
         }
-        if (rootIndex < 0 || distance > RootTolerance) return BackgroundColor;
+        if (rootIndex < 0 || distanceSquared > RootTolerance * RootTolerance) return BackgroundColor;
 
         Color baseColor = RootColors[rootIndex % RootColors.Length];
         if (!UseGradient) return baseColor;
