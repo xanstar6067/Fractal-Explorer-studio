@@ -31,7 +31,7 @@
                     BorderBrush="{DynamicResource Theme.BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
-                <Image Margin="8" Source="../Assets/Icons/FractalExplorer.ico"/>
+                <Image x:Name="LogoImage" Margin="8"/>
             </Border>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
