@@ -300,6 +300,11 @@ public static class SaveManagerConfigurations
                 $"Трение: {state.Physics.Damping:G4} · Высота: {state.Physics.Height:G4} · Шаг: {state.Physics.TimeStep:G4}\n" +
                 $"Время: {state.Physics.MaxTime:G4} · Лимит шагов: {state.MaxIterations} · Скорость: {FormatComplex(state.Physics.InitialVelocity)}\n" +
                 $"Захват: {(state.Physics.CaptureMode == PhysicalCaptureMode.Absorb ? "поглощение" : "после успокоения")} · Раскраска: {state.ColoringMode}";
+        if (BasinExplorerCatalog.UsesPlanar(state.Kind))
+            return $"{Prefix(state.Timestamp)} · Масштаб: {state.Zoom:G6} · Аттракторов: {state.PlanarAttractors.Count}\n" +
+                (state.Kind == BasinExplorerKind.GradientDescent ? $"V = {state.Planar.Potential}\n{state.Planar.Optimizer} · α = {state.Planar.LearningRate:G5}" :
+                 state.Kind == BasinExplorerKind.ComplexGradientFlow ? $"V = ½|{state.Formula}|²" : $"x′ = {state.Planar.FieldX}\ny′ = {state.Planar.FieldY}") +
+                $"\nЛимит шагов: {state.MaxIterations} · Допуск: {state.Planar.ConvergenceTolerance:G4} · Раскраска: {state.ColoringMode}";
         if (state.Kind == BasinExplorerKind.ComplexLogistic)
             return $"{Prefix(state.Timestamp)} · z → λz(1−z) · Масштаб: {state.Zoom:G6}\n" +
                 (state.LogisticPlane == LogisticPlaneMode.Parameter ? $"Плоскость λ · z₀ = {FormatComplex(state.LogisticSeed)}" : $"Плоскость z₀ · λ = {FormatComplex(state.ParameterC)}") +

@@ -35,6 +35,7 @@ public partial class BasinExplorerWindow
 
     private void UpdateExtendedLayout()
     {
+        if (UsesPlanar) { UpdatePlanarLayout(); return; }
         bool logistic = Kind == BasinExplorerKind.ComplexLogistic;
         if (!logistic && !UsesPhysics) return;
         FormulaPanel.Visibility = Visibility.Collapsed;

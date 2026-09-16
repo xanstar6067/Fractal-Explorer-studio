@@ -246,7 +246,7 @@ internal static partial class Program
             }
             finally { window.Close(); }
         }
-        Console.WriteLine("[diag] All eight basin windows: grayscale defaults, fixed marker selector, complete overlay hiding and saved overrides OK");
+        Console.WriteLine("[diag] All eleven basin windows: grayscale defaults, fixed marker selector, complete overlay hiding and saved overrides OK");
     }
 
     private static void WriteNewBasinPreviews(string directory, bool physicalOnly = false)

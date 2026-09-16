@@ -103,6 +103,7 @@ public partial class BasinExplorerWindow : Window
 
         ConfigureKindLayout();
         ConfigureExtendedOptions();
+        ConfigurePlanarOptions();
         _presets = BasinExplorerCatalog.GetPresets(kind);
         PresetBox.ItemsSource = _presets.Select(preset => preset.SaveName).ToArray();
         PresetBox.SelectedIndex = 0;
@@ -120,6 +121,7 @@ public partial class BasinExplorerWindow : Window
 
     private bool UsesRoots => _definition.UsesRoots;
     private bool UsesPhysics => BasinExplorerCatalog.UsesPhysics(Kind);
+    private bool UsesPlanar => BasinExplorerCatalog.UsesPlanar(Kind);
     private bool IsLogisticParameter => Kind == BasinExplorerKind.ComplexLogistic && LogisticPlaneBox.SelectedIndex == 1;
 
     #region Save manager and export API
@@ -147,6 +149,13 @@ public partial class BasinExplorerWindow : Window
         };
 
         CaptureExtendedSettings(state);
+        if (UsesPlanar)
+        {
+            state.Planar = _engine.PlanarSettings;
+            state.PlanarAttractors = _engine.PlanarAttractors.Select(a => a.Clone()).ToList();
+            state.UseSavedPlanarAttractors = true;
+            return state;
+        }
         if (UsesPhysics) return state;
         if (UsesRoots)
         {
@@ -240,7 +249,7 @@ public partial class BasinExplorerWindow : Window
     /// Движок кадра по снятому состоянию. Корни и аттракторы берутся из состояния, поэтому поиск
     /// повторяется только для готовых примеров, у которых их ещё нет.
     /// </summary>
-    internal static BasinExplorerEngine CreateEngine(BasinExplorerState state)
+    internal static BasinExplorerEngine CreateEngine(BasinExplorerState state, CancellationToken token = default)
     {
         var engine = new BasinExplorerEngine(state.Kind)
         {
@@ -279,6 +288,12 @@ public partial class BasinExplorerWindow : Window
 
         engine.LogisticPlane = state.LogisticPlane;
         engine.LogisticSeed = state.LogisticSeed;
+        if (engine.IsPlanar)
+        {
+            engine.ConfigurePlanar(state.Planar, state.Formula, state.UseSavedPlanarAttractors ? state.PlanarAttractors : null, token);
+            engine.TargetColors = NewtonPaletteManager.AdjustColors(state.Palette, engine.TargetCount).ToArray();
+            return engine;
+        }
         if (engine.IsPhysical)
         {
             engine.ConfigurePhysics(state.Physics);
@@ -315,6 +330,9 @@ public partial class BasinExplorerWindow : Window
 
     private static string KindDescription(BasinExplorerKind kind) => kind switch
     {
+        BasinExplorerKind.GradientDescent => "Цвет — минимум V(x,y), к которому приходит алгоритм. Сравните GD, momentum, Nesterov и Adam при разных шагах.",
+        BasinExplorerKind.ComplexGradientFlow => "Непрерывный спуск по V = ½|f(z)|²: z′ = −f(z)·conj(f′(z)). Цвет — конечный корень; яркость — время.",
+        BasinExplorerKind.PolynomialVectorField => "Система x′ = f(x,y), y′ = g(x,y). Цвет — устойчивая точка или предельный цикл; яркость — время приближения.",
         BasinExplorerKind.ComplexLogistic => "zₙ₊₁ = λ·zₙ·(1−zₙ). Бассейны при фиксированном λ и карта притягивающих периодов на плоскости параметра.",
         BasinExplorerKind.MagneticPendulum => "Упрощённый маятник над магнитами: притяжение центров, возвращающая сила подвеса и трение. Цвет показывает, у какого магнита он успокоится.",
         BasinExplorerKind.GravityCenters => "Частица в поле неподвижных центров с настраиваемой массой, трением, начальной скоростью и радиусом захвата.",
@@ -393,6 +411,7 @@ public partial class BasinExplorerWindow : Window
         try
         {
             PopulateExtendedSettings(state);
+            PopulatePlanarSettings(state.Planar);
             FormulaBox.Text = state.Formula;
             NumeratorBox.Text = state.Numerator;
             DenominatorBox.Text = state.Denominator;
@@ -454,7 +473,8 @@ public partial class BasinExplorerWindow : Window
             ? state.Roots
             : null;
         IReadOnlyList<BasinAttractor>? savedAttractors = !UsesRoots && state.UseSavedAttractors ? state.Attractors : null;
-        ApplyFormula(showMessage, savedRoots, savedAttractors);
+        if (UsesPlanar) ApplyPlanar(showMessage, true, state.UseSavedPlanarAttractors ? state.PlanarAttractors : null);
+        else ApplyFormula(showMessage, savedRoots, savedAttractors);
     }
 
     private void UpdateMethodControls()
@@ -555,6 +575,7 @@ public partial class BasinExplorerWindow : Window
     private bool ApplyFormula(bool showMessage, IReadOnlyList<Complex>? suppliedRoots = null,
         IReadOnlyList<BasinAttractor>? suppliedAttractors = null, bool scheduleRender = true)
     {
+        if (UsesPlanar) return ApplyPlanar(showMessage, scheduleRender);
         if (UsesPhysics) return ApplyPhysics(showMessage, scheduleRender);
         _formulaDirty = false;
         Complex parameterC = Complex.Zero;
@@ -943,7 +964,14 @@ public partial class BasinExplorerWindow : Window
         }
 
         NewtonPaletteWindow dialog;
-        if (UsesPhysics || IsLogisticParameter)
+        if (UsesPlanar)
+        {
+            dialog = new NewtonPaletteWindow(_paletteManager,
+                _engine.PlanarAttractors.Select(a => a.Points[0]).ToArray(),
+                _engine.PlanarAttractors.Select((a, i) => a.Describe(i)).ToArray(),
+                "Цвет фона — уход, лимит и нераспознанные траектории.", showGradientOption: false);
+        }
+        else if (UsesPhysics || IsLogisticParameter)
         {
             int count = UsesPhysics ? _forceCenters.Count : ReadIntLenient(MaxPeriodBox, 16, 1, 64);
             dialog = new NewtonPaletteWindow(_paletteManager,
@@ -1046,6 +1074,7 @@ public partial class BasinExplorerWindow : Window
             DpiScale dpi = surface.Dpi;
             int factor = SelectedPreviewSsaaFactor;
             int divisor = UsesPhysics && PhysicsResolutionBox.SelectedItem is ComboBoxItem { Tag: string resolution } ? int.Parse(resolution) : 1;
+            if (UsesPlanar && PlanarResolutionBox.SelectedItem is ComboBoxItem { Tag: string planarResolution }) divisor = int.Parse(planarResolution);
             int renderWidth = Math.Max(1, checked(surface.PixelWidth * factor) / divisor);
             int renderHeight = Math.Max(1, checked(surface.PixelHeight * factor) / divisor);
             TileSchedulingStrategy strategy = RenderPatternSettings.SelectedPattern;
@@ -1078,7 +1107,7 @@ public partial class BasinExplorerWindow : Window
             UpdatePreviewTransform();
             RenderOverlay.EndSession();
             _activeSession = null;
-            string targets = UsesPhysics ? $"Центров: {engine.TargetCount}" : IsLogisticParameter ? $"Периоды 1…{engine.MaxPeriod}" : UsesRoots ? $"Корней: {engine.Roots.Count}" : $"Аттракторов: {engine.Attractors.Count}";
+            string targets = UsesPlanar ? $"Аттракторов: {engine.TargetCount}" : UsesPhysics ? $"Центров: {engine.TargetCount}" : IsLogisticParameter ? $"Периоды 1…{engine.MaxPeriod}" : UsesRoots ? $"Корней: {engine.Roots.Count}" : $"Аттракторов: {engine.Attractors.Count}";
             StatusText.Text = $"Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. {targets}. " +
                               $"Зум {state.Zoom.ToString("G6", CultureInfo.InvariantCulture)}. Стратегия: {strategy}";
         }
@@ -1179,7 +1208,7 @@ public partial class BasinExplorerWindow : Window
         int renderHeight = checked(height * factor);
         int stride = checked(renderWidth * 4);
         byte[] buffer = new byte[checked(stride * renderHeight)];
-        BasinExplorerEngine engine = await Task.Run(() => CreateEngine(state), token);
+        BasinExplorerEngine engine = await Task.Run(() => CreateEngine(state, token), token);
         int threads = GetThreadCount();
         await Task.Run(() => engine.RenderToBuffer(buffer, renderWidth, renderHeight, stride, threads, token,
             value => progress?.Report(factor == 1 ? value : value * 90 / 100)), token);
@@ -1317,7 +1346,7 @@ public partial class BasinExplorerWindow : Window
         }
 
         BasinOrbitResult result = engine.AnalyzePoint(planeX, planeY);
-        _orbitTrace = engine.TraceOrbit(planeX, planeY, UsesPhysics ? 512 : 160);
+        _orbitTrace = engine.TraceOrbit(planeX, planeY, UsesPhysics || UsesPlanar ? 512 : 160);
         UpdateOverlay();
         StatusText.Text = DescribeOrbit(engine, result, planeX, planeY) +
             (SelectedMarkerMode == BasinMarkerMode.Hidden
@@ -1344,6 +1373,7 @@ public partial class BasinExplorerWindow : Window
 
     private string DescribeOrbit(BasinExplorerEngine engine, BasinOrbitResult result, double planeX, double planeY)
     {
+        if (UsesPlanar) return DescribePlanarOrbit(engine, result, planeX, planeY);
         if (UsesPhysics) return $"Точка ({planeX:G5}; {planeY:G5}): " +
             (result.TargetIndex >= 0 ? $"центр {result.TargetIndex + 1}" : result.Outcome == BasinOrbitOutcome.Escaped ? "уход" : "не захвачена") +
             $", время {result.SmoothIterations:G5}, шагов {result.Iterations}.";
@@ -1457,7 +1487,8 @@ public partial class BasinExplorerWindow : Window
         bool labels = mode is BasinMarkerMode.MarkersWithLabels or BasinMarkerMode.MarkersWithCriticalPoints;
         if (mode != BasinMarkerMode.Hidden && ViewIsComplexPlane)
         {
-            if (UsesPhysics) DrawForceCenters(labels);
+            if (UsesPlanar) DrawPlanarMarkers(labels);
+            else if (UsesPhysics) DrawForceCenters(labels);
             else if (UsesRoots) DrawRootMarkers(labels);
             else DrawAttractorMarkers(labels, mode == BasinMarkerMode.MarkersWithCriticalPoints);
         }

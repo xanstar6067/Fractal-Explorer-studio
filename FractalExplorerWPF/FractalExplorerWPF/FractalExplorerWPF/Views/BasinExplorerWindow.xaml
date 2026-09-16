@@ -166,6 +166,96 @@
                         <TextBlock Style="{StaticResource HintTextStyle}" Text="Экспорт всегда использует заданный размер. Шкала яркости и тепловая карта измеряют время в условных единицах."/>
                     </StackPanel>
 
+                    <StackPanel x:Name="PlanarPanel" Visibility="Collapsed">
+                        <StackPanel x:Name="PotentialPanel">
+                            <TextBlock Text="Потенциал V(x, y)"/>
+                            <TextBox x:Name="PotentialBox" Height="65" TextWrapping="Wrap" VerticalContentAlignment="Top"
+                                     ToolTip="x, y, pi, e; +, −, *, /, ^; sin, cos, exp, log, sqrt и другие вещественные функции. Умножение: x*(y+1)."/>
+                            <TextBlock Text="Алгоритм оптимизации"/>
+                            <ComboBox x:Name="OptimizerBox" SelectedIndex="0" SelectionChanged="PlanarParameter_OnChanged">
+                                <ComboBoxItem Content="Градиентный спуск (GD)"/>
+                                <ComboBoxItem Content="Momentum"/>
+                                <ComboBoxItem Content="Nesterov"/>
+                                <ComboBoxItem Content="Adam"/>
+                            </ComboBox>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Шаг α"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="LearningRateBox" Text="0.01" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                            <StackPanel x:Name="MomentumPanel">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Momentum / β₁"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="OptimizerMomentumBox" Text="0.9" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                            </StackPanel>
+                            <StackPanel x:Name="AdamPanel">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="β₂"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="AdamBeta2Box" Text="0.999" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="ε Adam"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="AdamEpsilonBox" Text="1e-8" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource HintTextStyle}" Text="Память каждого старта равна нулю. Шаг постоянный: слишком большой α может вызвать колебания или расходимость. Минимумы ищутся независимо от выбранного алгоритма."/>
+                        </StackPanel>
+                        <StackPanel x:Name="VectorFieldPanel">
+                            <TextBlock Text="dx/dt = f(x, y)"/>
+                            <TextBox x:Name="FieldXBox" Height="55" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
+                            <TextBlock Text="dy/dt = g(x, y)"/>
+                            <TextBox x:Name="FieldYBox" Height="55" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
+                            <TextBlock Style="{StaticResource HintTextStyle}" Text="Полиномы от x и y степени до 32. Умножение пишите явно. Равновесия и предельные циклы проверяются на устойчивость; центры и седла не раскрашиваются."/>
+                        </StackPanel>
+                        <StackPanel x:Name="FlowIntegrationPanel">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. шаг времени"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="FlowTimeStepBox" Text="0.1" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. время"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="FlowMaxTimeBox" Text="80" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Точность RK 5(4)"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="FlowAccuracyBox" Text="1e-7" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск сходимости"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarToleranceBox" Text="1e-5" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус поиска"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarSearchRadiusBox" Text="5" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус ухода"/>
+                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarEscapeRadiusBox" Text="100" TextChanged="PlanarParameter_OnChanged"/>
+                        </Grid>
+                        <TextBlock Style="{StaticResource HintTextStyle}" Text="Поиск по конечной сетке затравок не гарантирует все аттракторы. После изменения формул нажмите «Применить». Фон означает уход, лимит или нераспознанную траекторию."/>
+                        <TextBlock x:Name="PlanarTargetCountText" Margin="0,6"/>
+                        <ListBox x:Name="PlanarTargetsBox" MaxHeight="150" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                        <TextBlock Text="Разрешение предпросмотра"/>
+                        <ComboBox x:Name="PlanarResolutionBox" SelectedIndex="0" SelectionChanged="Parameter_OnChanged">
+                            <ComboBoxItem Content="Быстро · ⅓ размера" Tag="3"/>
+                            <ComboBoxItem Content="Средне · ½ размера" Tag="2"/>
+                            <ComboBoxItem Content="Полное" Tag="1"/>
+                        </ComboBox>
+                        <TextBlock Style="{StaticResource HintTextStyle}" Text="Экспорт — полного заданного размера. Правый щелчок: результат и траектория; включите её отображение вверху панели."/>
+                    </StackPanel>
+
+
                     <StackPanel x:Name="FormulaPanel">
                         <TextBlock x:Name="FormulaLabel" Text="Функция f(z)"/>
                         <TextBox x:Name="FormulaBox" Height="56" AcceptsReturn="False" TextWrapping="Wrap"

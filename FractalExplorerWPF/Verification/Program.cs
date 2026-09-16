@@ -25,7 +25,8 @@ internal static partial class Program
     //   extreme  — только сверхглубокий зум (FloatExp-зум, 1e1000) и поиск ядра по Ньютону;
     //   phoenix  — только глубокий и сверхглубокий зум Феникса;
     //   newton   — только глубокий и сверхглубокий зум бассейнов Ньютона;
-    //   basins   — только бассейны Мюллера, Лагерра, секущих, рациональных отображений и циклов.
+    //   basins   — все 11 режимов BasinExplorerWindow;
+    //   planar   — градиентный спуск, комплексный поток и полиномиальные векторные поля.
     [STAThread]
     private static int Main(string[] args)
     {
@@ -49,10 +50,12 @@ internal static partial class Program
                 if (group is "phoenix") await VerifyPhoenixDeepZoomAsync();
                 if (group is "newton") await VerifyNewtonDeepZoomAsync();
                 if (group is "all" or "basins") VerifyBasinExplorers();
+                if (group == "planar") VerifyPlanarBasins();
+                if (group is "basins" or "planar" && args.Length == 3 && args[1] == "--planar-previews") WritePlanarBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--physical-previews") WriteNewBasinPreviews(args[2], physicalOnly: true);
-                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins"))
-                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins.");
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar"))
+                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar.");
                 Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)

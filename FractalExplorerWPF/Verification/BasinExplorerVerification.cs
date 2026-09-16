@@ -15,10 +15,11 @@ internal static partial class Program
         VerifyBasinAttractors();
         VerifyLogisticBasins();
         VerifyPhysicalBasins();
+        VerifyPlanarBasins();
         VerifyBasinRendering();
         VerifyNewBasinWindows();
         VerifyBasinAppearance();
-        Console.WriteLine("[diag] Basin explorers: methods, cycles, logistic planes, physics, windows, tiles, presets and saves OK");
+        Console.WriteLine("[diag] Basin explorers: methods, cycles, logistic planes, physics, optimization, continuous flows, windows, tiles, presets and saves OK");
     }
 
     private static BasinExplorerEngine RootEngine(BasinExplorerKind kind, string formula, Action<BasinExplorerEngine>? configure = null)
@@ -202,6 +203,8 @@ internal static partial class Program
             state.Roots = [.. reference.Roots];
             state.Attractors = reference.Attractors.Where(attractor => !attractor.IsInfinity).Select(attractor => attractor.Clone()).ToList();
             state.UseSavedAttractors = !BasinExplorerCatalog.UsesRoots(kind);
+            state.PlanarAttractors = reference.PlanarAttractors.Select(a => a.Clone()).ToList();
+            state.UseSavedPlanarAttractors = BasinExplorerCatalog.UsesPlanar(kind);
             string json = JsonSerializer.Serialize(state, JsonOptionsFactory.Create());
             BasinExplorerState restored = JsonSerializer.Deserialize<BasinExplorerState>(json, JsonOptionsFactory.Create())!;
             Check(JsonSerializer.Serialize(restored, JsonOptionsFactory.Create()) == json, $"{kind}: state JSON must round-trip.");

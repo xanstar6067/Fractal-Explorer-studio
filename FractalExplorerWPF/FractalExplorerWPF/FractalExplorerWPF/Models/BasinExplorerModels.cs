@@ -15,7 +15,10 @@ public enum BasinExplorerKind
     PeriodicCycles,
     ComplexLogistic,
     MagneticPendulum,
-    GravityCenters
+    GravityCenters,
+    GradientDescent,
+    ComplexGradientFlow,
+    PolynomialVectorField
 }
 
 /// <summary>Как пиксель z превращается в начальную тройку приближений метода Мюллера.</summary>
@@ -147,6 +150,9 @@ public sealed class BasinExplorerState
     public LogisticPlaneMode LogisticPlane { get; set; }
     public Complex LogisticSeed { get; set; } = new(0.5, 0);
     public PhysicalBasinSettings Physics { get; set; } = new();
+    public PlanarBasinSettings Planar { get; set; } = new();
+    public List<PlanarBasinAttractor> PlanarAttractors { get; set; } = [];
+    public bool UseSavedPlanarAttractors { get; set; }
 
     public int MaxIterations { get; set; } = 200;
     public double Zoom { get; set; } = 1;
@@ -205,6 +211,8 @@ public sealed class BasinExplorerState
         copy.Palette = Palette.Clone(Palette.Name);
         copy.Palette.IsBuiltIn = false;
         copy.Physics = Physics.Clone();
+        copy.Planar = Planar.Clone();
+        copy.PlanarAttractors = PlanarAttractors.Select(a => a.Clone()).ToList();
         return copy;
     }
 }
@@ -245,8 +253,17 @@ public static partial class BasinExplorerCatalog
     public static bool UsesPhysics(BasinExplorerKind kind) =>
         kind is BasinExplorerKind.MagneticPendulum or BasinExplorerKind.GravityCenters;
 
+    public static bool UsesPlanar(BasinExplorerKind kind) =>
+        kind is BasinExplorerKind.GradientDescent or BasinExplorerKind.ComplexGradientFlow or BasinExplorerKind.PolynomialVectorField;
+
     public static BasinExplorerDefinition GetDefinition(BasinExplorerKind kind) => kind switch
     {
+        BasinExplorerKind.GradientDescent => new(
+            "Бассейны градиентного спуска", "Градиентный спуск", "BasinsGradientDescent", "gradient_descent_basins", false, PlanarHint),
+        BasinExplorerKind.ComplexGradientFlow => new(
+            "Бассейны комплексного градиентного потока", "Комплексный поток", "BasinsComplexGradientFlow", "complex_gradient_flow_basins", false, PlanarHint),
+        BasinExplorerKind.PolynomialVectorField => new(
+            "Бассейны полиномиальных векторных полей", "Векторное поле", "BasinsPolynomialVectorField", "polynomial_vector_field_basins", false, PlanarHint),
         BasinExplorerKind.ComplexLogistic => new(
             "Бассейны комплексного логистического отображения", "Комплексное логистическое", "BasinsComplexLogistic", "complex_logistic_basins", false,
             "Колесо: масштаб. Левая кнопка: перемещение. Правая: орбита; на плоскости λ — период. Двойной щелчок на λ открывает его бассейны. F11: полный экран."),
@@ -274,6 +291,7 @@ public static partial class BasinExplorerCatalog
     /// <summary>Готовые примеры окна; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<BasinExplorerState> GetPresets(BasinExplorerKind kind) => kind switch
     {
+        BasinExplorerKind.GradientDescent or BasinExplorerKind.ComplexGradientFlow or BasinExplorerKind.PolynomialVectorField => PlanarPresets(kind),
         BasinExplorerKind.ComplexLogistic => LogisticPresets(),
         BasinExplorerKind.MagneticPendulum or BasinExplorerKind.GravityCenters => PhysicalPresets(kind),
         BasinExplorerKind.Muller =>

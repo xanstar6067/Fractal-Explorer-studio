@@ -37,7 +37,7 @@ public sealed partial class BasinExplorerEngine
     public bool IsRootMethod => BasinExplorerCatalog.UsesRoots(Kind);
     public bool IsPhysical => BasinExplorerCatalog.UsesPhysics(Kind);
     public bool IsLogisticParameter => Kind == BasinExplorerKind.ComplexLogistic && LogisticPlane == LogisticPlaneMode.Parameter;
-    public bool IsReady => IsPhysical ? _physics is not null : IsLogisticParameter || _function is not null;
+    public bool IsReady => IsPlanar ? _planarField is not null : IsPhysical ? _physics is not null : IsLogisticParameter || _function is not null;
 
     public int MaxIterations { get; set; } = 200;
     public double CenterX { get; set; }
@@ -74,7 +74,7 @@ public sealed partial class BasinExplorerEngine
     public string DebugInfo { get; private set; } = string.Empty;
 
     /// <summary>Число цветов, которое нужно палитре: корни или аттракторы.</summary>
-    public int TargetCount => IsPhysical ? Physics.Centers.Count : IsLogisticParameter ? MaxPeriod : IsRootMethod ? Roots.Count : Attractors.Count;
+    public int TargetCount => IsPlanar ? PlanarAttractors.Count : IsPhysical ? Physics.Centers.Count : IsLogisticParameter ? MaxPeriod : IsRootMethod ? Roots.Count : Attractors.Count;
 
     #region Formula setup
 
@@ -257,6 +257,7 @@ public sealed partial class BasinExplorerEngine
     /// <summary>Цвет точки плоскости обзора (для секущих в режиме среза — точки среза).</summary>
     public Color ComputeColor(double planeX, double planeY, CancellationToken token = default)
     {
+        if (IsPlanar) return PlanarResultColor(PlanarOrbit(planeX, planeY, token));
         if (IsPhysical) return PhysicalResultColor(PhysicalOrbit(planeX, planeY, token));
         if (IsLogisticParameter) return LogisticParameterColor(LogisticParameterOrbit(new Complex(planeX, planeY), token));
         switch (Kind)
@@ -275,6 +276,7 @@ public sealed partial class BasinExplorerEngine
     /// <summary>Итог орбиты для точки плоскости обзора — для подсказки под курсором и проверок.</summary>
     public BasinOrbitResult AnalyzePoint(double planeX, double planeY)
     {
+        if (IsPlanar) return PlanarOrbit(planeX, planeY);
         if (IsPhysical) return PhysicalOrbit(planeX, planeY);
         if (IsLogisticParameter) return LogisticParameterOrbit(new Complex(planeX, planeY));
         var point = new Complex(planeX, planeY);
