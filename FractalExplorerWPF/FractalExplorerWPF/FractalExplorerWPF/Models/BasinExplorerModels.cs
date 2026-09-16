@@ -5,14 +5,17 @@ using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Models;
 
-/// <summary>Пять исследователей из раздела «Бассейны притяжения», обслуживаемых одним окном.</summary>
+/// <summary>Исследователи раздела «Бассейны притяжения», обслуживаемые одним окном.</summary>
 public enum BasinExplorerKind
 {
     Muller,
     Laguerre,
     Secant,
     RationalMap,
-    PeriodicCycles
+    PeriodicCycles,
+    ComplexLogistic,
+    MagneticPendulum,
+    GravityCenters
 }
 
 /// <summary>Как пиксель z превращается в начальную тройку приближений метода Мюллера.</summary>
@@ -141,6 +144,10 @@ public sealed class BasinExplorerState
     /// <summary>Значение параметра c, который можно использовать в формулах отображений.</summary>
     public Complex ParameterC { get; set; }
 
+    public LogisticPlaneMode LogisticPlane { get; set; }
+    public Complex LogisticSeed { get; set; } = new(0.5, 0);
+    public PhysicalBasinSettings Physics { get; set; } = new();
+
     public int MaxIterations { get; set; } = 200;
     public double Zoom { get; set; } = 1;
     public double CenterX { get; set; }
@@ -197,6 +204,7 @@ public sealed class BasinExplorerState
         copy.Attractors = Attractors.Select(attractor => attractor.Clone()).ToList();
         copy.Palette = Palette.Clone(Palette.Name);
         copy.Palette.IsBuiltIn = false;
+        copy.Physics = Physics.Clone();
         return copy;
     }
 }
@@ -218,7 +226,7 @@ public sealed record BasinExplorerDefinition(
     bool UsesRoots,
     string Hint);
 
-public static class BasinExplorerCatalog
+public static partial class BasinExplorerCatalog
 {
     public const string LaunchPrefix = "Basins:";
 
@@ -234,8 +242,18 @@ public static class BasinExplorerCatalog
     public static bool UsesRoots(BasinExplorerKind kind) =>
         kind is BasinExplorerKind.Muller or BasinExplorerKind.Laguerre or BasinExplorerKind.Secant;
 
+    public static bool UsesPhysics(BasinExplorerKind kind) =>
+        kind is BasinExplorerKind.MagneticPendulum or BasinExplorerKind.GravityCenters;
+
     public static BasinExplorerDefinition GetDefinition(BasinExplorerKind kind) => kind switch
     {
+        BasinExplorerKind.ComplexLogistic => new(
+            "Бассейны комплексного логистического отображения", "Комплексное логистическое", "BasinsComplexLogistic", "complex_logistic_basins", false,
+            "Колесо: масштаб. Левая кнопка: перемещение. Правая: орбита; на плоскости λ — период. Двойной щелчок на λ открывает его бассейны. F11: полный экран."),
+        BasinExplorerKind.MagneticPendulum => new(
+            "Бассейны магнитного маятника", "Магнитный маятник", "BasinsMagneticPendulum", "magnetic_pendulum_basins", false, PhysicalHint),
+        BasinExplorerKind.GravityCenters => new(
+            "Бассейны притягивающих центров", "Притягивающие центры", "BasinsGravityCenters", "gravity_centers_basins", false, PhysicalHint),
         BasinExplorerKind.Muller => new(
             "Бассейны метода Мюллера", "Метод Мюллера", "BasinsMuller", "muller_basins", true,
             "Колесо мыши: масштаб (Ctrl — ×10, Shift — точно). Левая кнопка: перемещение. Правая кнопка: орбита точки. F11: полноэкранный режим."),
@@ -256,6 +274,8 @@ public static class BasinExplorerCatalog
     /// <summary>Готовые примеры окна; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<BasinExplorerState> GetPresets(BasinExplorerKind kind) => kind switch
     {
+        BasinExplorerKind.ComplexLogistic => LogisticPresets(),
+        BasinExplorerKind.MagneticPendulum or BasinExplorerKind.GravityCenters => PhysicalPresets(kind),
         BasinExplorerKind.Muller =>
         [
             Root(kind, "z³ − 1 · симметричная тройка", "z^3-1", s => { s.MullerOffset = new Complex(0.25, 0); }),

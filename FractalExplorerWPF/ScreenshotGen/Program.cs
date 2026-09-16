@@ -414,6 +414,8 @@ internal static class Program
 
             if (BasinExplorerCatalog.TryParseLaunchKey(key, out BasinExplorerKind basinKind))
             {
+                // Включает ComplexLogistic, MagneticPendulum и GravityCenters: список берётся
+                // из FractalCatalog, а панели, пресеты и предпросмотр — из общего окна.
                 Window? w = await CaptureAsync(() => new BasinExplorerWindow(basinKind), "basins-" + Kebab(basinKind.ToString()), 1600);
                 // Общий редактор палитр Ньютона с подписями циклов — один раз, на окне периодических циклов.
                 if (w != null && basinKind == BasinExplorerKind.PeriodicCycles)

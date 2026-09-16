@@ -295,6 +295,15 @@ public static class SaveManagerConfigurations
 
     private static string DescribeBasinExplorer(BasinExplorerState state)
     {
+        if (BasinExplorerCatalog.UsesPhysics(state.Kind))
+            return $"{Prefix(state.Timestamp)} · Центров: {state.Physics.Centers.Count} · Масштаб: {state.Zoom:G6}\n" +
+                $"Трение: {state.Physics.Damping:G4} · Высота: {state.Physics.Height:G4} · Шаг: {state.Physics.TimeStep:G4}\n" +
+                $"Время: {state.Physics.MaxTime:G4} · Лимит шагов: {state.MaxIterations} · Скорость: {FormatComplex(state.Physics.InitialVelocity)}\n" +
+                $"Захват: {(state.Physics.CaptureMode == PhysicalCaptureMode.Absorb ? "поглощение" : "после успокоения")} · Раскраска: {state.ColoringMode}";
+        if (state.Kind == BasinExplorerKind.ComplexLogistic)
+            return $"{Prefix(state.Timestamp)} · z → λz(1−z) · Масштаб: {state.Zoom:G6}\n" +
+                (state.LogisticPlane == LogisticPlaneMode.Parameter ? $"Плоскость λ · z₀ = {FormatComplex(state.LogisticSeed)}" : $"Плоскость z₀ · λ = {FormatComplex(state.ParameterC)}") +
+                $"\nМакс. период: {state.MaxPeriod} · Итерации: {state.MaxIterations} · Раскраска: {state.ColoringMode}";
         string formula = state.Kind == BasinExplorerKind.RationalMap
             ? $"R(z) = ({state.Numerator}) / ({state.Denominator})"
             : $"f(z) = {state.Formula}";

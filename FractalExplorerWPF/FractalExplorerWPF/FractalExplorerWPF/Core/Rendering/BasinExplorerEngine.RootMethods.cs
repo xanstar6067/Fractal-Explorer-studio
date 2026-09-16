@@ -331,6 +331,8 @@ public sealed partial class BasinExplorerEngine
     public IReadOnlyList<Complex> TraceOrbit(double planeX, double planeY, int maxPoints = 160)
     {
         if (!IsReady) return [];
+        if (IsPhysical) return TracePhysicalOrbit(planeX, planeY, maxPoints);
+        if (IsLogisticParameter) return []; // λ coordinates are not phase-space coordinates.
         var point = new Complex(planeX, planeY);
         var trace = new List<Complex>();
         int limit = Math.Clamp(Math.Min(maxPoints, MaxIterations + 3), 2, 4096);

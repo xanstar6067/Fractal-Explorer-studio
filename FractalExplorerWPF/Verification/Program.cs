@@ -49,6 +49,7 @@ internal static partial class Program
                 if (group is "phoenix") await VerifyPhoenixDeepZoomAsync();
                 if (group is "newton") await VerifyNewtonDeepZoomAsync();
                 if (group is "all" or "basins") VerifyBasinExplorers();
+                if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
                 if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins"))
                     throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins.");
                 Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");

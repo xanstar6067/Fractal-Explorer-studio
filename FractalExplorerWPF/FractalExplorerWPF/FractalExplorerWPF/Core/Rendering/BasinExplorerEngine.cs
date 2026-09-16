@@ -8,10 +8,12 @@ using Color = System.Windows.Media.Color;
 namespace FractalExplorerWPF.Core.Rendering;
 
 /// <summary>
-/// Движок пяти исследователей бассейнов притяжения. Методы Мюллера, Лагерра и секущих
+/// Движок исследователей бассейнов притяжения. Методы Мюллера, Лагерра и секущих
 /// раскрашивают пиксель по корню, к которому сошлась орбита (частичный файл
 /// <c>BasinExplorerEngine.RootMethods</c>); рациональные отображения и режим периодических
 /// циклов — по конечному притягивающему циклу (<c>BasinExplorerEngine.Attractors</c>).
+/// Логистическая карта добавляет плоскость параметра λ (.Logistic), физические модели —
+/// численное интегрирование траекторий среди неподвижных центров (.Physics).
 /// Вся арифметика — double: глубокого зума, как у Ньютона, здесь нет.
 /// </summary>
 public sealed partial class BasinExplorerEngine
@@ -33,7 +35,9 @@ public sealed partial class BasinExplorerEngine
 
     public BasinExplorerKind Kind { get; }
     public bool IsRootMethod => BasinExplorerCatalog.UsesRoots(Kind);
-    public bool IsReady => _function is not null;
+    public bool IsPhysical => BasinExplorerCatalog.UsesPhysics(Kind);
+    public bool IsLogisticParameter => Kind == BasinExplorerKind.ComplexLogistic && LogisticPlane == LogisticPlaneMode.Parameter;
+    public bool IsReady => IsPhysical ? _physics is not null : IsLogisticParameter || _function is not null;
 
     public int MaxIterations { get; set; } = 200;
     public double CenterX { get; set; }
@@ -70,7 +74,7 @@ public sealed partial class BasinExplorerEngine
     public string DebugInfo { get; private set; } = string.Empty;
 
     /// <summary>Число цветов, которое нужно палитре: корни или аттракторы.</summary>
-    public int TargetCount => IsRootMethod ? Roots.Count : Attractors.Count;
+    public int TargetCount => IsPhysical ? Physics.Centers.Count : IsLogisticParameter ? MaxPeriod : IsRootMethod ? Roots.Count : Attractors.Count;
 
     #region Formula setup
 
@@ -198,7 +202,7 @@ public sealed partial class BasinExplorerEngine
 
         long completedRows = 0;
         double unitsPerPixel = UnitsPerPixel(width);
-        var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, threadCount) };
+        var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, threadCount), CancellationToken = cancellationToken };
         Parallel.For(0, height, options, (y, loopState) =>
         {
             if (cancellationToken.IsCancellationRequested) { loopState.Stop(); return; }
@@ -208,7 +212,7 @@ public sealed partial class BasinExplorerEngine
             {
                 if ((x & 31) == 0 && cancellationToken.IsCancellationRequested) { loopState.Stop(); return; }
                 double planeX = CenterX + (x - width / 2.0) * unitsPerPixel;
-                WriteColor(buffer, row + x * 4, ComputeColor(planeX, planeY));
+                WriteColor(buffer, row + x * 4, ComputeColor(planeX, planeY, cancellationToken));
             }
 
             int rows = (int)Interlocked.Increment(ref completedRows);
@@ -235,7 +239,7 @@ public sealed partial class BasinExplorerEngine
             {
                 if ((localX & 15) == 0 && token.IsCancellationRequested) return null;
                 double planeX = CenterX + (tile.X + localX - canvasWidth / 2.0) * unitsPerPixel;
-                WriteColor(buffer, (localY * tile.Width + localX) * 4, ComputeColor(planeX, planeY));
+                WriteColor(buffer, (localY * tile.Width + localX) * 4, ComputeColor(planeX, planeY, token));
             }
         }
         return buffer;
@@ -251,8 +255,10 @@ public sealed partial class BasinExplorerEngine
     private double UnitsPerPixel(int width) => BaseViewWidth / Math.Max(0.001, Zoom) / width;
 
     /// <summary>Цвет точки плоскости обзора (для секущих в режиме среза — точки среза).</summary>
-    public Color ComputeColor(double planeX, double planeY)
+    public Color ComputeColor(double planeX, double planeY, CancellationToken token = default)
     {
+        if (IsPhysical) return PhysicalResultColor(PhysicalOrbit(planeX, planeY, token));
+        if (IsLogisticParameter) return LogisticParameterColor(LogisticParameterOrbit(new Complex(planeX, planeY), token));
         switch (Kind)
         {
             case BasinExplorerKind.Laguerre when LaguerreComparison == LaguerreComparisonMode.Disagreement:
@@ -269,6 +275,8 @@ public sealed partial class BasinExplorerEngine
     /// <summary>Итог орбиты для точки плоскости обзора — для подсказки под курсором и проверок.</summary>
     public BasinOrbitResult AnalyzePoint(double planeX, double planeY)
     {
+        if (IsPhysical) return PhysicalOrbit(planeX, planeY);
+        if (IsLogisticParameter) return LogisticParameterOrbit(new Complex(planeX, planeY));
         var point = new Complex(planeX, planeY);
         switch (Kind)
         {

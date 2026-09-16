@@ -22,7 +22,8 @@ namespace FractalExplorerWPF.Views;
 
 /// <summary>
 /// Универсальное окно раздела «Бассейны притяжения»: методы Мюллера, Лагерра и секущих,
-/// рациональные отображения и периодические циклы. Режим задаётся при создании окна; разметка
+/// рациональные отображения, периодические циклы, логистическая карта и физические модели.
+/// Режим задаётся при создании окна; разметка
 /// показывает только панели выбранного режима. Корни и аттракторы ищутся на UI-потоке при
 /// применении формулы и сохраняются в состоянии, а каждый кадр считает свежий движок.
 /// </summary>
@@ -103,6 +104,7 @@ public partial class BasinExplorerWindow : Window
         _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault(palette => palette.Name == "Классика")
                                         ?? _paletteManager.ActivePalette;
         ConfigureKindLayout();
+        ConfigureExtendedOptions();
         _presets = BasinExplorerCatalog.GetPresets(kind);
         PresetBox.ItemsSource = _presets.Select(preset => preset.SaveName).ToArray();
         PresetBox.SelectedIndex = 0;
@@ -119,6 +121,8 @@ public partial class BasinExplorerWindow : Window
     public string DisplayTitle => _definition.Title;
 
     private bool UsesRoots => _definition.UsesRoots;
+    private bool UsesPhysics => BasinExplorerCatalog.UsesPhysics(Kind);
+    private bool IsLogisticParameter => Kind == BasinExplorerKind.ComplexLogistic && LogisticPlaneBox.SelectedIndex == 1;
 
     #region Save manager and export API
 
@@ -144,6 +148,8 @@ public partial class BasinExplorerWindow : Window
             ParameterC = _appliedParameterC
         };
 
+        CaptureExtendedSettings(state);
+        if (UsesPhysics) return state;
         if (UsesRoots)
         {
             state.RootTolerance = ReadDouble(RootToleranceBox, "Точность корней", 1e-12, 0.1);
@@ -273,6 +279,15 @@ public partial class BasinExplorerWindow : Window
             BackgroundColor = state.Palette.BackgroundColor
         };
 
+        engine.LogisticPlane = state.LogisticPlane;
+        engine.LogisticSeed = state.LogisticSeed;
+        if (engine.IsPhysical)
+        {
+            engine.ConfigurePhysics(state.Physics);
+            engine.TargetColors = NewtonPaletteManager.AdjustColors(state.Palette, engine.TargetCount).ToArray();
+            return engine;
+        }
+
         bool ok;
         string debug;
         if (BasinExplorerCatalog.UsesRoots(state.Kind))
@@ -284,10 +299,12 @@ public partial class BasinExplorerWindow : Window
         else
         {
             bool useSaved = state.UseSavedAttractors;
-            ok = state.Kind == BasinExplorerKind.RationalMap
+            ok = state.Kind == BasinExplorerKind.ComplexLogistic
+                ? engine.SetLogisticMap(out debug, !useSaved)
+                : state.Kind == BasinExplorerKind.RationalMap
                 ? engine.SetRationalMap(state.Numerator, state.Denominator, out debug, !useSaved)
                 : engine.SetMapFormula(state.Formula, out debug, !useSaved);
-            if (ok && useSaved) engine.ReplaceAttractors(state.Attractors);
+            if (ok && useSaved && !engine.IsLogisticParameter) engine.ReplaceAttractors(state.Attractors);
         }
         if (!ok) throw new InvalidOperationException(debug);
         engine.TargetColors = NewtonPaletteManager.AdjustColors(state.Palette, engine.TargetCount).ToArray();
@@ -300,6 +317,9 @@ public partial class BasinExplorerWindow : Window
 
     private static string KindDescription(BasinExplorerKind kind) => kind switch
     {
+        BasinExplorerKind.ComplexLogistic => "zₙ₊₁ = λ·zₙ·(1−zₙ). Бассейны при фиксированном λ и карта притягивающих периодов на плоскости параметра.",
+        BasinExplorerKind.MagneticPendulum => "Упрощённый маятник над магнитами: притяжение центров, возвращающая сила подвеса и трение. Цвет показывает, у какого магнита он успокоится.",
+        BasinExplorerKind.GravityCenters => "Частица в поле неподвижных центров с настраиваемой массой, трением, начальной скоростью и радиусом захвата.",
         BasinExplorerKind.Muller =>
             "xₙ₊₁ — ближайший корень параболы через три последние точки. Пиксель задаёт последнюю точку тройки; порядок сходимости ≈ 1.84 без производных.",
         BasinExplorerKind.Laguerre =>
@@ -374,6 +394,7 @@ public partial class BasinExplorerWindow : Window
         _updatingUi = true;
         try
         {
+            PopulateExtendedSettings(state);
             FormulaBox.Text = state.Formula;
             NumeratorBox.Text = state.Numerator;
             DenominatorBox.Text = state.Denominator;
@@ -486,6 +507,7 @@ public partial class BasinExplorerWindow : Window
             }
         }
         UpdateColoringHint();
+        UpdateExtendedLayout();
     }
 
     private void UpdateColoringHint()
@@ -524,7 +546,8 @@ public partial class BasinExplorerWindow : Window
 
     private void EnsureFormulaApplied()
     {
-        if (_formulaDirty) ApplyFormula(showMessage: false, scheduleRender: false);
+        if (_formulaDirty && !ApplyFormula(showMessage: false, scheduleRender: false))
+            throw new InvalidOperationException(StatusText.Text);
     }
 
     /// <summary>
@@ -534,6 +557,7 @@ public partial class BasinExplorerWindow : Window
     private bool ApplyFormula(bool showMessage, IReadOnlyList<Complex>? suppliedRoots = null,
         IReadOnlyList<BasinAttractor>? suppliedAttractors = null, bool scheduleRender = true)
     {
+        if (UsesPhysics) return ApplyPhysics(showMessage, scheduleRender);
         _formulaDirty = false;
         Complex parameterC = Complex.Zero;
         try
@@ -554,10 +578,13 @@ public partial class BasinExplorerWindow : Window
                 _engine.AttractorSearchRadius = ReadDouble(AttractorSearchRadiusBox, "Радиус затравок", 0.01, 1e6);
                 _engine.EscapeRadius = ReadDouble(EscapeRadiusBox, "Радиус ухода", 2, 1e150);
                 _engine.InfinityHandling = SelectedInfinityHandling;
+                _engine.LogisticPlane = IsLogisticParameter ? LogisticPlaneMode.Parameter : LogisticPlaneMode.InitialValues;
+                _engine.LogisticSeed = ReadComplex(LogisticSeedRealBox, LogisticSeedImaginaryBox, "Начальное z₀");
             }
         }
         catch (InvalidOperationException ex)
         {
+            _formulaDirty = true;
             StatusText.Text = ex.Message;
             if (showMessage) MessageBox.Show(this, ex.Message, "Параметры", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
@@ -579,10 +606,12 @@ public partial class BasinExplorerWindow : Window
             }
             else
             {
-                ok = Kind == BasinExplorerKind.RationalMap
+                ok = Kind == BasinExplorerKind.ComplexLogistic
+                    ? _engine.SetLogisticMap(out debug, suppliedAttractors is null)
+                    : Kind == BasinExplorerKind.RationalMap
                     ? _engine.SetRationalMap(NumeratorBox.Text.Trim(), DenominatorBox.Text.Trim(), out debug, suppliedAttractors is null)
                     : _engine.SetMapFormula(FormulaBox.Text.Trim(), out debug, suppliedAttractors is null);
-                if (ok && suppliedAttractors is not null)
+                if (ok && suppliedAttractors is not null && !IsLogisticParameter)
                 {
                     _engine.ReplaceAttractors(suppliedAttractors);
                     debug = _engine.DebugInfo + $"{Environment.NewLine}Использован сохранённый список: {_engine.Attractors.Count} аттракторов";
@@ -593,6 +622,7 @@ public partial class BasinExplorerWindow : Window
         _orbitTrace = [];
         if (!ok)
         {
+            _formulaDirty = true;
             DebugOutput.Text = debug;
             StatusText.Text = "Ошибка формулы";
             RefreshTargetsUi();
@@ -612,7 +642,11 @@ public partial class BasinExplorerWindow : Window
         DebugOutput.Text = debug;
         RefreshTargetsUi();
         UpdateMethodControls();
-        if (UsesRoots)
+        if (IsLogisticParameter)
+        {
+            StatusText.Text = "Плоскость λ: цвет обозначает период притягивающего цикла. Двойной щелчок открывает его бассейны.";
+        }
+        else if (UsesRoots)
         {
             StatusText.Text = _engine.Roots.Count == 0
                 ? "Формула корректна, но корни не найдены. Увеличьте радиус или добавьте корень вручную."
@@ -658,7 +692,7 @@ public partial class BasinExplorerWindow : Window
         {
             PeriodFilterBox.Items.Clear();
             PeriodFilterBox.Items.Add(new ComboBoxItem { Content = "Все периоды", Tag = 0 });
-            foreach (int period in _engine.Attractors.Where(attractor => !attractor.IsInfinity)
+            foreach (int period in IsLogisticParameter ? Enumerable.Range(1, _engine.MaxPeriod) : _engine.Attractors.Where(attractor => !attractor.IsInfinity)
                          .Select(attractor => attractor.Period).Distinct().Order())
                 PeriodFilterBox.Items.Add(new ComboBoxItem { Content = $"Только период {period}", Tag = period });
             PeriodFilterBox.SelectedItem = PeriodFilterBox.Items.OfType<ComboBoxItem>()
@@ -723,7 +757,12 @@ public partial class BasinExplorerWindow : Window
 
     private bool PrepareAttractorSearch()
     {
-        EnsureFormulaApplied();
+        try { EnsureFormulaApplied(); }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(this, ex.Message, "Поиск циклов", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
         if (!_engine.IsReady)
         {
             MessageBox.Show(this, "Сначала примените корректную формулу.", "Поиск циклов", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -840,6 +879,7 @@ public partial class BasinExplorerWindow : Window
     private void Parameter_OnChanged(object sender, EventArgs e)
     {
         if (_updatingUi) return;
+        if (Kind == BasinExplorerKind.ComplexLogistic && sender == MaxPeriodBox) _formulaDirty = true;
         ScheduleRender();
     }
 
@@ -856,6 +896,7 @@ public partial class BasinExplorerWindow : Window
     {
         if (_updatingUi) return;
         UpdateColoringHint();
+        UpdateExtendedLayout();
         ScheduleRender();
     }
 
@@ -883,7 +924,7 @@ public partial class BasinExplorerWindow : Window
     private BasinMarkerMode SelectedMarkerMode => SelectedOption(MarkerModeBox, BasinMarkerMode.Hidden);
     private int SelectedPeriodFilter => PeriodFilterBox.SelectedItem is ComboBoxItem { Tag: int period } ? period : 0;
 
-    private bool ViewIsComplexPlane => Kind != BasinExplorerKind.Secant || SelectedSecantPlaneMode != SecantPlaneMode.StateSlice;
+    private bool ViewIsComplexPlane => !IsLogisticParameter && (Kind != BasinExplorerKind.Secant || SelectedSecantPlaneMode != SecantPlaneMode.StateSlice);
 
     #endregion
 
@@ -891,7 +932,12 @@ public partial class BasinExplorerWindow : Window
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
     {
-        EnsureFormulaApplied();
+        try { EnsureFormulaApplied(); }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(this, ex.Message, "Палитра", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
         if (!_engine.IsReady)
         {
             MessageBox.Show(this, "Сначала примените корректную формулу.", "Палитра", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -899,7 +945,15 @@ public partial class BasinExplorerWindow : Window
         }
 
         NewtonPaletteWindow dialog;
-        if (UsesRoots)
+        if (UsesPhysics || IsLogisticParameter)
+        {
+            int count = UsesPhysics ? _forceCenters.Count : ReadIntLenient(MaxPeriodBox, 16, 1, 64);
+            dialog = new NewtonPaletteWindow(_paletteManager,
+                Enumerable.Range(0, count).Select(i => UsesPhysics ? new Complex(_forceCenters[i].X, _forceCenters[i].Y) : Complex.Zero).ToArray(),
+                Enumerable.Range(1, count).Select(i => UsesPhysics ? $"Центр {i}" : $"Период {i}").ToArray(),
+                "Цвет фона — уход и нераспознанные орбиты.", showGradientOption: false);
+        }
+        else if (UsesRoots)
         {
             dialog = new NewtonPaletteWindow(_paletteManager, _engine.Roots, null, $"Найдено корней: {_engine.Roots.Count}",
                 showGradientOption: false);
@@ -959,7 +1013,7 @@ public partial class BasinExplorerWindow : Window
         if (!IsLoaded) return;
         _renderCts?.Cancel();
         _renderTimer.Stop();
-        if (_isPanning) return;
+        if (_isPanning || _draggedCenter >= 0) return;
         _renderTimer.Start();
     }
 
@@ -993,8 +1047,9 @@ public partial class BasinExplorerWindow : Window
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
             DpiScale dpi = surface.Dpi;
             int factor = SelectedPreviewSsaaFactor;
-            int renderWidth = checked(surface.PixelWidth * factor);
-            int renderHeight = checked(surface.PixelHeight * factor);
+            int divisor = UsesPhysics && PhysicsResolutionBox.SelectedItem is ComboBoxItem { Tag: string resolution } ? int.Parse(resolution) : 1;
+            int renderWidth = Math.Max(1, checked(surface.PixelWidth * factor) / divisor);
+            int renderHeight = Math.Max(1, checked(surface.PixelHeight * factor) / divisor);
             TileSchedulingStrategy strategy = RenderPatternSettings.SelectedPattern;
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(renderWidth, renderHeight, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
@@ -1025,7 +1080,7 @@ public partial class BasinExplorerWindow : Window
             UpdatePreviewTransform();
             RenderOverlay.EndSession();
             _activeSession = null;
-            string targets = UsesRoots ? $"Корней: {engine.Roots.Count}" : $"Аттракторов: {engine.Attractors.Count}";
+            string targets = UsesPhysics ? $"Центров: {engine.TargetCount}" : IsLogisticParameter ? $"Периоды 1…{engine.MaxPeriod}" : UsesRoots ? $"Корней: {engine.Roots.Count}" : $"Аттракторов: {engine.Attractors.Count}";
             StatusText.Text = $"Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. {targets}. " +
                               $"Зум {state.Zoom.ToString("G6", CultureInfo.InvariantCulture)}. Стратегия: {strategy}";
         }
@@ -1210,6 +1265,7 @@ public partial class BasinExplorerWindow : Window
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (HandleExtendedMouseDown(e)) return;
         _renderTimer.Stop();
         _isPanning = true;
         CommitAndBakePreview();
@@ -1220,6 +1276,7 @@ public partial class BasinExplorerWindow : Window
 
     private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
     {
+        if (MoveForceCenter(e)) return;
         if (!_isPanning) return;
         Point current = e.GetPosition(CanvasHost);
         double width = Math.Max(1, CanvasHost.ActualWidth);
@@ -1232,6 +1289,7 @@ public partial class BasinExplorerWindow : Window
 
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (EndForceCenterDrag()) return;
         if (!_isPanning) return;
         _isPanning = false;
         CanvasHost.ReleaseMouseCapture();
@@ -1261,7 +1319,7 @@ public partial class BasinExplorerWindow : Window
         }
 
         BasinOrbitResult result = engine.AnalyzePoint(planeX, planeY);
-        _orbitTrace = engine.TraceOrbit(planeX, planeY);
+        _orbitTrace = engine.TraceOrbit(planeX, planeY, UsesPhysics ? 512 : 160);
         UpdateOverlay();
         StatusText.Text = DescribeOrbit(engine, result, planeX, planeY) + " Esc — скрыть орбиту.";
         if (!UsesRoots) SeedBox.Text = FormatComplexInput(new Complex(planeX, planeY));
@@ -1285,6 +1343,12 @@ public partial class BasinExplorerWindow : Window
 
     private string DescribeOrbit(BasinExplorerEngine engine, BasinOrbitResult result, double planeX, double planeY)
     {
+        if (UsesPhysics) return $"Точка ({planeX:G5}; {planeY:G5}): " +
+            (result.TargetIndex >= 0 ? $"центр {result.TargetIndex + 1}" : result.Outcome == BasinOrbitOutcome.Escaped ? "уход" : "не захвачена") +
+            $", время {result.SmoothIterations:G5}, шагов {result.Iterations}.";
+        if (IsLogisticParameter) return $"λ = {BasinExplorerFormatting.Complex(new Complex(planeX, planeY))}: " +
+            (result.Outcome == BasinOrbitOutcome.Converged ? $"притягивающий период {result.CyclePeriod}" : result.Outcome == BasinOrbitOutcome.Escaped ? "уход" : "цикл не распознан") +
+            $", итераций {result.Iterations}.";
         string origin;
         if (Kind == BasinExplorerKind.Secant && engine.SecantPlaneMode == SecantPlaneMode.StateSlice)
         {
@@ -1391,7 +1455,8 @@ public partial class BasinExplorerWindow : Window
         bool labels = mode is BasinMarkerMode.MarkersWithLabels or BasinMarkerMode.MarkersWithCriticalPoints;
         if (mode != BasinMarkerMode.Hidden && ViewIsComplexPlane)
         {
-            if (UsesRoots) DrawRootMarkers(labels);
+            if (UsesPhysics) DrawForceCenters(labels);
+            else if (UsesRoots) DrawRootMarkers(labels);
             else DrawAttractorMarkers(labels, mode == BasinMarkerMode.MarkersWithCriticalPoints);
         }
         if (_orbitTrace.Count > 1 && ViewIsComplexPlane) DrawOrbitTrace();

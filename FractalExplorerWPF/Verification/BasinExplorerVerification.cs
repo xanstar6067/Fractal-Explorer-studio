@@ -13,8 +13,11 @@ internal static partial class Program
     {
         VerifyBasinRootMethods();
         VerifyBasinAttractors();
+        VerifyLogisticBasins();
+        VerifyPhysicalBasins();
         VerifyBasinRendering();
-        Console.WriteLine("[diag] Basin explorers: methods, cycle discovery, poles, phases, tiles, presets and saves OK");
+        VerifyNewBasinWindows();
+        Console.WriteLine("[diag] Basin explorers: methods, cycles, logistic planes, physics, windows, tiles, presets and saves OK");
     }
 
     private static BasinExplorerEngine RootEngine(BasinExplorerKind kind, string formula, Action<BasinExplorerEngine>? configure = null)
