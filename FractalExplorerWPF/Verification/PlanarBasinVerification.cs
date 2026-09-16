@@ -47,13 +47,38 @@ internal static partial class Program
             Check(himmelblau.AnalyzePoint(seed.Real, seed.Imaginary).Outcome == BasinOrbitOutcome.Converged, $"Himmelblau minimum near {seed} must capture.");
         var saddle = PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "(x^2-1)^2+y^2" });
         Check(saddle.TargetCount == 2 && saddle.AnalyzePoint(0, 0).TargetIndex < 0, "A stationary saddle must not be a minimum.");
+        var dense = PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "sin(3*x)*sin(3*y)+0.05*(x^2+y^2)", LearningRate = 0.02, SearchRadius = 3 });
+        int lost = 0;
+        for (int i = 0; i < 20; i++)
+        for (int j = 0; j < 20; j++)
+            if (dense.AnalyzePoint(-2 + 4 * (i + 0.37) / 20, -2 + 4 * (j + 0.61) / 20).TargetIndex < 0) lost++; // Не на диагонали x = y: там спуск честно приходит в сёдла.
+        Check(lost == 0, $"Dense minima inside the search radius must all be discovered; {lost} starts stayed background.");
         var escape = PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "(x^2+y^2)/2", LearningRate = 3 });
         Check(escape.AnalyzePoint(1, 1).Outcome == BasinOrbitOutcome.Escaped, "An unstable discrete step must escape, not silently shrink α.");
 
-        var flow = PlanarEngine(BasinExplorerKind.ComplexGradientFlow, new() { MaxTime = 1, IntegrationTolerance = 1e-9 }, "z");
+        // Без аттракторов захвата нет, и траектория доходит до лимита времени: проверяется сам интегратор.
+        var flow = new BasinExplorerEngine(BasinExplorerKind.ComplexGradientFlow) { MaxIterations = 8000 };
+        flow.ConfigurePlanar(new() { MaxTime = 1, IntegrationTolerance = 1e-9 }, "z", []);
         var decay = flow.AnalyzePoint(1, 2);
-        Check((decay.FinalPoint - new Complex(1, 2) * Math.Exp(-1)).Magnitude < 2e-8 && Math.Abs(decay.SmoothIterations - 1) < 1e-10,
-            $"Complex flow z′=-z must reproduce exponential decay and its time: {decay}.");
+        Check(decay.Outcome == BasinOrbitOutcome.IterationLimit &&
+              (decay.FinalPoint - new Complex(1, 2) * Math.Exp(-1)).Magnitude < 2e-8 && Math.Abs(decay.SmoothIterations - 1) < 1e-8,
+            $"Complex flow z′=-z must reproduce exponential decay and end as a time limit, not a degenerate step: {decay}.");
+        flow = PlanarEngine(BasinExplorerKind.ComplexGradientFlow, new(), "z");
+        Check(flow.AnalyzePoint(1, 2).TargetIndex == 0, "The Lyapunov trap of a linear sink must capture the whole disk around it.");
+        // Кратный корень: z′ ~ −|z−1|²(z−1) не подходит на допуск за разумное время, но бассейн
+        // обязан окрашиваться; ловушка при этом не должна дотянуться до седла V в z = −1/3.
+        var multiple = PlanarEngine(BasinExplorerKind.ComplexGradientFlow, new(), "(z-1)^2*(z+1)");
+        Check(multiple.TargetCount == 2 && multiple.AnalyzePoint(1.3, 0.2).TargetIndex == 1 && multiple.AnalyzePoint(-1.2, 0.1).TargetIndex == 0,
+            "A double root of the complex flow must color its basin.");
+        Check(multiple.AnalyzePoint(-1.0 / 3, 0).TargetIndex < 0, "The saddle of |f|² must not be inside an equilibrium trap.");
+        var weakFocus = PlanarEngine(BasinExplorerKind.PolynomialVectorField, new() { FieldX = "-0.05*x-y", FieldY = "x-0.05*y" });
+        Check(weakFocus.TargetCount == 1 && weakFocus.AnalyzePoint(1.5, 0.3).TargetIndex == 0, "A slowly contracting focus must not stay background.");
+        var weakCycle = PlanarEngine(BasinExplorerKind.PolynomialVectorField, new() { FieldX = "0.05*x*(1-x^2-y^2)-y", FieldY = "0.05*y*(1-x^2-y^2)+x" });
+        Check(weakCycle.TargetCount == 1 && weakCycle.AnalyzePoint(0.5, 0).TargetIndex == 0 && weakCycle.AnalyzePoint(1.5, 0.3).TargetIndex == 0,
+            "A weakly attracting cycle (μ ≈ 0.53) must be recognized by its per-turn contraction.");
+        var relaxation = PlanarEngine(BasinExplorerKind.PolynomialVectorField, new() { FieldX = "y", FieldY = "3*(1-x^2)*y-x" });
+        Check(relaxation.TargetCount == 1 && relaxation.AnalyzePoint(0.5, 0).TargetIndex == 0,
+            $"The Van der Pol relaxation cycle must be found once and capture orbits; found {relaxation.TargetCount}.");
         flow = PlanarEngine(BasinExplorerKind.ComplexGradientFlow, new(), "z^3-1");
         Check(flow.TargetCount == 3 && flow.AnalyzePoint(0, 0).TargetIndex < 0, "Complex flow must find roots but reject f′=0 with f≠0.");
         var trajectory = flow.TraceOrbit(0.6, 0.4, 512);

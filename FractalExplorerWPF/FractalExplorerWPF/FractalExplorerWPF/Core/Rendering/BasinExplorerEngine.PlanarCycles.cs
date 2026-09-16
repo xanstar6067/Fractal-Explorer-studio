@@ -15,7 +15,7 @@ public sealed partial class BasinExplorerEngine
         int repeats = 0;
         var lap = new List<Complex>();
         double maxStep = Math.Min(0.025, _planar.TimeStep);
-        for (int step = 0; step < MaxIterations && time < _planar.MaxTime; step++)
+        for (int step = 0; step < MaxIterations && time < PlanarEndTime; step++)
         {
             if ((step & 15) == 0) token.ThrowIfCancellationRequested();
             Complex speed = _planarField!(z);
@@ -56,6 +56,30 @@ public sealed partial class BasinExplorerEngine
             z = next; time += dt;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Тот же ли это цикл: траектория из точки за полтора периода известного цикла пересекает его
+    /// секцию у опорной точки. Расстояние до ломаной точек цикла для этого ненадёжно: на быстрых
+    /// участках релаксационных колебаний хорды проходят далеко от самой кривой.
+    /// </summary>
+    private bool PassesThroughCycleAnchor(Complex start, PlanarBasinAttractor known)
+    {
+        Complex anchor = known.Points[0], speed = _planarField!(anchor);
+        if (!(speed.Magnitude > 0)) return false;
+        Complex normal = speed / speed.Magnitude;
+        double tolerance = Math.Max(1e-3, 50 * _planar.ConvergenceTolerance) * (1 + anchor.Magnitude);
+        double maxStep = Math.Min(0.025, _planar.TimeStep), h = maxStep, time = 0, end = 1.5 * known.Period;
+        Complex z = start;
+        for (int step = 0; step < 1_000_000 && time < end * (1 - 1e-9); step++)
+        {
+            if (!PlanarFlowIntegrator.Step(_planarField, z, ref h, maxStep, _planar.IntegrationTolerance,
+                    end - time, out Complex next, out double dt, CancellationToken.None)) return false;
+            if (CrossesSection(z, next, anchor, normal) && (RefineSection(z, dt, anchor, normal).Point - anchor).Magnitude < tolerance)
+                return true;
+            z = next; time += dt;
+        }
+        return false;
     }
 
     private double Divergence(Complex z)

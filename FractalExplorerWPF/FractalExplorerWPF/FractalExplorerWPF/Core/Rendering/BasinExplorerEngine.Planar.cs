@@ -14,6 +14,7 @@ public sealed partial class BasinExplorerEngine
     private Func<Complex, (double A, double B, double C, double D)>? _planarJacobian;
     private List<PlanarBasinAttractor> _planarAttractors = [];
     private Complex[] _sectionNormals = [];
+    private EquilibriumTrap[] _equilibriumTraps = [];
     public bool IsPlanar => BasinExplorerCatalog.UsesPlanar(Kind);
     public IReadOnlyList<PlanarBasinAttractor> PlanarAttractors => _planarAttractors;
     public PlanarBasinSettings PlanarSettings => _planar.Clone();
@@ -24,6 +25,7 @@ public sealed partial class BasinExplorerEngine
         _planarField = null;
         _planarAttractors = [];
         _sectionNormals = [];
+        _equilibriumTraps = [];
         _planar = settings.Clone();
         ValidatePlanarSettings();
         RootSearchRadius = _planar.SearchRadius;
@@ -89,7 +91,9 @@ public sealed partial class BasinExplorerEngine
             BasinExplorerKind.ComplexGradientFlow => $"V(z) = |{complexFormula}|²/2\nz′ = −f(z)·conj(f′(z)). RK 5(4), контроль локальной ошибки.\nКритические точки с f ≠ 0 не считаются минимумами.",
             _ => $"x′ = {_planar.FieldX}\ny′ = {_planar.FieldY}\nRK 5(4). Равновесия: tr J < 0, det J > 0. Циклы: повторные возвраты на секцию и exp(∮div F dt) < 1."
         };
-        DebugInfo += $"\nАттракторов: {_planarAttractors.Count}. Поиск по конечной сетке ±{_planar.SearchRadius:G5}, полнота не гарантируется.\nЛимит времени/шагов оставляет медленные и нераспознанные траектории фоном.";
+        DebugInfo += $"\nАттракторов: {_planarAttractors.Count}. Поиск по конечной сетке ±{_planar.SearchRadius:G5}, полнота не гарантируется.\nЛимит времени/шагов оставляет медленные и нераспознанные траектории фоном." +
+            (Kind == BasinExplorerKind.GradientDescent ? string.Empty
+                : "\nУстойчивое равновесие захватывает и эллипс Ляпунова, в котором поле направлено внутрь; цикл — сжатие возвратов на секцию в μ раз за оборот.");
     }
 
     private void ValidatePlanarSettings()
@@ -118,11 +122,14 @@ public sealed partial class BasinExplorerEngine
     {
         if (Kind != BasinExplorerKind.ComplexGradientFlow)
         {
-            for (int iy = 0; iy <= 12; iy++)
-            for (int ix = 0; ix <= 12; ix++)
+            // Шаг сетки — 1/20 радиуса: при редкой сетке Ньютон из затравок у потенциалов с частыми
+            // минимумами приходит в сёдла и максимумы, и часть минимумов теряется.
+            const int half = 20;
+            for (int iy = 0; iy <= 2 * half; iy++)
+            for (int ix = 0; ix <= 2 * half; ix++)
             {
                 token.ThrowIfCancellationRequested();
-                Complex seed = new(_planar.SearchRadius * (ix / 6.0 - 1), _planar.SearchRadius * (iy / 6.0 - 1));
+                Complex seed = new(_planar.SearchRadius * ((double)ix / half - 1), _planar.SearchRadius * ((double)iy / half - 1));
                 if (TryPlanarEquilibrium(seed, out Complex root)) AddPlanarAttractor(new() { Points = [root] });
             }
         }
@@ -183,19 +190,31 @@ public sealed partial class BasinExplorerEngine
             if (candidate.IsCycle != known.IsCycle) continue;
             if (!candidate.IsCycle && (candidate.Points[0] - known.Points[0]).Magnitude < tolerance) return;
             if (candidate.IsCycle && Math.Abs(candidate.Period - known.Period) < tolerance * (1 + known.Period) &&
-                DistanceToCycle(candidate.Points[0], known.Points) < tolerance * (1 + candidate.Points[0].Magnitude)) return;
+                (DistanceToCycle(candidate.Points[0], known.Points) < tolerance * (1 + candidate.Points[0].Magnitude) ||
+                 PassesThroughCycleAnchor(candidate.Points[0], known))) return;
         }
         if (_planarAttractors.Count < 256) _planarAttractors.Add(candidate);
     }
 
-    private void RebuildPlanarSections() => _sectionNormals = _planarAttractors.Select(a =>
+    private void RebuildPlanarSections()
     {
-        Complex speed = _planarField!(a.Points[0]);
-        return a.IsCycle && speed.Magnitude > 0 ? speed / speed.Magnitude : Complex.Zero;
-    }).ToArray();
+        _sectionNormals = _planarAttractors.Select(a =>
+        {
+            Complex speed = _planarField!(a.Points[0]);
+            return a.IsCycle && speed.Magnitude > 0 ? speed / speed.Magnitude : Complex.Zero;
+        }).ToArray();
+        _equilibriumTraps = new EquilibriumTrap[_planarAttractors.Count];
+        // Ловушки опираются на непрерывность времени; у дискретного оптимизатора шаг может
+        // перепрыгнуть границу эллипса, поэтому там остаётся только допуск сходимости.
+        if (Kind == BasinExplorerKind.GradientDescent) return;
+        for (int i = 0; i < _planarAttractors.Count; i++)
+            if (!_planarAttractors[i].IsCycle) _equilibriumTraps[i] = BuildEquilibriumTrap(i);
+    }
 
     private int PlanarPointTarget(Complex z, Complex field)
     {
+        for (int i = 0; i < _equilibriumTraps.Length; i++)
+            if (_equilibriumTraps[i].Contains(z - _planarAttractors[i].Points[0])) return i;
         double tolerance = _planar.ConvergenceTolerance * (1 + z.Magnitude);
         if (field.Magnitude > tolerance) return -1;
         for (int i = 0; i < _planarAttractors.Count; i++)
@@ -251,12 +270,12 @@ public sealed partial class BasinExplorerEngine
 
     private BasinOrbitResult FlowOrbit(Complex z, CancellationToken token, List<Complex>? trace = null)
     {
-        double time = 0, h = _planar.TimeStep;
-        int cycleCandidate = -1, cycleHits = 0;
-        double previousHit = -1;
+        double time = 0, h = _planar.TimeStep, endTime = PlanarEndTime;
+        int cycleCandidate = -1, nearHits = 0, contractions = 0;
+        double previousHit = -1, previousOffset = 0;
         trace?.Add(z);
         int i = 0;
-        for (; i < MaxIterations && time < _planar.MaxTime; i++)
+        for (; i < MaxIterations && time < endTime; i++)
         {
             if ((i & 15) == 0) token.ThrowIfCancellationRequested();
             if (!IsFinite(z)) return new(BasinOrbitOutcome.NonFinite, i, time, z);
@@ -271,24 +290,121 @@ public sealed partial class BasinExplorerEngine
             for (int index = 0; index < _planarAttractors.Count; index++)
             {
                 PlanarBasinAttractor a = _planarAttractors[index];
-                if (!a.IsCycle || !CrossesSection(z, next, a.Points[0], _sectionNormals[index])) continue;
-                (Complex crossing, double fraction) = RefineSection(z, dt, a.Points[0], _sectionNormals[index]);
-                double tolerance = Math.Max(10 * _planar.ConvergenceTolerance, 30 * _planar.IntegrationTolerance) * (1 + crossing.Magnitude);
+                Complex anchor = a.Points[0], normal = _sectionNormals[index];
+                if (!a.IsCycle || !CrossesSection(z, next, anchor, normal)) continue;
+                (Complex crossing, double fraction) = RefineSection(z, dt, anchor, normal);
                 double hitTime = time + dt * fraction;
-                if ((crossing - a.Points[0]).Magnitude > tolerance) { if (cycleCandidate == index) cycleHits = 0; continue; }
-                cycleHits = cycleCandidate == index && Math.Abs(hitTime - previousHit - a.Period) < Math.Max(1e-3, tolerance) * (1 + a.Period)
-                    ? cycleHits + 1 : 1;
-                cycleCandidate = index; previousHit = hitTime;
-                if (cycleHits >= 3)
+                double distance = (crossing - anchor).Magnitude;
+                // Дальше этой окрестности возвраты на секцию не сравниваются с линейной моделью цикла.
+                if (distance > 0.1 * (1 + anchor.Magnitude))
+                {
+                    if (cycleCandidate == index) { nearHits = 0; contractions = 0; }
+                    continue;
+                }
+                double tolerance = Math.Max(10 * _planar.ConvergenceTolerance, 30 * _planar.IntegrationTolerance) * (1 + crossing.Magnitude);
+                double offset = Dot(crossing - anchor, new Complex(-normal.Imaginary, normal.Real));
+                bool sameCycle = cycleCandidate == index;
+                double returnTime = hitTime - previousHit;
+                if (distance > tolerance) nearHits = 0;
+                else nearHits = sameCycle && nearHits > 0 &&
+                    Math.Abs(returnTime - a.Period) < Math.Max(1e-3, tolerance) * (1 + a.Period) ? nearHits + 1 : 1;
+                // Слабо притягивающий цикл не успевает подойти на допуск за отведённое время, но уже
+                // в линейном режиме: смещение вдоль секции за оборот убывает ровно в μ раз. Сильно
+                // притягивающим циклам (μ < 0.01) это не нужно: они и так за пару оборотов входят в
+                // допуск, а их отношение смещений в нелинейной зоне шумит и дробило бы яркость.
+                bool contracting = sameCycle && a.TransverseMultiplier >= 0.01 && Math.Abs(returnTime - a.Period) < 0.05 * (1 + a.Period) &&
+                    offset * previousOffset > 0 && Math.Abs(offset) < Math.Abs(previousOffset) &&
+                    Math.Abs(Math.Abs(offset / previousOffset) - a.TransverseMultiplier) <= 0.25 * a.TransverseMultiplier + 0.02;
+                contractions = contracting ? contractions + 1 : 0;
+                cycleCandidate = index; previousHit = hitTime; previousOffset = offset;
+                if (nearHits >= 3 || contractions >= 2)
                 {
                     trace?.Add(crossing);
-                    return new(BasinOrbitOutcome.Converged, i + 1, hitTime, crossing, index);
+                    // Время для яркости — как у захвата по допуску: момент третьего возврата в допуск,
+                    // предсказанный по μ. Иначе оно зависело бы от того, на каком обороте сработала
+                    // проверка сжатия, и яркость бассейна шла бы зубцами.
+                    double captureTime = nearHits >= 3 ? hitTime
+                        : hitTime + a.Period * (2 + Math.Max(0, Math.Log(distance / tolerance) / -Math.Log(Math.Max(1e-300, a.TransverseMultiplier))));
+                    return new(BasinOrbitOutcome.Converged, i + 1, captureTime, crossing, index);
                 }
             }
             z = next; time += dt;
             trace?.Add(z);
         }
         return new(BasinOrbitOutcome.IterationLimit, i, time, z);
+    }
+
+    /// <summary>
+    /// Момент остановки чуть раньше лимита: иначе остаток времени после округлений (~1e-13)
+    /// меньше минимального шага интегратора, и исчерпанный лимит выглядел бы вырожденным шагом.
+    /// </summary>
+    private double PlanarEndTime => _planar.MaxTime * (1 - 1e-9);
+
+    /// <summary>
+    /// Эллипс δᵀPδ ≤ s² вокруг устойчивого равновесия, на границах которого поле во всех
+    /// проверенных направлениях заметно смотрит внутрь. P решает уравнение Ляпунова
+    /// JᵀP + PJ = −I; для вырожденного J (например, у кратного корня) берётся P = I. Эллипсы
+    /// проверяются от окрестности допуска наружу с шагом ×1.5, поэтому вошедшая траектория
+    /// из эллипса не выходит и приходит к равновесию. Так медленная спираль или кратный корень
+    /// не остаются фоном лишь потому, что не успели подойти на допуск за отведённое время.
+    /// Проверка выборочная (48 направлений на кольцо) — численная оценка, а не доказательство.
+    /// </summary>
+    private EquilibriumTrap BuildEquilibriumTrap(int index)
+    {
+        Complex point = _planarAttractors[index].Points[0];
+        var (a, b, c, d) = _planarJacobian!(point);
+        double p11 = 1, p12 = 0, p22 = 1;
+        // Правило Крамера для [2a 2c 0; b a+d c; 0 2b 2d]·(p11, p12, p22) = (−1, 0, −1).
+        double det = 2 * a * (2 * d * (a + d) - 2 * b * c) - 4 * b * c * d;
+        double size = Math.Abs(a) + Math.Abs(b) + Math.Abs(c) + Math.Abs(d);
+        if (double.IsFinite(det) && size > 0 && Math.Abs(det) > 1e-12 * size * size * size)
+        {
+            double q11 = (-2 * d * (a + d) + 2 * b * c - 2 * c * c) / det;
+            double q12 = (2 * a * c + 2 * b * d) / det;
+            double q22 = (-2 * a * (a + d) + 2 * b * c - 2 * b * b) / det;
+            if (double.IsFinite(q11) && double.IsFinite(q12) && double.IsFinite(q22) && q11 > 0 && q11 * q22 - q12 * q12 > 0)
+            {
+                double norm = Math.Max(q11, q22);
+                (p11, p12, p22) = (q11 / norm, q12 / norm, q22 / norm);
+            }
+        }
+        var shape = new EquilibriumTrap(p11, p12, p22, 0);
+        double spread = Math.Sqrt(Math.Pow((p11 - p22) / 2, 2) + p12 * p12);
+        double lambdaMin = (p11 + p22) / 2 - spread;
+        if (!(lambdaMin > 1e-12)) return shape;
+        double l11 = Math.Sqrt(p11), l21 = p12 / l11, l22 = Math.Sqrt(Math.Max(1e-300, p22 - l21 * l21));
+        double level = 0;
+        // Первое кольцо — на границе обычного допуска сходимости, последнее — в пределах радиуса ухода.
+        for (double s = 20 * _planar.ConvergenceTolerance * (1 + point.Magnitude) * Math.Sqrt(lambdaMin);
+             s / Math.Sqrt(lambdaMin) < _planar.EscapeRadius / 2; s *= 1.5)
+        {
+            bool inward = true;
+            for (int k = 0; k < 48 && inward; k++)
+            {
+                double angle = k * Math.PI / 24, ux = Math.Cos(angle), uy = Math.Sin(angle);
+                double dx = s * (ux / l11 - l21 * uy / (l11 * l22)), dy = s * uy / l22;
+                Complex field = _planarField!(point + new Complex(dx, dy));
+                if (!IsFinite(field)) { inward = false; break; }
+                double derivative = 2 * ((p11 * dx + p12 * dy) * field.Real + (p12 * dx + p22 * dy) * field.Imaginary);
+                double fieldNorm = Math.Sqrt(Math.Max(0,
+                    p11 * field.Real * field.Real + 2 * p12 * field.Real * field.Imaginary + p22 * field.Imaginary * field.Imaginary));
+                // Косинус угла между полем и внешней нормалью эллипса (в метрике P) не больше −0.02.
+                inward = derivative < -0.04 * s * fieldNorm;
+            }
+            var candidate = shape with { Level = s * s };
+            for (int other = 0; other < _planarAttractors.Count && inward; other++)
+                if (other != index && _planarAttractors[other].Points.Any(p => candidate.Contains(p - point)))
+                    inward = false;
+            if (!inward) break;
+            level = s * s;
+        }
+        return shape with { Level = level };
+    }
+
+    private readonly record struct EquilibriumTrap(double P11, double P12, double P22, double Level)
+    {
+        public bool Contains(Complex offset) => Level > 0 &&
+            P11 * offset.Real * offset.Real + 2 * P12 * offset.Real * offset.Imaginary + P22 * offset.Imaginary * offset.Imaginary <= Level;
     }
 
     private Color PlanarResultColor(BasinOrbitResult result)
