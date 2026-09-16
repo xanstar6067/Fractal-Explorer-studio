@@ -101,8 +101,6 @@ public partial class BasinExplorerWindow : Window
         ThreadsBox.Items.Add("Auto");
         ThreadsBox.SelectedItem = "Auto";
 
-        _paletteManager.ActivePalette = _paletteManager.Palettes.FirstOrDefault(palette => palette.Name == "Классика")
-                                        ?? _paletteManager.ActivePalette;
         ConfigureKindLayout();
         ConfigureExtendedOptions();
         _presets = BasinExplorerCatalog.GetPresets(kind);
@@ -1321,7 +1319,10 @@ public partial class BasinExplorerWindow : Window
         BasinOrbitResult result = engine.AnalyzePoint(planeX, planeY);
         _orbitTrace = engine.TraceOrbit(planeX, planeY, UsesPhysics ? 512 : 160);
         UpdateOverlay();
-        StatusText.Text = DescribeOrbit(engine, result, planeX, planeY) + " Esc — скрыть орбиту.";
+        StatusText.Text = DescribeOrbit(engine, result, planeX, planeY) +
+            (SelectedMarkerMode == BasinMarkerMode.Hidden
+                ? " Траектория скрыта: включите маркеры и линии вверху панели."
+                : " Esc — скрыть орбиту.");
         if (!UsesRoots) SeedBox.Text = FormatComplexInput(new Complex(planeX, planeY));
     }
 
@@ -1452,6 +1453,7 @@ public partial class BasinExplorerWindow : Window
         if (MarkerOverlay.ActualWidth <= 0 || MarkerOverlay.ActualHeight <= 0 || !_engine.IsReady) return;
 
         BasinMarkerMode mode = SelectedMarkerMode;
+        if (mode == BasinMarkerMode.Hidden) return;
         bool labels = mode is BasinMarkerMode.MarkersWithLabels or BasinMarkerMode.MarkersWithCriticalPoints;
         if (mode != BasinMarkerMode.Hidden && ViewIsComplexPlane)
         {

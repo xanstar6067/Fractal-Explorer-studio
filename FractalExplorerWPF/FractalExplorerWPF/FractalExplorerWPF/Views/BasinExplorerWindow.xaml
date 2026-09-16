@@ -36,10 +36,16 @@
         <Border x:Name="ControlsHost" Grid.Column="0" Margin="10" Padding="14"
                 Background="{DynamicResource Theme.PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                     <TextBlock x:Name="PanelTitleText" FontSize="18" FontWeight="SemiBold" Text="Бассейны притяжения"/>
                     <TextBlock x:Name="KindDescriptionText" Style="{StaticResource HintTextStyle}" Margin="0,6,0,0"/>
+                    <TextBlock Margin="0,8,0,0" Text="Маркеры, линии и траектории"/>
+                    <ComboBox x:Name="MarkerModeBox" SelectionChanged="MarkerModeBox_OnSelectionChanged"
+                              ToolTip="Скрыть — убрать все вспомогательные элементы: точки, подписи, радиусы, пунктир циклов и траектории."/>
+                </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
 
                     <TextBlock Margin="0,10,0,0" Text="Готовый пример"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_OnSelectionChanged"/>
@@ -421,7 +427,7 @@
                         <TextBlock x:Name="SecantHintText" Style="{StaticResource HintTextStyle}"/>
                     </StackPanel>
 
-                    <Expander Margin="0,8,0,4" Header="Раскраска и маркеры" IsExpanded="True">
+                    <Expander Margin="0,8,0,4" Header="Раскраска" IsExpanded="True">
                         <StackPanel Margin="0,6,0,0">
                             <TextBlock Text="Режим раскраски"/>
                             <ComboBox x:Name="ColoringModeBox" SelectionChanged="ColoringModeBox_OnSelectionChanged"/>
@@ -432,8 +438,6 @@
                                 <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ShadingScaleBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <TextBlock x:Name="ColoringHintText" Style="{StaticResource HintTextStyle}"/>
-                            <TextBlock Text="Маркеры"/>
-                            <ComboBox x:Name="MarkerModeBox" SelectionChanged="MarkerModeBox_OnSelectionChanged"/>
                         </StackPanel>
                     </Expander>
 
@@ -479,6 +483,7 @@
                                TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>
+            </DockPanel>
         </Border>
 
         <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" Background="Black" ClipToBounds="True"

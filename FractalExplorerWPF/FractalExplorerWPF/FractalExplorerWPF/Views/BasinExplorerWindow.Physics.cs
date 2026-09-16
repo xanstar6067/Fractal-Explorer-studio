@@ -147,7 +147,7 @@ public partial class BasinExplorerWindow
     {
         if (_updatingUi) return;
         if (EditCentersBox.IsChecked == true && SelectedMarkerMode == BasinMarkerMode.Hidden)
-            SelectOption(MarkerModeBox, BasinMarkerMode.Markers);
+            StatusText.Text = "Редактирование включено. Для просмотра центров включите маркеры вверху панели.";
         EndForceCenterDrag();
         UpdateOverlay();
     }

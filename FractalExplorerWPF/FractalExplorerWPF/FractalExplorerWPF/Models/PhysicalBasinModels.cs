@@ -67,7 +67,7 @@ public static partial class BasinExplorerCatalog
         CenterX = parameter ? 1 : 0.5, Zoom = parameter ? 0.55 : 2,
         MaxIterations = 500, MaxPeriod = 16, ShadingScale = 25,
         ColoringMode = parameter ? BasinColoringMode.Period : BasinColoringMode.ConvergenceSpeed,
-        MarkerMode = BasinMarkerMode.Markers, Palette = ClassicPalette()
+        MarkerMode = BasinMarkerMode.Hidden, Palette = GrayscalePalette()
     };
 
     private static IReadOnlyList<BasinExplorerState> PhysicalPresets(BasinExplorerKind kind)
@@ -77,7 +77,7 @@ public static partial class BasinExplorerCatalog
         {
             Kind = kind, SaveName = magnetic ? "Три магнита · классический маятник" : "Три центра · поглощение",
             MaxIterations = 16000, Zoom = 0.55, ShadingScale = 12,
-            MarkerMode = BasinMarkerMode.MarkersWithLabels, Palette = ClassicPalette(),
+            MarkerMode = BasinMarkerMode.Hidden, Palette = GrayscalePalette(),
             Physics = new PhysicalBasinSettings
             {
                 CaptureMode = magnetic ? PhysicalCaptureMode.Settle : PhysicalCaptureMode.Absorb,

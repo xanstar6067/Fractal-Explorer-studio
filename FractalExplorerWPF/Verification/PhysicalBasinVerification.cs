@@ -191,12 +191,74 @@ internal static partial class Program
         }
     }
 
-    private static void WriteNewBasinPreviews(string directory)
+    private static void VerifyBasinAppearance()
+    {
+        using var sandbox = DataSandbox.Create("basin-appearance");
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var updateOverlay = typeof(BasinExplorerWindow).GetMethod("UpdateOverlay", flags)!;
+        var orbitField = typeof(BasinExplorerWindow).GetField("_orbitTrace", flags)!;
+        var standard = new NewtonPaletteManager().ActivePalette;
+        foreach (BasinExplorerKind kind in Enum.GetValues<BasinExplorerKind>())
+        {
+            var window = new BasinExplorerWindow(kind);
+            try
+            {
+                var state = window.CaptureState("appearance");
+                Check(state.Palette.Name == "Оттенки серого" && state.Palette.RootColors.SequenceEqual(standard.RootColors),
+                    $"{kind}: default palette must match Newton's grayscale palette.");
+                Check(state.MarkerMode == BasinMarkerMode.Hidden, $"{kind}: overlays must be hidden by default.");
+                Check(BasinExplorerCatalog.GetPresets(kind).All(p => p.Palette.Name == "Оттенки серого" && p.MarkerMode == BasinMarkerMode.Hidden),
+                    $"{kind}: presets must use the same clean grayscale defaults.");
+
+                var selector = (ComboBox)window.FindName("MarkerModeBox");
+                Check(selector.Parent is StackPanel { Parent: DockPanel } header && DockPanel.GetDock(header) == Dock.Top,
+                    $"{kind}: overlay selector must stay in the fixed header, outside scrolling settings.");
+                var canvas = (FrameworkElement)window.FindName("CanvasHost");
+                canvas.Measure(new Size(800, 600));
+                canvas.Arrange(new Rect(0, 0, 800, 600));
+                canvas.UpdateLayout();
+                var overlay = (Canvas)window.FindName("MarkerOverlay");
+                foreach (ComboBoxItem option in selector.Items)
+                {
+                    if (option.Tag is BasinMarkerMode.Hidden) continue;
+                    selector.SelectedItem = option;
+                    updateOverlay.Invoke(window, null);
+                    Check(overlay.Children.Count > 0, $"{kind}: enabled marker mode {option.Tag} must show geometry.");
+                }
+                int markers = overlay.Children.Count;
+                orbitField.SetValue(window, new Complex[] { Complex.Zero, new(0.1, 0.1) });
+                updateOverlay.Invoke(window, null);
+                Check(overlay.Children.Count > markers, $"{kind}: enabled overlays must include the orbit trace.");
+                selector.SelectedItem = selector.Items.OfType<ComboBoxItem>().Single(i => i.Tag is BasinMarkerMode.Hidden);
+                Check(overlay.Children.Count == 0, $"{kind}: Hidden must remove points, labels, dashed cycles, radii AND orbit traces.");
+                if (BasinExplorerCatalog.UsesPhysics(kind))
+                {
+                    ((CheckBox)window.FindName("EditCentersBox")).IsChecked = true;
+                    Check(overlay.Children.Count == 0 && window.CaptureState("edit").MarkerMode == BasinMarkerMode.Hidden,
+                        $"{kind}: enabling the center editor must respect hidden overlays.");
+                }
+                state.Palette = new NewtonPaletteManager().Palettes.Single(p => p.Name == "Огонь").Clone("Огонь");
+                state.MarkerMode = BasinMarkerMode.MarkersWithLabels;
+                window.LoadState(state);
+                var restored = window.CaptureState("restored");
+                Check(restored.Palette.RootColors.SequenceEqual(state.Palette.RootColors) && restored.MarkerMode == state.MarkerMode,
+                    $"{kind}: explicit saved palette and markers must override defaults.");
+            }
+            finally { window.Close(); }
+        }
+        Console.WriteLine("[diag] All eight basin windows: grayscale defaults, fixed marker selector, complete overlay hiding and saved overrides OK");
+    }
+
+    private static void WriteNewBasinPreviews(string directory, bool physicalOnly = false)
     {
         Directory.CreateDirectory(directory);
         foreach (BasinExplorerKind kind in NewBasinKinds)
         {
-            var state = BasinExplorerCatalog.GetPresets(kind)[kind == BasinExplorerKind.ComplexLogistic ? 4 : kind == BasinExplorerKind.MagneticPendulum ? 1 : 0];
+            if (physicalOnly && !BasinExplorerCatalog.UsesPhysics(kind)) continue;
+            var state = BasinExplorerCatalog.GetPresets(kind)[kind == BasinExplorerKind.ComplexLogistic ? 4 : kind == BasinExplorerKind.MagneticPendulum ? 1 : 0].Clone();
+            state.Palette = BasinExplorerCatalog.UsesPhysics(kind)
+                ? new NewtonPaletteManager().Palettes.Single(p => p.Name == "Огонь").Clone("Огонь")
+                : BasinExplorerCatalog.ClassicPalette();
             var engine = BasinExplorerWindow.CreateEngine(state);
             byte[] pixels = RenderBasinFrame(engine, 512, 512);
             BitmapSource bitmap = BitmapSource.Create(512, 512, 96, 96, PixelFormats.Bgra32, null, pixels, 2048);

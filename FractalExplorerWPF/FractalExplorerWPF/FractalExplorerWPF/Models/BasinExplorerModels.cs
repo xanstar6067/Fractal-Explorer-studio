@@ -363,7 +363,7 @@ public static partial class BasinExplorerCatalog
             Formula = formula,
             MaxIterations = 200,
             ShadingScale = kind == BasinExplorerKind.Laguerre ? 2 : 3,
-            Palette = ClassicPalette()
+            Palette = GrayscalePalette()
         };
         configure(state);
         return state;
@@ -383,8 +383,8 @@ public static partial class BasinExplorerCatalog
             MaxIterations = 300,
             MaxPeriod = 12,
             ShadingScale = 20,
-            MarkerMode = BasinMarkerMode.Markers,
-            Palette = ClassicPalette()
+            MarkerMode = BasinMarkerMode.Hidden,
+            Palette = GrayscalePalette()
         };
         configure(state);
         return state;
@@ -403,14 +403,24 @@ public static partial class BasinExplorerCatalog
             MaxPeriod = 8,
             EscapeRadius = 1e6,
             ShadingScale = 30,
-            MarkerMode = BasinMarkerMode.Markers,
-            Palette = ClassicPalette()
+            MarkerMode = BasinMarkerMode.Hidden,
+            Palette = GrayscalePalette()
         };
         configure(state);
         return state;
     }
 
-    /// <summary>Встроенная палитра «Классика» — гармонические оттенки по числу бассейнов.</summary>
+    /// <summary>Палитра по умолчанию, как у бассейнов Ньютона+.</summary>
+    public static NewtonColorPalette GrayscalePalette() => new()
+    {
+        Name = "Оттенки серого",
+        RootColors = [Colors.White, Colors.LightGray, Colors.DarkGray],
+        BackgroundColor = Colors.Black,
+        IsGradient = true,
+        ExpansionMode = NewtonPaletteExpansionMode.LinearRamp
+    };
+
+    /// <summary>Гармонические оттенки для цветных иллюстраций и сравнительных проверок.</summary>
     public static NewtonColorPalette ClassicPalette() => new()
     {
         Name = "Классика",
