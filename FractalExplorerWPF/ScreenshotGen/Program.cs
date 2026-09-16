@@ -536,8 +536,16 @@ internal static class Program
                     return;
                 }
                 case "DomainColoring":
-                    await CaptureAsync(() => new DomainColoringWindow(), "domain-coloring", 1600);
+                {
+                    Window? w = await CaptureAsync(() => new DomainColoringWindow(), "domain-coloring", 1600);
+                    if (w != null)
+                    {
+                        object mgr = GetMember(w, "_paletteManager")!;
+                        await CaptureChildAsync(w, (Window)Activator.CreateInstance(typeof(DomainColoringPaletteWindow), mgr)!, "domain-coloring-palette-editor");
+                    }
+                    SafeCloseIfAny(w);
                     return;
+                }
                 case "NovaMandelbrot":
                 {
                     Window? w = await CaptureAsync(() => new NovaWindow(NovaVariant.Mandelbrot), "nova-mandelbrot", 1600);

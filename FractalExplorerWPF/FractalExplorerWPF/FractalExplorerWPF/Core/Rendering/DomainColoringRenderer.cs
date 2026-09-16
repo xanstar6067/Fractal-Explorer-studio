@@ -134,6 +134,8 @@ public sealed class DomainColoringRenderer
 
         double normalizedArgument = Wrap01((Math.Atan2(value.Imaginary, value.Real) + Math.PI) / TwoPi);
         double hue = Wrap01(normalizedArgument * _state.HueCycles);
+        Color baseColor = SamplePalette(_state.Palette, hue);
+        baseColor = Desaturate(baseColor, _state.Saturation);
         double logarithmicMagnitude = Math.Log(magnitude) * InverseLogTwo;
         double valueLevel = 1;
 
@@ -162,7 +164,7 @@ public sealed class DomainColoringRenderer
                 break;
         }
 
-        return HsvToColor(hue, _state.Saturation, Math.Clamp(valueLevel, 0, 1));
+        return Scale(baseColor, Math.Clamp(valueLevel, 0, 1));
     }
 
     private double RingBrightness(double logarithmicMagnitude)
@@ -185,24 +187,60 @@ public sealed class DomainColoringRenderer
         return value < 0 ? value + 1 : value;
     }
 
-    private static Color HsvToColor(double hue, double saturation, double value)
+    // Круговая выборка: конец палитры плавно переходит в начало, так как arg f(z)
+    // сам циклический (совпадает по модулю 2π), поэтому подбирать одинаковые
+    // крайние цвета вручную не нужно.
+    private static Color SamplePalette(DomainColoringPalette palette, double normalized)
     {
-        double scaledHue = Wrap01(hue) * 6;
-        int sector = (int)Math.Floor(scaledHue);
-        double fraction = scaledHue - sector;
-        double p = value * (1 - saturation);
-        double q = value * (1 - saturation * fraction);
-        double t = value * (1 - saturation * (1 - fraction));
-        (double r, double g, double b) = sector switch
+        IReadOnlyList<Color> colors = palette.Colors;
+        if (colors.Count == 0) return Colors.White;
+        double position = Wrap01(palette.Reverse ? 1 - normalized : normalized);
+        if (colors.Count == 1) return ApplyGamma(colors[0], palette.Gamma);
+
+        Color result;
+        if (!palette.IsGradient)
         {
-            0 => (value, t, p),
-            1 => (q, value, p),
-            2 => (p, value, t),
-            3 => (p, q, value),
-            4 => (t, p, value),
-            _ => (value, p, q)
-        };
-        return Color.FromRgb(ToByte(r), ToByte(g), ToByte(b));
+            int index = (int)(position * colors.Count) % colors.Count;
+            result = colors[index];
+        }
+        else
+        {
+            double scaled = position * colors.Count;
+            int left = (int)Math.Floor(scaled) % colors.Count;
+            int right = (left + 1) % colors.Count;
+            double fraction = scaled - Math.Floor(scaled);
+            result = Lerp(colors[left], colors[right], fraction);
+        }
+        return ApplyGamma(result, palette.Gamma);
+    }
+
+    private static Color Desaturate(Color color, double saturation)
+    {
+        saturation = Math.Clamp(saturation, 0, 1);
+        if (saturation >= 1) return color;
+        double gray = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B;
+        return Color.FromRgb(
+            ToByte((color.R * saturation + gray * (1 - saturation)) / 255),
+            ToByte((color.G * saturation + gray * (1 - saturation)) / 255),
+            ToByte((color.B * saturation + gray * (1 - saturation)) / 255));
+    }
+
+    private static Color Scale(Color color, double amount) => Color.FromRgb(
+        ToByte(color.R / 255.0 * amount), ToByte(color.G / 255.0 * amount), ToByte(color.B / 255.0 * amount));
+
+    private static Color Lerp(Color first, Color second, double amount) => Color.FromRgb(
+        ToByte((first.R + (second.R - first.R) * amount) / 255),
+        ToByte((first.G + (second.G - first.G) * amount) / 255),
+        ToByte((first.B + (second.B - first.B) * amount) / 255));
+
+    private static Color ApplyGamma(Color color, double gamma)
+    {
+        if (Math.Abs(gamma - 1) < 1e-9) return color;
+        double inverse = 1 / gamma;
+        return Color.FromRgb(
+            ToByte(Math.Pow(color.R / 255.0, inverse)),
+            ToByte(Math.Pow(color.G / 255.0, inverse)),
+            ToByte(Math.Pow(color.B / 255.0, inverse)));
     }
 
     private static Color Blend(Color first, Color second, double amount)

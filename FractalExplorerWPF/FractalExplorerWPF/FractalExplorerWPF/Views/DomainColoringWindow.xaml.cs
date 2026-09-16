@@ -20,6 +20,7 @@ public partial class DomainColoringWindow : Window
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DomainColoringSaveStore _saveStore = new();
+    private readonly DomainColoringPaletteManager _paletteManager = new();
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
@@ -106,7 +107,8 @@ public partial class DomainColoringWindow : Window
             ContourStrength = ReadDouble(ContourStrengthBox.Text, "сила контуров", 0, 1),
             Saturation = ReadDouble(SaturationBox.Text, "насыщенность", 0, 1),
             ShowAxes = ShowAxesBox.IsChecked == true,
-            InvalidColor = InvalidColorSelector.SelectedColor
+            InvalidColor = InvalidColorSelector.SelectedColor,
+            Palette = _paletteManager.ActivePalette.Clone(_paletteManager.ActivePalette.Name)
         };
     }
 
@@ -134,6 +136,7 @@ public partial class DomainColoringWindow : Window
         ShowAxesBox.IsChecked = state.ShowAxes;
         InvalidColorSelector.SelectedColor = state.InvalidColor;
         ZoomBox.Text = Format(_zoom);
+        _paletteManager.ActivePalette = state.Palette.Clone($"Загружено: {state.SaveName}");
 
         UpdateColoringControls();
         _updatingControls = false;
@@ -233,6 +236,13 @@ public partial class DomainColoringWindow : Window
 
     private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
         SaveManagerWindow.Open(this, SaveManagerConfigurations.ForDomainColoring(this, _saveStore));
+
+    private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new DomainColoringPaletteWindow(_paletteManager) { Owner = this };
+        dialog.PaletteApplied += (_, _) => ScheduleRender();
+        dialog.ShowDialog();
+    }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {

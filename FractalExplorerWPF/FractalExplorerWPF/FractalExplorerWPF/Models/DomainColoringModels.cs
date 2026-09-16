@@ -1,5 +1,6 @@
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
+using MediaColors = System.Windows.Media.Colors;
 
 namespace FractalExplorerWPF.Models;
 
@@ -10,6 +11,27 @@ public enum DomainColoringMode
     PhaseContours,
     PolarGrid,
     ArgumentOnly
+}
+
+public sealed class DomainColoringPalette
+{
+    public string Name { get; set; } = "Новая палитра";
+    public List<Color> Colors { get; set; } =
+        [MediaColors.Red, MediaColors.Yellow, MediaColors.Lime, MediaColors.Cyan, MediaColors.Blue, MediaColors.Magenta];
+    public bool IsGradient { get; set; } = true;
+    public bool IsBuiltIn { get; set; }
+    public double Gamma { get; set; } = 1;
+    public bool Reverse { get; set; }
+
+    public DomainColoringPalette Clone(string name) => new()
+    {
+        Name = name,
+        Colors = [.. Colors],
+        IsGradient = IsGradient,
+        IsBuiltIn = false,
+        Gamma = Gamma,
+        Reverse = Reverse
+    };
 }
 
 public sealed class DomainColoringState
@@ -30,4 +52,5 @@ public sealed class DomainColoringState
     public double Saturation { get; set; } = 0.9;
     public bool ShowAxes { get; set; }
     public Color InvalidColor { get; set; } = Colors.White;
+    public DomainColoringPalette Palette { get; set; } = new();
 }

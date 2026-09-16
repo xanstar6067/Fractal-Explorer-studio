@@ -112,6 +112,7 @@
                     <Button Content="Запустить рендер" Click="RenderButton_OnClick"/>
                     <Button x:Name="CancelButton" Content="Отмена" IsEnabled="False" Click="CancelButton_OnClick"/>
                     <Button Content="Сбросить вид" Click="ResetViewButton_OnClick"/>
+                    <Button Content="Настроить палитру" Click="PaletteButton_OnClick"/>
                     <Button Content="Менеджер сохранений" Click="SavesButton_OnClick"/>
                     <Button Content="Сохранить изображение" Click="ExportButton_OnClick"/>
 
