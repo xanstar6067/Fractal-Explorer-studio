@@ -13,6 +13,9 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
     <Resource Include="Assets\Previews\**\*" />
     <Resource Include="Assets\Icons\**\*" />
+    <EmbeddedResource Include="Assets\Certificates\fractalcloud-caddy-root.crt" />
+    <None Update="cloud-connection.local.json" Condition="Exists('cloud-connection.local.json')"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -80,6 +80,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Button x:Name="DeleteButton" Width="90" Content="Удалить" Click="DeleteButton_OnClick"/>
+            <Button Grid.Column="1" Content="Облако…" Margin="8,0,0,0" Click="CloudButton_OnClick"/>
         </Grid>
 
         <Grid Grid.Row="4" Grid.Column="2">

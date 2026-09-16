@@ -59,6 +59,7 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         _view.CancelPreviewRequested += View_OnCancelPreviewRequested;
         _view.PointsOfInterestModeChanged += View_OnPointsOfInterestModeChanged;
         _view.CloseRequested += View_OnCloseRequested;
+        _view.CloudRequested += View_OnCloudRequested;
         _view.SetPointsOfInterestAvailable(configuration.PointsOfInterest.Count > 0);
         RefreshStates();
     }
@@ -247,6 +248,13 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
 
     private void View_OnCloseRequested(object? sender, EventArgs e) => _window.Close();
 
+    private void View_OnCloudRequested(object? sender, EventArgs e)
+    {
+        CancelPreview();
+        Views.CloudSaveManagerWindow.Open(_window, _configuration.Store.Category);
+        RefreshStates();
+    }
+
     private async Task RenderSelectedPreviewAsync()
     {
         if (_disposed || _isRendering || SelectedEntry is not { } entry) return;
@@ -407,5 +415,6 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         _view.CancelPreviewRequested -= View_OnCancelPreviewRequested;
         _view.PointsOfInterestModeChanged -= View_OnPointsOfInterestModeChanged;
         _view.CloseRequested -= View_OnCloseRequested;
+        _view.CloudRequested -= View_OnCloudRequested;
     }
 }

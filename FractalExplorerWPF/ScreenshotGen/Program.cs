@@ -372,6 +372,17 @@ internal static class Program
             return;
         }
 
+        // No live network or login during documentation capture.
+        using (var cloudClient = new FractalExplorerWPF.Infrastructure.Cloud.FractalCloudClient(new() { Server = "https://cloud.example.com" }))
+        {
+            await CaptureChildAsync(main, new CloudSaveManagerWindow(connectOnLoad: false, client: cloudClient), "00-cloud-saves");
+            await CaptureChildAsync(main, new CloudLoginWindow(cloudClient), "00-cloud-login");
+        }
+        await CaptureChildAsync(main, new CloudConflictWindow(
+            new LocalCloudSave("", "Mandelbrot", "Спираль", "{\"zoom\":1000}", ""),
+            new CloudSave(Guid.NewGuid(), "Спираль", 2, DateTimeOffset.Now, DateTimeOffset.Now,
+                "{\"zoom\":2000}")), "00-cloud-conflict");
+
         var themeEditor = new ThemeEditorWindow();
         await ShowAsync(themeEditor, 1200);
         Offscreen(themeEditor);

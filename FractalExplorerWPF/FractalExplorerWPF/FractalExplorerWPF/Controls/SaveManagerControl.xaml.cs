@@ -16,6 +16,7 @@ public partial class SaveManagerControl : UserControl
     public event EventHandler? CancelPreviewRequested;
     public event EventHandler? PointsOfInterestModeChanged;
     public event EventHandler? CloseRequested;
+    public event EventHandler? CloudRequested;
 
     public SaveManagerControl()
     {
@@ -101,4 +102,5 @@ public partial class SaveManagerControl : UserControl
     private void CancelPreviewButton_OnClick(object sender, RoutedEventArgs e) => CancelPreviewRequested?.Invoke(this, EventArgs.Empty);
     private void PointsOfInterestCheckBox_OnChanged(object sender, RoutedEventArgs e) => PointsOfInterestModeChanged?.Invoke(this, EventArgs.Empty);
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);
+    private void CloudButton_OnClick(object sender, RoutedEventArgs e) => CloudRequested?.Invoke(this, EventArgs.Empty);
 }

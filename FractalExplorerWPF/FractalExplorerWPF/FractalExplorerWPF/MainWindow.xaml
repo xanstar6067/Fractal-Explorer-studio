@@ -78,6 +78,7 @@
                 BorderBrush="{DynamicResource Theme.BorderBrush}"
                 BorderThickness="1" CornerRadius="7">
             <DockPanel>
+                <Button DockPanel.Dock="Bottom" Content="Облачные сохранения…" Margin="0,8,0,0" Click="CloudButton_OnClick"/>
                 <TextBlock DockPanel.Dock="Top" Margin="5,3,5,12"
                            FontSize="18" FontWeight="SemiBold"
                            Text="Каталог"/>

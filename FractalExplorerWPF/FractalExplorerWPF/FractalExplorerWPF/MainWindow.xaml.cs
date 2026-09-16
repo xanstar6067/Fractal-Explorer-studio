@@ -13,6 +13,7 @@ namespace FractalExplorerWPF;
 
 public partial class MainWindow : Window
 {
+    private void CloudButton_OnClick(object sender, RoutedEventArgs e) => CloudSaveManagerWindow.Open(this);
     private readonly IReadOnlyList<FractalCatalogItem> _catalog = FractalCatalog.Create();
     private readonly HashSet<string> _favorites = FavoriteFractalsStore.Load();
     private FractalCatalogItem? _selectedItem;

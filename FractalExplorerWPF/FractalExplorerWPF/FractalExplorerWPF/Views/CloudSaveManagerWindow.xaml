@@ -1,0 +1,97 @@
+<Window x:Class="FractalExplorerWPF.Views.CloudSaveManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Облачные сохранения — FractalCloud" Width="1060" Height="700" MinWidth="850" MinHeight="570"
+        WindowStartupLocation="CenterOwner" Icon="../Assets/Icons/Save.ico">
+    <Window.Resources>
+        <Style TargetType="ListView">
+            <Setter Property="Background" Value="{DynamicResource Theme.ControlBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        </Style>
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
+            <Setter Property="Padding" Value="6"/>
+        </Style>
+        <Style TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+            <Setter Property="Padding" Value="4,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="Row" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                Columns="{Binding View.Columns, RelativeSource={RelativeSource AncestorType=ListView}}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource Theme.HoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <DockPanel>
+            <Button x:Name="LogoutButton" DockPanel.Dock="Right" Content="Выйти" Click="Logout_OnClick"/>
+            <StackPanel><TextBlock Text="Облачные сохранения" FontSize="24" FontWeight="SemiBold"/>
+                <TextBlock x:Name="AccountText" Margin="0,5,0,0"/></StackPanel>
+        </DockPanel>
+        <WrapPanel x:Name="Toolbar" Grid.Row="1" Margin="0,16,0,12">
+            <Button Content="Обновить списки" Click="Refresh_OnClick" Margin="0,0,8,0"/>
+            <Button Content="Синхронизировать" Click="Sync_OnClick" Margin="0,0,16,0"/>
+            <CheckBox x:Name="CategoryFilter" VerticalAlignment="Center" Visibility="Collapsed"
+                      Checked="Filter_OnChanged" Unchecked="Filter_OnChanged"/>
+        </WrapPanel>
+        <Grid x:Name="ListsPanel" Grid.Row="2">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <DockPanel>
+                <TextBlock Text="На этом компьютере" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,8"/>
+                <Button DockPanel.Dock="Bottom" Content="В облако / синхронизировать выбранное →" Click="Upload_OnClick" Margin="0,10,0,0"/>
+                <ListView x:Name="LocalList" SelectionMode="Single">
+                    <ListView.View><GridView>
+                        <GridViewColumn Header="Название" Width="235" DisplayMemberBinding="{Binding Name}"/>
+                        <GridViewColumn Header="Режим" Width="170" DisplayMemberBinding="{Binding Category}"/>
+                    </GridView></ListView.View>
+                </ListView>
+            </DockPanel>
+            <DockPanel Grid.Column="2">
+                <TextBlock Text="В облаке · все режимы" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,8"/>
+                <Button DockPanel.Dock="Bottom" Content="← На компьютер / синхронизировать выбранное" Click="Download_OnClick" Margin="0,10,0,0"/>
+                <ListView x:Name="CloudList" SelectionMode="Single" SelectionChanged="CloudList_OnSelectionChanged">
+                    <ListView.View><GridView>
+                        <GridViewColumn Header="Название" Width="220" DisplayMemberBinding="{Binding Name}"/>
+                        <GridViewColumn Header="Версия" Width="60" DisplayMemberBinding="{Binding Revision}"/>
+                        <GridViewColumn Header="Изменено" Width="130" DisplayMemberBinding="{Binding UpdatedAt, StringFormat={}{0:g}}"/>
+                    </GridView></ListView.View>
+                </ListView>
+            </DockPanel>
+        </Grid>
+        <WrapPanel x:Name="EditPanel" Grid.Row="3" Margin="0,16,0,10">
+            <TextBlock Text="Название в облаке:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="NameBox" Width="260" MaxLength="100" Margin="0,0,8,0"/>
+            <Button Content="Переименовать" Click="Rename_OnClick" Margin="0,0,8,0"/>
+            <Button Content="Удалить из облака…" Click="Delete_OnClick"/>
+        </WrapPanel>
+        <TextBlock Grid.Row="4" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                   Text="Синхронизация запускается вручную. Совпадение имён не перезаписывает файлы. Удаления автоматически не распространяются. Превью остаются на ПК: откройте менеджер сохранений нужного фрактала и нажмите «Рендер превью»."/>
+        <DockPanel Grid.Row="5" Margin="0,12,0,0">
+            <Button x:Name="CancelButton" DockPanel.Dock="Right" Content="Отменить операцию" Click="Cancel_OnClick" IsEnabled="False" Margin="12,0,0,0"/>
+            <TextBlock x:Name="StatusText" TextWrapping="Wrap" VerticalAlignment="Center" MinHeight="36"/>
+        </DockPanel>
+    </Grid>
+</Window>

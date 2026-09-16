@@ -1,0 +1,4 @@
+{
+  "Server": "https://cloud.example.com:9443",
+  "UseCaddyRoot": true
+}
