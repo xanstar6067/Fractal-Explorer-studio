@@ -53,6 +53,31 @@ internal static partial class Program
         for (int j = 0; j < 20; j++)
             if (dense.AnalyzePoint(-2 + 4 * (i + 0.37) / 20, -2 + 4 * (j + 0.61) / 20).TargetIndex < 0) lost++; // Не на диагонали x = y: там спуск честно приходит в сёдла.
         Check(lost == 0, $"Dense minima inside the search radius must all be discovered; {lost} starts stayed background.");
+        // Вырожденные минимумы: гессиан нулевой, спуск к ним сублинейный, но бассейны окрашиваются
+        // любым оптимизатором, а выбор минимума совпадает с симметрией потенциала.
+        foreach (BasinOptimizer optimizer in Enum.GetValues<BasinOptimizer>())
+        {
+            var quartic = PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "(x^2-1)^4+(y^2-1)^4", Optimizer = optimizer, LearningRate = 0.005 });
+            Check(quartic.TargetCount == 4, $"{optimizer}: four degenerate minima of (x²−1)⁴ + (y²−1)⁴ must be found; found {quartic.TargetCount}.");
+            // Старты у самих минимумов: издалека momentum честно перелетает в соседний квадрант.
+            foreach (Complex start in new Complex[] { new(0.9, 1.15), new(-1.1, 0.85), new(-0.95, -1.2), new(1.2, -0.9) })
+            {
+                var result = quartic.AnalyzePoint(start.Real, start.Imaginary);
+                Complex minimum = result.TargetIndex >= 0 ? quartic.PlanarAttractors[result.TargetIndex].Points[0] : Complex.Zero;
+                Check(result.Outcome == BasinOrbitOutcome.Converged && Math.Sign(minimum.Real) == Math.Sign(start.Real) &&
+                      Math.Sign(minimum.Imaginary) == Math.Sign(start.Imaginary),
+                    $"{optimizer}: start {start} must be captured by the minimum of its quadrant, got {result}.");
+            }
+        }
+        foreach (string potential in new[] { "x^4+y^4", "x^2+y^4", "(x^2+y^2)^3" })
+            Check(PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = potential, LearningRate = 0.02 }).AnalyzePoint(0.7, -0.4).TargetIndex == 0,
+                $"Degenerate minimum of {potential} must be found and capture.");
+        Check(PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "x^2" }).TargetCount == 0, "A line of minima is not an isolated attractor.");
+        Check(PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "x^3-3*x*y^2+0.001*(x^2+y^2)^3" }).PlanarAttractors
+            .All(a => a.Points[0].Magnitude > 0.1), "A monkey saddle must not be a degenerate minimum.");
+        var degenerateField = PlanarEngine(BasinExplorerKind.PolynomialVectorField, new() { FieldX = "-x^3+y^3", FieldY = "-x^3-y^3" });
+        Check(degenerateField.TargetCount == 1 && degenerateField.AnalyzePoint(0.8, 0.5).TargetIndex == 0, "A degenerate stable node of a vector field must color its basin.");
+        Check(PlanarEngine(BasinExplorerKind.PolynomialVectorField, new() { FieldX = "x^2", FieldY = "-y" }).TargetCount == 0, "A saddle-node must be rejected.");
         var escape = PlanarEngine(BasinExplorerKind.GradientDescent, new() { Potential = "(x^2+y^2)/2", LearningRate = 3 });
         Check(escape.AnalyzePoint(1, 1).Outcome == BasinOrbitOutcome.Escaped, "An unstable discrete step must escape, not silently shrink α.");
 
