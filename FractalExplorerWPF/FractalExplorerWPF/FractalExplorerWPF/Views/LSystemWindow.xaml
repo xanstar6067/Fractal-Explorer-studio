@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.LSystemWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.LSystemWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
@@ -64,12 +64,12 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Угол, °"/>
-                            <TextBox x:Name="AngleBox" Margin="0,3,0,0"
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="AngleBox" Margin="0,3,0,0"
                                      TextChanged="Input_OnChanged"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Глубина"/>
-                            <TextBox x:Name="DepthBox" Margin="0,3,0,0"
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="DepthBox" Margin="0,3,0,0"
                                      TextChanged="Input_OnChanged"/>
                         </StackPanel>
                     </Grid>
@@ -82,7 +82,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Стартовый угол, °"/>
-                            <TextBox x:Name="InitialAngleBox" Margin="0,3,0,0"
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="InitialAngleBox" Margin="0,3,0,0"
                                      TextChanged="Input_OnChanged"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
@@ -114,12 +114,12 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="Толщина в начале"/>
-                                    <TextBox x:Name="StartThicknessBox" Margin="0,3,0,0"
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="StartThicknessBox" Margin="0,3,0,0"
                                              TextChanged="Appearance_OnChanged"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Толщина в конце"/>
-                                    <TextBox x:Name="EndThicknessBox" Margin="0,3,0,0"
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="EndThicknessBox" Margin="0,3,0,0"
                                              TextChanged="Appearance_OnChanged"/>
                                 </StackPanel>
                             </Grid>
@@ -127,7 +127,7 @@
                     </Expander>
 
                     <TextBlock Margin="0,12,0,2" Text="Длительность анимации, сек"/>
-                    <TextBox x:Name="AnimationDurationBox" Text="6"
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="AnimationDurationBox" Text="6"
                              TextChanged="Input_OnChanged"/>
 
                     <Grid Margin="0,7,0,0">

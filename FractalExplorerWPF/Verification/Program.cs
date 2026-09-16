@@ -56,9 +56,10 @@ internal static partial class Program
                 if (group is "basins" or "planar" && args.Length == 3 && args[1] == "--planar-previews") WritePlanarBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--physical-previews") WriteNewBasinPreviews(args[2], physicalOnly: true);
-                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "cloud" or "cloud-live"))
+                if (group is "all" or "numeric") VerifyNumericSpinners();
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "cloud" or "cloud-live" or "numeric"))
                     throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar.");
-                if (group is not ("cloud" or "cloud-live"))
+                if (group is not ("cloud" or "cloud-live" or "numeric"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)

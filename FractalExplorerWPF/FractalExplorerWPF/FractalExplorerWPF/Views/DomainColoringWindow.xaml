@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.DomainColoringWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.DomainColoringWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
@@ -66,25 +66,25 @@
                     <Expander Header="Параметры окрашивания" IsExpanded="True" Margin="0,2,0,7">
                         <StackPanel Margin="12,6,0,2">
                             <TextBlock Text="Обороты оттенка"/>
-                            <TextBox x:Name="HueCyclesBox" TextChanged="Parameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="HueCyclesBox" TextChanged="Parameter_OnChanged"/>
                             <TextBlock Text="Насыщенность (0–1)"/>
-                            <TextBox x:Name="SaturationBox" TextChanged="Parameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SaturationBox" TextChanged="Parameter_OnChanged"/>
 
                             <StackPanel x:Name="MagnitudePanel">
                                 <TextBlock Text="Экспозиция модуля"/>
-                                <TextBox x:Name="MagnitudeExposureBox" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MagnitudeExposureBox" TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
                             <StackPanel x:Name="RingPanel">
                                 <TextBlock Text="Колец на удвоение |f(z)|" TextWrapping="Wrap"/>
-                                <TextBox x:Name="RingDensityBox" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RingDensityBox" TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
                             <StackPanel x:Name="PhasePanel">
                                 <TextBlock Text="Число фазовых секторов"/>
-                                <TextBox x:Name="PhaseSectorsBox" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="PhaseSectorsBox" TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
                             <StackPanel x:Name="ContourPanel">
                                 <TextBlock Text="Сила контуров (0–1)"/>
-                                <TextBox x:Name="ContourStrengthBox" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ContourStrengthBox" TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
                             <CheckBox x:Name="ShowAxesBox" Margin="0,3,0,8" Content="Показывать оси"
@@ -98,7 +98,7 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"/></StackPanel>
                     </Grid>
                     <TextBlock Text="Потоки ЦП"/>
                     <ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>

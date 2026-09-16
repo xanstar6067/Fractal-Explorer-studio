@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.InverseCollatzPaletteWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.InverseCollatzPaletteWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -141,7 +141,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Margin="0,0,0,3" Text="Уровней в цикле"/>
-                            <TextBox x:Name="LevelsPerCycleBox" Padding="7"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="LevelsPerCycleBox" Padding="7"/>
                         </StackPanel>
                     </Grid>
 
@@ -153,7 +153,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Margin="0,0,0,3" Text="Гамма-коррекция"/>
-                            <TextBox x:Name="GammaBox" Padding="7"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="GammaBox" Padding="7"/>
                             <CheckBox x:Name="ReverseBox" Margin="0,9,0,0" Content="Обратить направление цветов"
                                       Checked="PreviewOption_OnChanged" Unchecked="PreviewOption_OnChanged"/>
                         </StackPanel>

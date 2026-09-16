@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.MathematicalLaboratoryWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.MathematicalLaboratoryWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
@@ -37,27 +37,27 @@
                     <Grid Margin="0,3">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="PrimaryLabel" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBox x:Name="PrimaryBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="PrimaryBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid Margin="0,3">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="SecondaryLabel" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBox x:Name="SecondaryBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="SecondaryBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid Margin="0,3">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="TertiaryLabel" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBox x:Name="TertiaryBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="TertiaryBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid Margin="0,3">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="ParameterLabel" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBox x:Name="ParameterBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ParameterBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid Margin="0,3">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions>
                         <TextBlock VerticalAlignment="Center" Text="Поворот, °"/>
-                        <TextBox x:Name="RotationBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RotationBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                     </Grid>
 
                     <CheckBox x:Name="ShowGuidesCheck" Margin="0,8,0,3" Content="Направляющие / связи"

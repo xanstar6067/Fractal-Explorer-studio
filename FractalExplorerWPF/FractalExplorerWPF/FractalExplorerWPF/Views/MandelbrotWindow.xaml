@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.MandelbrotWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.MandelbrotWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
@@ -28,11 +28,11 @@
                     <TextBlock x:Name="HeaderText" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
 
                     <TextBlock Margin="0,14,0,0" Text="Итерации"/>
-                    <TextBox x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/>
                     <TextBlock Text="Порог выхода"/>
-                    <TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/>
                     <TextBlock Text="Приближение"/>
-                    <TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"
                              ToolTip="Принимается и научная нотация: 1e500. Колесо мыши — ×1.5 за щелчок, с Ctrl — ×10, с Shift — ×1.05"/>
                     <Button x:Name="NucleusButton" Margin="0,6,0,0" Content="Навести на минимандельброт"
                             Click="NucleusButton_OnClick"
@@ -44,8 +44,8 @@
                     <StackPanel x:Name="JuliaConstantPanel">
                         <TextBlock Text="Константа C (Re / Im)"/>
                         <UniformGrid Columns="2">
-                            <TextBox x:Name="JuliaRealBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
-                            <TextBox x:Name="JuliaImaginaryBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="JuliaRealBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="JuliaImaginaryBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
                         </UniformGrid>
                         <Button Content="Выбрать C на карте" Click="JuliaConstantButton_OnClick"/>
                         <TextBlock Margin="0,5,0,3" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
@@ -78,7 +78,7 @@
 
                     <StackPanel x:Name="PowerPanel">
                         <TextBlock Text="Степень"/>
-                        <TextBox x:Name="PowerBox" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox" TextChanged="Parameter_OnChanged"/>
                     </StackPanel>
                     <CheckBox x:Name="InversionBox" Content="Инверсия по горизонтали"
                               Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
@@ -106,21 +106,21 @@
                     <Expander Header="Параметры окрашивания">
                         <StackPanel Margin="12,6,0,4">
                             <TextBlock Text="Степень смешивания / сдвиг итерации" TextWrapping="Wrap"/>
-                            <UniformGrid Columns="2"><TextBox x:Name="SmoothBlendPowerBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="SmoothIterationOffsetBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
+                            <UniformGrid Columns="2"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SmoothBlendPowerBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SmoothIterationOffsetBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
                             <TextBlock Text="Контраст гистограммы"/>
-                            <TextBox x:Name="HistogramContrastBox" TextChanged="Parameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="HistogramContrastBox" TextChanged="Parameter_OnChanged"/>
                             <CheckBox x:Name="HistogramEqualizationBox" Content="Выравнивание гистограммы" Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
                             <CheckBox x:Name="HistogramSmoothInputBox" Content="Плавные значения на входе" Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
                             <TextBlock Text="Сила / смещение ловушки"/>
-                            <UniformGrid Columns="2"><TextBox x:Name="OrbitStrengthBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="OrbitBiasBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
+                            <UniformGrid Columns="2"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="OrbitStrengthBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="OrbitBiasBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
                             <TextBlock Text="Частота / сила / смещение полос" TextWrapping="Wrap"/>
-                            <UniformGrid Columns="3"><TextBox x:Name="StripeFrequencyBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="StripeStrengthBox" Margin="3,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="StripeBiasBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
+                            <UniformGrid Columns="3"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="StripeFrequencyBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="StripeStrengthBox" Margin="3,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="StripeBiasBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
                             <TextBlock Text="Полином A / B / C"/>
-                            <UniformGrid Columns="3"><TextBox x:Name="PolyABox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="PolyBBox" Margin="3,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="PolyCBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
+                            <UniformGrid Columns="3"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PolyABox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PolyBBox" Margin="3,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PolyCBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
                             <TextBlock Text="Gamma / blend / bias"/>
-                            <UniformGrid Columns="3"><TextBox x:Name="PolyGammaBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="PolyBlendBox" Margin="3,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="PolyBiasBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
+                            <UniformGrid Columns="3"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PolyGammaBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PolyBlendBox" Margin="3,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PolyBiasBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
                             <TextBlock Text="Фаза / масштаб палитры"/>
-                            <UniformGrid Columns="2"><TextBox x:Name="PalettePhaseBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox x:Name="PaletteScaleBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
+                            <UniformGrid Columns="2"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PalettePhaseBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PaletteScaleBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/></UniformGrid>
                             <TextBlock Text="Поведение границ палитры"/>
                             <ComboBox x:Name="PaletteWrapBox" SelectionChanged="Parameter_OnChanged">
                                 <ComboBoxItem Content="Повтор"/><ComboBoxItem Content="Ограничение"/><ComboBoxItem Content="Зеркало"/>
@@ -136,28 +136,28 @@
                               Visibility="Collapsed" IsExpanded="True">
                         <StackPanel Margin="12,6,0,4">
                             <TextBlock Text="Сила рельефа"/>
-                            <TextBox x:Name="DistanceReliefBox" TextChanged="Parameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceReliefBox" TextChanged="Parameter_OnChanged"/>
                             <TextBlock Text="Азимут / высота света (°)" TextWrapping="Wrap"/>
                             <UniformGrid Columns="2">
-                                <TextBox x:Name="DistanceLightAzimuthBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
-                                <TextBox x:Name="DistanceLightElevationBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceLightAzimuthBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceLightElevationBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
                             </UniformGrid>
                             <TextBlock Text="Ambient / diffuse"/>
                             <UniformGrid Columns="2">
-                                <TextBox x:Name="DistanceAmbientBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
-                                <TextBox x:Name="DistanceDiffuseBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceAmbientBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceDiffuseBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
                             </UniformGrid>
                             <TextBlock Text="Specular / блеск"/>
                             <UniformGrid Columns="2">
-                                <TextBox x:Name="DistanceSpecularBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
-                                <TextBox x:Name="DistanceShininessBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceSpecularBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceShininessBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
                             </UniformGrid>
                             <CheckBox x:Name="DistanceContoursBox" Content="Контуры одинакового расстояния"
                                       Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
                             <TextBlock Text="Шаг контуров (пикс.) / сила" TextWrapping="Wrap"/>
                             <UniformGrid Columns="2">
-                                <TextBox x:Name="DistanceContourSpacingBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
-                                <TextBox x:Name="DistanceContourStrengthBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceContourSpacingBox" Margin="0,2,3,7" TextChanged="Parameter_OnChanged"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceContourStrengthBox" Margin="3,2,0,7" TextChanged="Parameter_OnChanged"/>
                             </UniformGrid>
                             <TextBlock Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap"
                                        Text="Палитра задаёт цвет рельефа; свет и контуры накладываются поверх неё."/>

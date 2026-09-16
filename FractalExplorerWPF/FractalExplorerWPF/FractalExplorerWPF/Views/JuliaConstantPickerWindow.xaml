@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.JuliaConstantPickerWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.JuliaConstantPickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -25,11 +25,11 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="6,0">
                 <TextBlock Text="Re(C)"/>
-                <TextBox x:Name="RealBox" Padding="6,4" TextChanged="ConstantText_OnChanged"/>
+                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RealBox" Padding="6,4" TextChanged="ConstantText_OnChanged"/>
             </StackPanel>
             <StackPanel Grid.Column="2" Margin="6,0">
                 <TextBlock Text="Im(C)"/>
-                <TextBox x:Name="ImaginaryBox" Padding="6,4" TextChanged="ConstantText_OnChanged"/>
+                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ImaginaryBox" Padding="6,4" TextChanged="ConstantText_OnChanged"/>
             </StackPanel>
         </Grid>
 

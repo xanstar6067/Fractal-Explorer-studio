@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.ImageExportManagerWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.ImageExportManagerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Менеджер сохранения изображений" Width="560" Height="700"
@@ -39,12 +39,12 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="96"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="WidthBox" Grid.Column="0"
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="WidthBox" Grid.Column="0"
                                      HorizontalContentAlignment="Center"
                                      TextChanged="ExportOption_OnChanged"/>
                             <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="×"/>
-                            <TextBox x:Name="HeightBox" Grid.Column="2"
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="HeightBox" Grid.Column="2"
                                      HorizontalContentAlignment="Center"
                                      TextChanged="ExportOption_OnChanged"/>
                             <Button Grid.Column="3" Margin="10,0,0,0" Padding="10,5"

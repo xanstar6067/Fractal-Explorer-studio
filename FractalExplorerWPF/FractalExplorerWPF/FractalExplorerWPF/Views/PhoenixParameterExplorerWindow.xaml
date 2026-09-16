@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.PhoenixParameterExplorerWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.PhoenixParameterExplorerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -14,10 +14,10 @@
                 <TextBlock Margin="0,3,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap"
                            Text="ЛКМ выбирает комплексное значение. Колесо масштабирует, средняя кнопка перемещает карту."/>
             </StackPanel>
-            <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="C1 Re"/><TextBox x:Name="C1RealBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
-            <StackPanel Grid.Column="2" Margin="4,0"><TextBlock Text="C1 Im"/><TextBox x:Name="C1ImaginaryBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
-            <StackPanel Grid.Column="3" Margin="4,0"><TextBlock Text="C2 Re"/><TextBox x:Name="C2RealBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
-            <StackPanel Grid.Column="4" Margin="4,0"><TextBlock Text="C2 Im"/><TextBox x:Name="C2ImaginaryBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="C1 Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C1RealBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
+            <StackPanel Grid.Column="2" Margin="4,0"><TextBlock Text="C1 Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C1ImaginaryBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
+            <StackPanel Grid.Column="3" Margin="4,0"><TextBlock Text="C2 Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C2RealBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
+            <StackPanel Grid.Column="4" Margin="4,0"><TextBlock Text="C2 Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C2ImaginaryBox" Padding="7" TextChanged="ParameterText_OnChanged"/></StackPanel>
         </Grid>
 
         <Grid Grid.Row="1" Margin="0,12,0,10">

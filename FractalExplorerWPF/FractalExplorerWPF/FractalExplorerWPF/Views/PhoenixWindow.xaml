@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.PhoenixWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.PhoenixWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -36,40 +36,40 @@
                     </ComboBox>
 
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="C1 Re (seed)"/><TextBox x:Name="C1RealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="C1 Im"/><TextBox x:Name="C1ImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="C1 Re (seed)"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C1RealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="C1 Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C1ImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="C2 Re (память)"/><TextBox x:Name="C2RealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="C2 Im"/><TextBox x:Name="C2ImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="C2 Re (память)"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C2RealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="C2 Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="C2ImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
                     <Button Content="Исследовать плоскости C1/C2…" Click="ParameterSelector_OnClick"/>
 
                     <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="82"/><ColumnDefinition Width="12"/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Степени a / b"/>
-                        <TextBox x:Name="PrimaryPowerBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
-                        <TextBox x:Name="SecondaryPowerBox" Grid.Column="3" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="PrimaryPowerBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
+                        <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="SecondaryPowerBox" Grid.Column="3" TextChanged="Parameter_OnChanged"/>
                     </Grid>
 
                     <Expander Header="Начальные значения параметрических плоскостей" Margin="0,3,0,7">
                         <StackPanel Margin="0,7,0,0">
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <StackPanel Margin="0,0,5,0"><TextBlock Text="z₀ Re"/><TextBox x:Name="InitialZRealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="z₀ Im"/><TextBox x:Name="InitialZImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,5,0"><TextBlock Text="z₀ Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="InitialZRealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="z₀ Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="InitialZImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <StackPanel Margin="0,0,5,0"><TextBlock Text="z₋₁ Re"/><TextBox x:Name="PreviousRealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="z₋₁ Im"/><TextBox x:Name="PreviousImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Margin="0,0,5,0"><TextBlock Text="z₋₁ Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PreviousRealBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="z₋₁ Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PreviousImaginaryBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
                     </Expander>
 
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус выхода"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус выхода"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"
+                        <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"
                                  ToolTip="Принимается и научная нотация: 1e500. Колесо мыши — ×1.2 за щелчок, с Ctrl — ×10, с Shift — ×1.05"/></StackPanel></Grid>
                     <Button x:Name="NucleusButton" Content="Навести на ядро" Click="NucleusButton_OnClick"
                             ToolTip="Метод Ньютона уточняет центр до ближайшей точки, чья орбита проходит через ноль (ядро мини-копии), и подбирает зум под её размер. Только для классического варианта."/>
@@ -95,21 +95,21 @@
                             <ComboBoxItem Content="Точка в начале координат" Tag="Point"/>
                         </ComboBox>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="OrbitTrapRadiusBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="OrbitTrapRadiusBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="OrbitTrapStrengthBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="OrbitTrapStrengthBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     </StackPanel>
                     <StackPanel x:Name="StripePanel">
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Частота полос"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="StripeFrequencyBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Частота полос"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="StripeFrequencyBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила полос"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="StripeStrengthBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила полос"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="StripeStrengthBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     </StackPanel>
                     <StackPanel x:Name="PeriodPanel">
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск цикла"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="CycleToleranceBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск цикла"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CycleToleranceBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. период"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MaximumPeriodBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
+                            <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. период"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="MaximumPeriodBox" TextChanged="Parameter_OnChanged"/></StackPanel></Grid>
                     </StackPanel>
 
                     <TextBlock Text="Потоки ЦП"/><ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>

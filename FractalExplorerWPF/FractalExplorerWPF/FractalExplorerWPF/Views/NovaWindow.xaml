@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.NovaWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.NovaWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming" xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
         Width="1140" Height="760" MinWidth="920" MinHeight="600" WindowStartupLocation="CenterOwner"
@@ -16,32 +16,32 @@
                 <TextBlock x:Name="HeaderText" FontSize="18" FontWeight="SemiBold"/>
                 <TextBlock Margin="0,10,0,2" Text="Комплексная степень P"/>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <StackPanel Margin="0,0,5,0"><TextBlock Text="Re"/><TextBox x:Name="PRealBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
-                    <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox x:Name="PImaginaryBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
+                    <StackPanel Margin="0,0,5,0"><TextBlock Text="Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PRealBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PImaginaryBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
                 </Grid>
                 <TextBlock Text="Начальные условия Z₀"/>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <StackPanel Margin="0,0,5,0"><TextBlock Text="Re"/><TextBox x:Name="Z0RealBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
-                    <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox x:Name="Z0ImaginaryBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
+                    <StackPanel Margin="0,0,5,0"><TextBlock Text="Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="Z0RealBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="Z0ImaginaryBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
                 </Grid>
                 <StackPanel x:Name="JuliaParametersPanel">
                     <TextBlock Text="Константа C"/>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Re"/><TextBox x:Name="CRealBox" TextChanged="JuliaMapParameter_OnChanged"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox x:Name="CImaginaryBox" TextChanged="JuliaMapParameter_OnChanged"/></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Re"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CRealBox" TextChanged="JuliaMapParameter_OnChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Im"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CImaginaryBox" TextChanged="JuliaMapParameter_OnChanged"/></StackPanel>
                     </Grid>
                 </StackPanel>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Релаксация m"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Релаксация m"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MBox" TextChanged="MapFormulaParameter_OnChanged"/></StackPanel>
                 </Grid>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                 </Grid>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Порог"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Порог"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ThresholdBox" TextChanged="Parameter_OnChanged"/></StackPanel>
                 </Grid>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"/></StackPanel>
+                    <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/><StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" TextChanged="ZoomBox_OnChanged"/></StackPanel>
                 </Grid>
                 <TextBlock Text="Потоки ЦП"/><ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
                 <TextBlock Text="SSAA"/><ComboBox x:Name="SsaaBox" SelectionChanged="Parameter_OnChanged">

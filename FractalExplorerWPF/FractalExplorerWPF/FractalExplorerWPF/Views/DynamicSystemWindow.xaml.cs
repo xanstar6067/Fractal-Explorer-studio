@@ -112,7 +112,13 @@ public partial class DynamicSystemWindow : Window
         var panel = new StackPanel();
         var labelBlock = new TextBlock { Text = label };
         panel.Children.Add(labelBlock);
-        var box = new TextBox { Tag = key }; panel.Children.Add(box); _boxes[key] = box;
+        var box = new TextBox { Tag = key };
+        if (typeof(DynamicSystemState).GetProperty(key)!.PropertyType != typeof(string))
+        {
+            NumericSpinner.SetIsEnabled(box, true);
+            NumericSpinner.SetIsInteger(box, typeof(DynamicSystemState).GetProperty(key)!.PropertyType == typeof(int));
+        }
+        panel.Children.Add(box); _boxes[key] = box;
         _fieldPanels[key] = panel; _fieldLabels[key] = labelBlock;
         box.TextChanged += (_, _) => { if (!_syncing) Schedule(); };
         ParameterPanel.Children.Add(panel);

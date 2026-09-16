@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.BasinExplorerWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.BasinExplorerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -61,12 +61,12 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re z₀"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="LogisticSeedRealBox" Text="0.5" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="LogisticSeedRealBox" Text="0.5" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im z₀"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="LogisticSeedImaginaryBox" Text="0" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="LogisticSeedImaginaryBox" Text="0" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         </StackPanel>
                     </StackPanel>
@@ -78,22 +78,22 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Координата X"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterXBox" Text="0" TextChanged="CenterParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterXBox" Text="0" TextChanged="CenterParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Координата Y"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterYBox" Text="0" TextChanged="CenterParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterYBox" Text="0" TextChanged="CenterParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Сила / масса"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterStrengthBox" Text="1" TextChanged="CenterParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterStrengthBox" Text="1" TextChanged="CenterParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус захвата"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterRadiusBox" Text="0.18" TextChanged="CenterParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="ForceCenterRadiusBox" Text="0.18" TextChanged="CenterParameter_OnChanged"/>
                         </Grid>
                         <Button Content="Удалить выбранный центр" Click="RemoveForceCenter_OnClick"/>
                         <TextBlock Text="Режим захвата"/>
@@ -104,56 +104,56 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Трение γ"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="DampingBox" Text="0.3" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="DampingBox" Text="0.3" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <StackPanel x:Name="RestoringForcePanel">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Возвратная сила k"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="RestoringForceBox" Text="0.2" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="RestoringForceBox" Text="0.2" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Высота / смягчение h"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicalHeightBox" Text="0.25" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicalHeightBox" Text="0.25" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Начальная скорость X"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="VelocityXBox" Text="0" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="VelocityXBox" Text="0" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Начальная скорость Y"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="VelocityYBox" Text="0" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="VelocityYBox" Text="0" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Expander Header="Время и точность" IsExpanded="False">
                             <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. шаг времени"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicsTimeStepBox" Text="0.03" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicsTimeStepBox" Text="0.03" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. время"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicsMaxTimeBox" Text="80" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicsMaxTimeBox" Text="80" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Скорость покоя"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="SettleSpeedBox" Text="0.04" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="SettleSpeedBox" Text="0.04" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Время покоя"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="SettleTimeBox" Text="0.5" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="SettleTimeBox" Text="0.5" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус ухода"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicalEscapeBox" Text="100" TextChanged="ExtendedParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PhysicalEscapeBox" Text="100" TextChanged="ExtendedParameter_OnChanged"/>
                         </Grid>
                             </StackPanel>
                         </Expander>
@@ -181,25 +181,25 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Шаг α"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="LearningRateBox" Text="0.01" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="LearningRateBox" Text="0.01" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                             <StackPanel x:Name="MomentumPanel">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Momentum / β₁"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="OptimizerMomentumBox" Text="0.9" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="OptimizerMomentumBox" Text="0.9" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                             </StackPanel>
                             <StackPanel x:Name="AdamPanel">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="β₂"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="AdamBeta2Box" Text="0.999" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="AdamBeta2Box" Text="0.999" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="ε Adam"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="AdamEpsilonBox" Text="1e-8" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="AdamEpsilonBox" Text="1e-8" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                             </StackPanel>
                             <TextBlock Style="{StaticResource HintTextStyle}" Text="Память каждого старта равна нулю. Шаг постоянный: слишком большой α может вызвать колебания или расходимость. Минимумы ищутся независимо от выбранного алгоритма."/>
@@ -215,33 +215,33 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. шаг времени"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="FlowTimeStepBox" Text="0.1" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="FlowTimeStepBox" Text="0.1" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. время"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="FlowMaxTimeBox" Text="80" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="FlowMaxTimeBox" Text="80" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Точность RK 5(4)"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="FlowAccuracyBox" Text="1e-7" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="FlowAccuracyBox" Text="1e-7" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск сходимости"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarToleranceBox" Text="1e-5" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarToleranceBox" Text="1e-5" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус поиска"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarSearchRadiusBox" Text="5" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarSearchRadiusBox" Text="5" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус ухода"/>
-                            <TextBox Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarEscapeRadiusBox" Text="100" TextChanged="PlanarParameter_OnChanged"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" Grid.Column="1" Margin="5,4,0,4" x:Name="PlanarEscapeRadiusBox" Text="100" TextChanged="PlanarParameter_OnChanged"/>
                         </Grid>
                         <TextBlock Style="{StaticResource HintTextStyle}" Text="Поиск по конечной сетке затравок не гарантирует все аттракторы. После изменения формул нажмите «Применить». Фон означает уход, лимит или нераспознанную траекторию."/>
                         <TextBlock x:Name="PlanarTargetCountText" Margin="0,6"/>
@@ -274,12 +274,12 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock x:Name="ParameterRealLabel" Style="{StaticResource ParameterRowLabelStyle}" Text="Re c"/>
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ParameterCRealBox" Text="0" TextChanged="ParameterC_OnChanged"/></StackPanel>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ParameterCRealBox" Text="0" TextChanged="ParameterC_OnChanged"/></StackPanel>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock x:Name="ParameterImaginaryLabel" Style="{StaticResource ParameterRowLabelStyle}" Text="Im c"/>
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ParameterCImaginaryBox" Text="0" TextChanged="ParameterC_OnChanged"/></StackPanel>
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ParameterCImaginaryBox" Text="0" TextChanged="ParameterC_OnChanged"/></StackPanel>
                         </Grid>
                     </StackPanel>
 
@@ -305,13 +305,13 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Точность корней"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootToleranceBox" Text="1e-6" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RootToleranceBox" Text="1e-6" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid x:Name="RootSearchRadiusPanel">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус поиска"
                                            ToolTip="Поиск выполняется вокруг точки 0 + 0i"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootSearchRadiusBox" Text="8"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RootSearchRadiusBox" Text="8"/></StackPanel>
                             </Grid>
                             <Button Content="Повторить поиск корней" Click="ApplyFormulaButton_OnClick"/>
                             <TextBlock x:Name="RootCountText" Style="{StaticResource HintTextStyle}" Text="Корней: 0"/>
@@ -331,25 +331,25 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Макс. период"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MaxPeriodBox" Text="8" TextChanged="Parameter_OnChanged"
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="MaxPeriodBox" Text="8" TextChanged="Parameter_OnChanged"
                                          ToolTip="Циклы периодов 1…N; изменение применяется повторным поиском"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Допуск цикла"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="CycleToleranceBox" Text="1e-6" TextChanged="Parameter_OnChanged"
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CycleToleranceBox" Text="1e-6" TextChanged="Parameter_OnChanged"
                                          ToolTip="Орбита считается пришедшей в цикл, когда подходит к его точке ближе допуска (× max(1, |q|))"/></StackPanel>
                             </Grid>
                             <Grid x:Name="AttractorSearchRadiusGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус затравок"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="AttractorSearchRadiusBox" Text="3"
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="AttractorSearchRadiusBox" Text="3"
                                          ToolTip="Сетка затравок для поиска циклов — квадрат вокруг 0 + 0i"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус ухода"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="EscapeRadiusBox" Text="1e6" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="EscapeRadiusBox" Text="1e6" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <StackPanel x:Name="AttractorDiscoveryPanel">
                             <TextBlock Text="Бесконечность"/>
@@ -394,34 +394,34 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re h"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerOffsetRealBox" Text="0.25" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MullerOffsetRealBox" Text="0.25" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im h"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerOffsetImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MullerOffsetImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
                         <StackPanel x:Name="MullerAnchorsPanel">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re a"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorARealBox" Text="-1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MullerAnchorARealBox" Text="-1" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im a"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorAImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MullerAnchorAImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re b"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorBRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MullerAnchorBRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im b"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="MullerAnchorBImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MullerAnchorBImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
                         <TextBlock x:Name="MullerHintText" Style="{StaticResource HintTextStyle}"/>
@@ -434,7 +434,7 @@
                         <Grid x:Name="LaguerreDegreePanel">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Параметр n"/>
-                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="LaguerreDegreeBox" Text="3" TextChanged="Parameter_OnChanged"
+                            <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="LaguerreDegreeBox" Text="3" TextChanged="Parameter_OnChanged"
                                      ToolTip="Вещественное n ≥ 1; при n = 1 шаг совпадает с Ньютоном"/></StackPanel>
                         </Grid>
                         <TextBlock Text="Показать"/>
@@ -457,24 +457,24 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re x₀"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantFirstRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantFirstRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im x₀"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantFirstImaginaryBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantFirstImaginaryBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
                         <StackPanel x:Name="SecantOffsetPanel">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re h"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantOffsetRealBox" Text="0.25" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantOffsetRealBox" Text="0.25" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im h"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantOffsetImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantOffsetImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
                         <StackPanel x:Name="SecantSlicePanel">
@@ -496,22 +496,22 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₀: Re"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX0RealBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantBaseX0RealBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₀: Im"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX0ImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantBaseX0ImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₁: Re"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX1RealBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantBaseX1RealBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="База x₁: Im"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="SecantBaseX1ImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SecantBaseX1ImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
                         <TextBlock x:Name="SecantHintText" Style="{StaticResource HintTextStyle}"/>
@@ -525,7 +525,7 @@
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock x:Name="ShadingScaleLabel" Style="{StaticResource ParameterRowLabelStyle}" Text="Шкала яркости"
                                            ToolTip="Число итераций (на период цикла), за которое яркость падает вдвое"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ShadingScaleBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ShadingScaleBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <TextBlock x:Name="ColoringHintText" Style="{StaticResource HintTextStyle}"/>
                         </StackPanel>
@@ -534,12 +534,12 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="IterationsLabel" Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" Text="200" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="IterationsBox" Text="200" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged"
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged"
                                  ToolTip="Число или научная нотация, например 1e6; до 1e12 (вычисления в double)"/></StackPanel>
                     </Grid>
 

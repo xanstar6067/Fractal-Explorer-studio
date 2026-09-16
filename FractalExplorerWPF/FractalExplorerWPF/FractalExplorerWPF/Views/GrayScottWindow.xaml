@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.GrayScottWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.GrayScottWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -18,37 +18,37 @@
 
                     <GroupBox Margin="0,10,0,0" Header="Уравнение">
                         <StackPanel Margin="7">
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Диффузия U"/><TextBox x:Name="DiffusionUBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Диффузия V"/><TextBox x:Name="DiffusionVBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Подача F"/><TextBox x:Name="FeedBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Удаление K"/><TextBox x:Name="KillBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Шаг времени Δt"/><TextBox x:Name="DeltaTimeBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Диффузия U"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DiffusionUBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Диффузия V"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DiffusionVBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Подача F"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="FeedBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Удаление K"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="KillBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Шаг времени Δt"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DeltaTimeBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                         </StackPanel>
                     </GroupBox>
 
                     <GroupBox Margin="0,8,0,0" Header="Сетка и затравка">
                         <StackPanel Margin="7">
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Размер сетки"/><TextBox x:Name="GridSizeBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Размер сетки"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="GridSizeBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                             <TextBlock Margin="0,5,0,3" Text="Начальное состояние"/>
                             <ComboBox x:Name="SeedModeBox" SelectionChanged="Parameter_OnChanged">
                                 <ComboBoxItem Content="Квадрат в центре"/><ComboBoxItem Content="Случайные пятна"/>
                                 <ComboBoxItem Content="Кольцо"/><ComboBoxItem Content="Шум по полю"/>
                             </ComboBox>
-                            <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Число пятен"/><TextBox x:Name="SeedCountBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Радиус затравки"/><TextBox x:Name="SeedRadiusBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Seed генератора"/><TextBox x:Name="RandomSeedBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Радиус кисти"/><TextBox x:Name="BrushRadiusBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Число пятен"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="SeedCountBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Радиус затравки"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="SeedRadiusBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Seed генератора"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="RandomSeedBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Радиус кисти"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="BrushRadiusBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                         </StackPanel>
                     </GroupBox>
 
                     <GroupBox Margin="0,8,0,0" Header="Анимация и цвет">
                         <StackPanel Margin="7">
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Шагов на кадр"/><TextBox x:Name="StepsPerFrameBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Шагов на кадр"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="StepsPerFrameBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                             <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Целевая частота"/><ComboBox x:Name="TargetFpsBox" Grid.Column="1" SelectionChanged="TargetFps_OnChanged"><ComboBoxItem Tag="30" Content="30 FPS"/><ComboBoxItem Tag="60" Content="60 FPS"/></ComboBox></Grid>
                             <TextBlock Margin="0,5,0,3" Text="Отображаемое поле"/>
                             <ComboBox x:Name="FieldModeBox" SelectionChanged="Parameter_OnChanged"><ComboBoxItem Content="Концентрация V"/><ComboBoxItem Content="Концентрация U"/><ComboBoxItem Content="Разность U − V"/></ComboBox>
-                            <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Минимум диапазона"/><TextBox x:Name="RangeMinimumBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Максимум диапазона"/><TextBox x:Name="RangeMaximumBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Минимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMinimumBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Максимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMaximumBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                             <CheckBox x:Name="ReversePaletteBox" Margin="0,5,0,2" Content="Инвертировать палитру" Click="PaletteMapping_OnChanged"/>
                             <Grid Margin="0,5,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
                                 <Button Content="Палитры Gray–Scott…" Click="Palette_OnClick"/>

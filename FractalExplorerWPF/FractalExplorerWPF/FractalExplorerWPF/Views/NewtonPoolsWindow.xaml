@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.NewtonPoolsWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.NewtonPoolsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -65,13 +65,13 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Точность корней"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootToleranceBox" Text="1e-6"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RootToleranceBox" Text="1e-6"/></StackPanel>
                             </Grid>
                             <Grid x:Name="RootSearchRadiusPanel">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Радиус поиска"
                                            ToolTip="Поиск выполняется вокруг точки 0 + 0i"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RootSearchRadiusBox" Text="8"
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RootSearchRadiusBox" Text="8"
                                          ToolTip="Радиус области поиска вокруг точки 0 + 0i"/></StackPanel>
                             </Grid>
                             <Button Content="Повторить поиск корней" Click="FindRootsButton_OnClick"/>
@@ -126,7 +126,7 @@
                     <Grid x:Name="HouseholderOrderPanel">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Порядок Householder"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="HouseholderOrderBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="HouseholderOrderBox" Text="3" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
 
                     <StackPanel x:Name="RelaxedNewtonPanel" Margin="0,2,0,4">
@@ -141,12 +141,12 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re λ"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RelaxationRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RelaxationRealBox" Text="1" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im λ"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="RelaxationImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RelaxationImaginaryBox" Text="0" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
 
@@ -154,12 +154,12 @@
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Re z₀"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="FixedInitialZRealBox" Text="0.5" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="FixedInitialZRealBox" Text="0.5" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Im z₀"/>
-                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="FixedInitialZImaginaryBox" Text="0.5" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="FixedInitialZImaginaryBox" Text="0.5" TextChanged="Parameter_OnChanged"/></StackPanel>
                             </Grid>
                         </StackPanel>
 
@@ -171,12 +171,12 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Итерации"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="IterationsBox" Text="500" TextChanged="Parameter_OnChanged"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="IterationsBox" Text="500" TextChanged="Parameter_OnChanged"/></StackPanel>
                     </Grid>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource ParameterRowLabelStyle}" Text="Приближение"/>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged" ToolTip="Число или научная нотация, например 1e300; до 1e1000"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" Text="1" TextChanged="ZoomBox_OnTextChanged" ToolTip="Число или научная нотация, например 1e300; до 1e1000"/></StackPanel>
                     </Grid>
 
                     <TextBlock Text="Потоки ЦП"/>

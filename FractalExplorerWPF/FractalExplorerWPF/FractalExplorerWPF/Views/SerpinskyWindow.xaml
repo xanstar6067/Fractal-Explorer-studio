@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.SerpinskyWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.SerpinskyWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
@@ -47,11 +47,11 @@
                     </ComboBox>
 
                     <TextBlock x:Name="IterationsLabel" Text="Итерации / точки"/>
-                    <TextBox x:Name="IterationsBox"
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="IterationsBox"
                              TextChanged="Parameter_OnChanged"/>
 
                     <TextBlock Text="Приближение"/>
-                    <TextBox x:Name="ZoomBox"
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox"
                              TextChanged="ZoomBox_OnTextChanged"/>
 
                     <TextBlock Text="Потоки ЦП"/>

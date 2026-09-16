@@ -1,4 +1,4 @@
-<Window x:Class="FractalExplorerWPF.Views.InverseCollatzTreeWindow"
+<Window xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Views.InverseCollatzTreeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
@@ -27,9 +27,9 @@
                                Text="Точное дерево BigInteger: m → 2m и, при m ≡ 4 (mod 6), m → (m−1)/3."/>
 
                     <TextBlock Text="Максимальная глубина"/>
-                    <TextBox x:Name="DepthBox" TextChanged="TreeParameter_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="DepthBox" TextChanged="TreeParameter_OnChanged"/>
                     <TextBlock Text="Лимит узлов"/>
-                    <TextBox x:Name="MaxNodesBox" TextChanged="TreeParameter_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="MaxNodesBox" TextChanged="TreeParameter_OnChanged"/>
                     <TextBlock Text="Раскладка"/>
                     <ComboBox x:Name="LayoutBox" SelectionChanged="RenderParameter_OnChanged">
                         <ComboBoxItem Content="Радиальная"/>
@@ -54,9 +54,9 @@
                     </StackPanel>
 
                     <TextBlock Text="Радиус узла"/>
-                    <TextBox x:Name="NodeRadiusBox" TextChanged="RenderParameter_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="NodeRadiusBox" TextChanged="RenderParameter_OnChanged"/>
                     <TextBlock Text="Толщина линий"/>
-                    <TextBox x:Name="LineThicknessBox" TextChanged="RenderParameter_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="LineThicknessBox" TextChanged="RenderParameter_OnChanged"/>
                     <TextBlock Text="Сглаживание предпросмотра"/>
                     <ComboBox x:Name="SsaaBox" SelectionChanged="RenderParameter_OnChanged">
                         <ComboBoxItem Content="Выкл. (1×)" Tag="1"/>
@@ -64,7 +64,7 @@
                     </ComboBox>
 
                     <TextBlock Text="Интервал роста, мс"/>
-                    <TextBox x:Name="AnimationIntervalBox" TextChanged="AnimationIntervalBox_OnChanged"/>
+                    <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="AnimationIntervalBox" TextChanged="AnimationIntervalBox_OnChanged"/>
                     <UniformGrid Columns="2">
                         <Button x:Name="AnimationButton" Margin="0,4,3,4" Content="Запустить рост"
                                 Click="AnimationButton_OnClick"/>
