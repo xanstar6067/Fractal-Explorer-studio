@@ -22,6 +22,8 @@
     <!-- Проверочный проект использует внутренние тестовые швы движка (напр. выбор
          представления δ глубокого зума). -->
     <InternalsVisibleTo Include="SavePreviewVerification" />
+    <!-- Генератор скриншотов заполняет облачный менеджер без сети (ShowEntriesForPreview). -->
+    <InternalsVisibleTo Include="ScreenshotGen" />
   </ItemGroup>
 
 </Project>

@@ -11,3 +11,7 @@
 5. Новые общие цвета добавлять как токены в `ThemeDefinition`, назначать в `ThemeManager.ApplyResources` и использовать в `ThemeStyles.xaml`.
 
 Основные токены: `Theme.BaseBackgroundBrush`, `Theme.PanelBackgroundBrush`, `Theme.ControlBackgroundBrush`, `Theme.PrimaryTextBrush`, `Theme.SecondaryTextBrush`, `Theme.AccentPrimaryBrush`, `Theme.BorderBrush`, `Theme.InputBorderBrush`, `Theme.FocusBrush`.
+
+Токены состояний `Theme.SuccessBrush`, `Theme.WarningBrush`, `Theme.DangerBrush`, `Theme.InfoBrush` и их подложки `Theme.*SoftBrush` не редактируются в теме: оттенок фиксирован, подложка смешивается с фоном панели, а текст подгоняется до контраста 4.5:1 на подложке.
+
+Системные шаблоны Aero2 для `ListBox` и `ListView` при `IsEnabled=False` красят фон белым. `ListBox` поэтому имеет собственный шаблон в `ThemeStyles.xaml`; новый `ListView` нужно оформлять полным шаблоном (пример — `Views/CloudSaveManagerWindow.xaml`) либо не отключать.

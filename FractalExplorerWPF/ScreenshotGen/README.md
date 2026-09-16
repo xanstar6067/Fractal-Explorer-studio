@@ -85,7 +85,7 @@ dotnet run --project .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj -- 
 
 ## Поддержка при изменениях в приложении
 
-Облачные окна `CloudSaveManagerWindow`, `CloudLoginWindow`, `CloudConflictWindow` включены в полный набор. Для менеджера используется `connectOnLoad: false`; подключение к VPS и ввод реальных учётных данных при создании скриншотов не выполняются.
+Облачные окна `CloudSaveManagerWindow` (таблица на вымышленных записях всех состояний — `00-cloud-saves`, форма входа — `00-cloud-login`) и `CloudConflictWindow` (совпадение имени — `00-cloud-conflict`) включены в полный набор. Менеджер создаётся с `connectOnLoad: false` и заполняется через внутренний `ShowEntriesForPreview` (сборка приложения открывает internals для `ScreenshotGen`); подключение к VPS и ввод реальных учётных данных при создании скриншотов не выполняются.
 
 Все одиннадцать режимов `BasinExplorerWindow` входят через ключи `Basins:` каталога, включая
 комплексную логистическую карту, магнитный маятник, систему притягивающих центров,

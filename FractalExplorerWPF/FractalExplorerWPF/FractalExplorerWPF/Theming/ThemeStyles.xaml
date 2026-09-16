@@ -22,6 +22,15 @@
     <SolidColorBrush x:Key="Theme.ScrollThumbBrush" Color="#708576"/>
     <SolidColorBrush x:Key="Theme.ScrollThumbHoverBrush" Color="#73D777"/>
     <SolidColorBrush x:Key="Theme.ScrollThumbPressedBrush" Color="#A1E274"/>
+    <!-- Состояния (синхронизация, предупреждения); выводятся из темы с проверкой контраста. -->
+    <SolidColorBrush x:Key="Theme.SuccessBrush" Color="#5BC86A"/>
+    <SolidColorBrush x:Key="Theme.SuccessSoftBrush" Color="#22382A"/>
+    <SolidColorBrush x:Key="Theme.WarningBrush" Color="#E3B341"/>
+    <SolidColorBrush x:Key="Theme.WarningSoftBrush" Color="#3A3222"/>
+    <SolidColorBrush x:Key="Theme.DangerBrush" Color="#F0776B"/>
+    <SolidColorBrush x:Key="Theme.DangerSoftBrush" Color="#3D2626"/>
+    <SolidColorBrush x:Key="Theme.InfoBrush" Color="#6FB2FF"/>
+    <SolidColorBrush x:Key="Theme.InfoSoftBrush" Color="#22303F"/>
 
     <Style TargetType="Window">
         <Setter Property="Background" Value="{DynamicResource Theme.BaseBackgroundBrush}"/>
@@ -277,6 +286,34 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="3"/>
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="ScrollViewer.PanningMode" Value="Both"/>
+        <!-- Системный шаблон Aero2 при IsEnabled=False жёстко красит фон списка в белый. -->
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border x:Name="ListBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" Padding="1" SnapsToDevicePixels="True">
+                        <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}">
+                            <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </ScrollViewer>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ListBorder" Property="Opacity" Value="0.72"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsGrouping" Value="True"/>
+                                <Condition Property="VirtualizingPanel.IsVirtualizingWhenGrouping" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="ListBoxItem">
@@ -375,14 +412,19 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Border x:Name="Box" Width="17" Height="17" Margin="0,0,8,0" Background="{DynamicResource Theme.ControlBackgroundBrush}"
                                 BorderBrush="{DynamicResource Theme.InputBorderBrush}" BorderThickness="1" CornerRadius="3">
-                            <Path x:Name="Check" Visibility="Collapsed" Data="M 2 7 L 6 11 L 14 3" Stroke="{DynamicResource Theme.AccentForegroundBrush}"
-                                  StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            <Grid>
+                                <Path x:Name="Check" Visibility="Collapsed" Data="M 2 7 L 6 11 L 14 3" Stroke="{DynamicResource Theme.AccentForegroundBrush}"
+                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                <Rectangle x:Name="Partial" Visibility="Collapsed" Width="9" Height="2" RadiusX="1" RadiusY="1"
+                                           Fill="{DynamicResource Theme.AccentForegroundBrush}"/>
+                            </Grid>
                         </Border>
                         <ContentPresenter Grid.Column="1" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Theme.InteractiveHoverBrush}"/></Trigger>
                         <Trigger Property="IsChecked" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource Theme.AccentPrimaryBrush}"/><Setter TargetName="Check" Property="Visibility" Value="Visible"/></Trigger>
+                        <Trigger Property="IsChecked" Value="{x:Null}"><Setter TargetName="Box" Property="Background" Value="{DynamicResource Theme.AccentPrimaryBrush}"/><Setter TargetName="Partial" Property="Visibility" Value="Visible"/></Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}"/><Setter TargetName="Box" Property="BorderThickness" Value="2"/></Trigger>
                         <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource Theme.DisabledTextBrush}"/><Setter TargetName="Box" Property="Opacity" Value="0.55"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
                     </ControlTemplate.Triggers>

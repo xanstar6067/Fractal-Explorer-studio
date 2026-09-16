@@ -27,6 +27,7 @@ public sealed class FractalCloudClient : IDisposable
     private static readonly Lazy<FractalCloudClient> Shared = new(() => new(CloudConnection.Load()));
     public static FractalCloudClient Instance => Shared.Value;
     public const int MaxJsonBytes = 1024 * 1024;
+    public const int MaxNameLength = 100;
     private readonly HttpClient _http;
     private readonly ICloudCredentialStore _credentials;
     // Serialize authenticated operations, login and logout. A queued request observes rotated tokens;
@@ -36,6 +37,8 @@ public sealed class FractalCloudClient : IDisposable
     private string? _refresh;
     private DateTimeOffset _expiresAt;
     public string? Email { get; private set; }
+    /// <summary>A refresh token is stored or an access token is held; requests may still reveal it as expired.</summary>
+    public bool HasSession => _refresh is not null || _access is not null;
     public string Server => _http.BaseAddress!.GetLeftPart(UriPartial.Authority);
 
     public FractalCloudClient(CloudConnection connection)
@@ -187,10 +190,15 @@ public sealed class FractalCloudClient : IDisposable
         return save;
     }
 
+    public static void ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > MaxNameLength)
+            throw new InvalidOperationException("Название должно содержать от 1 до 100 символов.");
+    }
+
     public static void ValidateSave(string name, string jsonData)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Length > 100)
-            throw new InvalidOperationException("Название должно содержать от 1 до 100 символов.");
+        ValidateName(name);
         if (Encoding.UTF8.GetByteCount(jsonData) > MaxJsonBytes)
             throw new InvalidOperationException("JSON сохранения превышает 1 МиБ. Превью в облако не отправляется.");
         using JsonDocument document = JsonDocument.Parse(jsonData);

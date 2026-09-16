@@ -63,65 +63,191 @@ internal static partial class Program
         LocalCloudSave local = CloudSaveRepository.ReadLocal(slot.FilePath);
         Check(!local.JsonData.Contains("PREVIEW") && !local.JsonData.Contains("FilePath"), "Payload must not contain preview or disk path.");
         var index = new CloudSyncIndex(client.Server, client.Email!);
-        int conflicts = 0;
-        CloudConflictChoice choice = CloudConflictChoice.Cancel;
-        var sync = new CloudSyncService(client, index, (_, remote) =>
+        var sync = new CloudSyncService(client, index, new CloudRemoteCache(client.Server, client.Email!));
+        var decisions = new Queue<CloudCollisionDecision>();
+        var asked = new List<CloudCollision>();
+        CloudCollisionDecision Resolve(CloudCollision collision)
         {
-            conflicts++;
-            Check(remote.JsonData is not null, "Conflict must load current remote data.");
-            return choice;
-        });
-        await sync.UploadAsync(local, default);
-        Check(server.Saves.Count == 1 && index.Links.Single().Revision == 1 && server.JsonDataWasString, "Create must upload JSON as a string and retain revision.");
+            asked.Add(collision);
+            if (collision.Kind is not CloudCollisionKind.CloudDeleted && collision.Remote?.JsonData is null)
+                throw new InvalidOperationException("TEST: a collision must carry current remote data.");
+            return decisions.Count > 0 ? decisions.Dequeue() : throw new InvalidOperationException("TEST: unexpected collision " + collision.Kind);
+        }
+        async Task<CloudSnapshot> LoadAsync(CloudSyncService service) => await service.LoadAsync(null, default);
+        static CloudSyncEntry Entry(CloudSnapshot snapshot, string name) => snapshot.Entries.Single(e => e.Name == name);
+        async Task<CloudTransferReport> TransferAsync(CloudSyncService service, IEnumerable<CloudSyncEntry> entries, CloudTransferMode mode,
+            bool explicitSelection = false)
+        {
+            CloudTransferReport report = await service.TransferAsync(entries.ToList(), mode, explicitSelection, Resolve, null, default);
+            Check(report.Failures.Count == 0, "Transfer failures: " + string.Join(" | ", report.Failures));
+            return report;
+        }
+
+        CloudSnapshot snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test").State == CloudEntryState.LocalOnly, "A new save is shown as local only.");
+        CloudTransferReport result = await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Upload);
+        Check(result.Uploaded == 1 && server.Saves.Count == 1 && index.Links.Single().Revision == 1 && server.JsonDataWasString,
+            "Upload all must create the save, upload JSON as a string and retain revision.");
         Guid id = index.Links.Single().Id;
+        Check(Entry(await LoadAsync(sync), "Test").State == CloudEntryState.Synced, "An uploaded save is shown as synchronized.");
         store.Save(new("Test", 20), slot);
-        await sync.UploadAsync(local, default);
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test").State == CloudEntryState.LocalChanged, "Local edit is detected.");
+        await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Upload);
         Check(server.Saves[id].Revision == 2, "Local edit must PUT its known revision.");
         server.Edit(id, 30);
-        await sync.DownloadAsync(server.Saves[id], default);
-        Check(store.Load().Single().Iterations == 30 && !File.Exists(slot.PreviewPath), "Remote-only edit must import and invalidate preview.");
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test").State == CloudEntryState.CloudChanged, "Cloud edit is detected.");
+        result = await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Upload);
+        Check(result.NewerElsewhere == 1 && server.Iterations(id) == 30 && asked.Count == 0,
+            "Upload all never overwrites a newer cloud version and does not ask about it.");
+        decisions.Enqueue(new(CloudCollisionAction.Skip));
+        result = await TransferAsync(sync, [Entry(snapshot, "Test")], CloudTransferMode.Upload, explicitSelection: true);
+        Check(result.Skipped == 1 && asked.Single().Kind == CloudCollisionKind.CloudNewer && server.Iterations(id) == 30,
+            "Explicit upload of an outdated save asks first.");
+        await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Download);
+        Check(store.Load().Single().Iterations == 30 && !File.Exists(slot.PreviewPath), "Download all imports a cloud edit and invalidates preview.");
+
         store.Save(new("Test", 40), slot);
         server.Edit(id, 50);
-        await ExpectCloudAsync<OperationCanceledException>(() => sync.UploadAsync(local, default));
-        Check(store.Load().Single().Iterations == 40 && server.Iterations(id) == 50 && conflicts == 1, "Cancel must retain both versions.");
-        choice = CloudConflictChoice.KeepBoth;
-        await sync.UploadAsync(local, default);
-        Check(server.Saves.Count == 2 && store.Load().Select(s => s.Iterations).Order().SequenceEqual(new[] { 40, 50 }), "KeepBoth preserves local and cloud versions on disk and server.");
-        Check(server.Saves.Values.Select(s => server.Iterations(s.Id)).Order().SequenceEqual(new[] { 40, 50 }), "KeepBoth uploads the alternate version.");
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test").State == CloudEntryState.BothChanged, "Edits on both sides are a conflict.");
+        asked.Clear();
+        decisions.Enqueue(new(CloudCollisionAction.CancelAll));
+        result = await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Upload);
+        Check(result.Cancelled && store.Load().Single().Iterations == 40 && server.Iterations(id) == 50 && asked.Count == 1,
+            "Stopping at a conflict must retain both versions.");
+        decisions.Enqueue(new(CloudCollisionAction.KeepBoth, "PC1 · "));
+        await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Sync);
+        Check(store.Load().Select(s => (s.SaveName, s.Iterations)).Order().SequenceEqual(new[] { ("PC1 · Test", 40), ("Test", 50) }),
+            "Keep both renames the local version and brings the cloud version under the original name.");
+        Check(server.Saves.Values.Select(s => (s.Name, server.Iterations(s.Id))).Order().SequenceEqual(new[] { ("PC1 · Test", 40), ("Test", 50) }),
+            "Keep both in sync mode uploads the renamed local version and leaves the cloud record intact.");
+        slot = store.LoadSlots().Slots.Single(s => s.State.SaveName == "Test");
+        Check((await LoadAsync(sync)).Entries.All(e => e.State == CloudEntryState.Synced), "After keep both every save is synchronized.");
+
         store.Save(new("Test", 60), slot);
         server.RaceNextPut = true;
-        choice = CloudConflictChoice.UseLocal;
-        await sync.UploadAsync(local, default);
-        Check(server.Iterations(id) == 60 && conflicts == 3, "A racing PUT 409 must fetch and ask before retry.");
+        asked.Clear();
+        decisions.Enqueue(new(CloudCollisionAction.UseLocal, ApplyToAll: true));
+        await TransferAsync(sync, (await LoadAsync(sync)).Entries, CloudTransferMode.Upload);
+        Check(server.Iterations(id) == 60 && asked.Single().Kind == CloudCollisionKind.BothChanged,
+            "A racing PUT 409 must fetch and ask before retry.");
 
         int creates = server.Creates;
-        await sync.SynchronizeAllAsync(null, new Progress<string>(), default);
+        await TransferAsync(sync, (await LoadAsync(sync)).Entries, CloudTransferMode.Sync);
         Check(server.Creates == creates, "Repeated sync must not duplicate saves.");
 
         // A second computer has its own files and index, but accesses the same server account.
         using (var secondPc = DataSandbox.Create("cloud-pc2"))
         {
-            var secondIndex = new CloudSyncIndex(client.Server, client.Email!);
-            var secondSync = new CloudSyncService(client, secondIndex, (_, _) => throw new InvalidOperationException("Unexpected second-PC conflict."));
-            await secondSync.SynchronizeAllAsync(null, new Progress<string>(), default);
+            var secondSync = new CloudSyncService(client, new CloudSyncIndex(client.Server, client.Email!),
+                new CloudRemoteCache(client.Server, client.Email!));
             var secondStore = new FractalSaveStore<CloudTestState>("Mandelbrot", s => s.SaveName);
+            snapshot = await LoadAsync(secondSync);
+            Check(snapshot.Entries.Count == 2 && snapshot.Entries.All(e => e.State == CloudEntryState.CloudOnly && e.Category == "Mandelbrot"),
+                "A new PC sees cloud saves with their mode.");
+            await TransferAsync(secondSync, snapshot.Entries, CloudTransferMode.Download);
             Check(secondStore.Load().Count == 2 && !Directory.GetFiles(secondStore.DirectoryPath, "*.png").Any(), "New PC downloads all saves, without previews.");
             SaveSlot<CloudTestState> secondSlot = secondStore.LoadSlots().Slots.Single(s => s.State.SaveName == "Test");
             secondStore.Save(new("Test", 75), secondSlot);
-            await secondSync.UploadAsync(CloudSaveRepository.ReadLocal(secondSlot.FilePath), default);
-            Check(server.Iterations(id) == 75, "Second PC updates the same cloud id.");
+            foreach ((string name, int iterations) in new[] { ("Spiral", 2), ("Galaxy", 2), ("Twin", 5), ("A1", 2), ("A2", 2) })
+                secondStore.Save(new(name, iterations));
+            result = await TransferAsync(secondSync, (await LoadAsync(secondSync)).Entries, CloudTransferMode.Upload);
+            Check(result.Uploaded == 6 && server.Iterations(id) == 75, "Second PC updates the same cloud id and uploads new saves.");
         }
         sandbox.InstallRecycleBin();
-        await sync.SynchronizeAllAsync(null, new Progress<string>(), default);
+
+        SaveSlot<CloudTestState> spiral = store.Save(new("Spiral", 1));
+        File.WriteAllText(spiral.PreviewPath, "SPIRAL PREVIEW");
+        foreach ((string name, int iterations) in new[] { ("Galaxy", 1), ("Twin", 5), ("A1", 1), ("A2", 1) })
+            store.Save(new(name, iterations));
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test").State == CloudEntryState.CloudChanged && Entry(snapshot, "Twin").State == CloudEntryState.Synced &&
+              new[] { "Spiral", "Galaxy", "A1", "A2" }.All(name => Entry(snapshot, name).State == CloudEntryState.SameName),
+            "Same names with different parameters are shown as already in the cloud; identical saves are linked silently.");
+
+        asked.Clear();
+        decisions.Enqueue(new(CloudCollisionAction.KeepBoth, "PC1 · "));
+        await TransferAsync(sync, [Entry(snapshot, "Spiral")], CloudTransferMode.Upload, explicitSelection: true);
+        SaveSlot<CloudTestState> renamedSpiral = store.LoadSlots().Slots.Single(s => s.State.SaveName.Contains("Spiral"));
+        Check(renamedSpiral.State.SaveName == "PC1 · Spiral" && File.ReadAllText(renamedSpiral.PreviewPath) == "SPIRAL PREVIEW",
+            "Keep both on upload renames the local file and moves its preview with it.");
+        Check(server.Saves.Values.Count(s => s.Name.EndsWith("Spiral")) == 2 && asked.Single().Kind == CloudCollisionKind.SameName,
+            "Keep both on upload creates a new cloud record next to the existing one.");
+
+        int recycled = sandbox.Recycled.Count;
+        decisions.Enqueue(new(CloudCollisionAction.UseCloud));
+        await TransferAsync(sync, [Entry(snapshot, "Galaxy")], CloudTransferMode.Download, explicitSelection: true);
+        Check(store.Load().Single(s => s.SaveName == "Galaxy").Iterations == 2 && sandbox.Recycled.Count > recycled,
+            "Taking the cloud version replaces the local file through the Recycle Bin.");
+
+        asked.Clear();
+        decisions.Enqueue(new(CloudCollisionAction.Skip, ApplyToAll: true));
+        result = await TransferAsync(sync, [Entry(snapshot, "A1"), Entry(snapshot, "A2")], CloudTransferMode.Download, explicitSelection: true);
+        Check(result.Skipped == 2 && asked.Count == 1 && asked[0].Remaining == 1, "Apply to all reuses the decision for the same kind of collision.");
+
+        snapshot = await LoadAsync(sync);
+        decisions.Enqueue(new(CloudCollisionAction.Skip, ApplyToAll: true));
+        await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Download);
         Check(store.LoadSlots().Slots.Single(s => s.FilePath == slot.FilePath).State.Iterations == 75,
             "First PC receives changes made on the second PC.");
+        Check(store.Load().Count(s => s.SaveName == "Spiral") == 1, "Download all brings the cloud namesake once the local copy was renamed.");
+
         server.Saves.Remove(id);
-        await sync.SynchronizeAllAsync(null, new Progress<string>(), default);
-        Check(server.Creates == creates && File.Exists(slot.FilePath), "Remote deletion must not erase local data or be silently resurrected.");
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test").State == CloudEntryState.CloudDeleted, "Remote deletion is shown.");
+        creates = server.Creates;
+        decisions.Enqueue(new(CloudCollisionAction.Skip, ApplyToAll: true));
+        result = await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Sync);
+        Check(result.DeletedElsewhere == 1 && server.Creates == creates && File.Exists(slot.FilePath),
+            "Remote deletion must not erase local data or be silently resurrected.");
+        asked.Clear();
+        decisions.Enqueue(new(CloudCollisionAction.Restore));
+        await TransferAsync(sync, [Entry(snapshot, "Test")], CloudTransferMode.Upload, explicitSelection: true);
+        Check(asked.Single().Kind == CloudCollisionKind.CloudDeleted && server.Creates == creates + 1 &&
+              Entry(await LoadAsync(sync), "Test").State == CloudEntryState.Synced, "Explicit upload restores a deleted cloud save after asking.");
+
+        await sync.RenameAsync(Entry(await LoadAsync(sync), "Test"), "Test renamed", default);
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Test renamed").State == CloudEntryState.Synced && server.Saves.Values.Any(s => s.Name == "Test renamed") &&
+              store.LoadSlots().Slots.Any(s => s.State.SaveName == "Test renamed" && Path.GetFileNameWithoutExtension(s.FilePath) == "Test renamed"),
+            "Renaming a synchronized save renames it in the cloud and on disk.");
+        CloudSyncEntry twin = Entry(snapshot, "Twin");
+        result = await sync.DeleteRemoteAsync([twin], null, default);
+        Check(result.Deleted == 1 && !server.Saves.ContainsKey(twin.Remote!.Id) && Entry(await LoadAsync(sync), "Twin").State == CloudEntryState.CloudDeleted,
+            "Deleting from the cloud keeps the local file and a tombstone link.");
+
+        Guid foreign = Guid.NewGuid();
+        server.Saves[foreign] = new(foreign, "Foreign", 1, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "{\"format\":\"OtherApp\"}");
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Foreign").State == CloudEntryState.Unsupported, "Other formats are listed as unsupported.");
+        decisions.Enqueue(new(CloudCollisionAction.Skip, ApplyToAll: true));
+        result = await TransferAsync(sync, snapshot.Entries, CloudTransferMode.Download);
+        Check(result.Unsupported == 1 && !store.Load().Any(s => s.SaveName == "Foreign"), "Other formats are never imported.");
+        server.Saves.Remove(foreign);
+
+        int cloudCount = server.Saves.Count;
+        decisions.Enqueue(new(CloudCollisionAction.KeepBoth, "PC1 · "));
+        await TransferAsync(sync, [Entry(snapshot, "A1")], CloudTransferMode.Download, explicitSelection: true);
+        Check(store.Load().Where(s => s.SaveName.EndsWith("A1")).Select(s => (s.SaveName, s.Iterations)).Order()
+                  .SequenceEqual(new[] { ("A1", 2), ("PC1 · A1", 1) }) && server.Saves.Count == cloudCount,
+            "Keep both on download renames the local version, brings the cloud one and changes nothing in the cloud.");
+        store.Delete(store.LoadSlots().Slots.Single(s => s.State.SaveName == "Galaxy"));
+        snapshot = await LoadAsync(sync);
+        Check(Entry(snapshot, "Galaxy").State == CloudEntryState.LocalDeleted, "Local deletion is shown.");
+        decisions.Enqueue(new(CloudCollisionAction.Restore));
+        await TransferAsync(sync, [Entry(snapshot, "Galaxy")], CloudTransferMode.Download, explicitSelection: true);
+        Check(Entry(await LoadAsync(sync), "Galaxy").State == CloudEntryState.Synced, "Explicit download restores a deleted local copy after asking.");
+        store.Save(new("Solo", 3));
+        await sync.RenameAsync(Entry(await LoadAsync(sync), "Solo"), "Solo renamed", default);
+        Check(Entry(await LoadAsync(sync), "Solo renamed").State == CloudEntryState.LocalOnly && !store.Load().Any(s => s.SaveName == "Solo"),
+            "Renaming a local-only save stays on this PC.");
+
         var otherIndex = new CloudSyncIndex(client.Server, "other@example.invalid");
         Check(otherIndex.Links.Count == 0, "Sync mappings must be account-scoped.");
 
-        CloudSave remaining = server.Saves.Values.Single();
+        CloudSave remaining = server.Saves.Values.First(s => s.Name == "Galaxy");
         string hostile = remaining.JsonData!.Replace("\"Mandelbrot\"", "\"../Settings\"");
         await ExpectCloudAsync<InvalidOperationException>(() => Task.FromResult(CloudSaveRepository.Import(remaining with { JsonData = hostile })));
         await ExpectCloudAsync<InvalidOperationException>(() => Task.FromResult(CloudSaveRepository.ResolvePath("../Settings/escape.json")));
@@ -142,12 +268,15 @@ internal static partial class Program
         dpapi.Delete();
         Check(dpapi.Read() is null, "Logout deletes protected credential.");
 
-        _ = new CloudConflictWindow(local, remaining);
-        _ = new CloudLoginWindow(client);
-        _ = new CloudSaveManagerWindow(connectOnLoad: false, client: client);
+        foreach (CloudCollisionKind kind in Enum.GetValues<CloudCollisionKind>())
+            new CloudConflictWindow(new(kind, CloudTransferMode.Sync, local, latest, 1)).Close();
+        var manager = new CloudSaveManagerWindow(connectOnLoad: false, client: client);
+        manager.ShowEntriesForPreview(client.Email!, (await LoadAsync(sync)).Entries, "Verification");
+        manager.ShowLoginForPreview("Verification");
+        manager.Close();
         await VerifyCloudTlsAsync();
         await client.LogoutAsync();
-        Console.WriteLine("PASS cloud: rotation, concurrency, expiry, retry limit, DPAPI, JSON limits, sync, conflicts, deletions, account isolation, safe import, TLS, XAML.");
+        Console.WriteLine("PASS cloud: rotation, concurrency, expiry, retry limit, DPAPI, JSON limits, sync states, upload/download all, name collisions, apply to all, conflicts, deletions, rename, unsupported format, account isolation, safe import, TLS, XAML.");
     }
 
     private static async Task ExpectCloudAsync<T>(Func<Task> action) where T : Exception

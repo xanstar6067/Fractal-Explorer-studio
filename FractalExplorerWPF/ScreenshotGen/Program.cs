@@ -86,6 +86,31 @@ internal static class Program
         return exitCode;
     }
 
+    // Все состояния облачной таблицы на вымышленных данных; пути к файлам не существуют.
+    private static List<CloudSyncEntry> CloudSampleEntries()
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+        static string Json(string category, string name, int zoom, int iterations) =>
+            $"{{\"format\":\"FractalExplorerWPF\",\"version\":1,\"category\":\"{category}\",\"state\":{{\"SaveName\":\"{name}\",\"Zoom\":{zoom},\"MaxIterations\":{iterations}}}}}";
+        LocalCloudSave Local(string category, string name, int zoom = 1000, int iterations = 500) =>
+            new($@"C:\Samples\{category}\{name}.json", category, name, Json(category, name, zoom, iterations), name);
+        CloudSave Remote(string name, int revision, double hoursAgo, string category = "Mandelbrot", int zoom = 1000, int iterations = 500) =>
+            new(Guid.NewGuid(), name, revision, now.AddDays(-3), now.AddHours(-hoursAgo), Json(category, name, zoom, iterations));
+        CloudLink Link(CloudSave remote, string category) => new(remote.Id, $@"{category}\{remote.Name}.json", remote.Revision, remote.Name);
+        CloudSave spiral = Remote("Спираль", 3, 2), seahorse = Remote("Долина морских коньков", 1, 30),
+            tree = Remote("Дерево Барнсли", 2, 5, "IFS"), lorenz = Remote("Бабочка Лоренца", 4, 1, "DynamicSystem");
+        return
+        [
+            new(CloudEntryState.Synced, Local("Mandelbrot", "Спираль"), spiral, Link(spiral, "Mandelbrot"), "Mandelbrot"),
+            new(CloudEntryState.SameName, Local("Mandelbrot", "Мини-мандельброт", 4000, 900), Remote("Мини-мандельброт", 1, 50, zoom: 2500, iterations: 1200), null, "Mandelbrot"),
+            new(CloudEntryState.CloudChanged, Local("Mandelbrot", "Долина морских коньков"), seahorse with { Revision = 2 }, Link(seahorse, "Mandelbrot"), "Mandelbrot"),
+            new(CloudEntryState.LocalOnly, Local("Phoenix", "Перо феникса"), null, null, "Phoenix"),
+            new(CloudEntryState.CloudOnly, null, Remote("Ньютон z⁵ − 1", 1, 72, "NewtonPools"), null, "NewtonPools"),
+            new(CloudEntryState.LocalChanged, Local("IFS", "Дерево Барнсли"), tree, Link(tree, "IFS") with { Hash = "old" }, "IFS"),
+            new(CloudEntryState.BothChanged, Local("DynamicSystem", "Бабочка Лоренца"), lorenz with { Revision = 5 }, Link(lorenz, "DynamicSystem") with { Hash = "old" }, "DynamicSystem")
+        ];
+    }
+
     // ---------- infrastructure ----------
 
     private static void ForceResourceAssembly(Assembly asm)
@@ -372,16 +397,17 @@ internal static class Program
             return;
         }
 
-        // No live network or login during documentation capture.
+        // No live network or login during documentation capture: the table is filled with sample rows.
         using (var cloudClient = new FractalExplorerWPF.Infrastructure.Cloud.FractalCloudClient(new() { Server = "https://cloud.example.com" }))
         {
-            await CaptureChildAsync(main, new CloudSaveManagerWindow(connectOnLoad: false, client: cloudClient), "00-cloud-saves");
-            await CaptureChildAsync(main, new CloudLoginWindow(cloudClient), "00-cloud-login");
+            var cloudSaves = new CloudSaveManagerWindow(connectOnLoad: false, client: cloudClient);
+            cloudSaves.ShowEntriesForPreview("user@example.com", CloudSampleEntries(), "Обновлено в 12:00: на ПК 7, в облаке 7.");
+            await CaptureChildAsync(main, cloudSaves, "00-cloud-saves");
+            await CaptureChildAsync(main, new CloudSaveManagerWindow(connectOnLoad: false, client: cloudClient), "00-cloud-login");
         }
-        await CaptureChildAsync(main, new CloudConflictWindow(
-            new LocalCloudSave("", "Mandelbrot", "Спираль", "{\"zoom\":1000}", ""),
-            new CloudSave(Guid.NewGuid(), "Спираль", 2, DateTimeOffset.Now, DateTimeOffset.Now,
-                "{\"zoom\":2000}")), "00-cloud-conflict");
+        CloudSyncEntry sample = CloudSampleEntries().First(e => e.State == CloudEntryState.SameName);
+        await CaptureChildAsync(main, new CloudConflictWindow(new CloudCollision(CloudCollisionKind.SameName,
+            CloudTransferMode.Upload, sample.Local, sample.Remote, 2)), "00-cloud-conflict");
 
         var themeEditor = new ThemeEditorWindow();
         await ShowAsync(themeEditor, 1200);

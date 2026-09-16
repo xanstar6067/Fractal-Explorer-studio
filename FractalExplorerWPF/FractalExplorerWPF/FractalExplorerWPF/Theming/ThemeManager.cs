@@ -223,6 +223,18 @@ public static class ThemeManager
         SetBrush(resources, "Theme.ScrollThumbBrush", Blend(theme.BorderColor, theme.SecondaryText, .42));
         SetBrush(resources, "Theme.ScrollThumbHoverBrush", EnsureContrast(theme.AccentPrimary, theme.PanelBackground, NonTextUiContrastRatio));
         SetBrush(resources, "Theme.ScrollThumbPressedBrush", EnsureContrast(theme.AccentSecondary, theme.PanelBackground, NonTextUiContrastRatio));
+        SetStatusBrushes(resources, "Success", Color.FromRgb(76, 184, 96), theme);
+        SetStatusBrushes(resources, "Warning", Color.FromRgb(222, 162, 38), theme);
+        SetStatusBrushes(resources, "Danger", Color.FromRgb(232, 92, 80), theme);
+        SetStatusBrushes(resources, "Info", Color.FromRgb(74, 150, 240), theme);
+    }
+
+    // Фиксированный оттенок состояния с текстовым контрастом на мягкой подложке; подложка — смесь с фоном панели.
+    private static void SetStatusBrushes(ResourceDictionary resources, string name, Color hue, ThemeDefinition theme)
+    {
+        Color soft = Blend(hue, theme.PanelBackground, .82);
+        SetBrush(resources, $"Theme.{name}SoftBrush", soft);
+        SetBrush(resources, $"Theme.{name}Brush", EnsureContrast(hue, soft, HighVisibilityInteractiveContrastRatio));
     }
 
     private static void SetBrush(ResourceDictionary resources, string key, Color color)

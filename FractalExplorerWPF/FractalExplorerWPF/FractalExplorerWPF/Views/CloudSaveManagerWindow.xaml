@@ -1,97 +1,564 @@
 <Window x:Class="FractalExplorerWPF.Views.CloudSaveManagerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Облачные сохранения — FractalCloud" Width="1060" Height="700" MinWidth="850" MinHeight="570"
-        WindowStartupLocation="CenterOwner" Icon="../Assets/Icons/Save.ico">
+        Title="Облачные сохранения — FractalCloud" Width="1100" Height="720" MinWidth="880" MinHeight="580"
+        WindowStartupLocation="CenterOwner" Icon="../Assets/Icons/Save.ico"
+        Background="{DynamicResource Theme.BaseBackgroundBrush}" Foreground="{DynamicResource Theme.PrimaryTextBrush}">
     <Window.Resources>
-        <Style TargetType="ListView">
-            <Setter Property="Background" Value="{DynamicResource Theme.ControlBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
-            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
-            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+        <Style x:Key="IconText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="14"/>
         </Style>
-        <Style TargetType="GridViewColumnHeader">
-            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
-            <Setter Property="Padding" Value="6"/>
+
+        <Style x:Key="SubtleButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,5"/>
         </Style>
-        <Style TargetType="ListViewItem">
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
-            <Setter Property="Padding" Value="4,7"/>
+
+        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.AccentForegroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource Theme.AccentPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.AccentPrimaryBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ListViewItem">
-                        <Border x:Name="Row" Background="Transparent" Padding="{TemplateBinding Padding}">
-                            <GridViewRowPresenter Content="{TemplateBinding Content}"
-                                Columns="{Binding View.Columns, RelativeSource={RelativeSource AncestorType=ListView}}"/>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Body" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="6" SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource Theme.HoverBackgroundBrush}"/>
+                                <Setter TargetName="Body" Property="Background" Value="{DynamicResource Theme.AccentSecondaryBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Body" Property="Opacity" Value="0.55"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.DangerBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource Theme.DangerSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.DangerBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- Large action tiles: whole-list operations. -->
+        <Style x:Key="ActionCard" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Card" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="Background" Value="{DynamicResource Theme.HoverBackgroundBrush}"/>
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Theme.InteractiveHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Card" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Card" Property="Opacity" Value="0.55"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="IconBadge" TargetType="Border">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="CornerRadius" Value="19"/>
+            <Setter Property="Background" Value="{DynamicResource Theme.ControlBackgroundBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="SectionCaption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <!-- The list. System ListView templates paint white when disabled, so every part is themed here. -->
+        <Style TargetType="ListView">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionMode" Value="Extended"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListView">
+                        <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="9" Padding="1,0,1,4" SnapsToDevicePixels="True">
+                            <ScrollViewer Style="{DynamicResource {x:Static GridView.GridViewScrollViewerStyleKey}}" Focusable="False"
+                                          Padding="{TemplateBinding Padding}">
+                                <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            </ScrollViewer>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Frame" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewColumnHeader">
+                        <Grid>
+                            <Border BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="0,0,0,1" Background="Transparent">
+                                <ContentPresenter Margin="8,9,8,8" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                            </Border>
+                            <Thumb x:Name="PART_HeaderGripper" HorizontalAlignment="Right" Width="8" Margin="0,0,-4,0" Cursor="SizeWE">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ListViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Grid MinHeight="44" Background="Transparent">
+                            <Border x:Name="RowFill" Margin="4,2" CornerRadius="6" Background="Transparent"/>
+                            <Border x:Name="SelectionMark" Width="3" Margin="4,10" HorizontalAlignment="Left" CornerRadius="2"
+                                    Background="{DynamicResource Theme.AccentPrimaryBrush}" Visibility="Collapsed"/>
+                            <GridViewRowPresenter Margin="0,2" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  Columns="{TemplateBinding GridView.ColumnCollection}" Content="{TemplateBinding Content}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RowFill" Property="Background" Value="{DynamicResource Theme.HoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="RowFill" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
+                                <Setter TargetName="SelectionMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Status badge: colour by CloudSyncEntry.Tone. -->
+        <DataTemplate x:Key="StatusBadge">
+            <Border x:Name="Badge" HorizontalAlignment="Left" CornerRadius="11" Padding="9,3"
+                    Background="{DynamicResource Theme.ControlBackgroundAltBrush}" ToolTip="{Binding StatusDescription}">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="Dot" Width="7" Height="7" Margin="0,0,6,0" VerticalAlignment="Center"
+                             Fill="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock x:Name="Label" Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Tone}" Value="Success">
+                    <Setter TargetName="Badge" Property="Background" Value="{DynamicResource Theme.SuccessSoftBrush}"/>
+                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Theme.SuccessBrush}"/>
+                    <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Theme.SuccessBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Tone}" Value="Info">
+                    <Setter TargetName="Badge" Property="Background" Value="{DynamicResource Theme.InfoSoftBrush}"/>
+                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Theme.InfoBrush}"/>
+                    <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Theme.InfoBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Tone}" Value="Warning">
+                    <Setter TargetName="Badge" Property="Background" Value="{DynamicResource Theme.WarningSoftBrush}"/>
+                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Theme.WarningBrush}"/>
+                    <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Theme.WarningBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Tone}" Value="Danger">
+                    <Setter TargetName="Badge" Property="Background" Value="{DynamicResource Theme.DangerSoftBrush}"/>
+                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Theme.DangerBrush}"/>
+                    <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Theme.DangerBrush}"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <DataTemplate x:Key="FilterOptionTemplate">
+            <TextBlock Text="{Binding Label}"/>
+        </DataTemplate>
     </Window.Resources>
-    <Grid Margin="18">
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <DockPanel>
-            <Button x:Name="LogoutButton" DockPanel.Dock="Right" Content="Выйти" Click="Logout_OnClick"/>
-            <StackPanel><TextBlock Text="Облачные сохранения" FontSize="24" FontWeight="SemiBold"/>
-                <TextBlock x:Name="AccountText" Margin="0,5,0,0"/></StackPanel>
-        </DockPanel>
-        <WrapPanel x:Name="Toolbar" Grid.Row="1" Margin="0,16,0,12">
-            <Button Content="Обновить списки" Click="Refresh_OnClick" Margin="0,0,8,0"/>
-            <Button Content="Синхронизировать" Click="Sync_OnClick" Margin="0,0,16,0"/>
-            <CheckBox x:Name="CategoryFilter" VerticalAlignment="Center" Visibility="Collapsed"
-                      Checked="Filter_OnChanged" Unchecked="Filter_OnChanged"/>
-        </WrapPanel>
-        <Grid x:Name="ListsPanel" Grid.Row="2">
-            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
+
+        <!-- Header -->
+        <Border Background="{DynamicResource Theme.PanelBackgroundBrush}" BorderBrush="{DynamicResource Theme.BorderBrush}"
+                BorderThickness="0,0,0,1" Padding="20,14">
             <DockPanel>
-                <TextBlock Text="На этом компьютере" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,8"/>
-                <Button DockPanel.Dock="Bottom" Content="В облако / синхронизировать выбранное →" Click="Upload_OnClick" Margin="0,10,0,0"/>
-                <ListView x:Name="LocalList" SelectionMode="Single">
-                    <ListView.View><GridView>
-                        <GridViewColumn Header="Название" Width="235" DisplayMemberBinding="{Binding Name}"/>
-                        <GridViewColumn Header="Режим" Width="170" DisplayMemberBinding="{Binding Category}"/>
-                    </GridView></ListView.View>
-                </ListView>
+                <StackPanel x:Name="AccountPanel" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="RefreshButton" Style="{StaticResource SubtleButton}" Click="Refresh_OnClick" ToolTip="Перечитать списки на ПК и в облаке (F5)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE72C;" Margin="0,0,7,0"/>
+                            <TextBlock Text="Обновить"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Width="1" Height="22" Margin="8,0" Background="{DynamicResource Theme.BorderBrush}"/>
+                    <StackPanel VerticalAlignment="Center" Margin="4,0,10,0">
+                        <TextBlock x:Name="AccountText" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="ServerText" HorizontalAlignment="Right" FontSize="11.5"
+                                   Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    </StackPanel>
+                    <Button x:Name="LogoutButton" Content="Выйти" Click="Logout_OnClick"
+                            ToolTip="Удалить защищённый сеанс FractalCloud на этом ПК"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource IconBadge}" Width="42" Height="42" CornerRadius="10"
+                            Background="{DynamicResource Theme.ControlBackgroundBrush}">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE753;" FontSize="22" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource Theme.AccentPrimaryBrush}"/>
+                    </Border>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Облачные сохранения" FontSize="20" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="SubtitleText" Style="{StaticResource SectionCaption}"
+                                   Text="Сохранения всех фракталов на этом ПК и в FractalCloud"/>
+                    </StackPanel>
+                </StackPanel>
             </DockPanel>
-            <DockPanel Grid.Column="2">
-                <TextBlock Text="В облаке · все режимы" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,8"/>
-                <Button DockPanel.Dock="Bottom" Content="← На компьютер / синхронизировать выбранное" Click="Download_OnClick" Margin="0,10,0,0"/>
-                <ListView x:Name="CloudList" SelectionMode="Single" SelectionChanged="CloudList_OnSelectionChanged">
-                    <ListView.View><GridView>
-                        <GridViewColumn Header="Название" Width="220" DisplayMemberBinding="{Binding Name}"/>
-                        <GridViewColumn Header="Версия" Width="60" DisplayMemberBinding="{Binding Revision}"/>
-                        <GridViewColumn Header="Изменено" Width="130" DisplayMemberBinding="{Binding UpdatedAt, StringFormat={}{0:g}}"/>
-                    </GridView></ListView.View>
-                </ListView>
-            </DockPanel>
+        </Border>
+
+        <!-- Sign in -->
+        <Grid x:Name="LoginPanel" Grid.Row="1" Visibility="Collapsed">
+            <Border Width="430" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="30,26" CornerRadius="12"
+                    Background="{DynamicResource Theme.PanelBackgroundBrush}" BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Вход в FractalCloud" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="LoginServerText" Style="{StaticResource SectionCaption}" Margin="0,4,0,0"/>
+                    <Border x:Name="LoginReasonPanel" Margin="0,14,0,0" Padding="10,7" CornerRadius="6" Visibility="Collapsed"
+                            Background="{DynamicResource Theme.InfoSoftBrush}">
+                        <TextBlock x:Name="LoginReasonText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.InfoBrush}"/>
+                    </Border>
+                    <TextBlock Text="Email" Margin="0,16,0,5"/>
+                    <TextBox x:Name="EmailBox" MaxLength="254" KeyDown="EmailBox_OnKeyDown"/>
+                    <TextBlock Text="Пароль" Margin="0,12,0,5"/>
+                    <PasswordBox x:Name="PasswordInput" Padding="8,0" MinHeight="{Binding ActualHeight, ElementName=EmailBox}" VerticalContentAlignment="Center" KeyDown="PasswordInput_OnKeyDown"
+                                 Background="{DynamicResource Theme.ControlBackgroundBrush}"
+                                 Foreground="{DynamicResource Theme.PrimaryTextBrush}"
+                                 CaretBrush="{DynamicResource Theme.PrimaryTextBrush}"
+                                 BorderBrush="{DynamicResource Theme.InputBorderBrush}"/>
+                    <TextBlock x:Name="LoginStatusText" Margin="0,10,0,0" TextWrapping="Wrap" Visibility="Collapsed"
+                               Foreground="{DynamicResource Theme.DangerBrush}"/>
+                    <Button x:Name="LoginButton" Style="{StaticResource AccentButton}" Content="Войти" Margin="0,18,0,0"
+                            Padding="12,8" Click="Login_OnClick"/>
+                    <TextBlock Style="{StaticResource SectionCaption}" Margin="0,14,0,0"
+                               Text="Пароль не сохраняется: сеанс защищён учётной записью Windows. Регистрация новых пользователей закрыта."/>
+                </StackPanel>
+            </Border>
         </Grid>
-        <WrapPanel x:Name="EditPanel" Grid.Row="3" Margin="0,16,0,10">
-            <TextBlock Text="Название в облаке:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="NameBox" Width="260" MaxLength="100" Margin="0,0,8,0"/>
-            <Button Content="Переименовать" Click="Rename_OnClick" Margin="0,0,8,0"/>
-            <Button Content="Удалить из облака…" Click="Delete_OnClick"/>
-        </WrapPanel>
-        <TextBlock Grid.Row="4" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                   Text="Синхронизация запускается вручную. Совпадение имён не перезаписывает файлы. Удаления автоматически не распространяются. Превью остаются на ПК: откройте менеджер сохранений нужного фрактала и нажмите «Рендер превью»."/>
-        <DockPanel Grid.Row="5" Margin="0,12,0,0">
-            <Button x:Name="CancelButton" DockPanel.Dock="Right" Content="Отменить операцию" Click="Cancel_OnClick" IsEnabled="False" Margin="12,0,0,0"/>
-            <TextBlock x:Name="StatusText" TextWrapping="Wrap" VerticalAlignment="Center" MinHeight="36"/>
-        </DockPanel>
+
+        <!-- Saves -->
+        <Grid x:Name="MainPanel" Grid.Row="1" Margin="20,16,20,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="SyncAllButton" Style="{StaticResource ActionCard}" Click="SyncAll_OnClick"
+                        ToolTip="Отправить новое и изменённое на ПК, получить новое и изменённое в облаке. Удаления не распространяются.">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource IconBadge}" Background="{DynamicResource Theme.AccentPrimaryBrush}">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE895;" FontSize="17" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource Theme.AccentForegroundBrush}"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Синхронизировать всё" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="SyncAllHint" Style="{StaticResource SectionCaption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <Button x:Name="UploadAllButton" Grid.Column="2" Style="{StaticResource ActionCard}" Click="UploadAll_OnClick"
+                        ToolTip="Отправить в облако все показанные сохранения, которых там нет или которые изменены на ПК.">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource IconBadge}">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE898;" FontSize="17" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource Theme.AccentPrimaryBrush}"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Отправить всё в облако" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="UploadAllHint" Style="{StaticResource SectionCaption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <Button x:Name="DownloadAllButton" Grid.Column="4" Style="{StaticResource ActionCard}" Click="DownloadAll_OnClick"
+                        ToolTip="Скачать на ПК все показанные облачные сохранения, которых здесь нет или которые изменены в облаке. Превью не передаются.">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource IconBadge}">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE896;" FontSize="17" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource Theme.AccentPrimaryBrush}"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Получить всё на ПК" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="DownloadAllHint" Style="{StaticResource SectionCaption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,16,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MaxWidth="380"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid>
+                    <TextBox x:Name="SearchBox" Padding="14,5,4,5" TextChanged="Filter_OnChanged" ToolTip="Поиск по названию и режиму (Ctrl+F)"/>
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" FontSize="13" Margin="10,0,0,0" IsHitTestVisible="False"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock x:Name="SearchPlaceholder" Text="Поиск по названию" Margin="32,0,0,0" VerticalAlignment="Center"
+                               IsHitTestVisible="False" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                </Grid>
+                <ComboBox x:Name="ModeFilter" Grid.Column="1" Width="190" Margin="10,0,0,0" ItemTemplate="{StaticResource FilterOptionTemplate}"
+                          SelectionChanged="Filter_OnChanged" ToolTip="Режим фрактала"/>
+                <ComboBox x:Name="StateFilter" Grid.Column="2" Width="240" Margin="8,0,0,0" ItemTemplate="{StaticResource FilterOptionTemplate}"
+                          SelectionChanged="Filter_OnChanged" ToolTip="Состояние синхронизации"/>
+                <TextBlock x:Name="ShownText" Grid.Column="3" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                           Style="{StaticResource SectionCaption}"/>
+            </Grid>
+
+            <Grid Grid.Row="2">
+                <ListView x:Name="EntriesList" SelectionChanged="EntriesList_OnSelectionChanged" SizeChanged="EntriesList_OnSizeChanged">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn x:Name="CheckColumn" Width="46">
+                                <GridViewColumn.Header>
+                                    <CheckBox x:Name="SelectAllBox" Margin="7,0,0,0" Focusable="False" Click="SelectAllBox_OnClick"
+                                              ToolTip="Отметить все показанные записи"/>
+                                </GridViewColumn.Header>
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="7,0,0,0" Focusable="False"
+                                                  IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn x:Name="NameColumn" Header="Название" Width="260">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="2,0,6,0">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                                            <TextBlock Text="{Binding NameHint}" FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource Theme.SecondaryTextBrush}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding NameHint}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn x:Name="ModeColumn" Header="Режим" Width="140">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding CategoryText}" Margin="2,0" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn x:Name="LocalColumn" Header="На ПК" Width="68">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock x:Name="Mark" Margin="10,0,0,0" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                                                   Text="&#xE73E;" Foreground="{DynamicResource Theme.SuccessBrush}" ToolTip="Есть на этом ПК"/>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding HasLocal}" Value="False">
+                                                <Setter TargetName="Mark" Property="Text" Value="—"/>
+                                                <Setter TargetName="Mark" Property="FontFamily" Value="Segoe UI"/>
+                                                <Setter TargetName="Mark" Property="Foreground" Value="{DynamicResource Theme.DisabledTextBrush}"/>
+                                                <Setter TargetName="Mark" Property="ToolTip" Value="Нет на этом ПК"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn x:Name="CloudColumn" Header="В облаке" Width="150">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="2,0">
+                                            <TextBlock x:Name="Mark" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Margin="0,0,7,0"
+                                                       VerticalAlignment="Center" Text="&#xE753;" Foreground="{DynamicResource Theme.InfoBrush}"/>
+                                            <TextBlock x:Name="Info" Text="{Binding CloudText}" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                        </StackPanel>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding HasRemote}" Value="False">
+                                                <Setter TargetName="Mark" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="Info" Property="Margin" Value="8,0,0,0"/>
+                                                <Setter TargetName="Info" Property="Foreground" Value="{DynamicResource Theme.DisabledTextBrush}"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn x:Name="StateColumn" Header="Состояние" Width="186" CellTemplate="{StaticResource StatusBadge}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+                <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40,0,0"
+                            IsHitTestVisible="False" Visibility="Collapsed">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE753;" FontSize="34" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource Theme.DisabledTextBrush}"/>
+                    <TextBlock x:Name="EmptyTitle" Margin="0,10,0,0" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="EmptyHint" Margin="0,4,0,0" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="420"
+                               Style="{StaticResource SectionCaption}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Actions for ticked saves; the same bar hosts rename and delete confirmation. -->
+            <Border Grid.Row="3" Margin="0,10,0,0" Padding="14,8" CornerRadius="9" MinHeight="52"
+                    Background="{DynamicResource Theme.PanelBackgroundBrush}" BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                <Grid>
+                    <DockPanel x:Name="SelectionBar">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="UploadSelectedButton" Click="UploadSelected_OnClick" Margin="8,0,0,0"
+                                    ToolTip="Отправить отмеченные сохранения в облако">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE898;" Margin="0,0,7,0"/>
+                                    <TextBlock x:Name="UploadSelectedText" Text="Отправить"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DownloadSelectedButton" Click="DownloadSelected_OnClick" Margin="8,0,0,0"
+                                    ToolTip="Скачать отмеченные сохранения на этот ПК">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE896;" Margin="0,0,7,0"/>
+                                    <TextBlock x:Name="DownloadSelectedText" Text="Получить"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="RenameButton" Click="Rename_OnClick" Margin="8,0,0,0"
+                                    ToolTip="Переименовать отмеченное сохранение на ПК и в облаке">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8AC;" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Переименовать"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DeleteButton" Click="Delete_OnClick" Margin="8,0,0,0"
+                                    ToolTip="Удалить отмеченные записи из облака. Файлы на ПК останутся.">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE74D;" Margin="0,0,7,0"/>
+                                    <TextBlock x:Name="DeleteText" Text="Удалить из облака"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock x:Name="SelectionText" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </DockPanel>
+
+                    <DockPanel x:Name="RenameBar" Visibility="Collapsed">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource AccentButton}" Content="Сохранить" Padding="14,6" Margin="8,0,0,0" Click="RenameConfirm_OnClick"/>
+                            <Button Content="Отмена" Margin="8,0,0,0" Click="BarCancel_OnClick"/>
+                        </StackPanel>
+                        <TextBlock x:Name="RenameCaption" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox x:Name="RenameBox" MaxLength="100" VerticalAlignment="Center" KeyDown="RenameBox_OnKeyDown"/>
+                    </DockPanel>
+
+                    <DockPanel x:Name="DeleteBar" Visibility="Collapsed">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="DeleteConfirmButton" Style="{StaticResource DangerButton}" Margin="8,0,0,0" Click="DeleteConfirm_OnClick"/>
+                            <Button Content="Отмена" Margin="8,0,0,0" Click="BarCancel_OnClick"/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE7BA;" FontSize="18" Margin="0,0,10,0"
+                                   Foreground="{DynamicResource Theme.DangerBrush}"/>
+                        <TextBlock x:Name="DeleteQuestion" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </DockPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Status and progress -->
+        <Grid Grid.Row="2" Margin="20,10,20,14" MinHeight="34">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="StatusIcon" Style="{StaticResource IconText}" Margin="0,0,8,0" FontSize="13" Visibility="Collapsed"/>
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                </StackPanel>
+                <ProgressBar x:Name="Progress" Height="5" Margin="0,7,0,0" BorderThickness="0" Visibility="Collapsed"/>
+            </StackPanel>
+            <Button x:Name="CancelButton" Grid.Column="1" Margin="14,0,0,0" Visibility="Collapsed" Click="Cancel_OnClick"
+                    ToolTip="Остановить после текущей записи. Уже выполненные шаги сохранятся.">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="11" Margin="0,0,7,0"/>
+                    <TextBlock Text="Остановить"/>
+                </StackPanel>
+            </Button>
+        </Grid>
     </Grid>
 </Window>
