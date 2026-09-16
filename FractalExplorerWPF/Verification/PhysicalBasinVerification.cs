@@ -256,8 +256,11 @@ internal static partial class Program
         {
             if (physicalOnly && !BasinExplorerCatalog.UsesPhysics(kind)) continue;
             var state = BasinExplorerCatalog.GetPresets(kind)[kind == BasinExplorerKind.ComplexLogistic ? 4 : kind == BasinExplorerKind.MagneticPendulum ? 1 : 0].Clone();
-            state.Palette = BasinExplorerCatalog.UsesPhysics(kind)
-                ? new NewtonPaletteManager().Palettes.Single(p => p.Name == "Огонь").Clone("Огонь")
+            // Карта периодов берёт цвет периода из палитры: чередующиеся цвета «Огня и льда»
+            // различают соседние периоды, плавная «Классика» на 16 периодах — нет.
+            string paletteName = BasinExplorerCatalog.UsesPhysics(kind) ? "Огонь" : kind == BasinExplorerKind.ComplexLogistic ? "Огонь и лёд" : "";
+            state.Palette = paletteName.Length > 0
+                ? new NewtonPaletteManager().Palettes.Single(p => p.Name == paletteName).Clone(paletteName)
                 : BasinExplorerCatalog.ClassicPalette();
             var engine = BasinExplorerWindow.CreateEngine(state);
             byte[] pixels = RenderBasinFrame(engine, 512, 512);

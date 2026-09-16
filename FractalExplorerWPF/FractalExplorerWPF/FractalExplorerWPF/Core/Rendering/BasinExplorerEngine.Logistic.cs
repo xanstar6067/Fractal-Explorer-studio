@@ -64,7 +64,7 @@ public sealed partial class BasinExplorerEngine
                 ? IterationHeatColor(result.Iterations) : BackgroundColor;
         if (result.Outcome != BasinOrbitOutcome.Converged || PeriodFilter > 0 && PeriodFilter != result.CyclePeriod)
             return BackgroundColor;
-        Color color = ColoringMode == BasinColoringMode.Period ? PeriodColor(result.CyclePeriod) : TargetColor(result.TargetIndex);
+        Color color = ColoringMode == BasinColoringMode.Period ? PeriodPaletteColor(result.CyclePeriod) : TargetColor(result.TargetIndex);
         return ColoringMode == BasinColoringMode.Basins ? color : ShadeBySpeed(color, result.Iterations, result.CyclePeriod);
     }
 }

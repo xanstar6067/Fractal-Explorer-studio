@@ -68,13 +68,33 @@ public sealed class NewtonPaletteManager
         return colors;
     }
 
-    private void LoadCustomPalettes()
+    /// <summary>
+    /// Перечитывает пользовательские палитры из файла. Файл общий для окна бассейнов Ньютона и всех
+    /// окон бассейнов, а каждое окно держит свой менеджер: без этого сохранение из давно открытого
+    /// окна перезаписало бы файл старым списком и стёрло палитры, созданные в другом окне.
+    /// Активная пользовательская палитра подменяется одноимённой из файла.
+    /// </summary>
+    public void ReloadCustomPalettes()
+    {
+        List<NewtonColorPalette> custom;
+        try { custom = ReadCustomPalettes(); }
+        catch { return; }
+        string? activeName = !ActivePalette.IsBuiltIn && Palettes.Contains(ActivePalette) ? ActivePalette.Name : null;
+        Palettes.RemoveAll(palette => !palette.IsBuiltIn);
+        Palettes.AddRange(custom);
+        if (activeName is not null)
+            ActivePalette = Palettes.FirstOrDefault(palette => palette.Name == activeName) ?? ActivePalette; // Удалённая в другом окне остаётся текущей.
+    }
+
+    private void LoadCustomPalettes() => Palettes.AddRange(ReadCustomPalettes());
+
+    private static List<NewtonColorPalette> ReadCustomPalettes()
     {
         string path = AppPaths.GetPaletteFile(FileName);
-        if (!File.Exists(path)) return;
+        if (!File.Exists(path)) return [];
         List<NewtonColorPalette>? custom = JsonSerializer.Deserialize<List<NewtonColorPalette>>(
             File.ReadAllText(path), JsonOptionsFactory.Create());
-        if (custom is not null) Palettes.AddRange(custom.Where(palette => !palette.IsBuiltIn));
+        return custom?.Where(palette => palette is not null && !palette.IsBuiltIn).ToList() ?? [];
     }
 
     private static List<Color> CreateLinearRamp(IReadOnlyList<Color> anchors, int count)

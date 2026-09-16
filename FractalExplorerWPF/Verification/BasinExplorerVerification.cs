@@ -19,6 +19,7 @@ internal static partial class Program
         VerifyBasinRendering();
         VerifyNewBasinWindows();
         VerifyBasinAppearance();
+        VerifyBasinPalettes();
         Console.WriteLine("[diag] Basin explorers: methods, cycles, logistic planes, physics, optimization, continuous flows, windows, tiles, presets and saves OK");
     }
 

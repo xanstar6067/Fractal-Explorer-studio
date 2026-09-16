@@ -468,7 +468,7 @@ public sealed partial class BasinExplorerEngine
         if (PeriodFilter > 0 && (attractor.IsInfinity || attractor.Period != PeriodFilter)) return BackgroundColor;
 
         Color color = ColoringMode == BasinColoringMode.Period && !attractor.IsInfinity
-            ? PeriodColor(attractor.Period)
+            ? PeriodPaletteColor(attractor.Period)
             : TargetColor(result.TargetIndex);
         if (ColoringMode == BasinColoringMode.CyclePhase) color = PhaseTint(color, result.Phase, attractor.Period);
         return ColoringMode == BasinColoringMode.Basins ? color : ShadeBySpeed(color, result.SmoothIterations, attractor.Period);

@@ -322,8 +322,25 @@ public partial class BasinExplorerWindow : Window
         }
         if (!ok) throw new InvalidOperationException(debug);
         engine.TargetColors = NewtonPaletteManager.AdjustColors(state.Palette, engine.TargetCount).ToArray();
+        engine.PeriodColors = NewtonPaletteManager.AdjustColors(state.Palette, PeriodColorCount(engine.MaxPeriod, engine.Attractors)).ToArray();
         return engine;
     }
+
+    /// <summary>
+    /// Сколько цветов периодов нужно палитре: до максимального периода поиска, но не меньше самого
+    /// длинного уже найденного цикла (его могли найти до уменьшения максимума).
+    /// </summary>
+    private static int PeriodColorCount(int maxPeriod, IEnumerable<BasinAttractor> attractors) =>
+        Math.Max(Math.Clamp(maxPeriod, 1, 64),
+            attractors.Where(attractor => !attractor.IsInfinity).Select(attractor => attractor.Period).DefaultIfEmpty(1).Max());
+
+    /// <summary>Раскраска берёт цвет палитры по периоду цикла, а не по номеру аттрактора.</summary>
+    private bool ColorsByPeriod => IsLogisticParameter ||
+        (!UsesRoots && !UsesPhysics && !UsesPlanar && SelectedColoringMode == BasinColoringMode.Period);
+
+    private int WindowPeriodColorCount => IsLogisticParameter
+        ? ReadIntLenient(MaxPeriodBox, 16, 1, 64)
+        : PeriodColorCount(ReadIntLenient(MaxPeriodBox, 8, 1, 64), _engine.Attractors);
 
     #endregion
 
@@ -540,7 +557,7 @@ public partial class BasinExplorerWindow : Window
                 : "Каждый аттрактор — цвет палитры; уходящие и нераспознанные орбиты — цвет фона.",
             BasinColoringMode.CyclePhase =>
                 "Оттенок сдвигается по точке цикла, в которую приходит орбита: у бассейна цикла периода p видны p типов компонент.",
-            BasinColoringMode.Period => "Бассейны окрашиваются по периоду цикла, а не по конкретному циклу.",
+            BasinColoringMode.Period => "Бассейны окрашиваются по периоду цикла, а не по конкретному циклу: период i получает i-й цвет палитры.",
             BasinColoringMode.OrbitOutcome => UsesRoots
                 ? "Корни — палитра; циклы 2–8 — отдельные цвета; жёлтый — вырожденный шаг, синий — уход, розовый — NaN/переполнение, серый — лимит итераций."
                 : "Аттракторы — палитра; нераспознанные циклы 1–8 — отдельные цвета; синий — уход, розовый — переполнение, серый — лимит итераций.",
@@ -917,6 +934,7 @@ public partial class BasinExplorerWindow : Window
         if (_updatingUi) return;
         UpdateColoringHint();
         UpdateExtendedLayout();
+        UpdateOverlay();
         ScheduleRender();
     }
 
@@ -965,25 +983,32 @@ public partial class BasinExplorerWindow : Window
         }
 
         NewtonPaletteWindow dialog;
+        string title = $"Палитры — {_definition.Title}";
         if (UsesPlanar)
         {
             dialog = new NewtonPaletteWindow(_paletteManager,
                 _engine.PlanarAttractors.Select(a => a.Points[0]).ToArray(),
                 _engine.PlanarAttractors.Select((a, i) => a.Describe(i)).ToArray(),
-                "Цвет фона — уход, лимит и нераспознанные траектории.", showGradientOption: false);
+                "Цвет фона — уход, лимит и нераспознанные траектории.", showGradientOption: false, title);
         }
-        else if (UsesPhysics || IsLogisticParameter)
+        else if (UsesPhysics || ColorsByPeriod)
         {
-            int count = UsesPhysics ? _forceCenters.Count : ReadIntLenient(MaxPeriodBox, 16, 1, 64);
+            // Раскраска по периоду берёт i-й цвет палитры для периода i, поэтому редактор
+            // показывает периоды, а не отдельные циклы.
+            int count = UsesPhysics ? _forceCenters.Count : WindowPeriodColorCount;
             dialog = new NewtonPaletteWindow(_paletteManager,
                 Enumerable.Range(0, count).Select(i => UsesPhysics ? new Complex(_forceCenters[i].X, _forceCenters[i].Y) : Complex.Zero).ToArray(),
                 Enumerable.Range(1, count).Select(i => UsesPhysics ? $"Центр {i}" : $"Период {i}").ToArray(),
-                "Цвет фона — уход и нераспознанные орбиты.", showGradientOption: false);
+                UsesPhysics
+                    ? "Цвет фона — уход и нераспознанные орбиты."
+                    : "Раскраска по периоду: i-й цвет — период i. Цвет фона — уход и нераспознанные орбиты.",
+                showGradientOption: false, title);
         }
         else if (UsesRoots)
         {
-            dialog = new NewtonPaletteWindow(_paletteManager, _engine.Roots, null, $"Найдено корней: {_engine.Roots.Count}",
-                showGradientOption: false);
+            dialog = new NewtonPaletteWindow(_paletteManager, _engine.Roots,
+                _engine.Roots.Select((root, index) => $"Корень {index + 1}: {BasinExplorerFormatting.Complex(root)}").ToArray(),
+                $"Найдено корней: {_engine.Roots.Count}. Цвет фона — несошедшиеся точки.", showGradientOption: false, title);
         }
         else
         {
@@ -992,7 +1017,7 @@ public partial class BasinExplorerWindow : Window
                 attractors.Select(attractor => attractor.IsInfinity || attractor.Points.Count == 0 ? Complex.Zero : attractor.Points[0]).ToArray(),
                 attractors.Select((attractor, index) => attractor.ShortLabel(index)).ToArray(),
                 $"Аттракторов: {attractors.Count}. Цвет фона — уходящие и нераспознанные орбиты.",
-                showGradientOption: false);
+                showGradientOption: false, title);
         }
         dialog.Owner = this;
         dialog.PaletteApplied += (_, _) =>
@@ -1521,11 +1546,12 @@ public partial class BasinExplorerWindow : Window
     {
         IReadOnlyList<BasinAttractor> attractors = _engine.Attractors;
         List<Color> colors = NewtonPaletteManager.AdjustColors(_paletteManager.ActivePalette, attractors.Count);
+        List<Color> periodColors = ColorsByPeriod ? NewtonPaletteManager.AdjustColors(_paletteManager.ActivePalette, WindowPeriodColorCount) : [];
         for (int index = 0; index < attractors.Count; index++)
         {
             BasinAttractor attractor = attractors[index];
             if (attractor.IsInfinity || attractor.Points.Count == 0) continue;
-            Color color = colors[index % colors.Count];
+            Color color = periodColors.Count > 0 ? periodColors[(attractor.Period - 1) % periodColors.Count] : colors[index % colors.Count];
             if (attractor.Points.Count > 1)
             {
                 var polygon = new Polygon

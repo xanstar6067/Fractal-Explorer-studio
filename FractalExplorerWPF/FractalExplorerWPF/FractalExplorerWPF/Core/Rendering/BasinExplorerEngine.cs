@@ -45,6 +45,12 @@ public sealed partial class BasinExplorerEngine
     public double Zoom { get; set; } = 1;
 
     public Color[] TargetColors { get; set; } = [];
+
+    /// <summary>
+    /// Цвета периодов 1…N из той же палитры — для раскраски «по периоду». Пустой массив (прямое
+    /// использование движка без окна) означает прежние оттенки по золотому углу.
+    /// </summary>
+    public Color[] PeriodColors { get; set; } = [];
     public Color BackgroundColor { get; set; } = Colors.Black;
     public BasinColoringMode ColoringMode { get; set; } = BasinColoringMode.ConvergenceSpeed;
 
@@ -371,6 +377,9 @@ public sealed partial class BasinExplorerEngine
         8 => Color.FromRgb(255, 23, 68),
         _ => Colors.White
     };
+
+    private Color PeriodPaletteColor(int period) =>
+        PeriodColors.Length > 0 ? PeriodColors[(Math.Max(1, period) - 1) % PeriodColors.Length] : PeriodColor(period);
 
     /// <summary>Отдельный оттенок периода: шаг золотого угла по цветовому кругу.</summary>
     public static Color PeriodColor(int period) =>

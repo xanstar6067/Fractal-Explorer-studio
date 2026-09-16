@@ -417,7 +417,7 @@ internal static class Program
                 // Включает все 11 режимов, в том числе оптимизацию и непрерывные поля: список берётся
                 // из FractalCatalog, а панели, пресеты и предпросмотр — из общего окна.
                 Window? w = await CaptureAsync(() => new BasinExplorerWindow(basinKind), "basins-" + Kebab(basinKind.ToString()), 1600);
-                // Общий редактор палитр Ньютона с подписями циклов — один раз, на окне периодических циклов.
+                // Общий редактор палитр (файл палитр — как у бассейнов Ньютона) с подписями циклов — один раз, на окне периодических циклов.
                 if (w != null && basinKind == BasinExplorerKind.PeriodicCycles)
                 {
                     var mgr = (NewtonPaletteManager)GetMember(w, "_paletteManager")!;
@@ -427,7 +427,7 @@ internal static class Program
                         attractors.Select(a => a.IsInfinity || a.Points.Count == 0 ? System.Numerics.Complex.Zero : a.Points[0]).ToArray(),
                         attractors.Select((a, index) => a.ShortLabel(index)).ToArray(),
                         $"Аттракторов: {attractors.Count}. Цвет фона — уходящие и нераспознанные орбиты.",
-                        showGradientOption: false), "basins-palette-editor");
+                        showGradientOption: false, $"Палитры — {BasinExplorerCatalog.GetDefinition(basinKind).Title}"), "basins-palette-editor");
                 }
                 SafeCloseIfAny(w);
                 return;

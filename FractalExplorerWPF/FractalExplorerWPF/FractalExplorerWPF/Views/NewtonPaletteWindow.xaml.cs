@@ -17,8 +17,10 @@ public partial class NewtonPaletteWindow : Window
     private readonly IReadOnlyList<string>? _labels;
     private readonly ColorSelectionService _colorSelectionService = ColorSelectionService.Default;
     private readonly List<Color> _editingColors = [];
+    private readonly bool _gradientApplies;
     private NewtonColorPalette? _selected;
     private Color _backgroundColor;
+    private bool _changingSelection;
 
     public event EventHandler? PaletteApplied;
 
@@ -28,19 +30,29 @@ public partial class NewtonPaletteWindow : Window
     }
 
     /// <summary>
-    /// Палитра для произвольного списка бассейнов: окно бассейнов Мюллера, Лагерра, секущих и
-    /// отображений передаёт свои подписи строк и заголовок вместо «Корень k». Яркостью там
-    /// управляет режим раскраски окна, поэтому флажок градиента можно скрыть.
+    /// Палитра для произвольного списка бассейнов: окно бассейнов передаёт свои подписи строк,
+    /// заголовок и название окна. Яркостью там управляет режим раскраски окна, поэтому флажок
+    /// градиента (<paramref name="showGradientOption"/> = false) показывается выключенным с пояснением.
+    /// Список палитр общий с бассейнами Ньютона и хранится в одном файле.
     /// </summary>
     public NewtonPaletteWindow(NewtonPaletteManager manager, IReadOnlyList<Complex> targets,
-        IReadOnlyList<string>? targetLabels, string? heading, bool showGradientOption)
+        IReadOnlyList<string>? targetLabels, string? heading, bool showGradientOption, string? windowTitle = null)
     {
         InitializeComponent();
         _manager = manager;
         _roots = targets;
         _labels = targetLabels;
+        _gradientApplies = showGradientOption;
         RootCountText.Text = heading ?? $"Найдено корней в формуле: {_roots.Count}";
-        if (!showGradientOption) GradientBox.Visibility = Visibility.Collapsed;
+        if (windowTitle is not null) Title = windowTitle;
+        if (targetLabels is not null)
+        {
+            EditorGroup.Header = "Редактор палитры";
+            PreviewLabel.Text = "Превью: цвета бассейнов и цвет фона";
+        }
+        GradientNote.Visibility = showGradientOption ? Visibility.Collapsed : Visibility.Visible;
+        // Другое окно могло изменить общий файл палитр, пока это было открыто.
+        _manager.ReloadCustomPalettes();
         RefreshPaletteList(_manager.ActivePalette);
     }
 
@@ -48,16 +60,69 @@ public partial class NewtonPaletteWindow : Window
 
     private void RefreshPaletteList(NewtonColorPalette? select)
     {
-        PaletteList.ItemsSource = null;
-        PaletteList.ItemsSource = select is not null && !_manager.Palettes.Contains(select)
-            ? new[] { select }.Concat(_manager.Palettes).ToList()
-            : _manager.Palettes;
+        _changingSelection = true;
+        try
+        {
+            PaletteList.ItemsSource = null;
+            PaletteList.ItemsSource = select is not null && !_manager.Palettes.Contains(select)
+                ? new[] { select }.Concat(_manager.Palettes).ToList()
+                : _manager.Palettes;
+        }
+        finally { _changingSelection = false; }
         PaletteList.SelectedItem = select ?? _manager.Palettes.FirstOrDefault();
+    }
+
+    /// <summary>Есть ли у редактируемой палитры изменения, не перенесённые в неё кнопками.</summary>
+    private bool HasUnsavedEdits() =>
+        CanEdit && _selected is not null &&
+        (NameBox.Text.Trim() != _selected.Name || _backgroundColor != _selected.BackgroundColor ||
+         (GradientBox.IsChecked == true) != _selected.IsGradient ||
+         !_editingColors.SequenceEqual(NewtonPaletteManager.AdjustColors(_selected, _roots.Count)));
+
+    /// <summary>Спрашивает о несохранённых правках; false — пользователь отменил действие.</summary>
+    private bool ConfirmLeavingEdits()
+    {
+        if (!HasUnsavedEdits()) return true;
+        MessageBoxResult answer = MessageBox.Show(this, $"Сохранить изменения палитры «{_selected!.Name}»?", "Палитра",
+            MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Cancel) return false;
+        if (answer == MessageBoxResult.No)
+        {
+            LoadEditor(_selected);
+            return true;
+        }
+        if (!ApplyEdits()) return false;
+        _manager.SaveCustomPalettes();
+        // Имя в списке могло измениться; обновление — после текущей смены выделения.
+        Dispatcher.BeginInvoke(() =>
+        {
+            _changingSelection = true;
+            try { PaletteList.Items.Refresh(); }
+            finally { _changingSelection = false; }
+        });
+        return true;
+    }
+
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!ConfirmLeavingEdits()) e.Cancel = true;
     }
 
     private void PaletteList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (PaletteList.SelectedItem is not NewtonColorPalette palette) return;
+        if (_changingSelection || PaletteList.SelectedItem is not NewtonColorPalette palette) return;
+        if (!ReferenceEquals(palette, _selected) && !ConfirmLeavingEdits())
+        {
+            _changingSelection = true;
+            PaletteList.SelectedItem = _selected;
+            _changingSelection = false;
+            return;
+        }
+        LoadEditor(palette);
+    }
+
+    private void LoadEditor(NewtonColorPalette palette)
+    {
         _selected = palette;
         NameBox.Text = palette.Name;
         GradientBox.IsChecked = palette.IsGradient;
@@ -77,18 +142,22 @@ public partial class NewtonPaletteWindow : Window
             BackgroundColor = Colors.Black,
             IsGradient = true
         };
+        if (!ConfirmLeavingEdits()) return;
         _manager.Palettes.Add(palette);
+        // Новая палитра сразу попадает в файл: иначе после перезапуска она молча исчезла бы.
+        _manager.SaveCustomPalettes();
         RefreshPaletteList(palette);
     }
 
     private void Copy_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_selected is null) return;
+        if (_selected is null || !ConfirmLeavingEdits()) return;
         NewtonColorPalette copy = _selected.Clone(UniqueName($"{_selected.Name} копия"));
         copy.RootColors = NewtonPaletteManager.AdjustColors(_selected, _roots.Count);
         if (copy.ExpansionMode == NewtonPaletteExpansionMode.Harmonic)
             copy.ExpansionMode = NewtonPaletteExpansionMode.CyclicRamp;
         _manager.Palettes.Add(copy);
+        _manager.SaveCustomPalettes();
         RefreshPaletteList(copy);
     }
 
@@ -99,6 +168,7 @@ public partial class NewtonPaletteWindow : Window
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         bool active = ReferenceEquals(_selected, _manager.ActivePalette);
         _manager.Palettes.Remove(_selected);
+        _selected = null; // Правки удалённой палитры сохранять незачем.
         if (active) _manager.ActivePalette = _manager.Palettes[0];
         _manager.SaveCustomPalettes();
         RefreshPaletteList(_manager.ActivePalette);
@@ -207,7 +277,7 @@ public partial class NewtonPaletteWindow : Window
     {
         bool editable = CanEdit;
         NameBox.IsEnabled = editable;
-        GradientBox.IsEnabled = editable;
+        GradientBox.IsEnabled = editable && _gradientApplies;
         RootColorsList.IsHitTestVisible = editable;
         PreviewRootColors.IsHitTestVisible = editable;
         BackgroundPreview.IsHitTestVisible = editable;
