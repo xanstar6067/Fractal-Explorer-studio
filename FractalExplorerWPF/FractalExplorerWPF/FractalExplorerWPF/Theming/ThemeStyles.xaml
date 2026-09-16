@@ -252,6 +252,38 @@
         <Setter Property="SelectionBrush" Value="{DynamicResource Theme.AccentPrimaryBrush}"/>
     </Style>
 
+    <Style x:Key="ThemeComboArrowStyle" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="ArrowBackground" Background="Transparent" CornerRadius="0,3,3,0" Margin="1">
+                        <Path Width="9" Height="5" HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Fill="{TemplateBinding Foreground}" Data="M 0 0 L 4.5 5 L 9 0 Z" Stretch="Fill"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ArrowBackground" Property="Background" Value="{DynamicResource Theme.HoverBackgroundBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="ArrowBackground" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ArrowBackground" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ArrowBackground" Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Theme.DisabledTextBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="ComboBox">
         <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
         <Setter Property="Background" Value="{DynamicResource Theme.ControlBackgroundBrush}"/>
@@ -270,11 +302,9 @@
                                           HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}"
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" IsHitTestVisible="False"/>
                         <ToggleButton x:Name="DropDownToggle" Width="30" HorizontalAlignment="Right" Focusable="False"
+                                      Style="{StaticResource ThemeComboArrowStyle}"
                                       IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
-                                      Background="Transparent" BorderThickness="0" Cursor="Hand">
-                            <Path Width="9" Height="5" Fill="{DynamicResource Theme.SecondaryTextBrush}"
-                                  Data="M 0 0 L 4.5 5 L 9 0 Z" Stretch="Fill"/>
-                        </ToggleButton>
+                                      Background="Transparent" BorderThickness="0" Cursor="Hand"/>
                         <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
                                AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                             <Border Margin="0,3,0,0" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
