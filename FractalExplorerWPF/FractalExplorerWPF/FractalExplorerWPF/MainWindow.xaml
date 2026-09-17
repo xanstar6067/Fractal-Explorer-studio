@@ -454,8 +454,10 @@
             <Border Grid.Column="4" Style="{StaticResource CatalogPanelStyle}">
                 <Grid>
                     <!-- DataContext — выбранная плитка (CatalogTile), задаётся из кода. -->
+                    <!-- Постоянное место под полосу исключает колебания Auto-прокрутки:
+                         сужение квадратного превью уменьшало высоту и снова скрывало полосу. -->
                     <ScrollViewer x:Name="DetailsContent" HorizontalScrollBarVisibility="Disabled"
-                                  VerticalScrollBarVisibility="Auto">
+                                  VerticalScrollBarVisibility="Visible">
                         <StackPanel Margin="16">
                             <Grid x:Name="DetailsPreviewFrame" Height="{Binding ActualWidth, RelativeSource={RelativeSource Self}}">
                                 <Border CornerRadius="6" Background="{DynamicResource Theme.ControlBackgroundAltBrush}"

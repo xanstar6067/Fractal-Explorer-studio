@@ -423,6 +423,25 @@ internal static partial class Program
                 $"Details must fit the minimum window size: {detailsBounds}, root={root.RenderSize}.");
             SaveCatalogPng(root, pngDirectory, "07-minimum-size");
 
+            // Полоса прокрутки не должна менять ширину квадратного превью и запускать
+            // цикл: полоса появилась -> превью уменьшилось -> полоса исчезла -> превью выросло.
+            window.RevealTile(window.Tiles.Single(tile => tile.Item.LaunchKey == "Flame"));
+            await LayoutCatalogAsync(root, new Size(1400, 1000));
+            double previewWidth = window.DetailsPreviewFrame.ActualWidth;
+            Check(window.DetailsContent.ScrollableHeight == 0, "The tall details panel must fit the Flame card.");
+            await LayoutCatalogAsync(root, new Size(1400, 520));
+            Check(window.DetailsContent.ScrollableHeight > 0, "The short details panel must scroll the Flame card.");
+            Check(Math.Abs(window.DetailsPreviewFrame.ActualWidth - previewWidth) < 0.5,
+                "Showing the details scrollbar must not change the preview width.");
+            for (int height = 600; height <= 780; height += 10)
+            {
+                await LayoutCatalogAsync(root, new Size(1400, height));
+                Check(Math.Abs(window.DetailsPreviewFrame.ActualWidth - previewWidth) < 0.5 &&
+                      Math.Abs(window.DetailsPreviewFrame.ActualHeight - previewWidth) < 0.5,
+                    $"The square details preview must remain stable near the scrollbar threshold (height {height}).");
+            }
+            SaveCatalogPng(root, pngDirectory, "08-flame-stable-width");
+
             Check(bindingErrors.Messages.Count == 0,
                 "Binding errors in the catalog:" + Environment.NewLine + string.Join(Environment.NewLine, bindingErrors.Messages.Distinct()));
         }
