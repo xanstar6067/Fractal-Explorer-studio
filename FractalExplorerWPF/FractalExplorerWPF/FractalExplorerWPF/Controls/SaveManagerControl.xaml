@@ -14,8 +14,8 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -34,9 +34,23 @@
         </Grid>
         <TextBlock Grid.Column="2" Text="Предпросмотр:"/>
 
-        <ListBox x:Name="SavesList" Grid.Row="1" Grid.RowSpan="3" Margin="0,7,0,8"
-                 DisplayMemberPath="DisplayName" SelectionChanged="SavesList_OnSelectionChanged"
-                 MouseDoubleClick="SavesList_OnMouseDoubleClick"/>
+        <!-- Поиск встроен в ячейку списка (col0), не занимает отдельную строку общего грида —
+             колонка превью выровнена по строкам ровно как раньше. -->
+        <Grid Grid.Row="1" Grid.RowSpan="3" Margin="0,7,0,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid Margin="0,0,0,7">
+                <TextBox x:Name="SearchBox" VerticalContentAlignment="Center" TextChanged="SearchBox_OnTextChanged"/>
+                <TextBlock x:Name="SearchPlaceholder" Margin="10,0,0,0" VerticalAlignment="Center"
+                           IsHitTestVisible="False" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                           Text="Поиск…"/>
+            </Grid>
+            <ListBox x:Name="SavesList" Grid.Row="1"
+                     DisplayMemberPath="DisplayName" SelectionChanged="SavesList_OnSelectionChanged"
+                     MouseDoubleClick="SavesList_OnMouseDoubleClick"/>
+        </Grid>
 
         <!-- Snapshots keep the aspect ratio of the source canvas. -->
         <Border x:Name="PreviewHost" Grid.Row="1" Grid.Column="2" Margin="0,7,0,0"
@@ -53,7 +67,7 @@
             </Grid>
         </Border>
 
-        <TextBlock x:Name="DetailsText" Grid.Row="2" Grid.Column="2" Margin="0,8,0,0"
+        <TextBlock x:Name="DetailsText" Grid.Row="2" Grid.Column="2" VerticalAlignment="Top" Margin="0,8,0,0"
                    MaxHeight="66" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                    Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
 
@@ -74,7 +88,23 @@
             </Grid>
         </Grid>
 
-        <Grid Grid.Row="4" Grid.Column="0">
+        <!-- Кнопка рендера превью одновременно служит индикатором прогресса: заливка растёт внутри
+             самой кнопки, повторный клик во время рендера отменяет его. Так рендер не добавляет
+             в окно отдельную строку и не меняет его высоту. -->
+        <Button x:Name="RenderPreviewButton" Grid.Row="4" Grid.Column="2" Height="36" Padding="0"
+                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                Margin="0,0,0,8" Click="RenderPreviewButton_OnClick">
+            <Border CornerRadius="4" ClipToBounds="True">
+                <Grid>
+                    <Border x:Name="RenderFillBar" HorizontalAlignment="Left" Width="0"
+                            Background="{DynamicResource Theme.AccentPrimaryBrush}" Opacity="0.42"/>
+                    <TextBlock x:Name="RenderButtonText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               FontWeight="SemiBold" Text="Рендер превью"/>
+                </Grid>
+            </Border>
+        </Button>
+
+        <Grid Grid.Row="5" Grid.Column="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -83,34 +113,19 @@
             <Button Grid.Column="1" Content="Облако…" Margin="8,0,0,0" Click="CloudButton_OnClick"/>
         </Grid>
 
-        <Grid Grid.Row="4" Grid.Column="2">
+        <Grid Grid.Row="5" Grid.Column="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="RenderPreviewButton" Width="135" Content="Рендер превью"
-                    Click="RenderPreviewButton_OnClick"/>
-            <Button x:Name="LoadButton" Grid.Column="2" Width="{StaticResource RightActionButtonWidth}" Margin="0,0,7,0"
-                    Content="Загрузить" IsDefault="True" Click="LoadButton_OnClick"/>
-            <Button Grid.Column="3" Width="{StaticResource RightActionButtonWidth}" Content="Закрыть" IsCancel="True" Click="CloseButton_OnClick"/>
-        </Grid>
-        <StackPanel Grid.Row="5" Grid.ColumnSpan="3" Margin="0,8,0,0">
-            <Grid x:Name="RenderProgressPanel" Visibility="Collapsed" Margin="0,0,0,5">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="180"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <ProgressBar x:Name="PreviewProgress" Height="12" Minimum="0" Maximum="100"
-                             VerticalAlignment="Center" IsIndeterminate="True"/>
-                <TextBlock x:Name="ProgressText" Grid.Column="1" Margin="10,0" VerticalAlignment="Center"/>
-                <Button x:Name="CancelPreviewButton" Grid.Column="2" Width="{StaticResource RightActionButtonWidth}" Content="Отмена"
-                        Click="CancelPreviewButton_OnClick"/>
-            </Grid>
-            <TextBlock x:Name="StatusText" MinHeight="18" TextWrapping="Wrap"
+            <TextBlock x:Name="StatusText" Grid.Column="0" VerticalAlignment="Center" MinHeight="18" TextWrapping="Wrap"
                        Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-        </StackPanel>
+            <Button Grid.Column="1" Width="{StaticResource RightActionButtonWidth}" Margin="0,0,7,0"
+                    Content="Закрыть" IsCancel="True" Click="CloseButton_OnClick"/>
+            <Button x:Name="LoadButton" Grid.Column="2" Width="{StaticResource RightActionButtonWidth}"
+                    Style="{StaticResource Theme.AccentButtonStyle}"
+                    Content="Загрузить" IsDefault="True" Click="LoadButton_OnClick"/>
+        </Grid>
     </Grid>
 </UserControl>

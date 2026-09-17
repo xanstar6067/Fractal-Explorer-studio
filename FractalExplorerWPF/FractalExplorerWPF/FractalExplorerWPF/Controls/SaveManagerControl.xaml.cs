@@ -2,6 +2,7 @@ using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace FractalExplorerWPF.Controls;
 
@@ -17,10 +18,28 @@ public partial class SaveManagerControl : UserControl
     public event EventHandler? PointsOfInterestModeChanged;
     public event EventHandler? CloseRequested;
     public event EventHandler? CloudRequested;
+    public event EventHandler<string>? SearchTextChanged;
+
+    private static readonly AnimationTimeline PulseAnimation;
+
+    static SaveManagerControl()
+    {
+        var pulse = new DoubleAnimation(0.14, 0.32, TimeSpan.FromMilliseconds(900))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        pulse.Freeze();
+        PulseAnimation = pulse;
+    }
+
+    private bool _isRendering;
+    private int? _renderPercent;
 
     public SaveManagerControl()
     {
         InitializeComponent();
+        RenderPreviewButton.SizeChanged += (_, _) => UpdateRenderFillWidth();
     }
 
     public object? SelectedItem
@@ -64,20 +83,52 @@ public partial class SaveManagerControl : UserControl
         StatusText.ToolTip = text;
     }
 
+    private const double RenderFillOpacity = 0.42;
+
+    /// <summary>Включает/выключает режим рендера у кнопки «Рендер превью» — без отдельной строки прогресса.</summary>
     public void SetBusy(bool busy)
     {
-        RenderProgressPanel.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-        if (busy) SetRenderProgress(null, TimeSpan.Zero);
+        _isRendering = busy;
+        if (busy)
+        {
+            RenderPreviewButton.BorderBrush = (System.Windows.Media.Brush)FindResource("Theme.InteractiveHoverBrush");
+            SetRenderProgress(null, TimeSpan.Zero);
+        }
+        else
+        {
+            RenderFillBar.BeginAnimation(OpacityProperty, null);
+            RenderFillBar.Opacity = RenderFillOpacity;
+            RenderFillBar.Width = 0;
+            RenderButtonText.Text = "Рендер превью";
+            RenderPreviewButton.ClearValue(Control.BorderBrushProperty);
+        }
     }
 
     public void SetRenderProgress(int? percent, TimeSpan elapsed)
     {
-        PreviewProgress.IsIndeterminate = !percent.HasValue;
-        PreviewProgress.Value = percent ?? 0;
-        ProgressText.Text = $"{(percent.HasValue ? $"{percent}%" : "Вычисление...")} · {elapsed.TotalSeconds:F1} сек.";
+        _renderPercent = percent;
+        if (percent.HasValue)
+        {
+            RenderFillBar.BeginAnimation(OpacityProperty, null);
+            RenderFillBar.Opacity = RenderFillOpacity;
+            UpdateRenderFillWidth();
+            RenderButtonText.Text = $"{percent}%  ·  нажмите для отмены  ·  {elapsed.TotalSeconds:F1} сек.";
+        }
+        else
+        {
+            RenderFillBar.Width = RenderPreviewButton.ActualWidth;
+            RenderFillBar.BeginAnimation(OpacityProperty, PulseAnimation);
+            RenderButtonText.Text = $"Вычисление...  ·  нажмите для отмены  ·  {elapsed.TotalSeconds:F1} сек.";
+        }
     }
 
-    public void SetCancelling() => CancelPreviewButton.IsEnabled = false;
+    public void SetCancelling()
+    {
+        RenderPreviewButton.IsEnabled = false;
+        RenderFillBar.BeginAnimation(OpacityProperty, null);
+        RenderFillBar.Opacity = RenderFillOpacity;
+        RenderButtonText.Text = "Отмена...";
+    }
 
     public void SetButtonStates(bool hasSelection, bool canEdit, bool isRendering)
     {
@@ -85,8 +136,14 @@ public partial class SaveManagerControl : UserControl
         DeleteButton.IsEnabled = hasSelection && canEdit;
         SaveButton.IsEnabled = canEdit;
         SaveNameBox.IsEnabled = canEdit;
-        RenderPreviewButton.IsEnabled = hasSelection && !isRendering;
-        CancelPreviewButton.IsEnabled = isRendering;
+        // Кнопка остаётся активной во время рендера — повторный клик по ней отменяет рендер.
+        RenderPreviewButton.IsEnabled = hasSelection;
+    }
+
+    private void UpdateRenderFillWidth()
+    {
+        if (!_isRendering || _renderPercent is not { } percent) return;
+        RenderFillBar.Width = RenderPreviewButton.ActualWidth * Math.Clamp(percent, 0, 100) / 100.0;
     }
 
     private void SavesList_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
@@ -98,9 +155,20 @@ public partial class SaveManagerControl : UserControl
     private void SaveButton_OnClick(object sender, RoutedEventArgs e) => SaveRequested?.Invoke(this, EventArgs.Empty);
     private void DeleteButton_OnClick(object sender, RoutedEventArgs e) => DeleteRequested?.Invoke(this, EventArgs.Empty);
     private void LoadButton_OnClick(object sender, RoutedEventArgs e) => LoadRequested?.Invoke(this, EventArgs.Empty);
-    private void RenderPreviewButton_OnClick(object sender, RoutedEventArgs e) => RenderPreviewRequested?.Invoke(this, EventArgs.Empty);
-    private void CancelPreviewButton_OnClick(object sender, RoutedEventArgs e) => CancelPreviewRequested?.Invoke(this, EventArgs.Empty);
+
+    private void RenderPreviewButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_isRendering) CancelPreviewRequested?.Invoke(this, EventArgs.Empty);
+        else RenderPreviewRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     private void PointsOfInterestCheckBox_OnChanged(object sender, RoutedEventArgs e) => PointsOfInterestModeChanged?.Invoke(this, EventArgs.Empty);
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);
     private void CloudButton_OnClick(object sender, RoutedEventArgs e) => CloudRequested?.Invoke(this, EventArgs.Empty);
+
+    private void SearchBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        SearchPlaceholder.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SearchTextChanged?.Invoke(this, SearchBox.Text);
+    }
 }

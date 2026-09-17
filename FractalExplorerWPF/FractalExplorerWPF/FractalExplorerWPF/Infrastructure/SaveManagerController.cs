@@ -42,6 +42,7 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
     private CancellationTokenSource? _previewCts;
     private bool _isRendering;
     private bool _disposed;
+    private string _searchQuery = string.Empty;
 
     public SaveManagerController(Window window, SaveManagerControl view, SaveManagerConfiguration<TState> configuration)
     {
@@ -60,6 +61,7 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         _view.PointsOfInterestModeChanged += View_OnPointsOfInterestModeChanged;
         _view.CloseRequested += View_OnCloseRequested;
         _view.CloudRequested += View_OnCloudRequested;
+        _view.SearchTextChanged += View_OnSearchTextChanged;
         _view.SetPointsOfInterestAvailable(configuration.PointsOfInterest.Count > 0);
         RefreshStates();
     }
@@ -100,6 +102,12 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
             : _slots.Select(slot => new SaveManagerEntry<TState>(slot.State,
                 $"{_configuration.GetName(slot.State)} ({_configuration.GetTimestamp(slot.State):yyyy-MM-dd HH:mm:ss})",
                 slot, slot.PreviewPath)).ToList();
+
+        if (_searchQuery.Length > 0)
+        {
+            _entries = _entries.Where(entry =>
+                entry.DisplayName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
 
         _view.SetItems(_entries);
         _view.SelectedItem = selectName is null
@@ -251,6 +259,13 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
     private void View_OnPointsOfInterestModeChanged(object? sender, EventArgs e)
     {
         PopulateEntries();
+    }
+
+    private void View_OnSearchTextChanged(object? sender, string query)
+    {
+        _searchQuery = query.Trim();
+        string? selectedName = SelectedEntry is { } entry ? _configuration.GetName(entry.State) : null;
+        PopulateEntries(selectedName);
     }
 
     private void View_OnCloseRequested(object? sender, EventArgs e) => _window.Close();
@@ -423,5 +438,6 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         _view.PointsOfInterestModeChanged -= View_OnPointsOfInterestModeChanged;
         _view.CloseRequested -= View_OnCloseRequested;
         _view.CloudRequested -= View_OnCloudRequested;
+        _view.SearchTextChanged -= View_OnSearchTextChanged;
     }
 }
