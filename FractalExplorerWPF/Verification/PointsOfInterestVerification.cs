@@ -40,12 +40,31 @@ internal static partial class Program
                     Console.WriteLine($"   {(!metrics.IsFlat ? "ok    " : known ? "sparse" : "FLAT  ")} {metrics} · {group.Names[i]}");
                     if (metrics.IsFlat && !known) failures.Add($"{group.Name} / {group.Names[i]}: {metrics}");
                     if (outputDirectory is not null) SavePng(image, Path.Combine(outputDirectory, group.Name, $"{i:00} {AppPaths.ToSafeFileName(group.Names[i])}.png"));
+
+                    // «Загрузить» проходит через LoadState и CaptureState окна: значение вне допустимого
+                    // диапазона поля ввода роняет CaptureState, и окно остаётся без кадра. Кадр загруженного
+                    // состояния должен совпадать с превью.
+                    string label = $"{group.Name} / {group.Names[i]}";
+                    BitmapSource loaded;
+                    try { loaded = await group.RenderLoadedAsync(window, i, PointOfInterestWidth, PointOfInterestHeight); }
+                    catch (Exception exception)
+                    {
+                        Console.WriteLine($"   LOAD   {exception.Message}");
+                        failures.Add($"{label}: загрузка в окно — {exception.Message}");
+                        continue;
+                    }
+                    double difference = FrameDifference(image, loaded);
+                    if (difference > 0.01)
+                    {
+                        Console.WriteLine($"   LOAD   кадр после загрузки отличается от превью: {difference:P1} пикселей");
+                        failures.Add($"{label}: кадр после загрузки отличается от превью на {difference:P1} пикселей");
+                    }
                 }
             }
             finally { window.Close(); }
         }
         Check(checkedCount > 0, $"Фильтр «{filter}» не нашёл ни одной группы точек интереса.");
-        Check(failures.Count == 0, "Однотонные или пустые точки интереса:\n" + string.Join("\n", failures));
+        Check(failures.Count == 0, "Однотонные, пустые или не загружающиеся точки интереса:\n" + string.Join("\n", failures));
         Console.WriteLine($"PASS (poi): {checkedCount} точек интереса дают содержательный кадр.");
     }
 
@@ -112,36 +131,45 @@ internal static partial class Program
             yield return Group($"Mandelbrot-{variant}", () => new MandelbrotWindow(variant),
                 () => PresetManager.GetMandelbrotPresets(variant), s => s.SaveName,
                 (w, s, width, height) => ((MandelbrotWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+                (w, s) => { ((MandelbrotWindow)w).LoadState(s); return ((MandelbrotWindow)w).CaptureState(s.SaveName); },
                 s => { if (s.Palette.Colors.Count == 0) s.Palette = NamedPalette(new MandelbrotPaletteManager(), s.PaletteName, s.Palette.ColorPeriod); });
         yield return Group("Newton", () => new NewtonPoolsWindow(), PresetManager.GetNewtonPresets, s => s.SaveName,
-            (w, s, width, height) => ((NewtonPoolsWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None));
+            (w, s, width, height) => ((NewtonPoolsWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+            (w, s) => { ((NewtonPoolsWindow)w).LoadState(s); return ((NewtonPoolsWindow)w).CaptureState(s.SaveName); });
         foreach (BasinExplorerKind kind in Enum.GetValues<BasinExplorerKind>())
             yield return Group($"Basins-{kind}", () => new BasinExplorerWindow(kind), () => BasinExplorerCatalog.GetPresets(kind), s => s.SaveName,
-                (w, s, width, height) => ((BasinExplorerWindow)w).RenderStatePreviewAsync(s.Clone(), width, height, CancellationToken.None));
+                (w, s, width, height) => ((BasinExplorerWindow)w).RenderStatePreviewAsync(s.Clone(), width, height, CancellationToken.None),
+                (w, s) => { ((BasinExplorerWindow)w).LoadState(s.Clone()); return ((BasinExplorerWindow)w).CaptureState(s.SaveName); });
         yield return Group("Phoenix", () => new PhoenixWindow(), PresetManager.GetPhoenixPresets, s => s.SaveName,
             (w, s, width, height) => ((PhoenixWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+            (w, s) => { ((PhoenixWindow)w).LoadState(s); return ((PhoenixWindow)w).CaptureState(s.SaveName); },
             s => { if (s.Palette.Colors.Count == 0) s.Palette = NamedPalette(new MandelbrotPaletteManager(), s.Palette.Name, s.Palette.ColorPeriod); });
         foreach (NovaVariant variant in Enum.GetValues<NovaVariant>())
             yield return Group($"Nova-{variant}", () => new NovaWindow(variant), () => PresetManager.GetNovaPresets(variant), s => s.SaveName,
                 (w, s, width, height) => ((NovaWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+                (w, s) => { ((NovaWindow)w).LoadState(s); return ((NovaWindow)w).CaptureState(s.SaveName); },
                 s => { if (s.Palette.Colors.Count == 0) s.Palette = NamedPalette(new NovaPaletteManager(), s.Palette.Name, s.Palette.ColorPeriod); });
         yield return Group("Collatz", () => new CollatzWindow(), PresetManager.GetCollatzPresets, s => s.SaveName,
             (w, s, width, height) => ((CollatzWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+            (w, s) => { ((CollatzWindow)w).LoadState(s); return ((CollatzWindow)w).CaptureState(s.SaveName); },
             s => { if (s.Palette.Colors.Count == 0) s.Palette = NamedPalette(new CollatzPaletteManager(), s.Palette.Name, s.Palette.ColorPeriod); });
         yield return Group("Buddhabrot", () => new BuddhabrotWindow(), PresetManager.GetBuddhabrotPresets, s => s.SaveName,
             (w, s, width, height) => ((BuddhabrotWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+            (w, s) => { ((BuddhabrotWindow)w).LoadState(s); return ((BuddhabrotWindow)w).CaptureState(s.SaveName); },
             s => { if (s.Palette.Colors.Count == 0) s.Palette = new BuddhabrotPaletteManager().Palettes.First(p => p.Name == s.Palette.Name).Clone(s.Palette.Name, true); });
     }
 
     private static PointOfInterestGroup Group<TState>(string name, Func<Window> createWindow,
         Func<IReadOnlyList<TState>> presets, Func<TState, string> getName,
-        Func<Window, TState, int, int, Task<BitmapSource>> render, Action<TState>? probeFixup = null)
+        Func<Window, TState, int, int, Task<BitmapSource>> render, Func<Window, TState, TState> loadAndCapture,
+        Action<TState>? probeFixup = null)
     {
         IReadOnlyList<TState>? cached = null, probe = null;
         IReadOnlyList<TState> Presets() => cached ??= presets();
         return new PointOfInterestGroup(name, createWindow,
             () => Presets().Select(getName).ToList(),
             (window, index, width, height) => render(window, Presets()[index], width, height),
+            (window, index, width, height) => render(window, loadAndCapture(window, Presets()[index]), width, height),
             json =>
             {
                 probe = JsonSerializer.Deserialize<List<TState>>(json, JsonOptionsFactory.Create()) ?? [];
@@ -161,7 +189,8 @@ internal static partial class Program
     }
 
     private sealed class PointOfInterestGroup(string name, Func<Window> createWindow, Func<List<string>> names,
-        Func<Window, int, int, int, Task<BitmapSource>> render, Func<string, IReadOnlyList<string>> loadProbe,
+        Func<Window, int, int, int, Task<BitmapSource>> render, Func<Window, int, int, int, Task<BitmapSource>> renderLoaded,
+        Func<string, IReadOnlyList<string>> loadProbe,
         Func<Window, int, int, int, Task<BitmapSource>> renderProbe)
     {
         private List<string>? _names;
@@ -169,6 +198,7 @@ internal static partial class Program
         public IReadOnlyList<string> Names => _names ??= names();
         public Window CreateWindow() => createWindow();
         public Task<BitmapSource> RenderAsync(Window window, int index, int width, int height) => render(window, index, width, height);
+        public Task<BitmapSource> RenderLoadedAsync(Window window, int index, int width, int height) => renderLoaded(window, index, width, height);
         public IReadOnlyList<string> LoadProbe(string json) => loadProbe(json);
         public Task<BitmapSource> RenderProbeAsync(Window window, int index, int width, int height) => renderProbe(window, index, width, height);
     }
@@ -214,6 +244,25 @@ internal static partial class Program
         }
         return new FrameMetrics(histogram.Max() / (double)count, histogram.Count(value => value >= count / 1000),
             Math.Sqrt(Math.Max(0, sumSquares / count - mean * mean)), edges / (double)((width - 1) * (height - 1)));
+    }
+
+    /// <summary>Доля пикселей, у которых хотя бы один канал отличается больше чем на 8.</summary>
+    private static double FrameDifference(BitmapSource first, BitmapSource second)
+    {
+        byte[] Pixels(BitmapSource source, out int width, out int height)
+        {
+            var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+            width = converted.PixelWidth; height = converted.PixelHeight;
+            byte[] pixels = new byte[width * height * 4];
+            converted.CopyPixels(pixels, width * 4, 0);
+            return pixels;
+        }
+        byte[] a = Pixels(first, out int widthA, out int heightA), b = Pixels(second, out int widthB, out int heightB);
+        if (widthA != widthB || heightA != heightB) return 1;
+        int different = 0, count = widthA * heightA;
+        for (int i = 0; i < count; i++)
+            if (Math.Abs(a[i * 4] - b[i * 4]) > 8 || Math.Abs(a[i * 4 + 1] - b[i * 4 + 1]) > 8 || Math.Abs(a[i * 4 + 2] - b[i * 4 + 2]) > 8) different++;
+        return different / (double)count;
     }
 
     private static void SavePng(BitmapSource image, string path)

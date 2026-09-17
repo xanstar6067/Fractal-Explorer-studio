@@ -226,7 +226,7 @@ public partial class MandelbrotWindow : Window
             SmoothBlendPower = ReadDouble(SmoothBlendPowerBox.Text, "степень смешивания", 0.1, 5),
             SmoothIterationOffset = ReadDouble(SmoothIterationOffsetBox.Text, "сдвиг итерации", -100, 100),
             PalettePhaseOffset = ReadDouble(PalettePhaseBox.Text, "фаза палитры", -2, 2),
-            PaletteScale = ReadDouble(PaletteScaleBox.Text, "масштаб палитры", -5, 5),
+            PaletteScale = ReadDouble(PaletteScaleBox.Text, "масштаб палитры", -100, 100),
             PaletteWrapMode = PaletteWrapBox.SelectedIndex < 0
                 ? MandelbrotPaletteWrapMode.Repeat
                 : (MandelbrotPaletteWrapMode)PaletteWrapBox.SelectedIndex,
