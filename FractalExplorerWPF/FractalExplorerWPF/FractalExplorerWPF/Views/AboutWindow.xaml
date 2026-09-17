@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="О программе"
         Width="600"
-        Height="500"
+        Height="560"
         MinWidth="520"
         MinHeight="460"
         ResizeMode="CanResize"
@@ -56,6 +56,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Margin="0,0,12,14"
@@ -82,10 +83,29 @@
                        TextWrapping="Wrap"
                        ToolTip="Сохранения, превью, палитры, темы, настройки и журнал ошибок"/>
 
-            <TextBlock Grid.Row="3" Margin="0,0,12,0"
+            <Border Grid.Row="3"
+                    Grid.ColumnSpan="2"
+                    Margin="0,0,0,20"
+                    Padding="14,11"
+                    Background="{DynamicResource Theme.ControlBackgroundAltBrush}"
+                    BorderBrush="{DynamicResource Theme.BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock FontWeight="SemiBold"
+                               Foreground="{DynamicResource Theme.AccentPrimaryBrush}"
+                               Text="Создано при поддержке ИИ"/>
+                    <TextBlock Margin="0,5,0,0"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                               TextWrapping="Wrap"
+                               Text="В разработке помогали технологии Google AI, ChatGPT, Claude и Grok."/>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Grid.Row="4" Margin="0,0,12,0"
                        Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                        Text="Описание:"/>
-            <TextBlock Grid.Row="3" Grid.Column="1"
+            <TextBlock Grid.Row="4" Grid.Column="1"
                        LineHeight="22"
                        TextWrapping="Wrap"
                        Text="Fractal Explorer Studio — это WPF-приложение на C#, которое позволяет генерировать, исследовать и настраивать множество фракталов с гибким управлением цветом, интерактивными селекторами параметров, сохранением состояний и экспортом изображений в высоком качестве."/>
