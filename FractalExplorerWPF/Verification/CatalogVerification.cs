@@ -154,7 +154,6 @@ internal static partial class Program
             var window = new MainWindow();
             FrameworkElement root = DetachForLayout(window);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 156: " + bindingErrors.Messages.Count);
 
             // ----- Меню разделов -----
             CatalogScope all = window.Scopes[0], favorites = window.Scopes[1], recents = window.Scopes[2];
@@ -231,7 +230,6 @@ internal static partial class Program
 
             var clock = Stopwatch.StartNew();
             await window.RenderPendingPreviewsAsync();
-            Console.WriteLine("DIAG line 232: " + bindingErrors.Messages.Count);
             clock.Stop();
             foreach (CatalogTile tile in rendered)
             {
@@ -250,24 +248,19 @@ internal static partial class Program
                 "The selected bundled preview must be loaded at full size.");
             CatalogTile mandelbrot = Tile(window, "Классический Мандельброт");
             window.CatalogGallery.SelectedItem = mandelbrot;
-            Console.WriteLine("DIAG line 250: " + bindingErrors.Messages.Count);
             Check(window.SelectedTile == mandelbrot && phoenix.Preview is null && ReferenceEquals(phoenix.DisplayPreview, phoenix.Thumbnail) &&
                   mandelbrot.Preview is BitmapSource { PixelWidth: 512 },
                 "Selecting another tile must release the previous full-size preview.");
             CheckDetails(window, mandelbrot);
             CatalogTile hyperbolic = Tile(window, "Гиперболическая геометрия");
             window.CatalogGallery.SelectedItem = hyperbolic;
-            Console.WriteLine("DIAG line 256: " + bindingErrors.Messages.Count);
             window.CatalogGallery.SelectedItem = mandelbrot;
-            Console.WriteLine("DIAG line 257: " + bindingErrors.Messages.Count);
             Check(hyperbolic.Preview is not null && ReferenceEquals(hyperbolic.Preview, hyperbolic.Thumbnail),
                 "A rendered preview must stay in memory after leaving the details panel.");
 
             // ----- Разделы -----
             window.ScopeList.SelectedItem = mandelbrotFamily;
-            Console.WriteLine("DIAG line 262: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 263: " + bindingErrors.Messages.Count);
             Check(window.CurrentScope == mandelbrotFamily && ViewItems(window).Count == 7 && window.GalleryView.Groups is null,
                 "A leaf category must show its modes without group headers.");
             Check(window.GalleryTitle.Text == "Семейство Мандельброта" &&
@@ -277,9 +270,7 @@ internal static partial class Program
             CheckTileContainers(window, 7);
 
             window.ScopeList.SelectedItem = laboratories;
-            Console.WriteLine("DIAG line 272: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 273: " + bindingErrors.Messages.Count);
             int laboratoryModes = catalog.Count(item => item.CategoryPath[0] == "Математические лаборатории");
             int laboratoryGroups = catalog.Where(item => item.CategoryPath[0] == "Математические лаборатории")
                 .Select(item => item.CategoryBreadcrumb).Distinct().Count();
@@ -293,28 +284,22 @@ internal static partial class Program
             SaveCatalogPng(root, pngDirectory, "02-laboratories");
 
             window.ScopeList.SelectedItem = recents;
-            Console.WriteLine("DIAG line 286: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 287: " + bindingErrors.Messages.Count);
             Check(ViewItems(window).Select(tile => tile.DisplayName).SequenceEqual([newest, older, oldest]) && window.GalleryView.Groups is null,
                 "Recents must be listed in launch order without group headers.");
             Check(window.GallerySubtitle.Text == "Последние запущенные · 3 режима", $"Wrong recents header: {window.GallerySubtitle.Text}.");
             window.RecordLaunch(Tile(window, oldest));
-            Console.WriteLine("DIAG line 291: " + bindingErrors.Messages.Count);
             Check(ViewItems(window).Select(tile => tile.DisplayName).SequenceEqual([oldest, newest, older]),
                 "A launch must move the mode to the top of recents.");
             Check(File.ReadAllLines(AppPaths.GetSettingsFile("recent_fractals.txt")).SequenceEqual([oldest, newest, older]),
                 "A launch must be saved to recents.");
             window.RecordLaunch(mandelbrot);
-            Console.WriteLine("DIAG line 296: " + bindingErrors.Messages.Count);
             Check(recents.Count == 4 && mandelbrot.RecentRank == 0 && Tile(window, oldest).RecentRank == 1,
                 "Recent ranks and the menu count must follow launches.");
 
             // ----- Избранное -----
             window.ScopeList.SelectedItem = favorites;
-            Console.WriteLine("DIAG line 301: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 302: " + bindingErrors.Messages.Count);
             CatalogTile domainColoring = Tile(window, "Domain Coloring");
             Check(ViewItems(window).ToHashSet().SetEquals([mandelbrot, domainColoring]) && window.GalleryView.Groups?.Count == 2,
                 "Favorites from different categories must be grouped.");
@@ -323,18 +308,14 @@ internal static partial class Program
                       CatalogDescendants<Border>(item).Any(badge => badge.ToolTip as string == "В избранном" && badge.Visibility == Visibility.Visible)) == 2,
                 "Favorite tiles must show the star badge.");
             window.CatalogGallery.SelectedItem = domainColoring;
-            Console.WriteLine("DIAG line 310: " + bindingErrors.Messages.Count);
             window.ToggleFavorite(domainColoring);
-            Console.WriteLine("DIAG line 311: " + bindingErrors.Messages.Count);
             Check(!domainColoring.IsFavorite && favorites.Count == 1 && ViewItems(window).SequenceEqual([mandelbrot]) &&
                   window.SelectedTile == mandelbrot,
                 "Removing a favorite must remove it from the favorites view and move the selection.");
             Check(!File.ReadAllLines(AppPaths.GetSettingsFile("favorite_fractals.txt")).Contains("Domain Coloring"),
                 "Removing a favorite must be saved.");
             window.ToggleFavorite(mandelbrot);
-            Console.WriteLine("DIAG line 317: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 318: " + bindingErrors.Messages.Count);
             Check(ViewItems(window).Count == 0 && window.GalleryEmptyState.Visibility == Visibility.Visible &&
                   window.CatalogGallery.Visibility == Visibility.Collapsed && window.GalleryEmptyTitle.Text == "В избранном пока пусто" &&
                   window.GalleryEmptyAction.Visibility == Visibility.Collapsed,
@@ -343,20 +324,15 @@ internal static partial class Program
                   window.DetailsContent.Visibility == Visibility.Collapsed,
                 "Without a visible mode the details panel must be empty.");
             window.ScopeList.SelectedItem = attractors;
-            Console.WriteLine("DIAG line 326: " + bindingErrors.Messages.Count);
             Check(window.SelectedTile?.Item.CategoryPath[^1] == "Аттракторы", "Leaving an empty scope must select a mode again.");
             window.ToggleFavorite(window.SelectedTile!);
-            Console.WriteLine("DIAG line 328: " + bindingErrors.Messages.Count);
             Check(favorites.Count == 1 && window.SelectedTile!.IsFavorite && ViewItems(window).Count == 5,
                 "Adding a favorite outside the favorites view must only update the menu.");
 
             // ----- Поиск -----
             window.ScopeList.SelectedItem = mandelbrotFamily;
-            Console.WriteLine("DIAG line 333: " + bindingErrors.Messages.Count);
             window.SearchBox.Text = "ньютон";
-            Console.WriteLine("DIAG line 334: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 335: " + bindingErrors.Messages.Count);
             Check(window.CurrentScope == all && window.ScopeList.SelectedItem == all, "Typing a query must search the whole catalog.");
             Check(ViewItems(window).Any(tile => tile.DisplayName == "Бассейны Ньютона+") &&
                   ViewItems(window).Any(tile => tile.DisplayName == "Бассейны метода Лагерра") &&
@@ -372,7 +348,6 @@ internal static partial class Program
             SaveCatalogPng(root, pngDirectory, "03-search");
 
             window.SearchBox.Text = "";
-            Console.WriteLine("DIAG line 350: " + bindingErrors.Messages.Count);
             Check(window.CurrentScope == mandelbrotFamily && window.ScopeList.SelectedItem == mandelbrotFamily &&
                   !attractors.IsDimmed && attractors.Count == 5 && all.Count == catalog.Count,
                 "Clearing the query must return to the scope opened before the search.");
@@ -380,48 +355,47 @@ internal static partial class Program
                 "An empty query must hide the clear button.");
 
             window.SearchBox.Text = "аттрактор";
-            Console.WriteLine("DIAG line 357: " + bindingErrors.Messages.Count);
             window.ScopeList.SelectedItem = fractals;
-            Console.WriteLine("DIAG line 358: " + bindingErrors.Messages.Count);
             Check(window.CurrentScope == fractals && ViewItems(window).All(tile => tile.Item.CategoryPath[0] == "Фракталы" && CatalogSearch.Matches(tile.Item, "аттрактор")),
                 "A scope chosen during a search must filter the matches.");
             window.SearchBox.Text = "";
-            Console.WriteLine("DIAG line 361: " + bindingErrors.Messages.Count);
             Check(window.CurrentScope == fractals, "A scope chosen during a search must stay after clearing it.");
 
             window.CatalogGallery.SelectedItem = Tile(window, "Аполлонова прокладка");
-            Console.WriteLine("DIAG line 364: " + bindingErrors.Messages.Count);
             window.SearchBox.Text = "нетакогорежима";
-            Console.WriteLine("DIAG line 365: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 366: " + bindingErrors.Messages.Count);
             Check(window.GalleryEmptyState.Visibility == Visibility.Visible && window.GalleryEmptyTitle.Text == "Ничего не найдено" &&
                   (string?)window.GalleryEmptyAction.Content == "Сбросить поиск" && window.SelectedTile is null &&
                   window.Scopes.Where(scope => scope.Kind == CatalogScopeKind.Category).All(scope => scope.IsDimmed),
                 "A query without matches must show the empty state.");
             SaveCatalogPng(root, pngDirectory, "04-nothing-found");
             window.SearchBox.Text = "";
-            Console.WriteLine("DIAG line 372: " + bindingErrors.Messages.Count);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 373: " + bindingErrors.Messages.Count);
             Check(window.SelectedTile?.DisplayName == "Аполлонова прокладка" && window.CurrentScope == fractals,
                 "Clearing a query without matches must restore the previous selection and scope.");
             Check(IsTileInView(window, window.SelectedTile!), "A restored selection must be scrolled into view.");
+
+            // Быстрый переключатель: поиск уже ограничен разделом, а цель находится вне него.
+            window.SearchBox.Text = "ньютон";
+            window.ScopeList.SelectedItem = mandelbrotFamily;
+            window.RevealTile(hyperbolic);
+            await LayoutCatalogAsync(root);
+            Check(window.SearchBox.Text.Length == 0 && window.CurrentScope == all &&
+                  window.SelectedTile == hyperbolic && window.CatalogGallery.SelectedItem == hyperbolic &&
+                  IsTileInView(window, hyperbolic),
+                "Quick switching from a filtered scope must reveal the requested mode, not the first mode of the old scope.");
 
             // ----- Настройки и темы -----
             Check(window.SettingsFlyout.Visibility == Visibility.Collapsed, "Settings must start closed.");
             window.SettingsToggle.IsChecked = true;
             Check(window.SettingsFlyout.Visibility == Visibility.Visible, "The settings toggle must open the settings panel.");
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 382: " + bindingErrors.Messages.Count);
             SaveCatalogPng(root, pngDirectory, "05-settings");
             window.SettingsToggle.IsChecked = false;
             Check(window.SettingsFlyout.Visibility == Visibility.Collapsed, "The settings toggle must close the settings panel.");
 
             window.ScopeList.SelectedItem = all;
-            Console.WriteLine("DIAG line 387: " + bindingErrors.Messages.Count);
             window.CatalogGallery.SelectedItem = phoenix;
-            Console.WriteLine("DIAG line 388: " + bindingErrors.Messages.Count);
             foreach (ThemeDefinition theme in ThemeManager.GetAllThemes())
             {
                 ThemeManager.SetTheme(theme.Id);
@@ -431,7 +405,6 @@ internal static partial class Program
                 foreach (System.Collections.DictionaryEntry entry in Application.Current.Resources) themeResources[entry.Key] = entry.Value;
                 root.Resources = themeResources;
                 await LayoutCatalogAsync(root);
-                Console.WriteLine("DIAG line 397: " + bindingErrors.Messages.Count);
                 Check(window.ThemeSelector.SelectedItem is ThemeDefinition { Id: var selectedId } && selectedId == theme.Id,
                     $"The theme selector must follow the theme «{theme.DisplayName}».");
                 Check(window.GalleryTitle.Foreground is SolidColorBrush { Color: var titleColor } && titleColor == theme.PrimaryText &&
@@ -442,7 +415,13 @@ internal static partial class Program
             }
             ThemeManager.SetTheme(initialTheme);
             await LayoutCatalogAsync(root);
-            Console.WriteLine("DIAG line 407: " + bindingErrors.Messages.Count);
+
+            await LayoutCatalogAsync(root, new Size(884, 520));
+            Rect detailsBounds = window.DetailsContent.TransformToAncestor(root)
+                .TransformBounds(new Rect(window.DetailsContent.RenderSize));
+            Check(detailsBounds.Right <= root.ActualWidth && detailsBounds.Bottom <= root.ActualHeight,
+                $"Details must fit the minimum window size: {detailsBounds}, root={root.RenderSize}.");
+            SaveCatalogPng(root, pngDirectory, "07-minimum-size");
 
             Check(bindingErrors.Messages.Count == 0,
                 "Binding errors in the catalog:" + Environment.NewLine + string.Join(Environment.NewLine, bindingErrors.Messages.Distinct()));
@@ -517,9 +496,9 @@ internal static partial class Program
         return root;
     }
 
-    private static async Task LayoutCatalogAsync(FrameworkElement root)
+    private static async Task LayoutCatalogAsync(FrameworkElement root, Size? availableSize = null)
     {
-        var size = new Size(1180, 740);
+        var size = availableSize ?? new Size(1180, 740);
         root.Measure(size);
         root.Arrange(new Rect(size));
         root.UpdateLayout();

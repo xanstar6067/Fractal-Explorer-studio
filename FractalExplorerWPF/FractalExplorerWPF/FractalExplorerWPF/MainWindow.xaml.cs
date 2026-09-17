@@ -481,13 +481,18 @@ public partial class MainWindow : Window
         CatalogTile? tile = _tiles.FirstOrDefault(candidate => ReferenceEquals(candidate.Item, item));
         if (tile is null) return;
 
-        // Показать выбранный режим в каталоге, затем открыть его.
-        _selectedTile = tile;
+        RevealTile(tile);
+        Launch(tile);
+    }
+
+    internal void RevealTile(CatalogTile tile)
+    {
         _scopeBeforeSearch = null;
         if (SearchBox.Text.Length > 0) SearchBox.Clear();
         if (!_scope.Includes(tile)) SelectScope(_allScope);
+        // Очистка поиска перестраивает старый раздел и может заменить выбор его первой плиткой.
+        _selectedTile = tile;
         RefreshGallery(scrollToTop: true);
-        Launch(tile);
     }
 
     private void QuickSwitcherHint_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => OpenQuickSwitcher();
