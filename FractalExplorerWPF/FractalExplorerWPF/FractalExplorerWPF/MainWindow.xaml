@@ -313,7 +313,7 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel MinWidth="220" Orientation="Horizontal" VerticalAlignment="Center">
-                <Image Width="22" Height="22" Source="Assets/Icons/FractalExplorer.ico"
+                <Image x:Name="CatalogLogo" Width="22" Height="22"
                        RenderOptions.BitmapScalingMode="HighQuality"/>
                 <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Text="Каталог"/>
             </StackPanel>

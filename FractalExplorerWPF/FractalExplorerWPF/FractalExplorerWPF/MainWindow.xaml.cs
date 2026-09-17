@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        CatalogLogo.Source = IconResourceLoader.LoadLargestFrame("Assets/Icons/FractalExplorer.ico");
 
         _tiles = CreateTiles(_catalog);
         Scopes = CatalogScope.Build(_catalog);
