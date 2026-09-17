@@ -157,10 +157,10 @@ public sealed class CatalogScope : INotifyPropertyChanged
     public IReadOnlyList<string> Path { get; }
     public int Depth => Path.Count - 1;
 
-    /// <summary>Раздел верхнего уровня — подпись-заголовок в меню.</summary>
+    /// <summary>Раздел верхнего уровня — кликабельный пункт с усиленным начертанием.</summary>
     public bool IsSection => Kind == CatalogScopeKind.Category && Path.Count == 1;
 
-    public string DisplayTitle => IsSection ? Title.ToUpperInvariant() : Title;
+    public string DisplayTitle => Title;
     public Thickness Indent => new(Kind == CatalogScopeKind.Category ? Math.Max(0, Depth - 1) * IndentStep : 0, 0, 0, 0);
     /// <summary>Полный путь вложенной категории; у остальных пунктов подсказки нет.</summary>
     public string? ToolTipText => Kind == CatalogScopeKind.Category && Path.Count > 1 ? string.Join(" › ", Path) : null;
