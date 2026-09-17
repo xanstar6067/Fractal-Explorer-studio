@@ -1,5 +1,13 @@
 # Инструкции для агентов
 
+## Синхронизация AGENTS.md и CLAUDE.md
+
+[AGENTS.md](AGENTS.md) и [CLAUDE.md](CLAUDE.md) в корне репозитория — две одинаковые копии общих инструкций для всех агентов. Их содержимое должно совпадать побайтово.
+
+- Перед изменением инструкций прочитай оба файла. Если они разошлись, объедини актуальные сведения из обеих версий, сверяя противоречия с кодом и указаниями пользователя; не теряй дополнения другого агента при копировании.
+- Любое изменение правил, каталога окон, описаний возможностей или команд проверки вноси в оба файла в рамках одной задачи. Не веди отдельную историю для Codex или Claude.
+- После редактирования перенеси итоговое содержимое в парный файл и проверь совпадение: `git diff --no-index -- AGENTS.md CLAUDE.md` (без вывода, код возврата 0).
+
 ## Главный приоритет: только WPF
 
 Актуальная и единственная активно развиваемая версия проекта — **WPF-версия** в каталоге `FractalExplorerWPF/`.
@@ -74,7 +82,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `Views/BuddhabrotWindow.xaml` / `.xaml.cs` | Рендер Буддаброта и Анти-Буддаброта с накоплением плотности орбит, каналами/экспозицией, навигацией, сохранениями и экспортом. Связаны `Models/BuddhabrotModels.cs`, `Core/Rendering/BuddhabrotRenderer.cs`, `Infrastructure/BuddhabrotSaveStore.cs`. |
 | `Views/CollatzWindow.xaml` / `.xaml.cs` | Комплексный фрактал Коллатца: параметры итераций и области, рендер, навигация, палитра, сохранения и экспорт. Поддерживает глубокий зум до 1e50 — выше 1e10 орбита считается напрямую в произвольной точности, а центр ведётся в `BigFloat`. Связаны `Models/CollatzModels.cs`, `Core/Rendering/CollatzRenderer.cs`, `Core/Rendering/CollatzRenderer.DeepZoom.cs`, `Core/Math/BigFloatMath.cs`, `Core/Math/ComplexBigFloat.cs`, `Infrastructure/CollatzSaveStore.cs`. |
 | `Views/DlaWindow.xaml` / `.xaml.cs` | DLA (диффузионно-ограниченная агрегация): моделирование роста кластера случайными частицами, отображение процесса, настройки, сохранения и экспорт. Связаны `Models/DlaModels.cs`, `Core/Rendering/DlaRenderer.cs`, `Infrastructure/DlaSaveStore.cs`. |
-| `Views/DomainColoringWindow.xaml` / `.xaml.cs` | Domain Coloring комплексных функций: ввод/выбор функции, раскраска аргумента и модуля, контуры, навигация, сохранения и экспорт. Связаны `Models/DomainColoringModels.cs`, `Core/Rendering/DomainColoringRenderer.cs`, `Core/Math/CompiledComplexExpression.cs`, `Infrastructure/DomainColoringSaveStore.cs`. |
+| `Views/DomainColoringWindow.xaml` / `.xaml.cs` | Domain Coloring комплексных функций: ввод/выбор функции, раскраска аргумента и модуля, контуры, навигация, сохранения и экспорт. Аргумент f(z) сопоставляется редактируемой циклической палитрой (`DomainColoringPaletteWindow`), встроенная классическая HSV-раскраска доступна как одна из встроенных палитр; модуль по-прежнему задаёт яркость/контуры поверх выбранного цвета. Связаны `Models/DomainColoringModels.cs`, `Core/Rendering/DomainColoringRenderer.cs`, `Core/Math/CompiledComplexExpression.cs`, `Infrastructure/DomainColoringPaletteManager.cs`, `Infrastructure/DomainColoringSaveStore.cs`. |
 | `Views/DynamicSystemWindow.xaml` / `.xaml.cs` | Универсальное окно динамических систем. Обслуживает режимы Ляпунова, Лоренца, Рёсслера, логистического отображения, бифуркации, Хенона, Икэды и странных 2D-аттракторов (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Связаны `Models/DynamicSystemModels.cs`, `Core/Rendering/DynamicSystemRenderer.cs`, `Core/Rendering/Attractor2DRenderer.cs`, `Infrastructure/DynamicSystemStores.cs`. |
 | `Views/FlameWindow.xaml` / `.xaml.cs` | Стохастический Fractal Flame: набор аффинных преобразований и вариаций, HDR-накопление, тональная коррекция, случайная генерация, сохранения и экспорт. Связаны `Models/FlameModels.cs`, `Core/Rendering/FlameRenderer.cs`, `Core/Rendering/FlameVariations.cs`, `Infrastructure/FlameSaveStore.cs`. |
 | `Views/GrayScottWindow.xaml` / `.xaml.cs` | Интерактивная реакционно‑диффузионная система Gray–Scott: эволюция двух концентраций в реальном времени, пресеты структур, добавление реагента кистью, собственные палитры, сохранения и экспорт текущего кадра. Связаны `Models/GrayScottModels.cs`, `Core/Rendering/GrayScottRenderer.cs`, `Infrastructure/GrayScottSaveStore.cs`. |
@@ -94,6 +102,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | Окно и файлы | Назначение |
 |---|---|
 | `Views/BuddhabrotPaletteWindow.xaml` / `.xaml.cs` | Менеджер палитр и цветовых каналов Буддаброта; вызывается из `BuddhabrotWindow`. |
+| `Views/DomainColoringPaletteWindow.xaml` / `.xaml.cs` | Менеджер палитр Domain Coloring: цвета сопоставляются аргументу f(z) по кругу (конец плавно переходит в начало), плавный градиент или дискретные полосы, гамма, обратное направление, встроенная классическая HSV-палитра среди прочих; вызывается из `DomainColoringWindow`. |
 | `Views/DynamicPaletteWindow.xaml` / `.xaml.cs` | Общий менеджер динамических палитр, используемый режимами `DynamicSystemWindow` (в частности логистическим отображением). |
 | `Views/FlameTransformEditorWindow.xaml` / `.xaml.cs` | Редактор списка аффинных преобразований, весов, цветов и вариаций Fractal Flame; вызывается из `FlameWindow`. |
 | `Views/GrayScottPaletteWindow.xaml` / `.xaml.cs` | Менеджер сохраняемых палитр концентрации Gray–Scott: встроенные и пользовательские градиенты, гамма, копирование и случайная генерация; вызывается из `GrayScottWindow`. |
@@ -133,7 +142,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `Controls/NumericSpinner.cs` | Стрелки увеличения/уменьшения числовых TextBox, включаемые явно через attached property; целочисленный или дробный шаг, удержание мыши и клавиши ↑/↓. Десятичная арифметика сохраняет точные цифры и научную запись глубокого зума. Шаблон и все цвета состояний находятся в `Theming/ThemeStyles.xaml` и следуют текущей теме. |
 | `Controls/RenderProgressOverlay.cs` | Общий оверлей состояния и прогресса рендера. |
 
-У всех одиннадцати режимов `BasinExplorerWindow` палитра по умолчанию — «Оттенки серого», вспомогательная геометрия скрыта. Переключатель «Маркеры, линии и траектории» закреплён над прокручиваемыми настройками; «Скрыть» убирает также пунктир циклов, радиусы и орбиты. Сохранения восстанавливают явно выбранные палитру и маркеры. Превью каталога для маятника и притягивающих центров рассчитываются с палитрой «Огонь».
+У всех одиннадцати режимов `BasinExplorerWindow` палитра по умолчанию — «Оттенки серого», у встроенных точек интереса — «Огонь»; вспомогательная геометрия скрыта. Переключатель «Маркеры, линии и траектории» закреплён над прокручиваемыми настройками; «Скрыть» убирает также пунктир циклов, радиусы и орбиты. Сохранения восстанавливают явно выбранные палитру и маркеры. Превью каталога для маятника и притягивающих центров рассчитываются с палитрой «Огонь».
 
 При добавлении, удалении, переименовании или изменении назначения WPF-окна либо общего контрола обязательно обновляй этот каталог в том же изменении.
 
@@ -221,7 +230,9 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 комплексная логистическая карта, физические модели, градиентный спуск, комплексный поток и векторные поля
 (включая окна, численные проверки и сохранения), `planar` — только последние три режима, `cloud` — облачные
 сохранения на поддельном API (состояния, массовые операции, коллизии, DPAPI, TLS), `cloud-live` — только
-анонимные GET к настоящему серверу:
+анонимные GET к настоящему серверу, `poi [фильтр] [--out папка]` — встроенные точки интереса «Комплексной
+динамики» не дают однотонный кадр (при добавлении или правке точки прогоняй её группу и смотри PNG),
+`poi-probe` — рендер кандидатов из JSON без пересборки:
 
 ```powershell
 dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- extreme
