@@ -110,7 +110,7 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         UpdateButtonStates();
     }
 
-    private void View_OnSelectionChanged(object? sender, EventArgs e)
+    private async void View_OnSelectionChanged(object? sender, EventArgs e)
     {
         bool wasRendering = _isRendering;
         CancelPreview();
@@ -129,6 +129,13 @@ public sealed class SaveManagerController<TState> : IDisposable where TState : c
         if (TryLoadCachedPreview(entry, out BitmapSource? cached))
         {
             _view.SetPreview(cached);
+            return;
+        }
+
+        if (entry.IsPointOfInterest)
+        {
+            _view.SetPreview(null, "Рендер превью...");
+            await RenderSelectedPreviewAsync();
             return;
         }
 

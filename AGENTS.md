@@ -118,7 +118,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `Views/ColorPickerWindow.xaml` / `.xaml.cs` | Полноразмерный общий диалог выбора цвета, построенный вокруг `Controls/ColorPickerPanel`. |
 | `Views/ImageExportManagerWindow.xaml` / `.xaml.cs` | Универсальный менеджер экспорта изображения: размеры, SSAA, формат/путь, прогресс, отмена и вызов переданного render callback. Конфигурация находится в `Infrastructure/ImageExportConfiguration.cs`. |
 | `Views/QuickSwitcherWindow.xaml` / `.xaml.cs` | Быстрый переключатель по каталогу фракталов (Ctrl+K из `MainWindow`): фильтрация по названию и категории, навигация стрелками, запуск по Enter. |
-| `Views/SaveManagerWindow.xaml` / `.xaml.cs` | Универсальная оболочка менеджера состояний: сохраняет текущий кадр полотна как PNG-превью, открывает, загружает и удаляет сохранения (по файлу на запись; удалённые и заменённые файлы и превью уходят в Корзину); пересчёт превью запускается только вручную с прогрессом и отменой. Использует `Controls/SaveManagerControl`, конфигурации из `Infrastructure/SaveManagerConfigurations.cs` и хранилище `Infrastructure/FractalSaveStore.cs`. |
+| `Views/SaveManagerWindow.xaml` / `.xaml.cs` | Универсальная оболочка менеджера состояний: сохраняет текущий кадр полотна как PNG-превью, открывает, загружает и удаляет сохранения (по файлу на запись; удалённые и заменённые файлы и превью уходят в Корзину); для пользовательских сохранений пересчёт превью запускается вручную с прогрессом и отменой, для встроенных точек интереса отсутствующее превью рендерится автоматически при выборе и кэшируется. Использует `Controls/SaveManagerControl`, конфигурации из `Infrastructure/SaveManagerConfigurations.cs` и хранилище `Infrastructure/FractalSaveStore.cs`. |
 | `Views/ThemeColorPickerWindow.xaml` / `.xaml.cs` | Компактный выбор одного цвета специально для редактора темы. |
 | `Views/ThemeEditorWindow.xaml` / `.xaml.cs` | Создание, редактирование, импорт, выбор и сохранение тем оформления приложения. Основная логика тем находится в `Theming/`. |
 
@@ -128,7 +128,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 |---|---|
 | `Controls/ColorPickerPanel.xaml` / `.xaml.cs` | Общая панель выбора цвета: каналы, ввод значения, предпросмотр и экранная пипетка. |
 | `Controls/ColorSelectorControl.xaml` / `.xaml.cs` | Компактный переиспользуемый селектор цвета для панелей параметров. |
-| `Controls/SaveManagerControl.xaml` / `.xaml.cs` | Переиспользуемое содержимое менеджера сохранений: список, PNG-превью текущего кадра, ручной пересчёт с прогрессом, временем и отменой; выбор записи не запускает вычислений. |
+| `Controls/SaveManagerControl.xaml` / `.xaml.cs` | Переиспользуемое содержимое менеджера сохранений: список, PNG-превью текущего кадра, ручной пересчёт с прогрессом, временем и отменой; выбор пользовательской записи не запускает вычислений; встроенная точка интереса без доступного PNG-превью запускает автоматический рендер. |
 | `Controls/FractalControlPanel.cs` | Программно создаваемая общая панель параметров фрактала. |
 | `Controls/NumericSpinner.cs` | Стрелки увеличения/уменьшения числовых TextBox, включаемые явно через attached property; целочисленный или дробный шаг, удержание мыши и клавиши ↑/↓. Десятичная арифметика сохраняет точные цифры и научную запись глубокого зума. Шаблон и все цвета состояний находятся в `Theming/ThemeStyles.xaml` и следуют текущей теме. |
 | `Controls/RenderProgressOverlay.cs` | Общий оверлей состояния и прогресса рендера. |

@@ -178,9 +178,10 @@ internal static partial class Program
 
         var points = (CheckBox)view.FindName("PointsOfInterestCheckBox");
         points.IsChecked = true;
-        Check(jobs.Count == beforeSelection, "Selecting a preset must not render.");
-        Check(((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Presets must support manual rendering.");
-        Click(view, "RenderPreviewButton"); jobs[^1].Completion.SetResult(Pixel(55)); await DrainAsync();
+        Check(jobs.Count == beforeSelection + 1, "Selecting an uncached preset must render automatically.");
+        Check(!((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Automatic rendering must prevent a duplicate render.");
+        jobs[^1].Completion.SetResult(Pixel(55)); await DrainAsync();
+        Check(((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Presets must support manual rerendering.");
         points.IsChecked = false; points.IsChecked = true;
         Check(ReadPixel(Image(view)!) == 55 && jobs.Count == beforeSelection + 1, "Preset preview must be cached.");
         Check(File.Exists(store.GetPointOfInterestPreviewPath("Preset")), "Preset previews must live in the points-of-interest folder.");
