@@ -53,7 +53,7 @@ public static partial class BasinExplorerCatalog
             {
                 Kind = kind, SaveName = name, MaxIterations = 8000, Zoom = 0.28,
                 ShadingScale = kind == BasinExplorerKind.GradientDescent ? 40 : 4,
-                Palette = GrayscalePalette(), MarkerMode = BasinMarkerMode.Hidden
+                Palette = FirePalette(), MarkerMode = BasinMarkerMode.Hidden
             };
             configure?.Invoke(state);
             return state;

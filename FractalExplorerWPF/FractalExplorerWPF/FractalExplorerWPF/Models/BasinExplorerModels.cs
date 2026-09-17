@@ -381,7 +381,7 @@ public static partial class BasinExplorerCatalog
             Formula = formula,
             MaxIterations = 200,
             ShadingScale = kind == BasinExplorerKind.Laguerre ? 2 : 3,
-            Palette = GrayscalePalette()
+            Palette = FirePalette()
         };
         configure(state);
         return state;
@@ -402,7 +402,7 @@ public static partial class BasinExplorerCatalog
             MaxPeriod = 12,
             ShadingScale = 20,
             MarkerMode = BasinMarkerMode.Hidden,
-            Palette = GrayscalePalette()
+            Palette = FirePalette()
         };
         configure(state);
         return state;
@@ -422,7 +422,7 @@ public static partial class BasinExplorerCatalog
             EscapeRadius = 1e6,
             ShadingScale = 30,
             MarkerMode = BasinMarkerMode.Hidden,
-            Palette = GrayscalePalette()
+            Palette = FirePalette()
         };
         configure(state);
         return state;
@@ -433,6 +433,16 @@ public static partial class BasinExplorerCatalog
     {
         Name = "Оттенки серого",
         RootColors = [Colors.White, Colors.LightGray, Colors.DarkGray],
+        BackgroundColor = Colors.Black,
+        IsGradient = true,
+        ExpansionMode = NewtonPaletteExpansionMode.LinearRamp
+    };
+
+    /// <summary>Палитра встроенных точек интереса — встроенная «Огонь» бассейнов Ньютона.</summary>
+    public static NewtonColorPalette FirePalette() => new()
+    {
+        Name = "Огонь",
+        RootColors = [Color.FromRgb(200, 0, 0), Color.FromRgb(255, 100, 0), Color.FromRgb(255, 255, 100)],
         BackgroundColor = Colors.Black,
         IsGradient = true,
         ExpansionMode = NewtonPaletteExpansionMode.LinearRamp

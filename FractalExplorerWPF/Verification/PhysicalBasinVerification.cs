@@ -207,8 +207,8 @@ internal static partial class Program
                 Check(state.Palette.Name == "Оттенки серого" && state.Palette.RootColors.SequenceEqual(standard.RootColors),
                     $"{kind}: default palette must match Newton's grayscale palette.");
                 Check(state.MarkerMode == BasinMarkerMode.Hidden, $"{kind}: overlays must be hidden by default.");
-                Check(BasinExplorerCatalog.GetPresets(kind).All(p => p.Palette.Name == "Оттенки серого" && p.MarkerMode == BasinMarkerMode.Hidden),
-                    $"{kind}: presets must use the same clean grayscale defaults.");
+                Check(BasinExplorerCatalog.GetPresets(kind).All(p => p.Palette.Name == "Огонь" && p.MarkerMode == BasinMarkerMode.Hidden),
+                    $"{kind}: presets must use the built-in Fire palette with hidden overlays.");
 
                 var selector = (ComboBox)window.FindName("MarkerModeBox");
                 Check(selector.Parent is StackPanel { Parent: DockPanel } header && DockPanel.GetDock(header) == Dock.Top,
