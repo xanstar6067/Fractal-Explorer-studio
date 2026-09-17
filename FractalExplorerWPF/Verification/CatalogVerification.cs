@@ -188,7 +188,8 @@ internal static partial class Program
             Check(window.CurrentScope == all && window.ScopeList.SelectedItem == all, "The catalog must open with all modes.");
             Check(window.SelectedTile == phoenix && window.CatalogGallery.SelectedItem == phoenix,
                 "The most recently launched mode must be selected on start.");
-            Check(IsTileInView(window, phoenix), "The selected mode must be scrolled into view on start.");
+            Check(GalleryScrollViewer(window).VerticalOffset == 0,
+                "The catalog must start at the top even when the most recent mode is farther down the list.");
             CheckDetails(window, phoenix);
             FrameworkElement? typedText = CatalogDescendants<FrameworkElement>(window.SearchBox)
                 .FirstOrDefault(element => element.GetType().Name == "TextBoxView");

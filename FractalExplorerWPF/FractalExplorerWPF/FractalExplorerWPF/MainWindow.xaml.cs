@@ -77,10 +77,10 @@ public partial class MainWindow : Window
         };
         ReloadThemeSelector();
 
-        // При запуске открыт последний запущенный режим.
+        // В деталях — последний запущенный режим, но каталог при запуске начинается сверху.
         _selectedTile = _tiles.FirstOrDefault(tile => tile.RecentRank == 0) ?? _tiles.FirstOrDefault();
         SelectScope(_allScope);
-        RefreshGallery();
+        RefreshGallery(scrollToSelection: false);
     }
 
     internal IReadOnlyList<CatalogTile> Tiles => _tiles;
@@ -146,7 +146,7 @@ public partial class MainWindow : Window
     /// <paramref name="scrollToTop"/> — содержимое сетки сменилось целиком (другой раздел или запрос):
     /// прокрутка прежнего списка к нему не относится.
     /// </summary>
-    internal void RefreshGallery(bool scrollToTop = false)
+    internal void RefreshGallery(bool scrollToTop = false, bool scrollToSelection = true)
     {
         List<CatalogTile> shown = _tiles.Where(IsShown).ToList();
         bool recent = _scope.Kind == CatalogScopeKind.Recent;
@@ -174,7 +174,7 @@ public partial class MainWindow : Window
 
         ShowDetails(selection);
         if (scrollToTop) FindGalleryScrollViewer()?.ScrollToTop();
-        if (selection is not null) BringTileIntoViewAfterLayout(selection);
+        if (scrollToSelection && selection is not null) BringTileIntoViewAfterLayout(selection);
         UpdateScopeCounts();
         UpdateGalleryHeader(shown.Count);
         UpdateEmptyState(shown.Count);
