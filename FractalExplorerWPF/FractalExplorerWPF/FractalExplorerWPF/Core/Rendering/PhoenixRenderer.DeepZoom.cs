@@ -868,14 +868,4 @@ public static partial class PhoenixRenderer
             ? DeepZoomPixelExtended(state, orbit, parameters, skip, deltaReal, deltaImaginary, token)
             : DeepZoomPixel(state, orbit, parameters, deltaReal.ToDouble(), deltaImaginary.ToDouble(), token);
 
-    /// <summary>
-    /// Опорная орбита центра для анализа вне рендера (поиск ядра методом Ньютона). Индексация
-    /// та же, что у движка: <c>Re[n + 1]</c> — это <c>zₙ</c>. Орбита берётся из того же кэша,
-    /// поэтому сразу после отрисовки кадра вызов ничего не стоит.
-    /// </summary>
-    internal static (double[] Re, double[] Im, int Length) GetCenterOrbitForAnalysis(PhoenixState state)
-    {
-        ReferenceOrbit orbit = GetReferenceOrbit(state, PlanReferenceBits(state));
-        return (orbit.Re, orbit.Im, orbit.Length);
-    }
 }

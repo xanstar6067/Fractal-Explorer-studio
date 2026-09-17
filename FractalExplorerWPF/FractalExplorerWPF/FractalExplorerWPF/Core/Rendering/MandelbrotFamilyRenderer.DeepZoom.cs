@@ -652,20 +652,6 @@ public static partial class MandelbrotFamilyRenderer
     // отлично обслуживается rebasing'ом — это обычный случай для глубокого «внешнего» вида.
     private static bool IsDegenerateOrbit(ReferenceOrbit orbit, int iterations) => orbit.Length < 4;
 
-    /// <summary>
-    /// Опорная орбита центра для анализа вида — сейчас для поиска периода атом-домена в
-    /// <see cref="MandelbrotNewtonZoom"/>. Берётся из того же кэша, что и рендер кадра,
-    /// поэтому сразу после отрисовки текущего состояния ничего не пересчитывается.
-    /// Значения — в double: для поиска <c>argmin |zₙ|</c> этого достаточно, а сама орбита
-    /// посчитана в <see cref="BigFloat"/> с адаптивной точностью.
-    /// </summary>
-    internal static (double[] Re, double[] Im, int Length) GetCenterOrbitForAnalysis(MandelbrotState state)
-    {
-        DeepZoomPlan plan = PlanDeepZoom(state);
-        ReferenceOrbit orbit = GetReferenceOrbit(state, plan.ReferenceBits);
-        return (orbit.Re, orbit.Im, orbit.Length);
-    }
-
     private static ReferenceOrbit GetReferenceOrbit(MandelbrotState state, int referenceBits)
     {
         string centerXRaw = state.CenterXExact is { Length: > 0 } exactX

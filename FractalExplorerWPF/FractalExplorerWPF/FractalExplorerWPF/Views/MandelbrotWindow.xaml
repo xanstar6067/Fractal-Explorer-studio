@@ -34,13 +34,6 @@
                     <TextBlock Text="Приближение"/>
                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"
                              ToolTip="Принимается и научная нотация: 1e500. Колесо мыши — ×1.5 за щелчок, с Ctrl — ×10, с Shift — ×1.05"/>
-                    <Button x:Name="NucleusButton" Margin="0,6,0,0" Content="Навести на минимандельброт"
-                            Click="NucleusButton_OnClick"
-                            ToolTip="Метод Ньютона уточняет центр до ядра ближайшего минимандельброта и подбирает зум под его размер"/>
-                    <TextBlock x:Name="NucleusStatusText" Margin="0,4,0,3" TextWrapping="Wrap"
-                               Visibility="Collapsed"
-                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-
                     <StackPanel x:Name="JuliaConstantPanel">
                         <TextBlock Text="Константа C (Re / Im)"/>
                         <UniformGrid Columns="2">

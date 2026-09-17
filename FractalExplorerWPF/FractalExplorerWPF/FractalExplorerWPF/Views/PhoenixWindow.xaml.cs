@@ -40,7 +40,6 @@ public partial class PhoenixWindow : Window
     private FloatExp _zoom = FloatExp.One;
     private FloatExp _renderedZoom = FloatExp.One;
     private bool _hasRenderedFrame;
-    private CancellationTokenSource? _nucleusCts;
 
     /// <summary>
     /// Центр области в произвольной точности. Ведётся начиная с
@@ -73,18 +72,6 @@ public partial class PhoenixWindow : Window
     /// ведётся в <see cref="BigFloat"/> с адаптивной точностью (<see cref="CenterPrecisionScope()"/>).
     /// </summary>
     private static readonly FloatExp MaxZoom = FloatExp.Pow10(1000);
-
-    /// <summary>
-    /// Во сколько раз поиск ядра может отдалить вид: оценка размера на мелкой детали иногда
-    /// предлагает зум заметно меньше текущего, и без ограничения кнопка «откатывала» бы глубину.
-    /// </summary>
-    private const double NucleusZoomOutLimit = 100.0;
-
-    /// <summary>
-    /// Дальше скольких ширин кадра ядро с зумом, упёршимся в <see cref="NucleusZoomOutLimit"/>,
-    /// уже не применяется (см. <c>ApplyNucleus</c>).
-    /// </summary>
-    private const double NucleusMaxDriftInViews = 4.0;
 
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
@@ -228,121 +215,6 @@ public partial class PhoenixWindow : Window
             ResetView(); UpdatePlaneUi();
         }
         ScheduleRender();
-    }
-
-    private async void NucleusButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await FindNucleusAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            // Отмена — штатный путь (повторное нажатие или закрытие окна).
-        }
-        catch (Exception exception)
-        {
-            SetNucleusStatus($"Поиск ядра не удался: {exception.Message}");
-        }
-    }
-
-    private async Task FindNucleusAsync()
-    {
-        PhoenixState state;
-        try { state = CaptureState(string.Empty); }
-        catch (Exception exception)
-        {
-            MessageBox.Show(this, exception.Message, "Параметры Phoenix", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        if (!PhoenixNewtonZoom.IsSupported(state))
-        {
-            SetNucleusStatus(PhoenixNewtonZoom.UnsupportedReason(state));
-            return;
-        }
-
-        _nucleusCts?.Cancel();
-        using var cts = new CancellationTokenSource();
-        _nucleusCts = cts;
-        NucleusButton.IsEnabled = false;
-        SetNucleusStatus("Поиск ядра: определяется период…");
-        try
-        {
-            var progress = new Progress<int>(percent => SetNucleusStatus($"Поиск ядра: {percent}%"));
-            PhoenixNucleusResult result = await Task.Run(
-                () => PhoenixNewtonZoom.FindNucleus(state, cts.Token, value => ((IProgress<int>)progress).Report(value)),
-                cts.Token);
-            if (!result.Found)
-            {
-                SetNucleusStatus(result.Message);
-                return;
-            }
-            ApplyNucleus(result);
-        }
-        finally
-        {
-            // Кнопку возвращает только актуальный поиск: иначе завершение отменённого
-            // предыдущего разблокировало бы её посреди нового.
-            if (ReferenceEquals(_nucleusCts, cts))
-            {
-                _nucleusCts = null;
-                NucleusButton.IsEnabled = true;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Переносит вид на найденное ядро. Зум выставляется первым: от него зависит разрядность,
-    /// с которой разбирается точный центр, и разбор на старой точности потерял бы как раз те
-    /// цифры, ради которых всё считалось.
-    /// </summary>
-    private void ApplyNucleus(PhoenixNucleusResult result)
-    {
-        FloatExp minimum = FloatExp.Max(MinZoom, _zoom / NucleusZoomOutLimit);
-        // Период берётся по argmin |zₙ|, и на глубине он нередко указывает на крупную деталь
-        // далеко за кадром. Перенести туда вид с зумом, ограниченным защитой от отдаления, —
-        // значит оказаться в пустом месте на прежней глубине и потерять текущее.
-        if (result.SuggestedZoom < minimum && !(result.DriftInViews <= NucleusMaxDriftInViews))
-        {
-            SetNucleusStatus($"Ближайшее ядро (период {result.Period}) намного крупнее кадра и лежит за его " +
-                             "пределами — вид не изменён. Увеличьте число итераций или наведите вид ближе к детали.");
-            return;
-        }
-
-        CommitAndBakePreview();
-        FloatExp target = FloatExp.Clamp(result.SuggestedZoom, minimum, MaxZoom);
-        _zoom = target;
-
-        using (CenterPrecisionScope())
-        {
-            BigFloat nucleusX = BigFloat.Parse(result.CenterX);
-            BigFloat nucleusY = BigFloat.Parse(result.CenterY);
-            _centerX = nucleusX.ToDecimalClamped();
-            _centerY = nucleusY.ToDecimalClamped();
-            _deepZoomEngaged = _zoom >= DeepZoomThreshold;
-            if (_deepZoomEngaged)
-            {
-                _centerXExact = nucleusX;
-                _centerYExact = nucleusY;
-            }
-        }
-
-        SetZoomText();
-        UpdatePreviewTransform();
-        ScheduleRender();
-
-        string zoomText = FloatExpJsonConverter.ToDisplay(target);
-        SetNucleusStatus(target == result.SuggestedZoom
-            ? $"{result.Message} Зум: {zoomText}."
-            : $"{result.Message} Зум: {zoomText} (оценка по размеру детали — " +
-              $"{FloatExpJsonConverter.ToDisplay(result.SuggestedZoom)}, ограничена потолком или защитой от отдаления).");
-    }
-
-    private void SetNucleusStatus(string text)
-    {
-        NucleusStatusText.Text = text;
-        NucleusStatusText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void PlaneModeBox_OnChanged(object sender, SelectionChangedEventArgs e) { UpdatePlaneUi(); ScheduleRender(); }
@@ -752,7 +624,7 @@ public partial class PhoenixWindow : Window
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e) => FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost, ToggleControlsButton, 310, ScheduleRender);
     private void Window_OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen(); }
     private void ToggleFullscreen() { if (!_isFullscreen) { _previousWindowStyle = WindowStyle; _previousWindowState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; } else { WindowStyle = _previousWindowStyle; WindowState = _previousWindowState; } _isFullscreen = !_isFullscreen; }
-    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _visualizationTimer.Stop(); _renderCts?.Cancel(); _renderCts?.Dispose(); _nucleusCts?.Cancel(); }
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _visualizationTimer.Stop(); _renderCts?.Cancel(); _renderCts?.Dispose(); }
     /// <summary>
     /// Возврат к исходному виду: центр в нуле, зум 1.
     ///
