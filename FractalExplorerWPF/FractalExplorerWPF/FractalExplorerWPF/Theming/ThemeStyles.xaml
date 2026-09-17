@@ -442,7 +442,10 @@
         <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Padding" Value="8,6"/>
+        <!-- Оба выравнивания заданы явно: системный стиль привязывает их к родительскому списку, и контейнер,
+             созданный при перегруппировке до применения ItemContainerStyle, пишет ошибку привязки. -->
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">

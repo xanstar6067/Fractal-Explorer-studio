@@ -22,13 +22,11 @@ public partial class QuickSwitcherWindow : Window
 
     private void SearchBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
+        // Тот же поиск, что в каталоге главного окна: название, описание и разделы.
         string query = SearchBox.Text.Trim();
         List<FractalCatalogItem> filtered = string.IsNullOrEmpty(query)
             ? _all
-            : _all.Where(item =>
-                    item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    item.CategoryPath.Any(part => part.Contains(query, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
+            : _all.Where(item => CatalogSearch.Matches(item, query)).ToList();
 
         ResultList.ItemsSource = filtered;
         if (filtered.Count > 0) ResultList.SelectedIndex = 0;

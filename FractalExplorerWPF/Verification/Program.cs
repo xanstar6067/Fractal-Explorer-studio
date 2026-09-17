@@ -29,7 +29,8 @@ internal static partial class Program
     //   planar   — градиентный спуск, комплексный поток и полиномиальные векторные поля;
     //   poi [фильтр] [--out папка] — встроенные точки интереса комплексной динамики не дают
     //              однотонный кадр (фильтр — часть имени группы, например Nova или Mandelbrot-Celtic);
-    //   poi-probe <группа> <кандидаты.json> <папка> — рендер состояний-кандидатов без пересборки.
+    //   poi-probe <группа> <кандидаты.json> <папка> — рендер состояний-кандидатов без пересборки;
+    //   catalog [--out папка] — каталог главного окна: данные, превью, поиск, разделы, избранное, недавние и привязки.
     [STAThread]
     private static int Main(string[] args)
     {
@@ -60,6 +61,11 @@ internal static partial class Program
                 if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--physical-previews") WriteNewBasinPreviews(args[2], physicalOnly: true);
                 if (group is "all" or "numeric") VerifyNumericSpinners();
+                if (group is "all" or "catalog")
+                {
+                    int outIndex = group == "catalog" ? Array.IndexOf(args, "--out") : -1;
+                    await VerifyCatalogAsync(outIndex >= 0 && outIndex + 1 < args.Length ? args[outIndex + 1] : null);
+                }
                 if (group is "all" or "poi")
                 {
                     string? filter = group == "poi" && args.Length > 1 && !args[1].StartsWith("--") ? args[1] : null;
@@ -71,9 +77,9 @@ internal static partial class Program
                     if (args.Length != 4) throw new ArgumentException("poi-probe <группа> <кандидаты.json> <папка PNG>");
                     await ProbePointsOfInterestAsync(args[1], args[2], args[3]);
                 }
-                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe"))
-                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar, poi, poi-probe.");
-                if (group is not ("cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe"))
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
+                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar, poi, poi-probe, catalog.");
+                if (group is not ("cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)
