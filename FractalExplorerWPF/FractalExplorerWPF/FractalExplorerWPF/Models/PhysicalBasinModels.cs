@@ -52,19 +52,19 @@ public static partial class BasinExplorerCatalog
 
     private static IReadOnlyList<BasinExplorerState> LogisticPresets() =>
     [
-        Logistic("λ = 3.2 · цикл периода 2", new Complex(3.2, 0)),
-        Logistic("λ = 3.5 · цикл периода 4", new Complex(3.5, 0)),
-        Logistic("λ = 3.55 · цикл периода 8", new Complex(3.55, 0)),
+        Logistic("λ = 3.2 · цикл периода 2", new Complex(3.2, 0), zoom: 3),
+        Logistic("λ = 3.5 · цикл периода 4", new Complex(3.5, 0), zoom: 5),
+        Logistic("λ = 3.55 · цикл периода 8", new Complex(3.55, 0), zoom: 6),
         Logistic("λ = 2 + 0.6i · комплексные бассейны", new Complex(2, 0.6)),
         Logistic("Плоскость λ · карта периодов", new Complex(3.2, 0), true),
         Logistic("λ = 2 · неподвижная точка", new Complex(2, 0))
     ];
 
-    private static BasinExplorerState Logistic(string name, Complex lambda, bool parameter = false) => new()
+    private static BasinExplorerState Logistic(string name, Complex lambda, bool parameter = false, double? zoom = null) => new()
     {
         SaveName = name, Kind = BasinExplorerKind.ComplexLogistic, Formula = "c*z*(1-z)",
         ParameterC = lambda, LogisticPlane = parameter ? LogisticPlaneMode.Parameter : LogisticPlaneMode.InitialValues,
-        CenterX = parameter ? 1 : 0.5, Zoom = parameter ? 0.55 : 2,
+        CenterX = parameter ? 1 : 0.5, Zoom = zoom ?? (parameter ? 0.55 : 2),
         MaxIterations = 500, MaxPeriod = 16, ShadingScale = 25,
         ColoringMode = parameter ? BasinColoringMode.Period : BasinColoringMode.ConvergenceSpeed,
         MarkerMode = BasinMarkerMode.Hidden, Palette = GrayscalePalette()
@@ -96,7 +96,19 @@ public static partial class BasinExplorerCatalog
         var moving = basic.Clone();
         moving.SaveName = magnetic ? "Маятник · начальная скорость вправо" : "Центры · боковой пролёт";
         moving.Physics.InitialVelocity = new Complex(0.8, 0);
-        if (!magnetic) return [basic, square, unequal, moving];
+        if (!magnetic)
+        {
+            var pentagon = basic.Clone();
+            pentagon.SaveName = "Пять центров · пятиугольник";
+            pentagon.Physics.Centers = PhysicalBasinSettings.RegularPolygon(5);
+            var hexagon = basic.Clone();
+            hexagon.SaveName = "Шесть центров · слабое трение (дольше)";
+            hexagon.Physics.Centers = PhysicalBasinSettings.RegularPolygon(6);
+            hexagon.Physics.Damping = 0.04;
+            hexagon.Physics.MaxTime = 150;
+            hexagon.MaxIterations = 30000;
+            return [basic, square, pentagon, hexagon, unequal, moving];
+        }
         var chaotic = basic.Clone();
         chaotic.SaveName = "Слабое трение · хаотические границы (дольше)";
         chaotic.Physics.Damping = 0.12;

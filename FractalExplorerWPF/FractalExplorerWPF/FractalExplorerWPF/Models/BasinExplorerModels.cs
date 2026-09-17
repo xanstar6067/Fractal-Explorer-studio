@@ -358,12 +358,12 @@ public static partial class BasinExplorerCatalog
         _ =>
         [
             Cycles("z² + c · кролик, период 3", "z^2+c", new Complex(-0.122561, 0.744862), s => { s.Zoom = 0.9; }),
-            Cycles("z² + c · аэроплан, период 3", "z^2+c", new Complex(-1.754878, 0), s => { s.Zoom = 0.9; }),
-            Cycles("z² + c · период 4", "z^2+c", new Complex(-1.3107, 0), s => { s.Zoom = 0.9; }),
+            Cycles("z² + c · аэроплан, период 3", "z^2+c", new Complex(-1.754878, 0), s => { s.Zoom = 4; }),
+            Cycles("z² + c · период 4", "z^2+c", new Complex(-1.3107, 0), s => { s.Zoom = 3; }),
             Cycles("z² + c · период 5", "z^2+c", new Complex(-0.504340, 0.562765), s => { s.Zoom = 0.9; }),
-            Cycles("z³ + c·z + 0.25 · период 8", "z^3+c*z+0.25", Complex.ImaginaryOne, s => { s.Zoom = 0.9; s.MaxIterations = 600; }),
+            Cycles("z³ + c·z + 0.25 · период 8", "z^3+c*z+0.25", Complex.ImaginaryOne, s => { s.Zoom = 2; s.MaxIterations = 600; }),
             Cycles("z⁴ − 0.5z + c · периоды 1 и 2, окраска по периоду", "z^4-0.5*z+c", new Complex(-0.75, 0), s => { s.Zoom = 1.1; s.ColoringMode = BasinColoringMode.Period; }),
-            Cycles("z³ + c·z · два цикла периода 3", "z^3+c*z", new Complex(1.75, 0.5), s => { s.Zoom = 0.8; }),
+            Cycles("z³ + c·z · два цикла периода 3", "z^3+c*z", new Complex(1.75, 0.5), s => { s.Zoom = 2; s.CenterX = 0.35; }),
             Cycles("c·exp(z) · неподвижная точка", "c*exp(z)", new Complex(0.3, 0), s => { s.Zoom = 0.25; s.CenterX = 1; s.EscapeRadius = 1e4; }),
             Cycles("c·sin(z) · цикл периода 4", "c*sin(z)", new Complex(0, 1.166667), s => { s.Zoom = 0.3; s.EscapeRadius = 1e4; s.AttractorSearchRadius = 6; }),
             Cycles("c·cos(z) · цикл периода 5", "c*cos(z)", new Complex(1.166667, -0.583333), s => { s.Zoom = 0.3; s.EscapeRadius = 1e4; s.AttractorSearchRadius = 6; }),

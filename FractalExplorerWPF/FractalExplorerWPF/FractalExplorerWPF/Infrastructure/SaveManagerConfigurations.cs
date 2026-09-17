@@ -93,7 +93,8 @@ public static class SaveManagerConfigurations
         RenderPreviewAsync = window.RenderStatePreviewAsync,
         GetName = state => state.SaveName,
         GetTimestamp = state => state.Timestamp,
-        GetDetails = DescribeNova
+        GetDetails = DescribeNova,
+        PointsOfInterest = PresetManager.GetNovaPresets(variant)
     };
 
     public static SaveManagerConfiguration<PhoenixState> ForPhoenix(
@@ -178,7 +179,8 @@ public static class SaveManagerConfigurations
         GetName = state => state.SaveName,
         GetTimestamp = state => state.Timestamp,
         GetDetails = state => $"{Prefix(state.Timestamp)} · {state.RenderMode} · {state.SampleCount:N0} сэмплов\n" +
-                                    $"Итерации: {state.MaxIterations} · Палитра: {state.Palette.Name}"
+                                    $"Итерации: {state.MaxIterations} · Палитра: {state.Palette.Name}",
+        PointsOfInterest = PresetManager.GetBuddhabrotPresets()
     };
 
     public static SaveManagerConfiguration<FlameState> ForFlame(

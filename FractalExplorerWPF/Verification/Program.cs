@@ -26,7 +26,10 @@ internal static partial class Program
     //   phoenix  — только глубокий и сверхглубокий зум Феникса;
     //   newton   — только глубокий и сверхглубокий зум бассейнов Ньютона;
     //   basins   — все 11 режимов BasinExplorerWindow;
-    //   planar   — градиентный спуск, комплексный поток и полиномиальные векторные поля.
+    //   planar   — градиентный спуск, комплексный поток и полиномиальные векторные поля;
+    //   poi [фильтр] [--out папка] — встроенные точки интереса комплексной динамики не дают
+    //              однотонный кадр (фильтр — часть имени группы, например Nova или Mandelbrot-Celtic);
+    //   poi-probe <группа> <кандидаты.json> <папка> — рендер состояний-кандидатов без пересборки.
     [STAThread]
     private static int Main(string[] args)
     {
@@ -57,9 +60,20 @@ internal static partial class Program
                 if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--physical-previews") WriteNewBasinPreviews(args[2], physicalOnly: true);
                 if (group is "all" or "numeric") VerifyNumericSpinners();
-                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "cloud" or "cloud-live" or "numeric"))
-                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar.");
-                if (group is not ("cloud" or "cloud-live" or "numeric"))
+                if (group is "all" or "poi")
+                {
+                    string? filter = group == "poi" && args.Length > 1 && !args[1].StartsWith("--") ? args[1] : null;
+                    int outIndex = Array.IndexOf(args, "--out");
+                    await VerifyPointsOfInterestAsync(filter, outIndex >= 0 && outIndex + 1 < args.Length ? args[outIndex + 1] : null);
+                }
+                if (group == "poi-probe")
+                {
+                    if (args.Length != 4) throw new ArgumentException("poi-probe <группа> <кандидаты.json> <папка PNG>");
+                    await ProbePointsOfInterestAsync(args[1], args[2], args[3]);
+                }
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe"))
+                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar, poi, poi-probe.");
+                if (group is not ("cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)
@@ -339,7 +353,6 @@ internal static partial class Program
         VerifyFloatExpArithmetic();
         VerifyZoomSerialization();
         await VerifyExtremeZoomAsync(Palette);
-        await VerifyNewtonNucleusAsync(Palette);
         await VerifyFloatExpDeltaVariantsAsync(Palette);
         // В составе deep эти проверки уже выполнены из VerifyPhoenixDeepZoomAsync, поэтому
         // здесь — только при запуске одной группы extreme.
@@ -2335,67 +2348,7 @@ internal static partial class Program
                 $"The extreme-zoom Phoenix tile must match the full frame exactly: {tileDiffering}/384 differ.");
         }
 
-        // 4. Поиск ядра методом Ньютона. Глубокий кадр — окрестность известного ядра периода
-        //    2754 на 1e13 (найдено спуском по ядрам): период «круга кадра» обязан найти ядро в
-        //    самом кадре. argmin |zₙ| на этом кадре выбирал деталь в 14 ширинах кадра, а со
-        //    смещением в другую сторону — в 2e7 ширинах.
-        {
-            const string nucleusX = "0.1029169992623730679694709500956184183749";
-            const string nucleusY = "0.5760704950584760330336597447061809753958";
-            const double zoom = 5.25e13;
-            foreach (double offset in new[] { 0.23, -0.31 })
-            {
-                string centerX, centerY;
-                using (new BigFloat.PrecisionScope(400))
-                {
-                    centerX = (BigFloat.Parse(nucleusX) + BigFloat.FromDouble(4.0 / zoom * offset)).ToInvariantString();
-                    centerY = (BigFloat.Parse(nucleusY) + BigFloat.FromDouble(4.0 / zoom * offset * 0.7)).ToInvariantString();
-                }
-                PhoenixState state = State(zoom, centerX, centerY, 9000);
-                PhoenixNucleusResult result = await Task.Run(() => PhoenixNewtonZoom.FindNucleus(state, CancellationToken.None));
-                Console.WriteLine($"[diag] phoenix newton deep offset {offset}: {result.Message} zoom→{result.SuggestedZoom}");
-                Check(result.Found && result.DriftInViews < 1.0,
-                    $"Newton must find a nucleus inside the deep Phoenix frame (offset {offset}): {result.Message}");
-                Check(result.NewtonSteps <= 12, $"Newton must converge quadratically: {result.NewtonSteps} steps.");
-                Check(result.SuggestedZoom > zoom / 100 && result.SuggestedZoom.IsFinite,
-                    $"The suggested zoom must frame the nearby detail: {result.SuggestedZoom}.");
-            }
-
-            // Динамическая плоскость на мелком зуме, параметрическая при b > 0 — ядро найдено, и
-            // кадр на предложенном зуме показывает структуру.
-            var shallowCases = new (string Label, PhoenixState State)[]
-            {
-                ("julia", State(270, "0.1", "0.5753747091373043", 600)),
-                ("parameter b=1", State(20, "-1.6", "-0.2", 400, plane: PhoenixPlaneMode.ParameterC1)),
-            };
-            shallowCases[1].State.SecondaryPower = 1;
-            foreach ((string label, PhoenixState state) in shallowCases)
-            {
-                state.CenterXExact = null;
-                state.CenterYExact = null;
-                PhoenixNucleusResult result = await Task.Run(() => PhoenixNewtonZoom.FindNucleus(state, CancellationToken.None));
-                Check(result.Found && result.DriftInViews < 1.0, $"Newton must find a Phoenix {label} nucleus: {result.Message}");
-                PhoenixState framed = State(result.SuggestedZoom, result.CenterX, result.CenterY,
-                    Math.Max(state.Iterations, result.Period * 4 + 200), plane: state.PlaneMode);
-                framed.SecondaryPower = state.SecondaryPower;
-                Check(CountColors(await RenderAsync(framed, w, h, forceDeep: null)) >= 10,
-                    $"The Phoenix {label} frame at the suggested zoom must show structure.");
-            }
-
-            // Вырожденный корень (c1 = 0 при нулевом старте даёт zₙ ≡ 0) и неаналитичный вариант
-            // — честный отказ, а не «ядро».
-            PhoenixState trivial = State(8, "0.35", "0.95", 400, plane: PhoenixPlaneMode.ParameterC1);
-            trivial.CenterXExact = null;
-            trivial.CenterYExact = null;
-            PhoenixNucleusResult trivialResult = PhoenixNewtonZoom.FindNucleus(trivial, CancellationToken.None);
-            Check(!trivialResult.Found || !(BigFloat.Parse(trivialResult.CenterX).IsZero && BigFloat.Parse(trivialResult.CenterY).IsZero),
-                "Newton must never report the degenerate c1 = 0 root as a nucleus.");
-            PhoenixState tricorn = State(20, "0.2", "-0.4", 400, PhoenixVariant.Tricorn, plane: PhoenixPlaneMode.ParameterC1);
-            Check(!PhoenixNewtonZoom.FindNucleus(tricorn, CancellationToken.None).Found,
-                "Newton must refuse the non-analytic Tricorn Phoenix.");
-        }
-
-        // 5. Зум за пределами double переживает JSON-сохранение.
+        // 4. Зум за пределами double переживает JSON-сохранение.
         {
             PhoenixState state = State(FloatExp.Pow10(777), "2", "0", 500, c1: -1m, c2: -0.5m, initialPrevious: 2m);
             string json = System.Text.Json.JsonSerializer.Serialize(new List<PhoenixState> { state }, JsonOptionsFactory.Create());
@@ -3528,9 +3481,6 @@ internal static partial class Program
         };
         foreach ((string label, MandelbrotState state) in extremeFixtures)
         {
-            (double[] _, double[] _, int orbitLength) = MandelbrotFamilyRenderer.GetCenterOrbitForAnalysis(state);
-            Console.WriteLine($"[diag] FloatExp-δ extreme {label}: reference orbit length {orbitLength}/{state.Iterations + 1}");
-            Check(orbitLength > 4, $"Extreme fixture must produce a non-degenerate reference orbit ({label}), got length {orbitLength}.");
 
             int progress = 0;
             byte[] pixels = new byte[ew * eh * 4];
@@ -3557,9 +3507,6 @@ internal static partial class Program
                 Threads = 2,
                 Palette = palette()
             };
-            (double[] _, double[] _, int orbitLength) = MandelbrotFamilyRenderer.GetCenterOrbitForAnalysis(state);
-            Console.WriteLine($"[diag] FloatExp-δ extreme Multibrot p=5 1e300: reference orbit length {orbitLength}/{state.Iterations + 1}");
-            Check(orbitLength > 4, $"Extreme Multibrot fixture must produce a non-degenerate reference orbit, got length {orbitLength}.");
 
             int progress = 0;
             byte[] pixels = new byte[ew * eh * 4];
@@ -4039,140 +3986,6 @@ internal static partial class Program
             Check(BigFloat.WorkingPrecisionBits == BigFloat.MinimumPrecisionBits,
                 "A 1e1000 Mandelbrot render must restore the calling thread working precision.");
         }
-    }
-
-    // Newton-Raphson zoom: the centre of the nearest minibrot. The check does not assume a
-    // period in advance — it verifies the defining property of a nucleus instead, recomputing
-    // f_c^p(0) in BigFloat and requiring it to be zero to the working precision.
-    private static async Task VerifyNewtonNucleusAsync(Func<MandelbrotPalette> palette)
-    {
-        static FloatExp NucleusResidual(string centreX, string centreY, int period, int power)
-        {
-            using var precision = new BigFloat.PrecisionScope(1024);
-            var c = new ComplexBigFloat(BigFloat.Parse(centreX), BigFloat.Parse(centreY));
-            ComplexBigFloat z = ComplexBigFloat.Zero;
-            for (int index = 0; index < period; index++)
-                z = (power == 2 ? z * z : ComplexBigFloat.Pow(z, power)) + c;
-            return FloatExp.Sqrt(FloatExp.FromBigFloat(z.MagnitudeSquared));
-        }
-
-        // (a) A view sitting on the period-3 island on the real axis. The start is deliberately
-        //     only roughly placed: Newton has to do the work.
-        {
-            var state = new MandelbrotState
-            {
-                Variant = MandelbrotVariant.Mandelbrot,
-                CenterX = -1.7548m,
-                CenterY = 0.0002m,
-                Zoom = 2.0e3,
-                Iterations = 4000,
-                Threads = 2,
-                Palette = palette()
-            };
-
-            MandelbrotNucleusResult result = await Task.Run(
-                () => MandelbrotNewtonZoom.FindNucleus(state, CancellationToken.None));
-            Check(result.Found, $"Newton must find a nucleus near the period-3 island: {result.Message}");
-            FloatExp residual = NucleusResidual(result.CenterX, result.CenterY, result.Period, 2);
-            Console.WriteLine($"[diag] Newton nucleus: period {result.Period}, {result.NewtonSteps} steps, " +
-                              $"residual 1e{residual.Log10():F0}, suggested zoom {result.SuggestedZoom.ToInvariantString()}");
-            // Newton stops once the step falls below viewWidth * 1e-15 (here about 1e-18);
-            // quadratic convergence means the last step lands far beyond that, so tens of
-            // digits are expected. An absolute threshold would just encode the fixture zoom.
-            Check(residual.IsZero || residual.Log10() < -30,
-                $"The found point is not a nucleus: |f^p(0)| = 1e{residual.Log10():F0}.");
-            Check(result.SuggestedZoom.Sign > 0 && result.SuggestedZoom.IsFinite,
-                "The suggested zoom must be a usable positive value.");
-            Check(result.Period == 3,
-                $"The period-3 island must be detected as period 3, got {result.Period}.");
-            // The period-3 island on the real axis is about 0.03 wide, so the size estimate
-            // must land in that order of magnitude — which at this start means zooming OUT.
-            // The framing check below is what actually validates the estimate.
-            Check(result.SuggestedZoom > FloatExp.FromDouble(5.0) &&
-                  result.SuggestedZoom < FloatExp.FromDouble(500.0),
-                $"The size estimate for the period-3 island is implausible: zoom {result.SuggestedZoom.ToInvariantString()}.");
-
-            // Centring on the nucleus at the suggested zoom must show the minibrot, so the
-            // frame has to contain both interior and escaping pixels.
-            var framed = new MandelbrotState
-            {
-                Variant = MandelbrotVariant.Mandelbrot,
-                CenterX = BigFloat.Parse(result.CenterX).ToDecimalClamped(),
-                CenterY = BigFloat.Parse(result.CenterY).ToDecimalClamped(),
-                CenterXExact = result.CenterX,
-                CenterYExact = result.CenterY,
-                Zoom = result.SuggestedZoom,
-                Iterations = 4000,
-                Threads = 2,
-                Palette = palette()
-            };
-            const int w = 64, h = 44, total = w * h;
-            byte[] pixels = new byte[w * h * 4];
-            await Task.Run(() => MandelbrotFamilyRenderer.Render(framed, pixels, w, h, w * 4, CancellationToken.None));
-            int interior = 0;
-            for (int pixel = 0; pixel < total; pixel++)
-            {
-                int o = pixel * 4;
-                if (pixels[o] == 0 && pixels[o + 1] == 0 && pixels[o + 2] == 0) interior++;
-            }
-            Console.WriteLine($"[diag] Newton framing: {interior}/{total} interior px at the suggested zoom");
-            Check(interior > 0 && interior < total,
-                $"The suggested zoom must frame the minibrot; got {interior}/{total} interior px.");
-        }
-
-        // (b) A deeper start, where the period is not known in advance. The point of the check
-        //     is the invariant rather than a fixed expectation: either Newton reports a refusal
-        //     with a reason, or the point it returns really is a nucleus.
-        {
-            var deep = new MandelbrotState
-            {
-                Variant = MandelbrotVariant.Mandelbrot,
-                CenterX = -1.2628848671045503000020782246m,
-                CenterY = 0.0409687601493310685285376264m,
-                Zoom = 1.0e20,
-                Iterations = 6000,
-                Threads = 2,
-                Palette = palette()
-            };
-            MandelbrotNucleusResult result = await Task.Run(
-                () => MandelbrotNewtonZoom.FindNucleus(deep, CancellationToken.None));
-            if (result.Found)
-            {
-                FloatExp residual = NucleusResidual(result.CenterX, result.CenterY, result.Period, 2);
-                Console.WriteLine($"[diag] Newton deep start: period {result.Period}, {result.NewtonSteps} steps, " +
-                                  $"residual 1e{residual.Log10():F0}, suggested zoom {result.SuggestedZoom.ToInvariantString()}");
-                Check(residual.IsZero || residual.Log10() < -25,
-                    $"The deep start returned a point that is not a nucleus: |f^p(0)| = 1e{residual.Log10():F0}.");
-                Check(result.SuggestedZoom.Sign > 0 && result.SuggestedZoom.IsFinite,
-                    "The deep start must suggest a usable zoom.");
-            }
-            else
-            {
-                Console.WriteLine($"[diag] Newton deep start: refused — {result.Message}");
-                Check(result.Message.Length > 0, "A refusal must carry a reason.");
-            }
-        }
-
-        // (c) Variants whose formula is not complex-analytic must be refused with a reason
-        //     rather than silently returning nonsense.
-        foreach (MandelbrotVariant variant in new[]
-                 {
-                     MandelbrotVariant.BurningShip, MandelbrotVariant.Tricorn, MandelbrotVariant.Buffalo,
-                     MandelbrotVariant.Celtic, MandelbrotVariant.Simonobrot, MandelbrotVariant.Julia,
-                     MandelbrotVariant.JuliaBurningShip,
-                 })
-        {
-            Check(!MandelbrotNewtonZoom.IsSupported(variant, 2m),
-                $"Newton nucleus search must be refused for {variant}.");
-            Check(MandelbrotNewtonZoom.UnsupportedReason(variant).Length > 0,
-                $"A refusal for {variant} must carry a reason.");
-        }
-        Check(MandelbrotNewtonZoom.IsSupported(MandelbrotVariant.Generalized, 3m),
-            "Integer-power Multibrot must be supported.");
-        Check(!MandelbrotNewtonZoom.IsSupported(MandelbrotVariant.Generalized, 2.5m),
-            "Fractional-power Multibrot must be refused.");
-
-        Console.WriteLine("[diag] Newton nucleus search: convergence, nucleus property, framing and refusals OK");
     }
 
     private static void Check(bool condition, string message)

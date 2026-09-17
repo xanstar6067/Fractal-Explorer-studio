@@ -67,7 +67,7 @@ public static partial class BasinExplorerCatalog
                 Make("Химмельблау · Nesterov", s => { s.Planar.Optimizer = BasinOptimizer.Nesterov; s.Planar.LearningRate = 0.005; }),
                 Make("Химмельблау · Adam", s => { s.Planar.Optimizer = BasinOptimizer.Adam; s.Planar.LearningRate = 0.04; s.ShadingScale = 200; }),
                 Make("Четыре ямы · обычный спуск", s => { s.Planar.Potential = "(x^2-1)^2+(y^2-1)^2+0.2*x*y"; s.Planar.LearningRate = 0.04; s.Zoom = 0.65; }),
-                Make("Розенброк · Adam", s => { s.Planar.Potential = "100*(y-x^2)^2+(1-x)^2"; s.Planar.Optimizer = BasinOptimizer.Adam; s.Planar.LearningRate = 0.01; s.Zoom = 0.6; s.MaxIterations = 20000; }),
+                Make("Розенброк · Adam", s => { s.Planar.Potential = "100*(y-x^2)^2+(1-x)^2"; s.Planar.Optimizer = BasinOptimizer.Adam; s.Planar.LearningRate = 0.01; s.Zoom = 0.6; s.MaxIterations = 20000; s.ShadingScale = 1500; }),
                 Make("Растригин · много локальных минимумов", s => { s.Planar.Potential = "20+x^2+y^2-10*cos(2*pi*x)-10*cos(2*pi*y)"; s.Planar.LearningRate = 0.002; s.Planar.SearchRadius = 3; s.Zoom = 0.5; })
             ];
         if (kind == BasinExplorerKind.ComplexGradientFlow)
@@ -83,10 +83,10 @@ public static partial class BasinExplorerCatalog
         [
             Make("Два устойчивых равновесия", s => { s.Zoom = 0.65; }),
             Make("Четыре равновесия · связанные ямы", s => { s.Planar.FieldX = "x-x^3-0.2*y"; s.Planar.FieldY = "y-y^3-0.2*x"; s.Zoom = 0.7; }),
-            Make("Предельный цикл · нормальная форма Хопфа", s => { s.Planar.FieldX = "x*(1-x^2-y^2)-y"; s.Planar.FieldY = "y*(1-x^2-y^2)+x"; s.Zoom = 0.65; }),
+            Make("Предельный цикл · нормальная форма Хопфа", s => { s.Planar.FieldX = "x*(1-x^2-y^2)-y"; s.Planar.FieldY = "y*(1-x^2-y^2)+x"; s.Zoom = 0.65; s.ShadingScale = 60; }),
             Make("Точка и цикл · два бассейна", s => { s.Planar.FieldX = "-x*(x^2+y^2-0.25)*(x^2+y^2-1)-y"; s.Planar.FieldY = "-y*(x^2+y^2-0.25)*(x^2+y^2-1)+x"; s.Zoom = 0.8; s.Planar.MaxTime = 120; }),
             Make("Два вложенных устойчивых цикла", s => { s.Planar.FieldX = "-x*(x^2+y^2-0.25)*(x^2+y^2-1)*(x^2+y^2-2.25)-y"; s.Planar.FieldY = "-y*(x^2+y^2-0.25)*(x^2+y^2-1)*(x^2+y^2-2.25)+x"; s.Zoom = 0.65; s.Planar.SearchRadius = 2; s.Planar.MaxTime = 140; }),
-            Make("Осциллятор Ван дер Поля", s => { s.Planar.FieldX = "y"; s.Planar.FieldY = "(1-x^2)*y-x"; s.Zoom = 0.5; })
+            Make("Осциллятор Ван дер Поля", s => { s.Planar.FieldX = "y"; s.Planar.FieldY = "(1-x^2)*y-x"; s.Zoom = 0.5; s.ShadingScale = 60; })
         ];
     }
 }
