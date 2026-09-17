@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using FractalExplorer.Engines;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Infrastructure;
@@ -335,9 +336,9 @@ public partial class DynamicSystemWindow : Window
     }
 
     private void CanvasHost_OnSizeChanged(object sender,SizeChangedEventArgs e){UpdatePreviewTransform();Schedule();}
-    private void CanvasHost_OnMouseWheel(object sender,MouseWheelEventArgs e){CommitAndBakePreview();double k=e.Delta>0?.82:1.22;Point p=e.GetPosition(CanvasSurface);if(_kind==DynamicSystemKind.Lyapunov){double ax=_state.AMin+p.X/Math.Max(1,CanvasSurface.ActualWidth)*(_state.AMax-_state.AMin),by=_state.BMax-p.Y/Math.Max(1,CanvasSurface.ActualHeight)*(_state.BMax-_state.BMin);_state.AMin=ax+(_state.AMin-ax)*k;_state.AMax=ax+(_state.AMax-ax)*k;_state.BMin=by+(_state.BMin-by)*k;_state.BMax=by+(_state.BMax-by)*k;}else{_state.Zoom=Math.Clamp(_state.Zoom/k,.01,1_000_000);}SyncControls();UpdatePreviewTransform();Schedule();e.Handled=true;}
+    private void CanvasHost_OnMouseWheel(object sender,MouseWheelEventArgs e){CommitAndBakePreview();double k=e.Delta>0?.82:1.22;Point p=e.GetPosition(CanvasSurface);if(_kind==DynamicSystemKind.Lyapunov){double ax=_state.AMin+p.X/Math.Max(1,CanvasSurface.ActualWidth)*(_state.AMax-_state.AMin),by=_state.BMax-p.Y/Math.Max(1,CanvasSurface.ActualHeight)*(_state.BMax-_state.BMin);_state.AMin=ax+(_state.AMin-ax)*k;_state.AMax=ax+(_state.AMax-ax)*k;_state.BMin=by+(_state.BMin-by)*k;_state.BMax=by+(_state.BMax-by)*k;}else{double w=Math.Max(1,CanvasSurface.ActualWidth),h=Math.Max(1,CanvasSurface.ActualHeight);var before=ViewSpans(_state,w,h);double fx=p.X/w-.5,fy=.5-p.Y/h,wx=_state.CenterX+fx*before.X,wy=_state.CenterY+fy*before.Y;_state.Zoom=Math.Clamp(_state.Zoom/k,.01,1_000_000);var after=ViewSpans(_state,w,h);_state.CenterX=wx-fx*after.X;_state.CenterY=wy-fy*after.Y;}SyncControls();UpdatePreviewTransform();Schedule();e.Handled=true;}
     private void CanvasHost_OnMouseLeftButtonDown(object sender,MouseButtonEventArgs e){CommitAndBakePreview();_panning=true;_panStart=e.GetPosition(CanvasSurface);CanvasHost.CaptureMouse();Mouse.OverrideCursor=Cursors.SizeAll;}
-    private void CanvasHost_OnMouseMove(object sender,MouseEventArgs e){if(!_panning)return;Point p=e.GetPosition(CanvasSurface);double dx=(p.X-_panStart.X)/Math.Max(1,CanvasSurface.ActualWidth),dy=(p.Y-_panStart.Y)/Math.Max(1,CanvasSurface.ActualHeight);if(_kind==DynamicSystemKind.Lyapunov){double aw=_state.AMax-_state.AMin,bh=_state.BMax-_state.BMin;_state.AMin-=dx*aw;_state.AMax-=dx*aw;_state.BMin+=dy*bh;_state.BMax+=dy*bh;}else{double span=BaseSpan(_state)/_state.Zoom;_state.CenterX-=dx*span;_state.CenterY+=dy*span;}_panStart=p;SyncControls();UpdatePreviewTransform();}
+    private void CanvasHost_OnMouseMove(object sender,MouseEventArgs e){if(!_panning)return;Point p=e.GetPosition(CanvasSurface);double dx=(p.X-_panStart.X)/Math.Max(1,CanvasSurface.ActualWidth),dy=(p.Y-_panStart.Y)/Math.Max(1,CanvasSurface.ActualHeight);if(_kind==DynamicSystemKind.Lyapunov){double aw=_state.AMax-_state.AMin,bh=_state.BMax-_state.BMin;_state.AMin-=dx*aw;_state.AMax-=dx*aw;_state.BMin+=dy*bh;_state.BMax+=dy*bh;}else{var span=ViewSpans(_state,CanvasSurface.ActualWidth,CanvasSurface.ActualHeight);_state.CenterX-=dx*span.X;_state.CenterY+=dy*span.Y;}_panStart=p;SyncControls();UpdatePreviewTransform();}
     private void CanvasHost_OnMouseLeftButtonUp(object sender,MouseButtonEventArgs e){if(!_panning)return;_panning=false;CanvasHost.ReleaseMouseCapture();Mouse.OverrideCursor=null;Schedule();}
 
     private void BeginVisualization(WriteableBitmap bitmap,int renderWidth,int renderHeight)
@@ -427,10 +428,10 @@ public partial class DynamicSystemWindow : Window
             return;
         }
         if(_state.Zoom<=0||_renderedZoom<=0)return;
-        double currentSpan=BaseSpan(_state)/_state.Zoom;
+        var currentSpan=ViewSpans(_state,width,height);
         _previewScale.ScaleX=_previewScale.ScaleY=_state.Zoom/_renderedZoom;
-        _previewTranslation.X=(_renderedCenterX-_state.CenterX)/currentSpan*width;
-        _previewTranslation.Y=(_state.CenterY-_renderedCenterY)/currentSpan*height;
+        _previewTranslation.X=(_renderedCenterX-_state.CenterX)/currentSpan.X*width;
+        _previewTranslation.Y=(_state.CenterY-_renderedCenterY)/currentSpan.Y*height;
     }
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,250,Schedule);
     private void Window_OnKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.F11||e.Key==Key.Escape&&_fullscreen){if(!_fullscreen){_oldStyle=WindowStyle;_oldState=WindowState;WindowStyle=WindowStyle.None;WindowState=WindowState.Maximized;}else{WindowStyle=_oldStyle;WindowState=_oldState;}_fullscreen=!_fullscreen;}}
@@ -439,7 +440,23 @@ public partial class DynamicSystemWindow : Window
     private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",_=>"Динамическая система"};
     private static string Details(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Lyapunov=>$"{s.Pattern} · {s.Iterations} итераций · {s.PaletteName}",DynamicSystemKind.Attractors2D=>$"{Attractor2DDisplayName(Attractor2DRenderer.ParseKind(s.Attractor2DMode))} · {s.Iterations:N0} точек · масштаб {s.Zoom:G5}",_=>$"Масштаб {s.Zoom:G5} · {Math.Max(s.Iterations,s.Steps):N0} итераций"};
     private static string Attractor2DDisplayName(Attractor2DKind kind)=>kind switch{Attractor2DKind.Clifford=>"Клиффорд",Attractor2DKind.PeterDeJong=>"Питер де Йонг",Attractor2DKind.Tinkerbell=>"Tinkerbell",_=>"Gumowski–Mira"};
-    private static double BaseSpan(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Lorenz or DynamicSystemKind.Rossler=>80,DynamicSystemKind.Henon=>6,DynamicSystemKind.Ikeda=>Math.Max(.0001,s.RangeXMax-s.RangeXMin),DynamicSystemKind.Attractors2D=>Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode)),_=>1};
+    // Видимая область по X и Y в мировых координатах — так же, как её строят движки:
+    // Лоренц, Рёсслер и логистические режимы растягивают квадрат на весь кадр, Хенон
+    // и странные аттракторы держат пиксели квадратными, Икэда берёт высоту из RangeY.
+    private static (double X,double Y) ViewSpans(DynamicSystemState s,double width,double height)
+    {
+        double zoom=Math.Max(1e-9,s.Zoom),aspect=Math.Max(1,height)/Math.Max(1,width);
+        return s.Kind switch
+        {
+            DynamicSystemKind.Lorenz=>Square((double)FractalLorenzEngine.BaseScale/zoom),
+            DynamicSystemKind.Rossler=>Square((double)FractalRosslerEngine.BaseScale/zoom),
+            DynamicSystemKind.Henon=>((double)FractalHenonEngine.BaseScale/zoom,(double)FractalHenonEngine.BaseScale/zoom*aspect),
+            DynamicSystemKind.Ikeda=>(Math.Max(1e-9,(s.RangeXMax-s.RangeXMin)/zoom),Math.Max(1e-9,(s.RangeYMax-s.RangeYMin)/zoom)),
+            DynamicSystemKind.Attractors2D=>(Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode))/zoom,Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode))/zoom*aspect),
+            _=>Square(1/zoom)
+        };
+        static (double,double) Square(double span)=>(span,span);
+    }
     private static string Format(object? value)=>value switch{double d=>d.ToString("G15",CultureInfo.InvariantCulture),float f=>f.ToString("G9",CultureInfo.InvariantCulture),null=>string.Empty,_=>Convert.ToString(value,CultureInfo.InvariantCulture)??string.Empty};
     private static bool TryDouble(string text,out double value)=>double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out value)||double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value);
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T:DependencyObject{for(int i=0;i<VisualTreeHelper.GetChildrenCount(root);i++){DependencyObject child=VisualTreeHelper.GetChild(root,i);if(child is T match)yield return match;foreach(T nested in FindVisualChildren<T>(child))yield return nested;}}
