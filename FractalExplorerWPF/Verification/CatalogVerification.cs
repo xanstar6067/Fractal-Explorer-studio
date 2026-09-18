@@ -564,22 +564,11 @@ internal static partial class Program
     {
         private readonly System.Text.StringBuilder _line = new();
         public List<string> Messages { get; } = [];
-        private string Diagnostics = "";
-        public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? format, params object?[]? args)
-        {
-            Diagnostics = string.Join(" | ", (args ?? []).Select(arg => arg switch
-            {
-                ListBoxItem item => $"ListBoxItem dc={item.DataContext} parentVisual={VisualTreeHelper.GetParent(item)} owner={ItemsControl.ItemsControlFromItemContainer(item)?.Name}",
-                BindingExpressionBase expression => $"expr target={expression.Target} dc={(expression.Target as FrameworkElement)?.DataContext}",
-                _ => arg?.GetType().Name + ":" + arg
-            }));
-            base.TraceEvent(eventCache, source, eventType, id, format, args);
-        }
         public override void Write(string? message) => _line.Append(message);
         public override void WriteLine(string? message)
         {
             _line.Append(message);
-            Messages.Add(_line.ToString() + Environment.NewLine + Diagnostics);
+            Messages.Add(_line.ToString());
             _line.Clear();
         }
     }
