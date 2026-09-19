@@ -140,6 +140,7 @@
             <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="GridViewColumnHeader">
@@ -180,10 +181,10 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="RowFill" Property="Background" Value="{DynamicResource Theme.HoverBackgroundBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
+                            <DataTrigger Binding="{Binding IsChecked}" Value="True">
                                 <Setter TargetName="RowFill" Property="Background" Value="{DynamicResource Theme.PressedBackgroundBrush}"/>
                                 <Setter TargetName="SelectionMark" Property="Visibility" Value="Visible"/>
-                            </Trigger>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -385,7 +386,8 @@
             </Grid>
 
             <Grid Grid.Row="2">
-                <ListView x:Name="EntriesList" SelectionChanged="EntriesList_OnSelectionChanged" SizeChanged="EntriesList_OnSizeChanged">
+                <ListView x:Name="EntriesList" SizeChanged="EntriesList_OnSizeChanged"
+                          GridViewColumnHeader.Click="ColumnHeader_OnClick">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn x:Name="CheckColumn" Width="46">
@@ -395,8 +397,8 @@
                                 </GridViewColumn.Header>
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <CheckBox Margin="7,0,0,0" Focusable="False"
-                                                  IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}"/>
+                                        <CheckBox Margin="7,0,0,0" Focusable="False" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Checked="RowCheckBox_OnChanged" Unchecked="RowCheckBox_OnChanged"/>
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -505,7 +507,14 @@
                                     <TextBlock Text="Переименовать"/>
                                 </StackPanel>
                             </Button>
-                            <Button x:Name="DeleteButton" Click="Delete_OnClick" Margin="8,0,0,0"
+                            <Button x:Name="DeleteLocalButton" Click="DeleteLocal_OnClick" Margin="8,0,0,0"
+                                    ToolTip="Удалить отмеченные файлы с этого ПК (через Корзину Windows). Облачная копия, если есть, останется.">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE74D;" Margin="0,0,7,0"/>
+                                    <TextBlock x:Name="DeleteLocalText" Text="Удалить с ПК"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DeleteButton" Click="DeleteCloud_OnClick" Margin="8,0,0,0"
                                     ToolTip="Удалить отмеченные записи из облака. Файлы на ПК останутся.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Style="{StaticResource IconText}" Text="&#xE74D;" Margin="0,0,7,0"/>

@@ -148,6 +148,14 @@ public static class CloudSaveRepository
     }
 
     /// <summary>Replaces the embedded desktop name; opaque data of other clients is left intact.</summary>
+    /// <summary>Removes a local save file and its preview via the Recycle Bin. Any cloud copy is untouched;
+    /// a linked entry reappears as "удалено на ПК" on the next refresh, same as a cloud-side delete.</summary>
+    public static void DeleteLocal(LocalCloudSave local)
+    {
+        EnsureSavePath(local.FilePath);
+        RecycleBin.Send(local.FilePath, Path.ChangeExtension(local.FilePath, ".png"));
+    }
+
     public static string WithSaveName(string jsonData, string name)
     {
         try

@@ -143,14 +143,14 @@ public sealed class CloudTransferReport
     public List<string> Failures { get; } = [];
     public bool Cancelled { get; set; }
 
-    public string Describe()
+    public string Describe(string deletedLabel = "удалено из облака")
     {
         var parts = new List<string>();
         if (Uploaded > 0) parts.Add($"отправлено: {Uploaded}");
         if (Downloaded > 0) parts.Add($"получено: {Downloaded}");
         if (Linked > 0) parts.Add($"совпали и связаны: {Linked}");
         if (Renamed > 0) parts.Add($"переименовано: {Renamed}");
-        if (Deleted > 0) parts.Add($"удалено из облака: {Deleted}");
+        if (Deleted > 0) parts.Add($"{deletedLabel}: {Deleted}");
         if (Skipped > 0) parts.Add($"пропущено: {Skipped}");
         if (NewerElsewhere > 0) parts.Add($"новее на другой стороне: {NewerElsewhere}");
         if (DeletedElsewhere > 0) parts.Add($"удалены с одной стороны: {DeletedElsewhere}");

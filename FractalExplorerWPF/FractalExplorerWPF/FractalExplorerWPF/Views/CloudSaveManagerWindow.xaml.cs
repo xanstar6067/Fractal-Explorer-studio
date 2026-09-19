@@ -1,3 +1,4 @@
+using System.Collections;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
@@ -23,11 +24,15 @@ public partial class CloudSaveManagerWindow : Window
     private readonly List<FilterOption> _stateOptions;
     private CloudSyncService? _sync;
     private CancellationTokenSource? _operation;
-    private List<CloudSyncEntry> _entries = [];
+    private List<EntryRow> _entries = [];
+    private readonly HashSet<string> _checked = [];
     private ICollectionView? _view;
     private CloudSyncEntry? _renaming;
     private List<CloudSyncEntry> _deleting = [];
+    private bool _deletingLocal;
     private bool _closed, _updatingFilters, _loadedOnce;
+    private string? _sortKey;
+    private ListSortDirection _sortDirection = ListSortDirection.Ascending;
 
     public CloudSaveManagerWindow(string? category = null, bool connectOnLoad = true, FractalCloudClient? client = null)
     {
@@ -355,12 +360,18 @@ public partial class CloudSaveManagerWindow : Window
         });
     }
 
-    private void Delete_OnClick(object sender, RoutedEventArgs e)
+    private void DeleteCloud_OnClick(object sender, RoutedEventArgs e) => ShowDeleteBar(local: false);
+    private void DeleteLocal_OnClick(object sender, RoutedEventArgs e) => ShowDeleteBar(local: true);
+
+    private void ShowDeleteBar(bool local)
     {
-        _deleting = SelectedEntries().Where(x => x.HasRemote).ToList();
+        _deletingLocal = local;
+        _deleting = SelectedEntries().Where(x => local ? x.HasLocal : x.HasRemote).ToList();
         if (_deleting.Count == 0) return;
-        string subject = _deleting.Count == 1 ? $"«{_deleting[0].Remote!.Name}»" : $"{_deleting.Count} {Plural(_deleting.Count, "запись", "записи", "записей")}";
-        DeleteQuestion.Text = $"Удалить из облака {subject}? Файлы на этом ПК останутся, но облачную версию восстановить будет нельзя.";
+        string subject = _deleting.Count == 1 ? $"«{_deleting[0].Name}»" : $"{_deleting.Count} {Plural(_deleting.Count, "запись", "записи", "записей")}";
+        DeleteQuestion.Text = local
+            ? $"Удалить {subject} с этого ПК? Файл уйдёт в Корзину Windows; облачная копия, если есть, останется."
+            : $"Удалить из облака {subject}? Файлы на этом ПК останутся, но облачную версию восстановить будет нельзя.";
         DeleteConfirmButton.Content = "Удалить";
         SelectionBar.Visibility = RenameBar.Visibility = Visibility.Collapsed;
         DeleteBar.Visibility = Visibility.Visible;
@@ -370,12 +381,18 @@ public partial class CloudSaveManagerWindow : Window
     private async void DeleteConfirm_OnClick(object sender, RoutedEventArgs e)
     {
         List<CloudSyncEntry> targets = _deleting;
+        bool local = _deletingLocal;
         if (targets.Count == 0) return;
         await RunAsync(async token =>
         {
             CloudSyncService sync = EnsureSync();
-            CloudTransferReport report = await sync.DeleteRemoteAsync(targets, CreateProgress(), token);
-            string message = report.Describe() + (report.Deleted > 0 ? " Чтобы вернуть запись, отметьте её и нажмите «Отправить»." : "");
+            CloudTransferReport report = local
+                ? await sync.DeleteLocalAsync(targets, CreateProgress(), token)
+                : await sync.DeleteRemoteAsync(targets, CreateProgress(), token);
+            string message = report.Describe(local ? "удалено с ПК" : "удалено из облака") + (report.Deleted > 0
+                ? local ? " Чтобы вернуть файл, восстановите его из Корзины Windows или получите снова из облака."
+                        : " Чтобы вернуть запись, отметьте её и нажмите «Отправить»."
+                : "");
             StatusTone tone = report.Failures.Count > 0 || report.Cancelled ? StatusTone.Warning : StatusTone.Success;
             CloudSnapshot snapshot = await sync.LoadAsync(CreateProgress(), CancellationToken.None);
             if (_closed) return;
@@ -407,14 +424,14 @@ public partial class CloudSaveManagerWindow : Window
 
     private void ApplyEntries(IReadOnlyList<CloudSyncEntry> entries, bool keepSelection)
     {
-        HashSet<string> selected = keepSelection ? SelectedEntries().Select(e => e.Key).ToHashSet() : [];
-        _entries = entries.ToList();
+        if (!keepSelection) _checked.Clear();
+        _entries = entries.Select(e => new EntryRow(e) { IsChecked = _checked.Contains(e.Key) }).ToList();
+        _checked.IntersectWith(_entries.Select(r => r.Key));
         RebuildModeFilter();
         _view = CollectionViewSource.GetDefaultView(_entries);
-        _view.Filter = item => item is CloudSyncEntry entry && Matches(entry, includeState: true);
+        _view.Filter = item => item is EntryRow row && Matches(row.Entry, includeState: true);
+        ApplySort();
         EntriesList.ItemsSource = _view;
-        foreach (CloudSyncEntry entry in _view.Cast<CloudSyncEntry>().Where(e => selected.Contains(e.Key)))
-            EntriesList.SelectedItems.Add(entry);
         UpdateSummary();
     }
 
@@ -422,7 +439,7 @@ public partial class CloudSaveManagerWindow : Window
     {
         string? current = (ModeFilter.SelectedItem as FilterOption)?.Key ?? (_loadedOnce ? null : _initialCategory);
         var options = new List<FilterOption> { new("", "Все режимы", _ => true) };
-        foreach (string category in _entries.Select(e => e.Category).OfType<string>().Append(_initialCategory).OfType<string>()
+        foreach (string category in _entries.Select(e => e.Entry.Category).OfType<string>().Append(_initialCategory).OfType<string>()
                      .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
             options.Add(new(category, category, e => string.Equals(e.Category, category, StringComparison.OrdinalIgnoreCase)));
         _updatingFilters = true;
@@ -449,15 +466,70 @@ public partial class CloudSaveManagerWindow : Window
         UpdateSummary();
     }
 
-    private List<CloudSyncEntry> VisibleEntries() => _view?.Cast<CloudSyncEntry>().ToList() ?? [];
-    private List<CloudSyncEntry> SelectedEntries() => EntriesList.SelectedItems.Cast<CloudSyncEntry>().ToList();
+    private void ColumnHeader_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is not GridViewColumnHeader { Column: { } column } || column == CheckColumn) return;
+        string key = column == NameColumn ? "Name"
+            : column == ModeColumn ? "Category"
+            : column == LocalColumn ? "Local"
+            : column == CloudColumn ? "Cloud"
+            : column == StateColumn ? "State"
+            : "";
+        if (key.Length == 0) return;
+        _sortDirection = _sortKey == key && _sortDirection == ListSortDirection.Ascending
+            ? ListSortDirection.Descending : ListSortDirection.Ascending;
+        _sortKey = key;
+        ApplySort();
+    }
+
+    private void ApplySort()
+    {
+        if (_view is ListCollectionView view)
+            view.CustomSort = _sortKey is null ? null : new EntryComparer(_sortKey, _sortDirection);
+        UpdateHeaderArrows();
+    }
+
+    private void UpdateHeaderArrows()
+    {
+        SetHeaderLabel(NameColumn, "Название", "Name");
+        SetHeaderLabel(ModeColumn, "Режим", "Category");
+        SetHeaderLabel(LocalColumn, "На ПК", "Local");
+        SetHeaderLabel(CloudColumn, "В облаке", "Cloud");
+        SetHeaderLabel(StateColumn, "Состояние", "State");
+    }
+
+    private void SetHeaderLabel(GridViewColumn column, string label, string key) =>
+        column.Header = _sortKey == key ? label + (_sortDirection == ListSortDirection.Ascending ? " ▲" : " ▼") : label;
+
+    private sealed class EntryComparer(string key, ListSortDirection direction) : IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            var a = ((EntryRow)x!).Entry;
+            var b = ((EntryRow)y!).Entry;
+            int result = key switch
+            {
+                "Name" => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase),
+                "Category" => string.Compare(a.CategoryText, b.CategoryText, StringComparison.CurrentCultureIgnoreCase),
+                "Local" => a.HasLocal.CompareTo(b.HasLocal),
+                "Cloud" => Nullable.Compare(a.Remote?.UpdatedAt, b.Remote?.UpdatedAt),
+                "State" => a.State.CompareTo(b.State),
+                _ => 0
+            };
+            if (result == 0) result = string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
+            return direction == ListSortDirection.Ascending ? result : -result;
+        }
+    }
+
+    private List<CloudSyncEntry> VisibleEntries() => _view?.Cast<EntryRow>().Select(r => r.Entry).ToList() ?? [];
+    private List<CloudSyncEntry> SelectedEntries() => _entries.Where(r => r.IsChecked).Select(r => r.Entry).ToList();
 
     private void UpdateSummary()
     {
         List<CloudSyncEntry> visible = VisibleEntries();
         foreach (FilterOption option in _stateOptions)
         {
-            int count = _entries.Count(e => Matches(e, includeState: false) && option.Match(e));
+            int count = _entries.Count(r => Matches(r.Entry, includeState: false) && option.Match(r.Entry));
             option.Label = $"{option.Title} ({count})";
         }
 
@@ -481,7 +553,8 @@ public partial class CloudSaveManagerWindow : Window
         UpdateSelection();
     }
 
-    private void EntriesList_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>Ticking a box never touches any other row's check state; only this handles the bars/counts side effects.</summary>
+    private void RowCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {
         if (RenameBar.Visibility == Visibility.Visible || DeleteBar.Visibility == Visibility.Visible) CloseBars();
         UpdateSelection();
@@ -490,19 +563,23 @@ public partial class CloudSaveManagerWindow : Window
     private void UpdateSelection()
     {
         List<CloudSyncEntry> selected = SelectedEntries();
-        int visible = _view?.Cast<object>().Count() ?? 0;
-        SelectAllBox.IsChecked = selected.Count == 0 ? false : selected.Count >= visible ? true : null;
+        List<EntryRow> visible = _view?.Cast<EntryRow>().ToList() ?? [];
+        int checkedVisible = visible.Count(r => r.IsChecked);
+        SelectAllBox.IsChecked = visible.Count == 0 || checkedVisible == 0 ? false : checkedVisible >= visible.Count ? true : null;
         bool idle = _operation is null;
         int up = selected.Count(e => e.HasLocal && e.State is not CloudEntryState.Synced);
         int down = selected.Count(e => e.HasRemote && e.State is not (CloudEntryState.Synced or CloudEntryState.Unsupported));
         int remote = selected.Count(e => e.HasRemote);
+        int local = selected.Count(e => e.HasLocal);
         UploadSelectedText.Text = up > 0 ? $"Отправить ({up})" : "Отправить";
         DownloadSelectedText.Text = down > 0 ? $"Получить ({down})" : "Получить";
         DeleteText.Text = remote > 0 ? $"Удалить из облака ({remote})" : "Удалить из облака";
+        DeleteLocalText.Text = local > 0 ? $"Удалить с ПК ({local})" : "Удалить с ПК";
         UploadSelectedButton.IsEnabled = idle && up > 0;
         DownloadSelectedButton.IsEnabled = idle && down > 0;
         RenameButton.IsEnabled = idle && selected is [var single] && CanRename(single);
         DeleteButton.IsEnabled = idle && remote > 0;
+        DeleteLocalButton.IsEnabled = idle && local > 0;
         SelectionText.Text = selected.Count == 0
             ? "Отметьте записи галочками, чтобы работать только с ними."
             : $"Отмечено: {selected.Count}";
@@ -516,9 +593,10 @@ public partial class CloudSaveManagerWindow : Window
 
     private void SelectAllBox_OnClick(object sender, RoutedEventArgs e)
     {
-        int visible = _view?.Cast<object>().Count() ?? 0;
-        if (visible > 0 && EntriesList.SelectedItems.Count < visible) EntriesList.SelectAll();
-        else EntriesList.UnselectAll();
+        List<EntryRow> visible = _view?.Cast<EntryRow>().ToList() ?? [];
+        bool selectAll = visible.Any(r => !r.IsChecked);
+        foreach (EntryRow row in visible) row.IsChecked = selectAll;
+        CloseBars();
         UpdateSelection();
     }
 
@@ -585,5 +663,38 @@ public partial class CloudSaveManagerWindow : Window
         }
         public event PropertyChangedEventHandler? PropertyChanged;
         public override string ToString() => _label;
+    }
+
+    /// <summary>
+    /// One row's bound check state, kept independent of the ListView's own selection: clicking or filtering rows
+    /// must never toggle checkmarks the user placed elsewhere in the list.
+    /// </summary>
+    private sealed class EntryRow(CloudSyncEntry entry) : INotifyPropertyChanged
+    {
+        private bool _isChecked;
+        public CloudSyncEntry Entry { get; } = entry;
+        public string Key => Entry.Key;
+        public string Name => Entry.Name;
+        public string? NameHint => Entry.NameHint;
+        public string CategoryText => Entry.CategoryText;
+        public bool HasLocal => Entry.HasLocal;
+        public bool HasRemote => Entry.HasRemote;
+        public string CloudText => Entry.CloudText;
+        public string StatusText => Entry.StatusText;
+        public string Tone => Entry.Tone;
+        public string StatusDescription => Entry.StatusDescription;
+
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set
+            {
+                if (_isChecked == value) return;
+                _isChecked = value;
+                PropertyChanged?.Invoke(this, new(nameof(IsChecked)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

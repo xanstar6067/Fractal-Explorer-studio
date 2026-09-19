@@ -443,6 +443,29 @@ public sealed class CloudSyncService(FractalCloudClient client, CloudSyncIndex i
         return report;
     }
 
+    /// <summary>Deletes local save files only, via the Recycle Bin. Links stay as tombstones, so a linked entry
+    /// reappears as "удалено на ПК" rather than losing its cloud pairing.</summary>
+    public async Task<CloudTransferReport> DeleteLocalAsync(IReadOnlyList<CloudSyncEntry> entries,
+        IProgress<CloudProgress>? progress, CancellationToken token)
+    {
+        var report = new CloudTransferReport();
+        List<LocalCloudSave> targets = entries.Where(e => e.Local is not null).Select(e => e.Local!).ToList();
+        try
+        {
+            for (int i = 0; i < targets.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                LocalCloudSave local = targets[i];
+                progress?.Report(new(i, targets.Count, $"Удаление {i + 1} из {targets.Count}: {local.Name}"));
+                try { await Task.Run(() => CloudSaveRepository.DeleteLocal(local), token); report.Deleted++; }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                { report.Failures.Add($"«{local.Name}»: {e.Message}"); }
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { report.Cancelled = true; }
+        return report;
+    }
+
     private static void EnsureUnchanged(LocalCloudSave local)
     {
         if (CloudSaveRepository.TryReadLocal(local.FilePath)?.Hash != local.Hash)
