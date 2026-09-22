@@ -37,6 +37,7 @@ internal static class Fractal3DShader
             float4 BackgroundTop;
             float4 BackgroundBottom;
             float4 Flags;             // x — режим окраски, y — жёсткость теней (0 — выкл), z — затенение, w — фоновый свет
+            float4 Probe;             // x — 0: обычный кадр, 1: расстояние до поверхности вдоль луча
         };
 
         PSInput VSMain(uint id : SV_VertexID)
@@ -267,6 +268,14 @@ internal static class Fractal3DShader
             return Surface.rgb;
         }
 
+        // Зонд возвращает число, а не цвет: байты float укладываются в цель B8G8R8A8_UNorm
+        // без потерь (значение n/255 квантуется ровно в n), поэтому ЦП читает их как float.
+        float4 PackFloat(float value)
+        {
+            uint bits = asuint(value);
+            return float4((bits >> 16) & 255, (bits >> 8) & 255, bits & 255, (bits >> 24) & 255) / 255.0;
+        }
+
         float3 LinearToSrgb(float3 color)
         {
             color = saturate(color);
@@ -312,6 +321,8 @@ internal static class Fractal3DShader
                 travelled += stepDistance;
                 if (travelled > maxDistance) break;
             }
+
+            if (Probe.x > 0.5) return PackFloat(hit ? travelled : -1.0);
 
             float3 sky = lerp(BackgroundBottom.rgb, BackgroundTop.rgb, saturate(rayDirection.y * 0.5 + 0.5));
             if (!hit) return float4(LinearToSrgb(sky), 1.0);

@@ -13,6 +13,29 @@ public enum Fractal3DKind
     QuaternionJulia
 }
 
+/// <summary>Вокруг чего поворачивается камера при вращении правой кнопкой.</summary>
+public enum Fractal3DRotationAnchor
+{
+    /// <summary>Якорь в точке наблюдения: камера облетает фрактал, расстояние сохраняется.</summary>
+    Target,
+
+    /// <summary>Игровая камера: поворачивается взгляд, положение камеры остаётся на месте.</summary>
+    FreeLook
+}
+
+/// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
+public enum Fractal3DMotionQuality
+{
+    /// <summary>Свет и тени считаются как заданы; меняется только разрешение чернового кадра.</summary>
+    Full,
+
+    /// <summary>Мягкие тени гасятся: самый дорогой эффект уходит первым.</summary>
+    NoShadows,
+
+    /// <summary>Ни теней, ни затенения складок, шаги луча урезаны: максимальная отзывчивость.</summary>
+    Draft
+}
+
 /// <summary>
 /// Источник цвета поверхности. Пока это заготовка под будущую систему окрасок и эффектов:
 /// цвета задаются двумя опорными оттенками, а не палитрой с произвольным числом ключей.
@@ -62,6 +85,14 @@ public sealed class Fractal3DState
     public double TargetY { get; set; }
     public double TargetZ { get; set; }
     public double FieldOfView { get; set; } = 55;
+
+    // ---- навигация ----
+    public Fractal3DRotationAnchor RotationAnchor { get; set; } = Fractal3DRotationAnchor.Target;
+    public Fractal3DMotionQuality MotionQuality { get; set; } = Fractal3DMotionQuality.NoShadows;
+    public bool ZoomToCursor { get; set; } = true;
+    public bool RotationInertia { get; set; } = true;
+    public bool AutoRotate { get; set; }
+    public double AutoRotateSpeed { get; set; } = 18;
 
     // ---- качество ----
     public int MaxSteps { get; set; } = 160;
@@ -137,6 +168,19 @@ public static class Fractal3DCatalog
             "Мандельбульб", "Мандельбульб",
             "Трёхмерное обобщение множества Мандельброта через сферические координаты: z → zⁿ + c с произвольной степенью n.",
             "Fractal3DMandelbulb", "mandelbulb")
+    };
+
+    public static string RotationAnchorName(Fractal3DRotationAnchor anchor) => anchor switch
+    {
+        Fractal3DRotationAnchor.FreeLook => "Свободная камера",
+        _ => "Вокруг фрактала"
+    };
+
+    public static string MotionQualityName(Fractal3DMotionQuality quality) => quality switch
+    {
+        Fractal3DMotionQuality.Full => "Полное",
+        Fractal3DMotionQuality.Draft => "Черновое",
+        _ => "Без мягких теней"
     };
 
     public static string ColoringModeName(Fractal3DColoringMode mode) => mode switch

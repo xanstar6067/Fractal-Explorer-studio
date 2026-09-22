@@ -4,8 +4,8 @@ using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Core.Rendering3D;
@@ -20,15 +20,26 @@ namespace FractalExplorerWPF.Views;
 /// тетраэдр Серпинского и кватернионное Жюлиа. Вид задаётся при создании окна, разметка показывает
 /// только параметры выбранной формы. Кадр целиком считает GPU (<see cref="Fractal3DRenderer"/>),
 /// поэтому отдельного тайлового прогресса нет: прогресс идёт по горизонтальным полосам кадра.
-/// Во время вращения и перемещения кадр считается в половинном разрешении, полный — после остановки.
+/// Превью живое: кадровый цикл считает черновик подобранного размера столько раз, сколько успевает,
+/// а после остановки достраивает полный кадр и сглаживание. Навигация — в <c>.Navigation.cs</c>.
 /// </summary>
 public partial class Fractal3DWindow : Window
 {
     private const double PanelWidth = 340;
-    private const double InteractiveScale = 0.5;
     private const int MaxSsaa = 4;
 
-    private readonly DispatcherTimer _renderTimer = new();
+    /// <summary>Сколько миллисекунд ждать после правки параметра, чтобы не считать каждый символ.</summary>
+    private const double ParameterSettleMs = 160;
+
+    /// <summary>Пауза перед ступенью уточнения: даёт шанс продолжить движение без лишнего кадра.</summary>
+    private const double RefineDelayMs = 90;
+
+    /// <summary>Во сколько миллисекунд целится живой кадр; от этого подбирается его размер.</summary>
+    private const double TargetFrameMs = 33;
+
+    private const double MinDraftScale = 0.15;
+
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Fractal3DRenderer _renderer = new();
     private readonly Fractal3DSaveStore _saveStore;
     private readonly Fractal3DDefinition _definition;
@@ -40,9 +51,20 @@ public partial class Fractal3DWindow : Window
     private bool _controlsVisible = true;
     private bool _isFullscreen;
     private bool _isClosing;
-    private bool _orbiting;
-    private bool _panning;
-    private Point _lastPoint;
+
+    private bool _loopAttached;
+    private bool _wasMoving;
+    private bool _suspended;
+    private bool _frameRequested;
+    private FrameQuality _requestedQuality;
+    private double _frameDueMs;
+    private double _lastLoopMs;
+    private double _draftScale = 0.5;
+    private Fractal3DState? _lastGoodState;
+    private byte[]? _draftBuffer;
+    private byte[]? _fullBuffer;
+    private WriteableBitmap? _draftBitmap;
+    private WriteableBitmap? _fullBitmap;
 
     private double _yaw;
     private double _pitch;
@@ -68,7 +90,6 @@ public partial class Fractal3DWindow : Window
 
         PresetBox.ItemsSource = _presets.Select(preset => preset.SaveName).ToArray();
         PresetBox.SelectedIndex = 0;
-        _renderTimer.Tick += RenderTimer_OnTick;
         _updatingUi = false;
 
         ApplyState(_presets[0]);
@@ -107,6 +128,13 @@ public partial class Fractal3DWindow : Window
         TargetZ = _target.Z,
         FieldOfView = _fieldOfView,
 
+        RotationAnchor = SelectedRotationAnchor,
+        MotionQuality = SelectedMotionQuality,
+        ZoomToCursor = ZoomToCursorBox.IsChecked == true,
+        RotationInertia = RotationInertiaBox.IsChecked == true,
+        AutoRotate = AutoRotateBox.IsChecked == true,
+        AutoRotateSpeed = ReadDouble(AutoRotateSpeedBox, "Скорость автовращения", -720, 720),
+
         MaxSteps = ReadInt(MaxStepsBox, "Шагов луча", 16, 1024),
         Detail = ReadDouble(DetailBox, "Детализация", 0.05, 8),
         MaxDistance = ReadDouble(MaxDistanceBox, "Дальность трассировки", 1, 1000),
@@ -135,7 +163,7 @@ public partial class Fractal3DWindow : Window
     {
         ArgumentNullException.ThrowIfNull(state);
         _renderCts?.Cancel();
-        _renderTimer.Stop();
+        _transition = null;
         ApplyState(state);
     }
 
@@ -159,6 +187,16 @@ public partial class Fractal3DWindow : Window
         _distance = Math.Max(state.CameraDistance, Fractal3DCamera.MinDistance);
         _fieldOfView = Math.Clamp(state.FieldOfView, 5, 160);
         _target = new Vector3((float)state.TargetX, (float)state.TargetY, (float)state.TargetZ);
+        _yawVelocity = 0;
+        _pitchVelocity = 0;
+        _surfaceDistance = double.NaN;
+
+        RotationAnchorBox.SelectedIndex = (int)state.RotationAnchor;
+        MotionQualityBox.SelectedIndex = (int)state.MotionQuality;
+        ZoomToCursorBox.IsChecked = state.ZoomToCursor;
+        RotationInertiaBox.IsChecked = state.RotationInertia;
+        AutoRotateBox.IsChecked = state.AutoRotate;
+        AutoRotateSpeedBox.Text = Format(state.AutoRotateSpeed);
 
         PowerBox.Text = Format(state.Power);
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
@@ -222,6 +260,12 @@ public partial class Fractal3DWindow : Window
     private Fractal3DColoringMode SelectedColoringMode =>
         (Fractal3DColoringMode)Math.Clamp(ColoringModeBox.SelectedIndex, 0, (int)Fractal3DColoringMode.Depth);
 
+    private Fractal3DRotationAnchor SelectedRotationAnchor =>
+        (Fractal3DRotationAnchor)Math.Clamp(RotationAnchorBox.SelectedIndex, 0, (int)Fractal3DRotationAnchor.FreeLook);
+
+    private Fractal3DMotionQuality SelectedMotionQuality =>
+        (Fractal3DMotionQuality)Math.Clamp(MotionQualityBox.SelectedIndex, 0, (int)Fractal3DMotionQuality.Draft);
+
     private int SelectedSsaa => SsaaBox.SelectedItem is ComboBoxItem item
         ? Convert.ToInt32(item.Tag, CultureInfo.InvariantCulture)
         : 1;
@@ -238,7 +282,10 @@ public partial class Fractal3DWindow : Window
     private void UpdateCameraText() =>
         CameraText.Text = $"Азимут {_yaw:F1}°, наклон {_pitch:F1}°\n" +
                           $"Расстояние {_distance:G6}, обзор {_fieldOfView:F0}°\n" +
-                          $"Цель {_target.X:G5}; {_target.Y:G5}; {_target.Z:G5}";
+                          $"Цель {_target.X:G5}; {_target.Y:G5}; {_target.Z:G5}\n" +
+                          (double.IsNaN(_surfaceDistance)
+                              ? "Под курсором фон"
+                              : $"До поверхности под курсором {_surfaceDistance:G5}");
 
     private void SyncCameraBoxes()
     {
@@ -296,20 +343,33 @@ public partial class Fractal3DWindow : Window
     private void ResetViewButton_OnClick(object sender, RoutedEventArgs e)
     {
         Fractal3DState defaults = Fractal3DCatalog.CreateDefaultState(Kind);
-        _updatingUi = true;
-        _yaw = defaults.CameraYaw;
-        _pitch = defaults.CameraPitch;
-        _distance = defaults.CameraDistance;
-        _fieldOfView = defaults.FieldOfView;
-        _target = new Vector3((float)defaults.TargetX, (float)defaults.TargetY, (float)defaults.TargetZ);
-        SyncCameraBoxes();
-        _updatingUi = false;
-        UpdateCameraText();
-        ScheduleRender();
+        _fieldOfView = Math.Clamp(defaults.FieldOfView, 5, 160);
+        BeginTransition(defaults.CameraYaw, defaults.CameraPitch, defaults.CameraDistance,
+            new Vector3((float)defaults.TargetX, (float)defaults.TargetY, (float)defaults.TargetZ));
     }
 
     private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForFractal3D(this, _saveStore));
+        SuspendLive(() => SaveManagerWindow.Open(this, SaveManagerConfigurations.ForFractal3D(this, _saveStore)));
+
+    /// <summary>
+    /// Останавливает живое превью на время модального окна: менеджер сохранений и экспорт считают
+    /// свои кадры тем же устройством, и делить его с кадровым циклом незачем.
+    /// </summary>
+    private void SuspendLive(Action action)
+    {
+        _suspended = true;
+        DetachLoop();
+        _renderCts?.Cancel();
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _suspended = false;
+            RequestFrame(FrameQuality.Draft);
+        }
+    }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -326,8 +386,7 @@ public partial class Fractal3DWindow : Window
         }
 
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
-        _renderCts?.Cancel();
-        ImageExportManagerWindow.Open(this, new ImageExportConfiguration
+        SuspendLive(() => ImageExportManagerWindow.Open(this, new ImageExportConfiguration
         {
             FileNamePrefix = _definition.ExportPrefix,
             WindowTitle = $"Экспорт: {_definition.Title}",
@@ -336,7 +395,7 @@ public partial class Fractal3DWindow : Window
             MaxSsaaFactor = MaxSsaa,
             RenderAsync = (request, token, progress) =>
                 RenderBitmapAsync(state, request.Width, request.Height, request.SsaaFactor, token, progress)
-        });
+        }));
     }
 
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e)
@@ -350,33 +409,100 @@ public partial class Fractal3DWindow : Window
 
     #region Рендер
 
-    private void ScheduleRender(bool immediate = false)
+    /// <summary>Ступени уточнения: черновик по ходу движения, затем полный кадр и сглаживание.</summary>
+    private enum FrameQuality
     {
-        if (!IsLoaded || _isClosing) return;
-        _renderTimer.Stop();
-        _renderTimer.Interval = TimeSpan.FromMilliseconds(immediate ? 1 : _orbiting || _panning ? 30 : 180);
-        _renderTimer.Start();
+        Draft,
+        Full,
+        Antialiased
     }
 
-    private void RenderTimer_OnTick(object? sender, EventArgs e)
+    /// <summary>
+    /// Просит пересчитать кадр. Запросы сливаются: побеждает более ранний срок и более грубая
+    /// ступень, поэтому движение всегда прерывает начатое уточнение.
+    /// </summary>
+    private void RequestFrame(FrameQuality quality, double delayMs = 0)
     {
-        _renderTimer.Stop();
-        _ = RenderPreviewAsync();
-    }
+        if (!IsLoaded || _isClosing || _suspended) return;
 
-    private async Task RenderPreviewAsync()
-    {
-        if (_isClosing) return;
-        if (_isRendering)
+        // Движение важнее незаконченного уточнения: длинный полный кадр прерывается сразу,
+        // иначе поворот мыши ждал бы его до конца.
+        if (_isRendering && quality == FrameQuality.Draft) _renderCts?.Cancel();
+
+        double due = _clock.Elapsed.TotalMilliseconds + delayMs;
+        if (_frameRequested)
         {
-            ScheduleRender();
+            _requestedQuality = (FrameQuality)Math.Min((int)_requestedQuality, (int)quality);
+            _frameDueMs = Math.Min(_frameDueMs, due);
+        }
+        else
+        {
+            _requestedQuality = quality;
+            _frameDueMs = due;
+            _frameRequested = true;
+        }
+        AttachLoop();
+    }
+
+    private void ScheduleRender(bool immediate = false) =>
+        RequestFrame(FrameQuality.Draft, immediate ? 0 : ParameterSettleMs);
+
+    private void AttachLoop()
+    {
+        if (_loopAttached || _isClosing) return;
+        _loopAttached = true;
+        _lastLoopMs = _clock.Elapsed.TotalMilliseconds;
+        CompositionTarget.Rendering += Loop_OnRendering;
+    }
+
+    private void DetachLoop()
+    {
+        if (!_loopAttached) return;
+        _loopAttached = false;
+        CompositionTarget.Rendering -= Loop_OnRendering;
+    }
+
+    /// <summary>
+    /// Кадровый цикл живого превью: на каждом такте композиции двигает анимацию камеры и, как
+    /// только предыдущий кадр посчитан, сразу запускает следующий. Когда считать нечего, цикл
+    /// отцепляется и окно перестаёт что-либо тратить.
+    /// </summary>
+    private void Loop_OnRendering(object? sender, EventArgs e)
+    {
+        double now = _clock.Elapsed.TotalMilliseconds;
+        double seconds = Math.Clamp((now - _lastLoopMs) / 1000, 0, 0.1);
+        _lastLoopMs = now;
+
+        AdvanceAnimation(seconds);
+
+        // Движение кончилось — доводим кадр. Мышь отпускают не только кнопкой: так же кончаются
+        // инерция, перелёт и автовращение, и в каждом случае показанным остаётся живой кадр.
+        bool moving = IsMoving;
+        if (_wasMoving && !moving) RequestFrame(FrameQuality.Full, RefineDelayMs);
+        _wasMoving = moving;
+
+        if (_isRendering) return;
+        if (!_frameRequested)
+        {
+            if (!IsMoving) DetachLoop();
             return;
         }
+        if (now < _frameDueMs) return;
+
+        FrameQuality quality = _requestedQuality;
+        _frameRequested = false;
+        _ = RenderFrameAsync(quality);
+    }
+
+    private async Task RenderFrameAsync(FrameQuality quality)
+    {
+        if (_isClosing) return;
 
         Fractal3DState state;
         try
         {
             state = CaptureState("preview");
+            _lastGoodState = state;
         }
         catch (Exception exception)
         {
@@ -387,42 +513,90 @@ public partial class Fractal3DWindow : Window
         _renderCts?.Cancel();
         var cts = new CancellationTokenSource();
         _renderCts = cts;
-        bool interactive = _orbiting || _panning;
+        bool moving = IsMoving;
+
+        // Черновик во весь холст, да ещё и без движения, ничем не отличается от полного кадра:
+        // считаем его сразу полным, чтобы не гонять ту же работу дважды и честно назвать результат.
+        if (quality == FrameQuality.Draft && !moving && _draftScale >= 1) quality = FrameQuality.Full;
+
         var watch = Stopwatch.StartNew();
-        SetRendering(true, "Рендеринг...");
+        SetRendering(true, quality == FrameQuality.Draft ? null : "Рендеринг...");
 
         try
         {
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
-            int factor = interactive ? 1 : Math.Clamp(state.Ssaa, 1, MaxSsaa);
-            double scale = interactive ? InteractiveScale : 1;
-            int width = Math.Max(1, (int)(surface.PixelWidth * scale)) * factor;
-            int height = Math.Max(1, (int)(surface.PixelHeight * scale)) * factor;
+            int ssaa = Math.Clamp(state.Ssaa, 1, MaxSsaa);
+            double scale = quality == FrameQuality.Draft ? _draftScale : 1;
+            bool simplified = false;
+            int width = Math.Max(1, (int)Math.Round(surface.PixelWidth * scale));
+            int height = Math.Max(1, (int)Math.Round(surface.PixelHeight * scale));
 
-            var progress = new Progress<int>(value => RenderProgress.Value = value);
-            BitmapSource bitmap = await _renderer.RenderAsync(state, width, height, progress, cts.Token);
-            if (factor > 1)
+            if (quality == FrameQuality.Antialiased)
             {
-                bitmap = await Task.Run(() => BitmapResampler.ResizeLanczos3(
-                    bitmap, width / factor, height / factor, cts.Token, null), cts.Token);
+                var progress = new Progress<int>(value => RenderProgress.Value = value);
+                BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
+                cts.Token.ThrowIfCancellationRequested();
+                RenderOptions.SetBitmapScalingMode(CanvasImage, BitmapScalingMode.HighQuality);
+                CanvasImage.Source = bitmap;
+                StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {width}×{height}, " +
+                                  $"сглаживание {ssaa}×.";
+            }
+            else
+            {
+                bool draft = quality == FrameQuality.Draft;
+                Fractal3DState frameState = draft && moving ? ApplyMotionQuality(state) : state;
+                simplified = !ReferenceEquals(frameState, state);
+                IProgress<int>? progress = draft
+                    ? null
+                    : new Progress<int>(value => RenderProgress.Value = value);
+
+                byte[] buffer = await _renderer.RenderPixelsAsync(
+                    frameState, width, height, draft ? _draftBuffer : _fullBuffer, progress, cts.Token);
+                cts.Token.ThrowIfCancellationRequested();
+
+                WriteableBitmap target;
+                if (draft)
+                {
+                    _draftBuffer = buffer;
+                    _draftBitmap = EnsureBitmap(_draftBitmap, width, height);
+                    target = _draftBitmap;
+                }
+                else
+                {
+                    _fullBuffer = buffer;
+                    _fullBitmap = EnsureBitmap(_fullBitmap, width, height);
+                    target = _fullBitmap;
+                }
+                target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
+                RenderOptions.SetBitmapScalingMode(CanvasImage,
+                    draft ? BitmapScalingMode.LowQuality : BitmapScalingMode.HighQuality);
+                CanvasImage.Source = target;
+
+                double elapsedMs = watch.Elapsed.TotalMilliseconds;
+                if (draft)
+                {
+                    if (moving) AdaptDraftScale(elapsedMs);
+                    StatusText.Text = $"Живой кадр {width}×{height} · {elapsedMs:F0} мс " +
+                                      $"({1000 / Math.Max(elapsedMs, 1):F0} к/с)";
+                }
+                else
+                {
+                    StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {width}×{height}.";
+                }
             }
 
-            cts.Token.ThrowIfCancellationRequested();
-            CanvasImage.Source = bitmap;
-            StatusText.Text = interactive
-                ? $"Черновой кадр {bitmap.PixelWidth}×{bitmap.PixelHeight} за {watch.Elapsed.TotalSeconds:F3} сек."
-                : $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {bitmap.PixelWidth}×{bitmap.PixelHeight}" +
-                  (factor > 1 ? $", сглаживание {factor}×." : ".");
+            RequestRefinement(quality, scale, ssaa, simplified);
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Рендер отменён";
+            // Прерванное ради движения уточнение — рабочий ход, а не событие для пользователя.
+            if (!_frameRequested) StatusText.Text = "Рендер отменён";
         }
         catch (Exception exception)
         {
             if (_isClosing) return;
             StatusText.Text = "Ошибка рендера";
-            CrashLogger.Log("Fractal3DWindow.RenderPreviewAsync", exception);
+            CrashLogger.Log("Fractal3DWindow.RenderFrameAsync", exception);
             MessageBox.Show(this, exception.Message, _definition.Title,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -433,6 +607,52 @@ public partial class Fractal3DWindow : Window
             SetRendering(false);
         }
     }
+
+    /// <summary>
+    /// Следующая ступень лесенки, если камера уже стоит и показанному кадру есть что добавить:
+    /// он мельче холста или посчитан с упрощённым в движении светом.
+    /// </summary>
+    private void RequestRefinement(FrameQuality quality, double scale, int ssaa, bool simplified)
+    {
+        if (IsMoving) return;
+        if (quality == FrameQuality.Draft && (scale < 1 || simplified))
+            RequestFrame(FrameQuality.Full, RefineDelayMs);
+        else if (quality != FrameQuality.Antialiased && ssaa > 1)
+            RequestFrame(FrameQuality.Antialiased, RefineDelayMs);
+    }
+
+    /// <summary>
+    /// Размер живого кадра подбирается по времени предыдущего: цель — <see cref="TargetFrameMs"/>.
+    /// Шаг округляется до 0.05, иначе растровое полотно пересоздавалось бы на каждом кадре.
+    /// </summary>
+    private void AdaptDraftScale(double frameMs)
+    {
+        double factor = Math.Clamp(Math.Sqrt(TargetFrameMs / Math.Max(frameMs, 1)), 0.55, 1.6);
+        double scale = Math.Clamp(_draftScale * factor, MinDraftScale, 1);
+        _draftScale = Math.Round(scale * 20) / 20;
+    }
+
+    /// <summary>Чем жертвует живой кадр в движении; выбирается в разделе «Навигация».</summary>
+    private Fractal3DState ApplyMotionQuality(Fractal3DState state)
+    {
+        Fractal3DMotionQuality quality = SelectedMotionQuality;
+        if (quality == Fractal3DMotionQuality.Full) return state;
+
+        Fractal3DState draft = state.Clone();
+        draft.SoftShadows = false;
+        if (quality == Fractal3DMotionQuality.Draft)
+        {
+            draft.AmbientOcclusion = false;
+            draft.MaxSteps = Math.Max(48, (int)(state.MaxSteps * 0.6));
+            draft.Detail = Math.Min(8, state.Detail * 1.5);
+        }
+        return draft;
+    }
+
+    private static WriteableBitmap EnsureBitmap(WriteableBitmap? cache, int width, int height) =>
+        cache is not null && cache.PixelWidth == width && cache.PixelHeight == height
+            ? cache
+            : new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
 
     private async Task<BitmapSource> RenderBitmapAsync(
         Fractal3DState state, int width, int height, int ssaa, CancellationToken token, IProgress<int>? progress)
@@ -454,93 +674,19 @@ public partial class Fractal3DWindow : Window
     private void SetRendering(bool value, string? status = null)
     {
         _isRendering = value;
-        CancelButton.IsEnabled = value;
+        if (CancelButton.IsEnabled != value) CancelButton.IsEnabled = value;
         if (!value) RenderProgress.Value = 0;
         if (status is not null) StatusText.Text = status;
     }
 
     #endregion
 
-    #region Навигация мышью
+    #region Навигация
 
-    private void CanvasHost_OnSizeChanged(object sender, SizeChangedEventArgs e) => ScheduleRender();
+    private void CanvasHost_OnSizeChanged(object sender, SizeChangedEventArgs e) =>
+        RequestFrame(FrameQuality.Draft, RefineDelayMs);
 
-    private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
-    {
-        double step = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? 1.6
-            : Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 1.03
-            : 1.15;
-        _distance = Math.Clamp(e.Delta > 0 ? _distance / step : _distance * step, 1e-4, 1e5);
-
-        _updatingUi = true;
-        SyncCameraBoxes();
-        _updatingUi = false;
-        UpdateCameraText();
-        ScheduleRender();
-        e.Handled = true;
-    }
-
-    private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e) =>
-        BeginInteraction(e.GetPosition(CanvasHost), orbit: true);
-
-    private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) =>
-        BeginInteraction(e.GetPosition(CanvasHost), orbit: false);
-
-    private void CanvasHost_OnMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton == MouseButton.Middle) BeginInteraction(e.GetPosition(CanvasHost), orbit: false);
-    }
-
-    private void BeginInteraction(Point point, bool orbit)
-    {
-        _orbiting = orbit;
-        _panning = !orbit;
-        _lastPoint = point;
-        CanvasHost.CaptureMouse();
-        Mouse.OverrideCursor = orbit ? Cursors.ScrollAll : Cursors.SizeAll;
-    }
-
-    private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_orbiting && !_panning) return;
-        Point current = e.GetPosition(CanvasHost);
-        double deltaX = current.X - _lastPoint.X;
-        double deltaY = current.Y - _lastPoint.Y;
-        _lastPoint = current;
-
-        if (_orbiting)
-        {
-            _yaw -= deltaX * 0.35;
-            _pitch = Math.Clamp(_pitch + deltaY * 0.35,
-                Fractal3DCamera.MinPitch, Fractal3DCamera.MaxPitch);
-        }
-        else
-        {
-            Fractal3DState state = CaptureCameraOnly();
-            Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
-            double unit = Fractal3DCamera.WorldUnitsPerPixel(state, CanvasHost.ActualHeight);
-            _target -= camera.Right * (float)(deltaX * unit);
-            _target += camera.Up * (float)(deltaY * unit);
-        }
-
-        _updatingUi = true;
-        SyncCameraBoxes();
-        _updatingUi = false;
-        UpdateCameraText();
-        ScheduleRender();
-    }
-
-    private void CanvasHost_OnMouseUp(object sender, MouseButtonEventArgs e)
-    {
-        if (!_orbiting && !_panning) return;
-        _orbiting = false;
-        _panning = false;
-        CanvasHost.ReleaseMouseCapture();
-        Mouse.OverrideCursor = null;
-        ScheduleRender(immediate: true);
-    }
-
-    /// <summary>Камера без чтения остальных полей: нужна для панорамирования во время ввода.</summary>
+    /// <summary>Камера без чтения остальных полей: нужна для навигации во время ввода параметров.</summary>
     private Fractal3DState CaptureCameraOnly() => new()
     {
         Kind = Kind,
@@ -559,8 +705,20 @@ public partial class Fractal3DWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || (e.Key == Key.Escape && _isFullscreen)) ToggleFullscreen();
+        if (e.Key == Key.F11 || (e.Key == Key.Escape && _isFullscreen))
+        {
+            ToggleFullscreen();
+            return;
+        }
+        if (_rotating && IsFlightKey(e.Key))
+        {
+            _flightKeys.Add(e.Key);
+            AttachLoop();
+            e.Handled = true;
+        }
     }
+
+    private void Window_OnKeyUp(object sender, KeyEventArgs e) => _flightKeys.Remove(e.Key);
 
     private void ToggleFullscreen()
     {
@@ -582,7 +740,7 @@ public partial class Fractal3DWindow : Window
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _isClosing = true;
-        _renderTimer.Stop();
+        DetachLoop();
         _renderCts?.Cancel();
         Mouse.OverrideCursor = null;
         // Освобождение ждёт выхода из текущей полосы кадра, поэтому уводим его с UI-потока.

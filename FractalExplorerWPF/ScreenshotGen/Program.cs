@@ -150,6 +150,9 @@ internal static class Program
     // Ждём явного завершения, но не дольше разумного предела; для окон без такого
     // поля (стохастическое накопление, живые симуляции) это no-op — там качество
     // кадра и так регулируется increased fixed-wait в CaptureAsync для этих кейсов.
+    // Окна с живым превью (Fractal3DWindow) считают кадр лесенкой: черновик, затем полный кадр
+    // и сглаживание. Между ступенями "_isRendering" ненадолго гаснет, поэтому ожидание учитывает
+    // и очередь: пока стоит запрос следующей ступени, окно снимать рано.
     private static async Task WaitForRenderIdleAsync(Window win, int maxExtraMs = 10000)
     {
         if (GetMember(win, "_isRendering") is not bool) return;
@@ -157,10 +160,11 @@ internal static class Program
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < maxExtraMs)
         {
-            if (GetMember(win, "_isRendering") is false)
+            if (GetMember(win, "_isRendering") is false && GetMember(win, "_frameRequested") is not true)
             {
                 await Task.Delay(250);
-                return;
+                if (GetMember(win, "_isRendering") is false && GetMember(win, "_frameRequested") is not true) return;
+                continue;
             }
             await Task.Delay(150);
         }
