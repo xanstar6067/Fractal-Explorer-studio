@@ -57,6 +57,7 @@ public partial class Fractal3DWindow : Window
     private bool _suspended;
     private bool _frameRequested;
     private FrameQuality _requestedQuality;
+    private FrameQuality _renderingQuality;
     private double _frameDueMs;
     private double _lastLoopMs;
     private double _draftScale = 0.5;
@@ -425,9 +426,11 @@ public partial class Fractal3DWindow : Window
     {
         if (!IsLoaded || _isClosing || _suspended) return;
 
-        // Движение важнее незаконченного уточнения: длинный полный кадр прерывается сразу,
-        // иначе поворот мыши ждал бы его до конца.
-        if (_isRendering && quality == FrameQuality.Draft) _renderCts?.Cancel();
+        // Движение прерывает только уточнение: длинный полный кадр не должен держать поворот
+        // мыши. А уже начатый живой кадр обязан досчитаться — иначе каждое событие мыши отменяло
+        // бы кадр, который начался от предыдущего, и картинка стояла бы до паузы в движении.
+        if (_isRendering && quality == FrameQuality.Draft && _renderingQuality != FrameQuality.Draft)
+            _renderCts?.Cancel();
 
         double due = _clock.Elapsed.TotalMilliseconds + delayMs;
         if (_frameRequested)
@@ -518,6 +521,7 @@ public partial class Fractal3DWindow : Window
         // Черновик во весь холст, да ещё и без движения, ничем не отличается от полного кадра:
         // считаем его сразу полным, чтобы не гонять ту же работу дважды и честно назвать результат.
         if (quality == FrameQuality.Draft && !moving && _draftScale >= 1) quality = FrameQuality.Full;
+        _renderingQuality = quality;
 
         var watch = Stopwatch.StartNew();
         SetRendering(true, quality == FrameQuality.Draft ? null : "Рендеринг...");
