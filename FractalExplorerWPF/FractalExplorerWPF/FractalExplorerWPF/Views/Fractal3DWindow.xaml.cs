@@ -11,6 +11,8 @@ using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
+using Brushes = System.Windows.Media.Brushes;
+using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
 
 namespace FractalExplorerWPF.Views;
@@ -42,6 +44,7 @@ public partial class Fractal3DWindow : Window
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Fractal3DRenderer _renderer = new();
     private readonly Fractal3DSaveStore _saveStore;
+    private readonly Fractal3DPaletteManager _paletteManager = new();
     private readonly Fractal3DDefinition _definition;
     private readonly IReadOnlyList<Fractal3DState> _presets;
 
@@ -62,6 +65,7 @@ public partial class Fractal3DWindow : Window
     private double _lastLoopMs;
     private double _draftScale = 0.5;
     private Fractal3DState? _lastGoodState;
+    private Fractal3DPalette _palette = Fractal3DPalettes.Classic();
     private byte[]? _draftBuffer;
     private byte[]? _fullBuffer;
     private WriteableBitmap? _draftBitmap;
@@ -151,13 +155,23 @@ public partial class Fractal3DWindow : Window
         AoStrength = ReadDouble(AoStrengthBox, "Сила затенения", 0, 1),
 
         ColoringMode = SelectedColoringMode,
+        ShadingStyle = SelectedShadingStyle,
+        EffectStrength = ReadDouble(EffectStrengthBox, "Сила эффекта", 0, 8),
         SurfaceColor = SurfaceColorSelector.SelectedColor,
-        ColorA = ColorASelector.SelectedColor,
-        ColorB = ColorBSelector.SelectedColor,
+        Palette = _palette.Clone(),
+
+        // Устаревшие цвета пишутся по краям палитры: файл, открытый сборкой без палитр,
+        // покажет тот же градиент из двух цветов, а не чёрно-белую заглушку.
+        ColorA = _palette.Colors.Count > 0 ? _palette.Colors[0] : Colors.Black,
+        ColorB = _palette.Colors.Count > 0 ? _palette.Colors[^1] : Colors.White,
+
         ColorScale = ReadDouble(ColorScaleBox, "Масштаб цвета", 0.01, 100),
         ColorOffset = ReadDouble(ColorOffsetBox, "Сдвиг цвета", -100, 100),
+        ColorRepeat = SelectedColorRepeat,
         BackgroundTop = BackgroundTopSelector.SelectedColor,
-        BackgroundBottom = BackgroundBottomSelector.SelectedColor
+        BackgroundBottom = BackgroundBottomSelector.SelectedColor,
+        LightColor = LightColorSelector.SelectedColor,
+        SkyLightMix = ReadDouble(SkyLightMixBox, "Влияние неба на свет", 0, 1)
     };
 
     public void LoadState(Fractal3DState state)
@@ -230,13 +244,18 @@ public partial class Fractal3DWindow : Window
         AoStrengthBox.Text = Format(state.AoStrength);
 
         ColoringModeBox.SelectedIndex = (int)state.ColoringMode;
+        ShadingStyleBox.SelectedIndex = (int)state.ShadingStyle;
+        EffectStrengthBox.Text = Format(state.EffectStrength);
         SurfaceColorSelector.SelectedColor = state.SurfaceColor;
-        ColorASelector.SelectedColor = state.ColorA;
-        ColorBSelector.SelectedColor = state.ColorB;
+        _palette = state.ResolvePalette();
+        RefreshPaletteBox();
+        ColorRepeatBox.SelectedIndex = (int)state.ColorRepeat;
         ColorScaleBox.Text = Format(state.ColorScale);
         ColorOffsetBox.Text = Format(state.ColorOffset);
         BackgroundTopSelector.SelectedColor = state.BackgroundTop;
         BackgroundBottomSelector.SelectedColor = state.BackgroundBottom;
+        LightColorSelector.SelectedColor = state.LightColor;
+        SkyLightMixBox.Text = Format(state.SkyLightMix);
 
         SyncCameraBoxes();
         _updatingUi = false;
@@ -260,7 +279,13 @@ public partial class Fractal3DWindow : Window
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
     private Fractal3DColoringMode SelectedColoringMode =>
-        (Fractal3DColoringMode)Math.Clamp(ColoringModeBox.SelectedIndex, 0, (int)Fractal3DColoringMode.Depth);
+        (Fractal3DColoringMode)Math.Clamp(ColoringModeBox.SelectedIndex, 0, (int)Fractal3DColoringMode.Steps);
+
+    private Fractal3DShadingStyle SelectedShadingStyle =>
+        (Fractal3DShadingStyle)Math.Clamp(ShadingStyleBox.SelectedIndex, 0, (int)Fractal3DShadingStyle.Translucent);
+
+    private Fractal3DColorRepeat SelectedColorRepeat =>
+        (Fractal3DColorRepeat)Math.Clamp(ColorRepeatBox.SelectedIndex, 0, (int)Fractal3DColorRepeat.Mirror);
 
     private Fractal3DRotationAnchor SelectedRotationAnchor =>
         (Fractal3DRotationAnchor)Math.Clamp(RotationAnchorBox.SelectedIndex, 0, (int)Fractal3DRotationAnchor.FreeLook);
@@ -277,8 +302,91 @@ public partial class Fractal3DWindow : Window
         if (MaterialColorPanel is null) return;
         Fractal3DColoringMode mode = SelectedColoringMode;
         MaterialColorPanel.Visibility = Collapse(mode == Fractal3DColoringMode.Material);
-        GradientColorPanel.Visibility = Collapse(
-            mode is Fractal3DColoringMode.OrbitTrap or Fractal3DColoringMode.Depth);
+        PalettePanel.Visibility = Collapse(Fractal3DCatalog.UsesPalette(mode));
+        UpdatePalettePreview();
+        UpdateShadingHint();
+    }
+
+    /// <summary>Полоска под списком палитр: те же цвета, что уйдут в шейдер.</summary>
+    private void UpdatePalettePreview()
+    {
+        List<Color> colors = _palette.Colors;
+        if (colors.Count == 0)
+        {
+            PalettePreview.Background = Brushes.Transparent;
+            return;
+        }
+        if (colors.Count == 1)
+        {
+            PalettePreview.Background = new SolidColorBrush(colors[0]);
+            return;
+        }
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5) };
+        for (int index = 0; index < colors.Count; index++)
+        {
+            if (_palette.IsGradient)
+            {
+                brush.GradientStops.Add(new GradientStop(colors[index], index / (double)(colors.Count - 1)));
+                continue;
+            }
+            brush.GradientStops.Add(new GradientStop(colors[index], index / (double)colors.Count));
+            brush.GradientStops.Add(new GradientStop(colors[index], (index + 1) / (double)colors.Count));
+        }
+        PalettePreview.Background = brush;
+    }
+
+    private void UpdateShadingHint() => ShadingStyleHint.Text = SelectedShadingStyle switch
+    {
+        Fractal3DShadingStyle.Clay => "Мягкий обёрнутый свет без бликов; складки затенены сильнее обычного.",
+        Fractal3DShadingStyle.Metal => "В поверхности отражается небо, поэтому цвета фона становятся частью фигуры.",
+        Fractal3DShadingStyle.Glow => "Луч по дороге копит близость к поверхности: складки светятся и в пустоте.",
+        Fractal3DShadingStyle.Density => "Луч проходит фигуру насквозь — поверхности нет, есть накопленная плотность.",
+        Fractal3DShadingStyle.Studio => "Свет берётся от нормали в осях камеры: фигура читается с любой стороны.",
+        Fractal3DShadingStyle.Toon => "Свет ступенями и тёмная обводка силуэта; сила эффекта задаёт число ступеней.",
+        Fractal3DShadingStyle.Translucent => "Свет, пришедший с изнанки, подсвечивает тонкие места насквозь.",
+        _ => "Рассеянный свет, блик, мягкая тень и затенение складок — вид по умолчанию."
+    };
+
+    /// <summary>
+    /// Список палитр окна. Палитра открытого вида может быть не из библиотеки — например,
+    /// пришла из старого сохранения; тогда она становится первой строкой, чтобы список не
+    /// показывал пустоту вместо того, что видно на экране.
+    /// </summary>
+    private void RefreshPaletteBox()
+    {
+        var items = new List<Fractal3DPalette>(_paletteManager.Palettes);
+        Fractal3DPalette? listed = items.FirstOrDefault(
+            palette => palette.Name.Equals(_palette.Name, StringComparison.OrdinalIgnoreCase));
+        if (listed is null)
+        {
+            listed = _palette;
+            items.Insert(0, listed);
+        }
+
+        bool updating = _updatingUi;
+        _updatingUi = true;
+        PaletteBox.ItemsSource = items;
+        PaletteBox.SelectedItem = listed;
+        _updatingUi = updating;
+        UpdatePalettePreview();
+    }
+
+    /// <summary>Ставит палитру на вид и, если она задаёт окружение, заодно фон, свет и материал.</summary>
+    private void ApplyPalette(Fractal3DPalette palette)
+    {
+        _palette = palette.Clone();
+        bool updating = _updatingUi;
+        _updatingUi = true;
+        if (_palette.OverridesEnvironment)
+        {
+            BackgroundTopSelector.SelectedColor = _palette.BackgroundTop;
+            BackgroundBottomSelector.SelectedColor = _palette.BackgroundBottom;
+            LightColorSelector.SelectedColor = _palette.LightColor;
+            SurfaceColorSelector.SelectedColor = _palette.SurfaceColor;
+        }
+        _updatingUi = updating;
+        RefreshPaletteBox();
+        if (!_updatingUi) ScheduleRender();
     }
 
     private void UpdateCameraText() =>
@@ -319,6 +427,44 @@ public partial class Fractal3DWindow : Window
     {
         UpdateColoringPanels();
         if (!_updatingUi) ScheduleRender();
+    }
+
+    private void PaletteBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingUi || PaletteBox.SelectedItem is not Fractal3DPalette palette) return;
+        if (ReferenceEquals(palette, _palette)) return;
+        ApplyPalette(palette);
+    }
+
+    private void PaletteManagerButton_OnClick(object sender, RoutedEventArgs e) => SuspendLive(() =>
+    {
+        var window = new Fractal3DPaletteWindow(_paletteManager, _palette, RenderPalettePreviewAsync)
+        {
+            Owner = this
+        };
+        window.PaletteApplied += (_, palette) => ApplyPalette(palette);
+        window.ShowDialog();
+        RefreshPaletteBox();
+    });
+
+    /// <summary>
+    /// Кадр для менеджера палитр: та же фигура, тот же ракурс и те же настройки, что в окне, но
+    /// с примеряемой палитрой. Живой цикл на это время остановлен, поэтому устройство свободно.
+    /// </summary>
+    private Task<BitmapSource> RenderPalettePreviewAsync(
+        Fractal3DPalette palette, int width, int height, CancellationToken token)
+    {
+        Fractal3DState state = CaptureState("palette");
+        state.Palette = palette.Clone();
+        state.Ssaa = 1;
+        if (palette.OverridesEnvironment)
+        {
+            state.BackgroundTop = palette.BackgroundTop;
+            state.BackgroundBottom = palette.BackgroundBottom;
+            state.LightColor = palette.LightColor;
+            state.SurfaceColor = palette.SurfaceColor;
+        }
+        return _renderer.RenderAsync(state, width, height, null, token);
     }
 
     private void Camera_OnChanged(object sender, TextChangedEventArgs e)
@@ -556,9 +702,9 @@ public partial class Fractal3DWindow : Window
                     ? null
                     : new Progress<int>(value => RenderProgress.Value = value);
 
-                byte[] buffer = await _renderer.RenderPixelsAsync(
+                Fractal3DPixels frame = await _renderer.RenderPixelsAsync(
                     frameState, width, height, draft ? _draftBuffer : _fullBuffer, progress, cts.Token);
-                cts.Token.ThrowIfCancellationRequested();
+                byte[] buffer = frame.Buffer;
 
                 WriteableBitmap target;
                 if (draft)
@@ -573,6 +719,11 @@ public partial class Fractal3DWindow : Window
                     _fullBitmap = EnsureBitmap(_fullBitmap, width, height);
                     target = _fullBitmap;
                 }
+
+                // Кадр уступил место движению камеры: показывать половину нечего, следующий уже
+                // в очереди. Это обычный ход, поэтому ни исключения, ни сообщения здесь нет.
+                if (!frame.Completed) return;
+
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
                 RenderOptions.SetBitmapScalingMode(CanvasImage,
                     draft ? BitmapScalingMode.LowQuality : BitmapScalingMode.HighQuality);

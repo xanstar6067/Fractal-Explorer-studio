@@ -91,18 +91,33 @@ internal static partial class Program
 
         // Живое превью переписывает один и тот же буфер: кадр от этого меняться не должен.
         byte[] reused = new byte[Fractal3DProbeWidth * Fractal3DProbeHeight * 4 + 1024];
-        byte[] filled = await renderer.RenderPixelsAsync(
+        Fractal3DPixels live = await renderer.RenderPixelsAsync(
             state, Fractal3DProbeWidth, Fractal3DProbeHeight, reused, null, CancellationToken.None);
-        Check(ReferenceEquals(filled, reused), "A buffer large enough must be reused instead of allocated again.");
-        Check(filled.Take(reference.Length).SequenceEqual(reference),
+        Check(live.Completed && ReferenceEquals(live.Buffer, reused),
+            "A buffer large enough must be reused instead of allocated again.");
+        Check(live.Buffer.Take(reference.Length).SequenceEqual(reference),
             "A frame rendered into a ready buffer must match the ordinary frame.");
+
+        // Движение камеры отменяет начатое уточнение постоянно, поэтому отменённый живой кадр
+        // сообщает о себе значением, а не исключением: иначе отладчик останавливался бы на
+        // каждом повороте мыши.
+        using (var abandoned = new CancellationTokenSource())
+        {
+            await abandoned.CancelAsync();
+            Fractal3DPixels dropped = await renderer.RenderPixelsAsync(
+                state, Fractal3DProbeWidth, Fractal3DProbeHeight, reused, null, abandoned.Token);
+            Check(!dropped.Completed, "A cancelled live frame must report itself instead of throwing.");
+        }
 
         VerifyFractal3DCameraMath();
         VerifyFractal3DZoomGlide();
         await VerifyFractal3DProbeAsync(renderer);
+        VerifyFractal3DPalettes();
+        await VerifyFractal3DColoringAsync(renderer);
         VerifyFractal3DSaves();
-        Console.WriteLine($"PASS (fractal3d): {Enum.GetValues<Fractal3DKind>().Length} modes, presets, coloring, " +
-                          "camera, navigation, smooth zoom, surface probe and saves.");
+        Console.WriteLine($"PASS (fractal3d): {Enum.GetValues<Fractal3DKind>().Length} modes, presets, " +
+                          $"{Fractal3DPalettes.All.Count} palettes, {Enum.GetValues<Fractal3DShadingStyle>().Length} shaders, " +
+                          "coloring sources, camera, navigation, smooth zoom, surface probe and saves.");
     }
 
     /// <summary>
@@ -110,6 +125,144 @@ internal static partial class Program
     /// поворачивает взгляд, не сходя с места. Плюс луч через пиксель, по которому зонд откладывает
     /// измеренное расстояние.
     /// </summary>
+    /// <summary>
+    /// Библиотека палитр: встроенный набор, его неизменность для света и фона и круг
+    /// «сохранить — прочитать» пользовательской палитры через файл.
+    /// </summary>
+    private static void VerifyFractal3DPalettes()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (Fractal3DPalette palette in Fractal3DPalettes.All)
+        {
+            Check(names.Add(palette.Name), $"Palette «{palette.Name}» is listed twice.");
+            Check(palette.IsBuiltIn, $"«{palette.Name}»: a listed palette must be marked built-in.");
+            Check(palette.Colors.Count is > 1 and <= Fractal3DPalette.MaxColors,
+                $"«{palette.Name}»: {palette.Colors.Count} colors do not fit the shader.");
+
+            // Пользователь просил, чтобы встроенные раскраски оставляли свет и фон как были.
+            Check(!palette.OverridesEnvironment &&
+                  palette.BackgroundTop == Fractal3DEnvironment.BackgroundTop &&
+                  palette.BackgroundBottom == Fractal3DEnvironment.BackgroundBottom &&
+                  palette.LightColor == Fractal3DEnvironment.LightColor,
+                $"«{palette.Name}»: a built-in palette must leave the light and the sky alone.");
+        }
+        Check(Fractal3DPalettes.All[0].Name == Fractal3DPalettes.ClassicName,
+            "The palette of the default view must come first in the library.");
+
+        // Копия встроенной палитры правится свободно и не задевает библиотеку.
+        Fractal3DPalette classic = Fractal3DPalettes.Classic();
+        classic.Colors.Add(Colors.Red);
+        Check(Fractal3DPalettes.Get(Fractal3DPalettes.ClassicName).Colors.Count == 2 && !classic.IsBuiltIn,
+            "A palette taken from the library must be an editable copy.");
+
+        var manager = new Fractal3DPaletteManager();
+        Check(manager.Palettes.Count == Fractal3DPalettes.All.Count && manager.Find("Виридис") is not null,
+            "A fresh library must hold exactly the built-in palettes.");
+        var custom = new Fractal3DPalette
+        {
+            Name = "Проверочная палитра",
+            Colors = [Colors.Black, Color.FromRgb(200, 30, 90), Colors.White],
+            IsGradient = false,
+            Gamma = 1.75,
+            OverridesEnvironment = true,
+            LightColor = Color.FromRgb(255, 200, 120)
+        };
+        manager.Palettes.Add(custom);
+        manager.SaveCustomPalettes();
+
+        var reloaded = new Fractal3DPaletteManager();
+        Fractal3DPalette? restored = reloaded.Find(custom.Name);
+        Check(restored is not null && !restored.IsBuiltIn && restored.Colors.SequenceEqual(custom.Colors) &&
+              restored.IsGradient == custom.IsGradient && restored.Gamma.Equals(custom.Gamma) &&
+              restored.OverridesEnvironment && restored.LightColor == custom.LightColor,
+            "A custom palette must survive the round trip through the palette file.");
+        Check(reloaded.Palettes.Count(palette => palette.IsBuiltIn) == Fractal3DPalettes.All.Count,
+            "The built-in palettes must not be written to the file and read back twice.");
+    }
+
+    /// <summary>
+    /// Палитры, источники цвета и встроенные шейдеры должны доходить до кадра, а сохранение без
+    /// палитры — по-прежнему рисоваться старыми двумя цветами.
+    /// </summary>
+    private static async Task VerifyFractal3DColoringAsync(Fractal3DRenderer renderer)
+    {
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
+        byte[] reference = await Fractal3DFrameAsync(renderer, state);
+
+        Fractal3DState repainted = state.Clone();
+        repainted.Palette = Fractal3DPalettes.Get("Виридис");
+        byte[] repaintedFrame = await Fractal3DFrameAsync(renderer, repainted);
+        Check(!reference.SequenceEqual(repaintedFrame), "The palette must change the frame.");
+
+        Fractal3DState banded = repainted.Clone();
+        banded.Palette!.IsGradient = false;
+        byte[] bandedFrame = await Fractal3DFrameAsync(renderer, banded);
+        Check(!repaintedFrame.SequenceEqual(bandedFrame),
+            "Bands instead of a gradient must change the frame.");
+
+        Fractal3DState cycled = repainted.Clone();
+        cycled.ColorRepeat = Fractal3DColorRepeat.Cycle;
+        byte[] cycledFrame = await Fractal3DFrameAsync(renderer, cycled);
+        Check(!repaintedFrame.SequenceEqual(cycledFrame),
+            "The repeat mode must change the frame.");
+
+        Fractal3DState lit = state.Clone();
+        lit.LightColor = Color.FromRgb(255, 120, 40);
+        byte[] litFrame = await Fractal3DFrameAsync(renderer, lit);
+        Check(!reference.SequenceEqual(litFrame),
+            "The colour of the light must change the frame.");
+
+        Fractal3DState skyLit = state.Clone();
+        skyLit.SkyLightMix = 1;
+        byte[] skyLitFrame = await Fractal3DFrameAsync(renderer, skyLit);
+        Check(!reference.SequenceEqual(skyLitFrame),
+            "Letting the sky tint the ambient light must change the frame.");
+
+        // Сохранение старше палитр: цвета лежат в ColorA и ColorB, и кадр обязан совпасть с тем,
+        // что даёт собранная из них палитра, иначе старые файлы поменяли бы вид.
+        Fractal3DState legacy = state.Clone();
+        legacy.Palette = null;
+        legacy.ColorA = Color.FromRgb(26, 58, 122);
+        legacy.ColorB = Color.FromRgb(255, 186, 92);
+        byte[] legacyFrame = await Fractal3DFrameAsync(renderer, legacy);
+        Check(reference.SequenceEqual(legacyFrame),
+            "A save made before palettes must look exactly as it did.");
+
+        var frames = new List<byte[]>();
+        foreach (Fractal3DColoringMode mode in Enum.GetValues<Fractal3DColoringMode>())
+        {
+            Fractal3DState coloured = state.Clone();
+            coloured.ColoringMode = mode;
+            coloured.Palette = Fractal3DPalettes.Get("Спектр");
+            byte[] frame = await Fractal3DFrameAsync(renderer, coloured);
+            Check(HasFractal3DStructure(frame),
+                $"{Fractal3DCatalog.ColoringModeName(mode)}: the coloring source shows only the background.");
+            Check(frames.All(other => !other.SequenceEqual(frame)),
+                $"{Fractal3DCatalog.ColoringModeName(mode)}: the coloring source repeats another one.");
+            frames.Add(frame);
+        }
+
+        frames.Clear();
+        foreach (Fractal3DShadingStyle style in Enum.GetValues<Fractal3DShadingStyle>())
+        {
+            Fractal3DState shaded = state.Clone();
+            shaded.ShadingStyle = style;
+            byte[] frame = await Fractal3DFrameAsync(renderer, shaded);
+            Check(HasFractal3DStructure(frame),
+                $"{Fractal3DCatalog.ShadingStyleName(style)}: the shader shows only the background.");
+            Check(frames.All(other => !other.SequenceEqual(frame)),
+                $"{Fractal3DCatalog.ShadingStyleName(style)}: the shader repeats another one.");
+            frames.Add(frame);
+        }
+
+        // Плотность проходит фигуру насквозь, но зонду по-прежнему нужно первое попадание.
+        Fractal3DState pierced = state.Clone();
+        pierced.ShadingStyle = Fractal3DShadingStyle.Density;
+        double distance = await ProbeFractal3DAsync(renderer, pierced, Fractal3DRayWidth / 2.0, Fractal3DRayHeight / 2.0);
+        Check(double.IsFinite(distance) && distance > 0,
+            "The surface probe must keep working under the shader that pierces the surface.");
+    }
+
     private static void VerifyFractal3DCameraMath()
     {
         var orbit = new Fractal3DOrbit(35, 18, 2.8, new Vector3(0.1f, -0.2f, 0.3f));
@@ -267,6 +420,13 @@ internal static partial class Program
             original.SaveName = $"Проверка {kind}";
             original.Timestamp = new DateTime(2026, 3, 4, 5, 6, 7);
             original.ColorA = Color.FromRgb(11, 22, 33);
+            original.Palette = Fractal3DPalettes.Get("Закат");
+            original.Palette.Gamma = 1.4;
+            original.ColorRepeat = Fractal3DColorRepeat.Cycle;
+            original.ShadingStyle = Fractal3DShadingStyle.Toon;
+            original.EffectStrength = 1.75;
+            original.LightColor = Color.FromRgb(240, 210, 160);
+            original.SkyLightMix = 0.5;
             original.RotationAnchor = Fractal3DRotationAnchor.FreeLook;
             original.MotionQuality = Fractal3DMotionQuality.Draft;
             original.ZoomToCursor = false;
@@ -286,7 +446,14 @@ internal static partial class Program
                   loaded.SoftShadows == original.SoftShadows && loaded.AmbientOcclusion == original.AmbientOcclusion &&
                   loaded.RotationAnchor == original.RotationAnchor && loaded.MotionQuality == original.MotionQuality &&
                   loaded.ZoomToCursor == original.ZoomToCursor && loaded.RotationInertia == original.RotationInertia &&
-                  loaded.AutoRotate == original.AutoRotate && loaded.AutoRotateSpeed.Equals(original.AutoRotateSpeed),
+                  loaded.AutoRotate == original.AutoRotate && loaded.AutoRotateSpeed.Equals(original.AutoRotateSpeed) &&
+                  loaded.ShadingStyle == original.ShadingStyle &&
+                  loaded.EffectStrength.Equals(original.EffectStrength) &&
+                  loaded.ColorRepeat == original.ColorRepeat && loaded.LightColor == original.LightColor &&
+                  loaded.SkyLightMix.Equals(original.SkyLightMix) &&
+                  loaded.Palette is not null && loaded.Palette.Name == original.Palette.Name &&
+                  loaded.Palette.Gamma.Equals(original.Palette.Gamma) &&
+                  loaded.Palette.Colors.SequenceEqual(original.Palette.Colors),
                 $"{kind}: the save must restore every parameter of the state.");
         }
     }

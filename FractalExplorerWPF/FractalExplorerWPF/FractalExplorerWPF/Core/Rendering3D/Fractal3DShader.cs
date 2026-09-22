@@ -5,7 +5,9 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 /// <summary>
 /// Исходник пиксельного шейдера трассировки лучей по дистанционной оценке (distance estimation).
 /// Вид фрактала подставляется препроцессором: для каждого <see cref="Fractal3DKind"/> компилируется
-/// свой шейдер, поэтому в горячем цикле нет ветвления по режиму.
+/// свой шейдер, поэтому в горячем цикле нет ветвления по режиму. Палитра, источник цвета и стиль
+/// освещения приходят константами и ветвятся единообразно для всего кадра, поэтому набор встроенных
+/// шейдеров не умножает число компиляций.
 /// </summary>
 internal static class Fractal3DShader
 {
@@ -32,12 +34,14 @@ internal static class Fractal3DShader
             float4 ShapeC;            // x — срез w, y — масштаб окраски, z — сдвиг окраски
             float4 Light;             // xyz — направление на источник, w — сила бликов
             float4 Surface;           // rgb — цвет материала, a — сила затенения
-            float4 ColorA;
-            float4 ColorB;
             float4 BackgroundTop;
             float4 BackgroundBottom;
             float4 Flags;             // x — режим окраски, y — жёсткость теней (0 — выкл), z — затенение, w — фоновый свет
             float4 Probe;             // x — 0: обычный кадр, 1: расстояние до поверхности вдоль луча
+            float4 Style;             // x — шейдер освещения, y — сила эффекта, z — влияние неба
+            float4 LightColor;        // rgb — цвет источника света
+            float4 PaletteInfo;       // x — число цветов, y — повтор, z — полосы, w — гамма
+            float4 Palette[16];       // rgb — опорные цвета градиента
         };
 
         PSInput VSMain(uint id : SV_VertexID)
@@ -65,11 +69,25 @@ internal static class Fractal3DShader
             return float4(a.x * a.x - dot(a.yzw, a.yzw), 2.0 * a.x * a.yzw);
         }
 
-        // Дистанционная оценка до поверхности фрактала. trap — минимум орбиты, он же источник
-        // цвета в режиме орбитальной ловушки.
-        float Map(float3 p, out float trap)
+        // Расстояние орбиты до ближайшей координатной плоскости: вторая ловушка, дающая рисунок
+        // вдоль осей там, где сферическая ловушка даёт кольца.
+        float MinAxis(float3 v)
+        {
+            float3 a = abs(v);
+            return min(a.x, min(a.y, a.z));
+        }
+
+        // Дистанционная оценка до поверхности фрактала. trap — данные орбиты, из которых берётся
+        // цвет: x — минимальный радиус, y — минимум по осям, z — номер последней итерации
+        // (у вылетающих орбит это итерация вылета, у остальных — итерация минимума),
+        // w — радиус на выходе. В тенях и нормалях эти величины не читаются, и компилятор
+        // выбрасывает их расчёт вместе с мёртвым кодом.
+        float Map(float3 p, out float4 trap)
         {
             int iterations = (int)March.w;
+            float trapRadius2 = 1e20;
+            float trapAxis = 1e20;
+            float trapIndex = 0.0;
 
         #if FRACTAL_KIND == 2
 
@@ -81,13 +99,14 @@ internal static class Fractal3DShader
 
             float3 z = p;
             float dr = 1.0;
-            trap = dot(z, z);
             [loop]
             for (int i = 0; i < iterations; i++)
             {
+                trapIndex = (float)i;
                 z = clamp(z, -foldingLimit, foldingLimit) * 2.0 - z;
                 float r2 = dot(z, z);
-                trap = min(trap, r2);
+                trapRadius2 = min(trapRadius2, r2);
+                trapAxis = min(trapAxis, MinAxis(z));
                 if (r2 < minRadius2)
                 {
                     float factor = fixedRadius2 / max(minRadius2, 1e-6);
@@ -104,13 +123,14 @@ internal static class Fractal3DShader
                 dr = dr * abs(scale) + 1.0;
                 if (dot(z, z) > bailout) break;
             }
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
             return length(z) / max(abs(dr), 1e-9);
 
         #elif FRACTAL_KIND == 3
 
             float d = BoxDistance(p, float3(1.0, 1.0, 1.0));
-            trap = 3.0;
             float s = 1.0;
+            float3 last = p;
             [loop]
             for (int i = 0; i < iterations; i++)
             {
@@ -121,9 +141,13 @@ internal static class Fractal3DShader
                 float db = max(r.y, r.z);
                 float dc = max(r.z, r.x);
                 float c = (min(da, min(db, dc)) - 1.0) / s;
-                trap = min(trap, dot(a, a));
+                float r2 = dot(a, a);
+                if (r2 < trapRadius2) { trapRadius2 = r2; trapIndex = (float)i; }
+                trapAxis = min(trapAxis, MinAxis(a));
+                last = a;
                 d = max(d, c);
             }
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(last));
             return d;
 
         #elif FRACTAL_KIND == 4
@@ -135,7 +159,6 @@ internal static class Fractal3DShader
             const float3 a4 = float3(-1.0, 1.0, -1.0);
 
             float3 z = p;
-            trap = dot(z, z);
             [loop]
             for (int i = 0; i < iterations; i++)
             {
@@ -148,8 +171,11 @@ internal static class Fractal3DShader
                 d = length(z - a4);
                 if (d < nearest) { c = a4; nearest = d; }
                 z = scale * z - c * (scale - 1.0);
-                trap = min(trap, dot(z, z));
+                float r2 = dot(z, z);
+                if (r2 < trapRadius2) { trapRadius2 = r2; trapIndex = (float)i; }
+                trapAxis = min(trapAxis, MinAxis(z));
             }
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
             return length(z) * pow(max(abs(scale), 1.0001), -float(iterations));
 
         #elif FRACTAL_KIND == 5
@@ -159,16 +185,18 @@ internal static class Fractal3DShader
             float4 c = ShapeB;
             float md2 = 1.0;
             float mz2 = dot(z, z);
-            trap = mz2;
             [loop]
             for (int i = 0; i < iterations; i++)
             {
+                trapIndex = (float)i;
                 md2 *= 4.0 * mz2;
                 z = QuaternionSquare(z) + c;
                 mz2 = dot(z, z);
-                trap = min(trap, mz2);
+                trapRadius2 = min(trapRadius2, mz2);
+                trapAxis = min(trapAxis, MinAxis(z.xyz));
                 if (mz2 > bailout) break;
             }
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, sqrt(mz2));
             return 0.25 * sqrt(mz2 / max(md2, 1e-12)) * log(max(mz2, 1.000001));
 
         #else
@@ -184,12 +212,16 @@ internal static class Fractal3DShader
             float3 z = p;
             float dr = 1.0;
             float r = length(z);
-            trap = r;
             [loop]
             for (int i = 0; i < iterations; i++)
             {
+                trapIndex = (float)i;
                 r = length(z);
-                trap = min(trap, r);
+                // Здесь копится сам радиус, а не его квадрат: до появления палитр цвет
+                // Мандельбульба брался как sqrt(минимального радиуса), и корень ниже возвращает
+                // ровно эту величину — иначе вид уже сохранённых кадров сместился бы.
+                trapRadius2 = min(trapRadius2, r);
+                trapAxis = min(trapAxis, MinAxis(z));
                 if (r > bailout) break;
 
                 float invR = 1.0 / max(r, 1e-12);
@@ -204,6 +236,7 @@ internal static class Fractal3DShader
                 z = zr * float3(sinTheta * cos(phi), sinTheta * sin(phi), cos(theta)) + c;
             }
             r = length(z);
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
             return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
 
         #endif
@@ -212,7 +245,7 @@ internal static class Fractal3DShader
         float3 EstimateNormal(float3 p, float epsilon)
         {
             float2 k = float2(1.0, -1.0);
-            float trap;
+            float4 trap;
             return normalize(
                 k.xyy * Map(p + k.xyy * epsilon, trap) +
                 k.yyx * Map(p + k.yyx * epsilon, trap) +
@@ -224,7 +257,7 @@ internal static class Fractal3DShader
         {
             float result = 1.0;
             float travelled = minDistance;
-            float trap;
+            float4 trap;
             [loop]
             for (int i = 0; i < 48; i++)
             {
@@ -240,7 +273,7 @@ internal static class Fractal3DShader
         {
             float occluded = 0.0;
             float weight = 1.0;
-            float trap;
+            float4 trap;
             [unroll]
             for (int i = 0; i < 5; i++)
             {
@@ -251,21 +284,79 @@ internal static class Fractal3DShader
             return saturate(1.0 - 3.0 * occluded);
         }
 
-        float3 BaseColor(float3 normal, float trap, float travelled)
+        // Цвет по положению на градиенте. Повтор «отражать» со смягчением краёв — это ровно та
+        // окраска, которая рисовалась до появления палитр, поэтому старые виды не меняются.
+        float3 SamplePalette(float value, int repeat)
+        {
+            int count = clamp((int)PaletteInfo.x, 1, 16);
+            bool ring = repeat == 1;
+
+            float t;
+            if (ring)
+            {
+                t = frac(value);
+            }
+            else if (repeat == 2)
+            {
+                t = 1.0 - abs(2.0 * frac(value) - 1.0);
+                t = t * t * (3.0 - 2.0 * t);
+            }
+            else
+            {
+                t = saturate(value);
+            }
+            t = pow(saturate(t), max(PaletteInfo.w, 1e-3));
+
+            if (count == 1) return Palette[0].rgb;
+            if (PaletteInfo.z > 0.5)
+            {
+                int band = clamp((int)(t * count), 0, count - 1);
+                return Palette[band].rgb;
+            }
+            if (ring)
+            {
+                float scaled = t * count;
+                int low = clamp((int)scaled, 0, count - 1);
+                int high = low + 1 == count ? 0 : low + 1;
+                return lerp(Palette[low].rgb, Palette[high].rgb, saturate(scaled - (float)low));
+            }
+            float span = t * (count - 1);
+            int first = clamp((int)span, 0, count - 2);
+            return lerp(Palette[first].rgb, Palette[first + 1].rgb, saturate(span - (float)first));
+        }
+
+        float3 SamplePalette(float value)
+        {
+            return SamplePalette(value, (int)PaletteInfo.y);
+        }
+
+        float3 SkyAt(float3 direction)
+        {
+            return lerp(BackgroundBottom.rgb, BackgroundTop.rgb, saturate(direction.y * 0.5 + 0.5));
+        }
+
+        // Цвет поверхности до освещения. Каждый источник приводится к величине порядка единицы,
+        // чтобы масштаб и сдвиг окраски означали примерно одно и то же во всех режимах.
+        float3 SurfaceAlbedo(
+            float3 normal, float4 trap, float travelled, float3 surfacePoint,
+            float3 rayDirection, float occlusion, float stepsRatio)
         {
             int mode = (int)Flags.x;
+            if (mode == 0) return Surface.rgb;
             if (mode == 1) return abs(normal);
-            if (mode == 2)
-            {
-                float t = frac(sqrt(max(trap, 0.0)) * ShapeC.y + ShapeC.z);
-                return lerp(ColorA.rgb, ColorB.rgb, smoothstep(0.0, 1.0, 1.0 - abs(2.0 * t - 1.0)));
-            }
-            if (mode == 3)
-            {
-                float t = saturate(travelled / max(March.z, 1e-3) * 6.0 * ShapeC.y + ShapeC.z);
-                return lerp(ColorA.rgb, ColorB.rgb, t);
-            }
-            return Surface.rgb;
+
+            float value;
+            if (mode == 2) value = trap.x;
+            else if (mode == 3) value = travelled / max(March.z, 1e-3) * 6.0;
+            else if (mode == 4) value = trap.y * 3.0;
+            else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
+            else if (mode == 6) value = log(1.0 + trap.w) * 0.5;
+            else if (mode == 7) value = surfacePoint.y;
+            else if (mode == 8) value = 1.0 - occlusion;
+            else if (mode == 9) value = 1.0 - saturate(dot(normal, -rayDirection));
+            else value = stepsRatio;
+
+            return SamplePalette(value * ShapeC.y + ShapeC.z);
         }
 
         // Зонд возвращает число, а не цвет: байты float укладываются в цель B8G8R8A8_UNorm
@@ -300,36 +391,67 @@ internal static class Fractal3DShader
             int maxSteps = (int)March.x;
             float maxDistance = March.z;
 
+            int style = (int)Style.x;
+            float strength = max(Style.y, 0.0);
+            bool volumetric = style == 3 || style == 4;
+            // Плотность рисует фигуру насквозь, но зонду по-прежнему нужно первое попадание:
+            // от него считается шаг движения камеры.
+            bool pierce = style == 4 && Probe.x < 0.5;
+
             float travelled = 0.0;
-            float trap = 0.0;
+            float4 trap = 0.0;
             float epsilon = 1e-6;
+            float proximity = 0.0;
+            int usedSteps = 0;
             bool hit = false;
 
             [loop]
             for (int i = 0; i < maxSteps; i++)
             {
-                float stepTrap;
+                float4 stepTrap;
                 float3 samplePoint = rayOrigin + rayDirection * travelled;
                 float stepDistance = Map(samplePoint, stepTrap);
                 epsilon = max(pixelRadius * travelled, 1e-7);
-                if (stepDistance < epsilon)
+                usedSteps = i + 1;
+                float advance = stepDistance < epsilon ? max(epsilon * 2.0, stepDistance) : stepDistance;
+                // Близость копится с весом пройденного пути, а не по числу шагов: иначе луч,
+                // застрявший у поверхности, за пару кадров насыщал бы яркость до белого.
+                if (volumetric) proximity += exp(-abs(stepDistance) * 22.0) * advance;
+                if (stepDistance < epsilon && !pierce)
                 {
                     trap = stepTrap;
                     hit = true;
                     break;
                 }
-                travelled += stepDistance;
+                travelled += advance;
                 if (travelled > maxDistance) break;
             }
 
             if (Probe.x > 0.5) return PackFloat(hit ? travelled : -1.0);
 
-            float3 sky = lerp(BackgroundBottom.rgb, BackgroundTop.rgb, saturate(rayDirection.y * 0.5 + 0.5));
-            if (!hit) return float4(LinearToSrgb(sky), 1.0);
+            float3 sky = SkyAt(rayDirection);
+            float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
+
+            if (style == 4)
+            {
+                // Накопленный путь соотносится с дальностью трассировки, иначе крупная фигура
+                // (Мандельбокс стоит в сотне единиц) насыщала бы плотность до сплошного пятна.
+                float density = saturate(proximity / max(maxDistance, 1e-3) * 12.0 * max(strength, 1e-3));
+                float3 tint = SamplePalette(density * ShapeC.y + ShapeC.z, 0);
+                return float4(LinearToSrgb(lerp(sky, tint, density)), 1.0);
+            }
+
+            float glow = style == 3
+                ? saturate(proximity / max(maxDistance, 1e-3) * 10.0 * strength)
+                : 0.0;
+            float3 glowTint = style == 3 ? SamplePalette(glow * ShapeC.y + ShapeC.z, 0) : 0.0;
+
+            if (!hit) return float4(LinearToSrgb(sky + glowTint * glow), 1.0);
 
             float3 surfacePoint = rayOrigin + rayDirection * travelled;
             float3 normal = EstimateNormal(surfacePoint, max(epsilon, 1e-6));
             float3 lightDirection = Light.xyz;
+            float3 lightTint = LightColor.rgb;
 
             float diffuse = saturate(dot(normal, lightDirection));
             float shadow = 1.0;
@@ -342,11 +464,64 @@ internal static class Fractal3DShader
             float occlusion = 1.0;
             if (Flags.z > 0.5) occlusion = lerp(1.0, Occlusion(surfacePoint, normal), saturate(Surface.a));
 
-            float3 albedo = BaseColor(normal, trap, travelled);
+            // Фоновый свет либо остаётся нейтральным, либо забирает цвет неба над точкой.
+            float3 ambientTint = lerp(float3(1.0, 1.0, 1.0), SkyAt(normal) * 3.0, saturate(Style.z));
+            float3 ambient = Flags.w * ambientTint;
+            float3 albedo = SurfaceAlbedo(
+                normal, trap, travelled, surfacePoint, rayDirection, occlusion, stepsRatio);
             float3 halfVector = normalize(lightDirection - rayDirection);
             float specular = Light.w * pow(saturate(dot(normal, halfVector)), 32.0) * shadow;
 
-            float3 color = albedo * (Flags.w + diffuse * shadow) * occlusion + specular;
+            float3 color;
+            if (style == 1)
+            {
+                // Глина: свет обёрнут вокруг фигуры, блика нет, складки затенены сильнее.
+                float wrapped = saturate(dot(normal, lightDirection) * 0.5 + 0.5);
+                color = albedo * (ambient * 0.8 + wrapped * shadow * lightTint) * occlusion * occlusion;
+            }
+            else if (style == 2)
+            {
+                // Металл: в поверхности отражается небо, поверх него — жёсткий блик от лампы.
+                float3 reflected = reflect(rayDirection, normal);
+                float fresnel = pow(1.0 - saturate(dot(normal, -rayDirection)), 5.0);
+                float sheen = saturate(dot(reflected, lightDirection));
+                float3 environment = SkyAt(reflected) * 2.0 +
+                    lightTint * (pow(sheen, 128.0) * 5.0 + pow(sheen, 6.0) * 0.45);
+                color = albedo * (ambient + diffuse * shadow * lightTint * 0.25) * occlusion * 0.6 +
+                    albedo * environment * lerp(0.35, 1.0, fresnel) * shadow * strength;
+            }
+            else if (style == 5)
+            {
+                // Студийный свет: освещение берётся от нормали в осях камеры, поэтому фигура
+                // одинаково читается с любой стороны и не зависит от положения лампы.
+                float2 screenNormal = float2(dot(normal, CameraRight.xyz), dot(normal, CameraUp.xyz));
+                float key = saturate(dot(screenNormal, normalize(float2(-0.55, 0.62))) * 0.6 + 0.55);
+                float fill = saturate(dot(screenNormal, normalize(float2(0.7, -0.3))) * 0.5 + 0.5) * 0.25;
+                float rim = pow(saturate(length(screenNormal)), 6.0) * 0.55 * strength;
+                color = albedo * (key + fill + Flags.w * 0.3) * occlusion + rim * lightTint;
+            }
+            else if (style == 6)
+            {
+                // Контурный: свет квантуется ступенями, силуэт обводится тёмной каймой.
+                float levels = max(2.0, floor(2.0 + strength * 2.0));
+                float lit = floor(saturate(diffuse * shadow) * levels) / max(levels - 1.0, 1.0);
+                float edge = 1.0 - smoothstep(0.12, 0.42, saturate(dot(normal, -rayDirection)));
+                color = albedo * (ambient + lit * lightTint) * occlusion * (1.0 - edge);
+            }
+            else if (style == 7)
+            {
+                // Просвечивание: свет, пришедший с изнанки, тем заметнее, чем тоньше место.
+                float thickness = pow(saturate(occlusion), 3.0);
+                float back = pow(saturate(dot(-normal, lightDirection)) * 0.6 + 0.4, 2.0);
+                color = albedo * (ambient + diffuse * shadow * lightTint * 0.6) * occlusion +
+                    albedo * back * thickness * strength * lightTint * 2.5 + specular * lightTint;
+            }
+            else
+            {
+                color = albedo * (ambient + diffuse * shadow * lightTint) * occlusion + specular * lightTint;
+            }
+
+            if (style == 3) color += glowTint * glow * 1.2;
             color = lerp(color, sky, saturate(travelled / max(maxDistance, 1e-3)));
             return float4(LinearToSrgb(color), 1.0);
         }

@@ -250,14 +250,45 @@
                         </StackPanel>
                     </Expander>
 
+                    <Expander Header="Шейдер" Margin="0,2,0,4">
+                        <StackPanel Margin="10,6,0,2">
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Освещение"/>
+                            <ComboBox x:Name="ShadingStyleBox" SelectionChanged="Parameter_OnChanged"
+                                      ToolTip="Набор встроенных шейдеров: форма фрактала не меняется, меняется способ превратить поверхность в цвет.">
+                                <ComboBoxItem Content="Классический"/>
+                                <ComboBoxItem Content="Глина"/>
+                                <ComboBoxItem Content="Металл"/>
+                                <ComboBoxItem Content="Свечение"/>
+                                <ComboBoxItem Content="Плотность"/>
+                                <ComboBoxItem Content="Студийный свет"/>
+                                <ComboBoxItem Content="Контурный"/>
+                                <ComboBoxItem Content="Просвечивание"/>
+                            </ComboBox>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Сила эффекта"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="EffectStrengthBox"
+                                     ToolTip="Насколько выражен эффект выбранного шейдера: ореол свечения, отражение металла, число ступеней контура."
+                                     TextChanged="Parameter_OnChanged"/>
+                            <TextBlock x:Name="ShadingStyleHint" Margin="0,6,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Theme.DisabledTextBrush}"/>
+                        </StackPanel>
+                    </Expander>
+
                     <Expander Header="Окраска" Margin="0,2,0,4">
                         <StackPanel Margin="10,6,0,2">
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Источник цвета"/>
-                            <ComboBox x:Name="ColoringModeBox" SelectionChanged="ColoringModeBox_OnSelectionChanged">
+                            <ComboBox x:Name="ColoringModeBox" SelectionChanged="ColoringModeBox_OnSelectionChanged"
+                                      ToolTip="Какая величина превращается в позицию на палитре.">
                                 <ComboBoxItem Content="Материал"/>
                                 <ComboBoxItem Content="По нормали"/>
                                 <ComboBoxItem Content="Орбитальная ловушка"/>
                                 <ComboBoxItem Content="По глубине"/>
+                                <ComboBoxItem Content="Ловушка по осям"/>
+                                <ComboBoxItem Content="Номер итерации"/>
+                                <ComboBoxItem Content="Скорость убегания"/>
+                                <ComboBoxItem Content="По высоте"/>
+                                <ComboBoxItem Content="По затенению складок"/>
+                                <ComboBoxItem Content="По углу взгляда"/>
+                                <ComboBoxItem Content="По числу шагов луча"/>
                             </ComboBox>
 
                             <StackPanel x:Name="MaterialColorPanel">
@@ -266,13 +297,26 @@
                                                                SelectedColorChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
-                            <StackPanel x:Name="GradientColorPanel">
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет A"/>
-                                <controls:ColorSelectorControl x:Name="ColorASelector"
-                                                               SelectedColorChanged="Parameter_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет B"/>
-                                <controls:ColorSelectorControl x:Name="ColorBSelector"
-                                                               SelectedColorChanged="Parameter_OnChanged"/>
+                            <StackPanel x:Name="PalettePanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Палитра"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="PaletteBox" DisplayMemberPath="Name"
+                                              SelectionChanged="PaletteBox_OnSelectionChanged"/>
+                                    <Button Grid.Column="1" Margin="6,4,0,4" MinWidth="42" Content="…"
+                                            ToolTip="Менеджер палитр трёхмерных фракталов"
+                                            Click="PaletteManagerButton_OnClick"/>
+                                </Grid>
+                                <Border x:Name="PalettePreview" Height="16" Margin="0,2,0,2" CornerRadius="3"
+                                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1"
+                                        theme:ThemeContract.IgnoreAudit="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Повтор палитры"/>
+                                <ComboBox x:Name="ColorRepeatBox" SelectionChanged="Parameter_OnChanged"
+                                          ToolTip="Что делать со значениями вне палитры: зажать по краям, повторять по кругу или отражать туда и обратно.">
+                                    <ComboBoxItem Content="Зажать"/>
+                                    <ComboBoxItem Content="По кругу"/>
+                                    <ComboBoxItem Content="Отражать"/>
+                                </ComboBox>
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,4,0">
@@ -294,9 +338,13 @@
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Фон внизу"/>
                             <controls:ColorSelectorControl x:Name="BackgroundBottomSelector"
                                                            SelectedColorChanged="Parameter_OnChanged"/>
-                            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource Theme.DisabledTextBrush}"
-                                       Text="Это базовая окраска. Палитры и эффекты шейдеров появятся отдельной системой."/>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет света"/>
+                            <controls:ColorSelectorControl x:Name="LightColorSelector"
+                                                           SelectedColorChanged="Parameter_OnChanged"/>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Влияние неба на свет"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SkyLightMixBox"
+                                     ToolTip="0 — фоновый свет нейтральный, как раньше. 1 — фоновый свет полностью берёт цвет неба над точкой."
+                                     TextChanged="Parameter_OnChanged"/>
                         </StackPanel>
                     </Expander>
 

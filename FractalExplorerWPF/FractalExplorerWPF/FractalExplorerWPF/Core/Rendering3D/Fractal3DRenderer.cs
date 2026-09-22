@@ -13,6 +13,12 @@ using WpfColor = System.Windows.Media.Color;
 namespace FractalExplorerWPF.Core.Rendering3D;
 
 /// <summary>
+/// Результат живого кадра: буфер и признак того, что кадр досчитан, а не уступил место движению
+/// камеры.
+/// </summary>
+public readonly record struct Fractal3DPixels(byte[] Buffer, bool Completed);
+
+/// <summary>
 /// Трассировка лучей по дистанционной оценке на GPU (Direct3D 11 через Vortice). Кадр считается
 /// горизонтальными полосами: так работает прогресс и отмена, а длинный экспорт не упирается в
 /// сторожевой таймер драйвера (TDR), который снимает один слишком долгий вызов отрисовки.
@@ -23,7 +29,14 @@ public sealed class Fractal3DRenderer : IDisposable
     /// <summary>Сколько пикселей считается за одну отрисовку при качестве по умолчанию.</summary>
     private const int BaseStripBudget = 1_000_000;
 
+    /// <summary>Как часто ожидание очереди к устройству оглядывается на отмену.</summary>
+    private const int GateWaitMs = 20;
+
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    /// <summary>Опорные цвета палитры кадра: тот же массив переиспользуется каждой полосой.</summary>
+    private readonly float[] _palette = new float[Fractal3DPalette.MaxColors * 4];
+
     private readonly Dictionary<Fractal3DKind, ID3D11PixelShader> _pixelShaders = [];
     private ID3D11Device? _device;
     private ID3D11DeviceContext? _context;
@@ -52,10 +65,12 @@ public sealed class Fractal3DRenderer : IDisposable
     {
         int safeWidth = Math.Max(1, width);
         int safeHeight = Math.Max(1, height);
-        byte[] pixels = await RenderPixelsAsync(state, safeWidth, safeHeight, null, progress, token);
+        Fractal3DPixels frame = await RenderPixelsAsync(state, safeWidth, safeHeight, null, progress, token);
+        // Здесь отмена — это отказ от результата: превью сохранения и экспорт ждут кадр целиком.
+        if (!frame.Completed) token.ThrowIfCancellationRequested();
 
         BitmapSource bitmap = BitmapSource.Create(safeWidth, safeHeight, 96, 96,
-            PixelFormats.Bgra32, null, pixels, checked(safeWidth * 4));
+            PixelFormats.Bgra32, null, frame.Buffer, checked(safeWidth * 4));
         bitmap.Freeze();
         return bitmap;
     }
@@ -63,8 +78,10 @@ public sealed class Fractal3DRenderer : IDisposable
     /// <summary>
     /// Кадр в готовый буфер BGRA: живое превью переписывает один и тот же массив и один и тот же
     /// <c>WriteableBitmap</c>, поэтому на каждом кадре движения не появляется нового мусора.
+    /// Отменённый кадр не бросает исключение, а возвращается с <c>Completed = false</c>: движение
+    /// камеры отменяет начатое уточнение постоянно, и это обычный ход, а не ошибка.
     /// </summary>
-    public async Task<byte[]> RenderPixelsAsync(
+    public async Task<Fractal3DPixels> RenderPixelsAsync(
         Fractal3DState state, int width, int height, byte[]? destination,
         IProgress<int>? progress, CancellationToken token)
     {
@@ -77,8 +94,12 @@ public sealed class Fractal3DRenderer : IDisposable
             : new byte[required];
         Fractal3DState snapshot = state.Clone();
 
-        await Task.Run(() => RenderPixels(snapshot, safeWidth, safeHeight, buffer, progress, token), token);
-        return buffer;
+        // Задача запускается без токена: иначе отмена вернула бы отменённую задачу, и ожидание
+        // снова стало бы исключением.
+        bool completed = await Task.Run(
+            () => TryRenderPixels(snapshot, safeWidth, safeHeight, buffer, progress, token),
+            CancellationToken.None);
+        return new Fractal3DPixels(buffer, completed);
     }
 
     /// <summary>
@@ -111,7 +132,7 @@ public sealed class Fractal3DRenderer : IDisposable
             FrameConstants constants = BuildConstants(state, width, height, 0);
             constants.Resolution = new Vector4(width, height, (float)(pixelX - 0.5), (float)(pixelY - 0.5));
             constants.Probe = new Vector4(1, 0, 0, 0);
-            WriteConstants(constants);
+            WriteConstants(constants, state);
 
             context.OMSetRenderTargets(_probeView!);
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
@@ -144,7 +165,12 @@ public sealed class Fractal3DRenderer : IDisposable
         }
     }
 
-    private void RenderPixels(
+    /// <returns>
+    /// Досчитан ли кадр. Отмена проверяется опросом, а не исключением: живое превью отменяет
+    /// начатое уточнение при каждом движении камеры, и бросок на этом пути только мешал бы —
+    /// в отладчике он останавливает выполнение на каждом повороте мыши.
+    /// </returns>
+    private bool TryRenderPixels(
         Fractal3DState state, int width, int height, byte[] result,
         IProgress<int>? progress, CancellationToken token)
     {
@@ -153,8 +179,11 @@ public sealed class Fractal3DRenderer : IDisposable
 
         for (int index = 0; index < strips; index++)
         {
-            token.ThrowIfCancellationRequested();
-            _gate.Wait(token);
+            if (token.IsCancellationRequested) return false;
+            while (!_gate.Wait(GateWaitMs))
+            {
+                if (token.IsCancellationRequested) return false;
+            }
             try
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
@@ -169,6 +198,7 @@ public sealed class Fractal3DRenderer : IDisposable
             }
             progress?.Report((index + 1) * 100 / strips);
         }
+        return true;
     }
 
     /// <summary>
@@ -186,7 +216,7 @@ public sealed class Fractal3DRenderer : IDisposable
         Fractal3DState state, int width, int height, int offsetY, int rows, byte[] destination)
     {
         ID3D11DeviceContext context = _context!;
-        WriteConstants(BuildConstants(state, width, height, offsetY));
+        WriteConstants(BuildConstants(state, width, height, offsetY), state);
 
         context.OMSetRenderTargets(_renderTargetView!);
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
@@ -214,11 +244,18 @@ public sealed class Fractal3DRenderer : IDisposable
         }
     }
 
-    private void WriteConstants(FrameConstants constants)
+    /// <summary>
+    /// Пишет константы кадра и следом — палитру. Палитра идёт отдельной копией, а не полем
+    /// структуры: массив фиксированного размера внутри структуры пришлось бы маршалить с
+    /// выделением памяти на каждой полосе кадра.
+    /// </summary>
+    private void WriteConstants(FrameConstants constants, Fractal3DState state)
     {
+        FillPalette(state.ResolvePalette(), _palette);
         ID3D11DeviceContext context = _context!;
         MappedSubresource mapped = context.Map(_constantBuffer!, MapMode.WriteDiscard);
         Marshal.StructureToPtr(constants, mapped.DataPointer, false);
+        Marshal.Copy(_palette, 0, IntPtr.Add(mapped.DataPointer, FrameConstants.SizeInBytes), _palette.Length);
         context.Unmap(_constantBuffer!, 0);
     }
 
@@ -226,6 +263,7 @@ public sealed class Fractal3DRenderer : IDisposable
     {
         Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
         Vector3 light = Fractal3DCamera.LightDirection(state);
+        Fractal3DPalette palette = state.ResolvePalette();
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
@@ -258,8 +296,6 @@ public sealed class Fractal3DRenderer : IDisposable
                 0),
             Light = new Vector4(light, (float)Math.Clamp(state.Specular, 0, 4)),
             Surface = ToLinear(state.SurfaceColor, (float)Math.Clamp(state.AoStrength, 0, 1)),
-            ColorA = ToLinear(state.ColorA),
-            ColorB = ToLinear(state.ColorB),
             BackgroundTop = ToLinear(state.BackgroundTop),
             BackgroundBottom = ToLinear(state.BackgroundBottom),
             Flags = new Vector4(
@@ -267,8 +303,42 @@ public sealed class Fractal3DRenderer : IDisposable
                 state.SoftShadows ? (float)Math.Clamp(state.ShadowSharpness, 1, 128) : 0,
                 state.AmbientOcclusion ? 1 : 0,
                 (float)Math.Clamp(state.Ambient, 0, 2)),
-            Probe = Vector4.Zero
+            Probe = Vector4.Zero,
+            Style = new Vector4(
+                (int)state.ShadingStyle,
+                (float)Math.Clamp(state.EffectStrength, 0, 8),
+                (float)Math.Clamp(state.SkyLightMix, 0, 1),
+                0),
+            LightColor = ToLinear(state.LightColor),
+            PaletteInfo = new Vector4(
+                Math.Clamp(palette.Colors.Count, 1, Fractal3DPalette.MaxColors),
+                (int)state.ColorRepeat,
+                palette.IsGradient ? 0 : 1,
+                (float)Math.Clamp(palette.Gamma, 0.05, 8))
         };
+    }
+
+    /// <summary>
+    /// Опорные цвета палитры в линейном пространстве — хвост буфера констант. Пустая палитра
+    /// заменяется белым: чёрный кадр хуже объясняет, что цвета кончились.
+    /// </summary>
+    private static void FillPalette(Fractal3DPalette palette, float[] destination)
+    {
+        Array.Clear(destination);
+        int count = Math.Clamp(palette.Colors.Count, 0, Fractal3DPalette.MaxColors);
+        if (count == 0)
+        {
+            destination[0] = destination[1] = destination[2] = destination[3] = 1;
+            return;
+        }
+        for (int index = 0; index < count; index++)
+        {
+            Vector4 color = ToLinear(palette.Colors[index]);
+            destination[index * 4] = color.X;
+            destination[index * 4 + 1] = color.Y;
+            destination[index * 4 + 2] = color.Z;
+            destination[index * 4 + 3] = color.W;
+        }
     }
 
     /// <summary>Цвет интерфейса — sRGB; освещение считается в линейном пространстве.</summary>
@@ -328,7 +398,7 @@ public sealed class Fractal3DRenderer : IDisposable
             Compile(Fractal3DShader.Build(Fractal3DKind.Mandelbulb), "VSMain", "vs_5_0").Span);
         _constantBuffer = _device.CreateBuffer(new BufferDescription
         {
-            ByteWidth = FrameConstants.SizeInBytes,
+            ByteWidth = FrameConstants.BufferSizeInBytes,
             Usage = ResourceUsage.Dynamic,
             BindFlags = BindFlags.ConstantBuffer,
             CPUAccessFlags = CpuAccessFlags.Write
@@ -417,7 +487,11 @@ public sealed class Fractal3DRenderer : IDisposable
     [StructLayout(LayoutKind.Sequential)]
     private struct FrameConstants
     {
-        public const int SizeInBytes = 17 * 16;
+        /// <summary>Размер самой структуры; следом за ней в буфер дописывается палитра.</summary>
+        public const int SizeInBytes = 18 * 16;
+
+        /// <summary>Полный размер буфера констант: структура плюс опорные цвета палитры.</summary>
+        public const int BufferSizeInBytes = SizeInBytes + Fractal3DPalette.MaxColors * 16;
 
         public Vector4 Resolution;
         public Vector4 CameraPosition;
@@ -430,11 +504,12 @@ public sealed class Fractal3DRenderer : IDisposable
         public Vector4 ShapeC;
         public Vector4 Light;
         public Vector4 Surface;
-        public Vector4 ColorA;
-        public Vector4 ColorB;
         public Vector4 BackgroundTop;
         public Vector4 BackgroundBottom;
         public Vector4 Flags;
         public Vector4 Probe;
+        public Vector4 Style;
+        public Vector4 LightColor;
+        public Vector4 PaletteInfo;
     }
 }

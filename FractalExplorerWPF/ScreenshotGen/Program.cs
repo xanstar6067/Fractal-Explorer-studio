@@ -455,8 +455,19 @@ internal static class Program
 
             if (Fractal3DCatalog.TryParseLaunchKey(key, out Fractal3DKind fractal3DKind))
             {
-                // Кадр считает GPU, отдельных редакторов у окна пока нет.
-                await CaptureAsync(() => new Fractal3DWindow(fractal3DKind), "fractal3d-" + Kebab(fractal3DKind.ToString()), 1600);
+                // Кадр считает GPU. Менеджер палитр общий для всех шести видов, поэтому снимается
+                // один раз — на Мандельбульбе; предпросмотр фрактала в нём отключён (null), чтобы
+                // снимок не зависел от того, успела ли видеокарта посчитать кадр.
+                Window? w = await CaptureAsync(() => new Fractal3DWindow(fractal3DKind),
+                    "fractal3d-" + Kebab(fractal3DKind.ToString()), 1600);
+                if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
+                {
+                    object mgr = GetMember(w, "_paletteManager")!;
+                    object palette = GetMember(w, "_palette")!;
+                    await CaptureChildAsync(w, (Window)Activator.CreateInstance(
+                        typeof(Fractal3DPaletteWindow), mgr, palette, null)!, "fractal3d-palette-editor");
+                }
+                SafeCloseIfAny(w);
                 return;
             }
 

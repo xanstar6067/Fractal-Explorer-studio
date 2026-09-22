@@ -37,15 +37,150 @@ public enum Fractal3DMotionQuality
 }
 
 /// <summary>
-/// Источник цвета поверхности. Пока это заготовка под будущую систему окрасок и эффектов:
-/// цвета задаются двумя опорными оттенками, а не палитрой с произвольным числом ключей.
+/// Что именно окрашивается палитрой: источник числа, которое шейдер превращает в позицию на
+/// градиенте. Значения сериализуются числами, поэтому новые источники только дописываются в конец.
+/// <see cref="Material"/> и <see cref="Normal"/> палитрой не пользуются: первый берёт один цвет
+/// материала, второй показывает саму нормаль.
 /// </summary>
 public enum Fractal3DColoringMode
 {
-    Material,
-    Normal,
-    OrbitTrap,
-    Depth
+    Material = 0,
+    Normal = 1,
+
+    /// <summary>Минимальный радиус орбиты: классическая сферическая ловушка.</summary>
+    OrbitTrap = 2,
+
+    /// <summary>Пройденное лучом расстояние.</summary>
+    Depth = 3,
+
+    /// <summary>Ловушка по осям: минимум расстояния орбиты до координатных плоскостей.</summary>
+    CrossTrap = 4,
+
+    /// <summary>
+    /// Номер последней итерации орбиты: у вылетающих форм — итерация вылета, то самое число,
+    /// которое красит плоские фракталы; у губки и тетраэдра — итерация ближайшего подхода.
+    /// </summary>
+    IterationIndex = 5,
+
+    /// <summary>Радиус орбиты на выходе — аналог скорости убегания плоских фракталов.</summary>
+    Escape = 6,
+
+    /// <summary>Высота точки поверхности вдоль оси Y.</summary>
+    Height = 7,
+
+    /// <summary>Затенение складок: окраска идёт по тому, насколько точка закрыта соседями.</summary>
+    Occlusion = 8,
+
+    /// <summary>Угол между нормалью и лучом: края фигуры красятся иначе, чем обращённое к нам.</summary>
+    Fresnel = 9,
+
+    /// <summary>Число шагов луча до попадания: карта «сложности» силуэта.</summary>
+    Steps = 10
+}
+
+/// <summary>Что палитра делает со значениями вне отрезка [0; 1].</summary>
+public enum Fractal3DColorRepeat
+{
+    /// <summary>Зажать: всё меньше нуля — первый цвет, всё больше единицы — последний.</summary>
+    Clamp = 0,
+
+    /// <summary>Повторять по кругу: последний цвет переходит в первый без шва.</summary>
+    Cycle = 1,
+
+    /// <summary>Отражать: градиент проходится туда и обратно (так выглядит окраска по умолчанию).</summary>
+    Mirror = 2
+}
+
+/// <summary>
+/// Встроенные шейдеры освещения. Меняют не форму, а то, как посчитанная поверхность превращается
+/// в цвет; <see cref="Classic"/> — то, что рисовалось до появления набора.
+/// </summary>
+public enum Fractal3DShadingStyle
+{
+    /// <summary>Рассеянный свет, блик, мягкая тень, затенение складок и дымка вдаль.</summary>
+    Classic = 0,
+
+    /// <summary>Глина: мягкий обёрнутый свет без бликов и усиленное затенение складок.</summary>
+    Clay = 1,
+
+    /// <summary>Металл: отражение неба и жёсткий блик поверх приглушённого рассеянного света.</summary>
+    Metal = 2,
+
+    /// <summary>Свечение: близость луча к поверхности копится по дороге и светится ореолом.</summary>
+    Glow = 3,
+
+    /// <summary>Плотность: луч проходит фигуру насквозь, яркость набирается вдоль пути.</summary>
+    Density = 4,
+
+    /// <summary>Студийный свет: освещение берётся от нормали в осях камеры и не зависит от лампы.</summary>
+    Studio = 5,
+
+    /// <summary>Контурный: свет ступенями и тёмная обводка по силуэту.</summary>
+    Toon = 6,
+
+    /// <summary>Просвечивание: тонкие места подсвечиваются светом, пришедшим с изнанки.</summary>
+    Translucent = 7
+}
+
+/// <summary>
+/// Палитра трёхмерного фрактала: цвета опорных точек градиента и, по желанию, окружение —
+/// фон, цвет лампы и цвет материала. Окружение применяется только при
+/// <see cref="OverridesEnvironment"/>, поэтому встроенные палитры не трогают свет и фон.
+/// </summary>
+public sealed class Fractal3DPalette
+{
+    /// <summary>Сколько опорных цветов шейдер умеет принять за один кадр.</summary>
+    public const int MaxColors = 16;
+
+    public string Name { get; set; } = "Новая палитра";
+
+    public List<Color> Colors { get; set; } = [Color.FromRgb(26, 58, 122), Color.FromRgb(255, 186, 92)];
+
+    /// <summary>Плавный переход между опорными цветами или резкие полосы.</summary>
+    public bool IsGradient { get; set; } = true;
+
+    /// <summary>Степень, в которую возводится позиция на градиенте: смещает насыщенность полос.</summary>
+    public double Gamma { get; set; } = 1;
+
+    public bool IsBuiltIn { get; set; }
+
+    /// <summary>Задаёт ли палитра заодно фон, свет и материал.</summary>
+    public bool OverridesEnvironment { get; set; }
+
+    public Color BackgroundTop { get; set; } = Fractal3DEnvironment.BackgroundTop;
+    public Color BackgroundBottom { get; set; } = Fractal3DEnvironment.BackgroundBottom;
+    public Color LightColor { get; set; } = Fractal3DEnvironment.LightColor;
+    public Color SurfaceColor { get; set; } = Fractal3DEnvironment.SurfaceColor;
+
+    public static Fractal3DPalette FromPair(string name, Color first, Color second) => new()
+    {
+        Name = name,
+        Colors = [first, second]
+    };
+
+    public Fractal3DPalette Clone(string? name = null) => new()
+    {
+        Name = name ?? Name,
+        Colors = [.. Colors],
+        IsGradient = IsGradient,
+        Gamma = Gamma,
+        OverridesEnvironment = OverridesEnvironment,
+        BackgroundTop = BackgroundTop,
+        BackgroundBottom = BackgroundBottom,
+        LightColor = LightColor,
+        SurfaceColor = SurfaceColor
+    };
+
+    public override string ToString() => Name;
+}
+
+/// <summary>Свет и фон по умолчанию: их же несут встроенные палитры.</summary>
+public static class Fractal3DEnvironment
+{
+    public static Color BackgroundTop => Color.FromRgb(18, 22, 34);
+    public static Color BackgroundBottom => Color.FromRgb(6, 7, 11);
+    public static Color LightColor => Color.FromRgb(255, 255, 255);
+    public static Color SurfaceColor => Color.FromRgb(228, 206, 180);
 }
 
 public sealed record Fractal3DDefinition(
@@ -112,15 +247,102 @@ public sealed class Fractal3DState
 
     // ---- окраска ----
     public Fractal3DColoringMode ColoringMode { get; set; } = Fractal3DColoringMode.OrbitTrap;
-    public Color SurfaceColor { get; set; } = Color.FromRgb(228, 206, 180);
+    public Fractal3DShadingStyle ShadingStyle { get; set; } = Fractal3DShadingStyle.Classic;
+
+    /// <summary>Сила выбранного шейдера: ореол свечения, плотность, число ступеней контура.</summary>
+    public double EffectStrength { get; set; } = 1;
+
+    public Color SurfaceColor { get; set; } = Fractal3DEnvironment.SurfaceColor;
+
+    /// <summary>
+    /// Палитра вида. У сохранений, сделанных до появления палитр, её нет: там цвета лежат в
+    /// <see cref="ColorA"/> и <see cref="ColorB"/>, и <see cref="ResolvePalette"/> собирает
+    /// палитру из них, чтобы старый файл выглядел ровно так же.
+    /// </summary>
+    public Fractal3DPalette? Palette { get; set; }
+
+    /// <summary>Устаревшее поле: первый цвет градиента до появления палитр.</summary>
     public Color ColorA { get; set; } = Color.FromRgb(26, 58, 122);
+
+    /// <summary>Устаревшее поле: второй цвет градиента до появления палитр.</summary>
     public Color ColorB { get; set; } = Color.FromRgb(255, 186, 92);
+
     public double ColorScale { get; set; } = 1;
     public double ColorOffset { get; set; }
-    public Color BackgroundTop { get; set; } = Color.FromRgb(18, 22, 34);
-    public Color BackgroundBottom { get; set; } = Color.FromRgb(6, 7, 11);
+    public Fractal3DColorRepeat ColorRepeat { get; set; } = Fractal3DColorRepeat.Mirror;
 
-    public Fractal3DState Clone() => (Fractal3DState)MemberwiseClone();
+    // ---- окружение ----
+    public Color BackgroundTop { get; set; } = Fractal3DEnvironment.BackgroundTop;
+    public Color BackgroundBottom { get; set; } = Fractal3DEnvironment.BackgroundBottom;
+    public Color LightColor { get; set; } = Fractal3DEnvironment.LightColor;
+
+    /// <summary>Насколько цвет неба подмешивается в фоновый свет: 0 — лампа и фон независимы.</summary>
+    public double SkyLightMix { get; set; }
+
+    /// <summary>Палитра вида или собранная из устаревших цветов, если файл старше палитр.</summary>
+    public Fractal3DPalette ResolvePalette() =>
+        Palette ?? Fractal3DPalette.FromPair("Из сохранения", ColorA, ColorB);
+
+    public Fractal3DState Clone()
+    {
+        var clone = (Fractal3DState)MemberwiseClone();
+        clone.Palette = Palette?.Clone();
+        return clone;
+    }
+}
+
+/// <summary>
+/// Встроенные палитры трёхмерных фракталов. Окружение у них — то же, что было до появления
+/// палитр, и <see cref="Fractal3DPalette.OverridesEnvironment"/> выключен: встроенная палитра
+/// меняет цвет фигуры, но не трогает свет и фон.
+/// </summary>
+public static class Fractal3DPalettes
+{
+    /// <summary>Палитра по умолчанию: те же два цвета, что рисовались до появления палитр.</summary>
+    public const string ClassicName = "Классическая";
+
+    public static IReadOnlyList<Fractal3DPalette> All { get; } =
+    [
+        BuiltIn(ClassicName, [Rgb(26, 58, 122), Rgb(255, 186, 92)]),
+        BuiltIn("Раскалённый металл",
+            [Rgb(8, 4, 2), Rgb(92, 18, 10), Rgb(214, 74, 18), Rgb(255, 176, 48), Rgb(255, 246, 214)]),
+        BuiltIn("Виридис",
+            [Rgb(68, 1, 84), Rgb(59, 82, 139), Rgb(33, 145, 140), Rgb(94, 201, 98), Rgb(253, 231, 37)]),
+        BuiltIn("Северное сияние",
+            [Rgb(3, 7, 26), Rgb(10, 58, 80), Rgb(24, 158, 140), Rgb(126, 232, 151), Rgb(236, 255, 214)]),
+        BuiltIn("Аметист",
+            [Rgb(12, 4, 24), Rgb(70, 16, 110), Rgb(160, 40, 180), Rgb(236, 110, 200), Rgb(255, 225, 250)]),
+        BuiltIn("Медь и патина",
+            [Rgb(16, 28, 26), Rgb(22, 92, 86), Rgb(86, 190, 168), Rgb(224, 158, 86), Rgb(120, 44, 18)]),
+        BuiltIn("Спектр",
+            [Rgb(255, 64, 64), Rgb(255, 208, 48), Rgb(72, 220, 92), Rgb(52, 176, 255), Rgb(128, 88, 255)]),
+        BuiltIn("Лёд",
+            [Rgb(6, 16, 38), Rgb(26, 86, 150), Rgb(120, 200, 238), Rgb(214, 244, 255), Rgb(255, 255, 255)]),
+        BuiltIn("Сепия",
+            [Rgb(24, 16, 10), Rgb(86, 58, 34), Rgb(168, 128, 82), Rgb(228, 200, 158), Rgb(255, 246, 228)]),
+        BuiltIn("Неон",
+            [Rgb(4, 2, 10), Rgb(236, 32, 180), Rgb(60, 244, 236), Rgb(255, 255, 255)]),
+        BuiltIn("Мрамор",
+            [Rgb(22, 22, 26), Rgb(96, 98, 104), Rgb(186, 188, 194), Rgb(238, 238, 242), Rgb(255, 255, 255)]),
+        BuiltIn("Закат",
+            [Rgb(18, 10, 40), Rgb(104, 28, 92), Rgb(220, 74, 88), Rgb(255, 158, 74), Rgb(255, 232, 166)])
+    ];
+
+    /// <summary>Копия встроенной палитры: состояние владеет своей палитрой и правит её свободно.</summary>
+    public static Fractal3DPalette Get(string name) =>
+        (All.FirstOrDefault(palette => palette.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+         ?? All[0]).Clone();
+
+    public static Fractal3DPalette Classic() => Get(ClassicName);
+
+    private static Fractal3DPalette BuiltIn(string name, List<Color> colors) => new()
+    {
+        Name = name,
+        Colors = colors,
+        IsBuiltIn = true
+    };
+
+    private static Color Rgb(byte red, byte green, byte blue) => Color.FromRgb(red, green, blue);
 }
 
 public static class Fractal3DCatalog
@@ -188,13 +410,48 @@ public static class Fractal3DCatalog
         Fractal3DColoringMode.Material => "Материал",
         Fractal3DColoringMode.Normal => "По нормали",
         Fractal3DColoringMode.Depth => "По глубине",
+        Fractal3DColoringMode.CrossTrap => "Ловушка по осям",
+        Fractal3DColoringMode.IterationIndex => "Номер итерации",
+        Fractal3DColoringMode.Escape => "Скорость убегания",
+        Fractal3DColoringMode.Height => "По высоте",
+        Fractal3DColoringMode.Occlusion => "По затенению складок",
+        Fractal3DColoringMode.Fresnel => "По углу взгляда",
+        Fractal3DColoringMode.Steps => "По числу шагов луча",
         _ => "Орбитальная ловушка"
+    };
+
+    /// <summary>Пользуется ли источник цвета палитрой; материал и нормаль обходятся без неё.</summary>
+    public static bool UsesPalette(Fractal3DColoringMode mode) =>
+        mode is not (Fractal3DColoringMode.Material or Fractal3DColoringMode.Normal);
+
+    public static string ShadingStyleName(Fractal3DShadingStyle style) => style switch
+    {
+        Fractal3DShadingStyle.Clay => "Глина",
+        Fractal3DShadingStyle.Metal => "Металл",
+        Fractal3DShadingStyle.Glow => "Свечение",
+        Fractal3DShadingStyle.Density => "Плотность",
+        Fractal3DShadingStyle.Studio => "Студийный свет",
+        Fractal3DShadingStyle.Toon => "Контурный",
+        Fractal3DShadingStyle.Translucent => "Просвечивание",
+        _ => "Классический"
+    };
+
+    public static string ColorRepeatName(Fractal3DColorRepeat repeat) => repeat switch
+    {
+        Fractal3DColorRepeat.Clamp => "Зажать",
+        Fractal3DColorRepeat.Cycle => "По кругу",
+        _ => "Отражать"
     };
 
     /// <summary>Состояние по умолчанию; оно же — превью пункта каталога.</summary>
     public static Fractal3DState CreateDefaultState(Fractal3DKind kind)
     {
-        var state = new Fractal3DState { Kind = kind, SaveName = GetDefinition(kind).Title };
+        var state = new Fractal3DState
+        {
+            Kind = kind,
+            SaveName = GetDefinition(kind).Title,
+            Palette = Fractal3DPalettes.Classic()
+        };
         switch (kind)
         {
             case Fractal3DKind.Juliabulb:
@@ -223,6 +480,8 @@ public static class Fractal3DCatalog
                 state.CameraYaw = 28;
                 state.CameraPitch = 24;
                 state.ColoringMode = Fractal3DColoringMode.Depth;
+                // Глубина — не циклическая величина: градиент проходится один раз от ближнего края.
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
             case Fractal3DKind.SierpinskiTetrahedron:
                 state.Iterations = 13;
@@ -272,8 +531,16 @@ public static class Fractal3DCatalog
             {
                 s.Power = 16;
                 s.Iterations = 8;
-                s.ColorA = Color.FromRgb(28, 74, 128);
-                s.ColorB = Color.FromRgb(150, 235, 255);
+                s.Palette = Fractal3DPalettes.Get("Лёд");
+            }),
+            Preset(kind, "Светящиеся складки", s =>
+            {
+                s.Iterations = 10;
+                s.ShadingStyle = Fractal3DShadingStyle.Glow;
+                s.ColoringMode = Fractal3DColoringMode.IterationIndex;
+                s.Palette = Fractal3DPalettes.Get("Неон");
+                s.ColorScale = 1.4;
+                s.EffectStrength = 1.3;
             }),
             Preset(kind, "Крупный план складки", s =>
             {
@@ -311,6 +578,20 @@ public static class Fractal3DCatalog
                 s.JuliaCY = 0.3;
                 s.JuliaCZ = 0.3;
                 s.Iterations = 12;
+            }),
+            Preset(kind, "Плотность без поверхности", s =>
+            {
+                // Ветвистая константа: у сплошного шара просвет одинаков везде и смотреть не на что.
+                s.JuliaCX = -0.5;
+                s.JuliaCY = 0.2;
+                s.JuliaCZ = 0.1;
+                s.Iterations = 11;
+                s.CameraDistance = 3.1;
+                s.ShadingStyle = Fractal3DShadingStyle.Density;
+                s.Palette = Fractal3DPalettes.Get("Северное сияние");
+                s.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                s.EffectStrength = 0.5;
+                s.MaxSteps = 220;
             })
         ],
         Fractal3DKind.Mandelbox =>
@@ -327,8 +608,18 @@ public static class Fractal3DCatalog
                 s.BoxScale = -1.5;
                 s.CameraDistance = 10;
                 s.Iterations = 14;
-                s.ColorA = Color.FromRgb(20, 50, 40);
-                s.ColorB = Color.FromRgb(240, 220, 140);
+                s.Palette = Fractal3DPalettes.Get("Медь и патина");
+            }),
+            Preset(kind, "Полированный металл", s =>
+            {
+                s.ShadingStyle = Fractal3DShadingStyle.Metal;
+                s.ColoringMode = Fractal3DColoringMode.CrossTrap;
+                s.Palette = Fractal3DPalettes.Get("Мрамор");
+                s.BackgroundTop = Color.FromRgb(72, 96, 140);
+                s.BackgroundBottom = Color.FromRgb(12, 14, 20);
+                s.Ambient = 0.35;
+                s.Specular = 0.9;
+                s.SkyLightMix = 0.35;
             }),
             Preset(kind, "Внутри галереи", s =>
             {
@@ -366,6 +657,13 @@ public static class Fractal3DCatalog
                 s.TargetZ = 0.55;
                 s.Iterations = 6;
                 s.Detail = 0.6;
+            }),
+            Preset(kind, "Студийная глина", s =>
+            {
+                s.ShadingStyle = Fractal3DShadingStyle.Studio;
+                s.ColoringMode = Fractal3DColoringMode.Occlusion;
+                s.Palette = Fractal3DPalettes.Get("Сепия");
+                s.ColorRepeat = Fractal3DColorRepeat.Clamp;
             })
         ],
         Fractal3DKind.SierpinskiTetrahedron =>
@@ -390,6 +688,16 @@ public static class Fractal3DCatalog
                 s.TargetZ = 0.7;
                 s.Detail = 0.6;
                 s.MaxSteps = 220;
+            }),
+            Preset(kind, "Контурный чертёж", s =>
+            {
+                s.ShadingStyle = Fractal3DShadingStyle.Toon;
+                s.ColoringMode = Fractal3DColoringMode.Height;
+                s.Palette = Fractal3DPalettes.Get("Закат");
+                s.ColorScale = 0.4;
+                s.ColorOffset = 0.5;
+                s.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                s.EffectStrength = 1.2;
             })
         ],
         _ =>
@@ -416,8 +724,15 @@ public static class Fractal3DCatalog
                 s.JuliaCW = 0;
                 s.Iterations = 12;
                 s.CameraDistance = 3.2;
-                s.ColorA = Color.FromRgb(40, 16, 60);
-                s.ColorB = Color.FromRgb(255, 160, 210);
+                s.Palette = Fractal3DPalettes.Get("Аметист");
+            }),
+            Preset(kind, "Просвечивающее стекло", s =>
+            {
+                s.ShadingStyle = Fractal3DShadingStyle.Translucent;
+                s.ColoringMode = Fractal3DColoringMode.Fresnel;
+                s.Palette = Fractal3DPalettes.Get("Лёд");
+                s.EffectStrength = 1.5;
+                s.Specular = 0.8;
             })
         ]
     };
