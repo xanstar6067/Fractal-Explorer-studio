@@ -502,6 +502,9 @@ public partial class MainWindow : Window
 
     private void CloudButton_OnClick(object sender, RoutedEventArgs e) => CloudSaveManagerWindow.Open(this);
 
+    private void Experiment3DButton_OnClick(object sender, RoutedEventArgs e) =>
+        new Fractal3DExperimentWindow { Owner = this }.Show();
+
     private void AboutButton_OnClick(object sender, RoutedEventArgs e)
     {
         new AboutWindow { Owner = this }.ShowDialog();

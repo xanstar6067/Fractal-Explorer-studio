@@ -14,8 +14,7 @@
     <Resource Include="Assets\Previews\**\*" />
     <Resource Include="Assets\Icons\**\*" />
     <EmbeddedResource Include="Assets\Certificates\fractalcloud-caddy-root.crt" />
-    <None Update="cloud-connection.local.json" Condition="Exists('cloud-connection.local.json')"
-          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="cloud-connection.local.json" Condition="Exists('cloud-connection.local.json')" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +23,12 @@
     <InternalsVisibleTo Include="SavePreviewVerification" />
     <!-- Генератор скриншотов заполняет облачный менеджер без сети (ShowEntriesForPreview). -->
     <InternalsVisibleTo Include="ScreenshotGen" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
   </ItemGroup>
 
 </Project>
