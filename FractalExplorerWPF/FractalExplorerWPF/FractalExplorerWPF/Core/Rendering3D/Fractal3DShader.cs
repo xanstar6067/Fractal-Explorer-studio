@@ -390,6 +390,27 @@ internal static class Fractal3DShader
             float pixelRadius = 2.0 * March.y / max(Resolution.y * CameraPosition.w, 1.0);
             int maxSteps = (int)March.x;
             float maxDistance = March.z;
+            float entryDistance = 0.0;
+
+        #if FRACTAL_KIND == 0
+            // Снаружи радиуса вылета оценка расстояния Мандельбульба может быть больше
+            // расстояния до самой фигуры. Начинаем шагать у границы содержащей её сферы,
+            // чтобы луч из далёкой камеры не перескочил через переднюю поверхность.
+            float radius = ShapeA.w;
+            float closest = -dot(rayOrigin, rayDirection);
+            float3 closestPoint = rayOrigin + rayDirection * closest;
+            float distanceSquared = dot(closestPoint, closestPoint);
+            if (distanceSquared > radius * radius)
+                return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
+
+            float halfChord = sqrt(max(radius * radius - distanceSquared, 0.0));
+            if (closest + halfChord < 0.0)
+                return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
+            entryDistance = max(0.0, closest - halfChord);
+            // Пользовательская дальность остаётся минимумом, но не обрезает фигуру
+            // только из-за того, что камера отъехала от неё.
+            maxDistance = max(maxDistance, closest + halfChord);
+        #endif
 
             int style = (int)Style.x;
             float strength = max(Style.y, 0.0);
@@ -398,7 +419,7 @@ internal static class Fractal3DShader
             // от него считается шаг движения камеры.
             bool pierce = style == 4 && Probe.x < 0.5;
 
-            float travelled = 0.0;
+            float travelled = entryDistance;
             float4 trap = 0.0;
             float epsilon = 1e-6;
             float proximity = 0.0;
@@ -431,18 +452,19 @@ internal static class Fractal3DShader
 
             float3 sky = SkyAt(rayDirection);
             float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
+            float traceSpan = max(maxDistance - entryDistance, 1e-3);
 
             if (style == 4)
             {
                 // Накопленный путь соотносится с дальностью трассировки, иначе крупная фигура
                 // (Мандельбокс стоит в сотне единиц) насыщала бы плотность до сплошного пятна.
-                float density = saturate(proximity / max(maxDistance, 1e-3) * 12.0 * max(strength, 1e-3));
+                float density = saturate(proximity / traceSpan * 12.0 * max(strength, 1e-3));
                 float3 tint = SamplePalette(density * ShapeC.y + ShapeC.z, 0);
                 return float4(LinearToSrgb(lerp(sky, tint, density)), 1.0);
             }
 
             float glow = style == 3
-                ? saturate(proximity / max(maxDistance, 1e-3) * 10.0 * strength)
+                ? saturate(proximity / traceSpan * 10.0 * strength)
                 : 0.0;
             float3 glowTint = style == 3 ? SamplePalette(glow * ShapeC.y + ShapeC.z, 0) : 0.0;
 
@@ -468,7 +490,7 @@ internal static class Fractal3DShader
             float3 ambientTint = lerp(float3(1.0, 1.0, 1.0), SkyAt(normal) * 3.0, saturate(Style.z));
             float3 ambient = Flags.w * ambientTint;
             float3 albedo = SurfaceAlbedo(
-                normal, trap, travelled, surfacePoint, rayDirection, occlusion, stepsRatio);
+                normal, trap, travelled - entryDistance, surfacePoint, rayDirection, occlusion, stepsRatio);
             float3 halfVector = normalize(lightDirection - rayDirection);
             float specular = Light.w * pow(saturate(dot(normal, halfVector)), 32.0) * shadow;
 
@@ -522,7 +544,7 @@ internal static class Fractal3DShader
             }
 
             if (style == 3) color += glowTint * glow * 1.2;
-            color = lerp(color, sky, saturate(travelled / max(maxDistance, 1e-3)));
+            color = lerp(color, sky, saturate((travelled - entryDistance) / traceSpan));
             return float4(LinearToSrgb(color), 1.0);
         }
         """;

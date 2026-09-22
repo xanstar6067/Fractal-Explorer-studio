@@ -368,6 +368,15 @@ internal static partial class Program
         Check(double.IsFinite(centre) && centre > 0 && centre < state.CameraDistance,
             "The probe must find the surface between the camera and the target.");
 
+        Fractal3DState distant = state.Clone();
+        distant.CameraDistance = 40;
+        distant.MaxDistance = 1;
+        double distantHit = await ProbeFractal3DAsync(
+            renderer, distant, Fractal3DRayWidth / 2.0, Fractal3DRayHeight / 2.0);
+        Check(double.IsFinite(distantHit) &&
+              Math.Abs((distant.CameraDistance - distantHit) - (state.CameraDistance - centre)) < 0.4,
+            "Moving the camera far beyond the trace limit must still hit the front surface.");
+
         double corner = await ProbeFractal3DAsync(renderer, state, 0.5, 0.5);
         Check(double.IsNaN(corner), "A ray that misses the fractal must report no surface.");
 
