@@ -367,11 +367,6 @@
                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
                     </StackPanel>
                 </ToggleButton>
-                <Button Margin="4,0" Style="{StaticResource TopBarButtonStyle}"
-                        ToolTip="Эксперимент: 3D raymarching на Vortice/D3D11"
-                        Click="Experiment3DButton_OnClick">
-                    <TextBlock Text="3D тест" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                </Button>
                 <Button Width="36" Padding="0" Style="{StaticResource TopBarButtonStyle}"
                         ToolTip="О программе" AutomationProperties.Name="О программе"
                         Click="AboutButton_OnClick">

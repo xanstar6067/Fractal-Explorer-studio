@@ -263,6 +263,42 @@ public static class SaveManagerConfigurations
                                     $"F={state.Feed:G6} · K={state.Kill:G6} · Du={state.DiffusionU:G5} · Dv={state.DiffusionV:G5} · палитра: {state.Palette.Name}"
     };
 
+    public static SaveManagerConfiguration<Fractal3DState> ForFractal3D(
+        Fractal3DWindow window, Fractal3DSaveStore store) => new()
+    {
+        WindowTitle = $"Сохранение/Загрузка: {window.DisplayTitle}",
+        Store = store,
+        CaptureState = window.CaptureState,
+        CapturePreview = window.CaptureCurrentPreview,
+        LoadState = state => window.LoadState(state.Clone()),
+        RenderPreviewAsync = (state, width, height, token, progress) =>
+            window.RenderStatePreviewAsync(state.Clone(), width, height, token, progress),
+        GetName = state => state.SaveName,
+        GetTimestamp = state => state.Timestamp,
+        GetDetails = DescribeFractal3D,
+        PointsOfInterest = Fractal3DCatalog.GetPresets(window.Kind)
+    };
+
+    private static string DescribeFractal3D(Fractal3DState state)
+    {
+        string shape = state.Kind switch
+        {
+            Fractal3DKind.Mandelbox =>
+                $"Масштаб: {state.BoxScale:G6} · Мин. радиус: {state.BoxMinRadius:G6} · Свёртка: {state.BoxFoldingLimit:G6}",
+            Fractal3DKind.SierpinskiTetrahedron => $"Масштаб складывания: {state.SierpinskiScale:G6}",
+            Fractal3DKind.MengerSponge => "Рекурсивные тоннели куба",
+            Fractal3DKind.QuaternionJulia =>
+                $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}",
+            Fractal3DKind.Juliabulb =>
+                $"Степень: {state.Power:G6} · C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}",
+            _ => $"Степень: {state.Power:G6}"
+        };
+        return $"{Prefix(state.Timestamp)} · Итерации: {state.Iterations} · {shape}\n" +
+               $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, расстояние {state.CameraDistance:G6}\n" +
+               $"Цель: {state.TargetX:G5}; {state.TargetY:G5}; {state.TargetZ:G5} · " +
+               $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode)} · Шагов: {state.MaxSteps}";
+    }
+
     private static string DescribeMandelbrot(MandelbrotState state)
     {
         string details = $"{Prefix(state.Timestamp)} · Итерации: {state.Iterations} · Масштаб: {state.Zoom:G6}\n" +

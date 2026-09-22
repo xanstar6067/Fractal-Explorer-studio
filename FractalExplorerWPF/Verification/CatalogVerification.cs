@@ -53,6 +53,9 @@ internal static partial class Program
         foreach (BasinExplorerKind kind in Enum.GetValues<BasinExplorerKind>())
             Check(catalog.Count(item => item.LaunchKey == BasinExplorerCatalog.LaunchKey(kind)) == 1,
                 $"Basin explorer {kind} must appear in the catalog exactly once.");
+        foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
+            Check(catalog.Count(item => item.LaunchKey == Fractal3DCatalog.LaunchKey(kind)) == 1,
+                $"3D fractal {kind} must appear in the catalog exactly once.");
         Check(MainWindow.GetWindowFactory(null) is null && MainWindow.GetWindowFactory("NoSuchWindow") is null,
             "Unknown launch keys must not open a window.");
 
@@ -218,8 +221,9 @@ internal static partial class Program
 
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
-            Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length + 1,
-                "Laboratories and Gray–Scott must be the modes rendered on the fly.");
+            Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
+                    Enum.GetValues<Fractal3DKind>().Length + 1,
+                "Laboratories, 3D fractals and Gray–Scott must be the modes rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,

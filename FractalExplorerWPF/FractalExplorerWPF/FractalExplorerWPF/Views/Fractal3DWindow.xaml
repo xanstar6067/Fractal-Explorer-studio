@@ -1,0 +1,316 @@
+<Window x:Class="FractalExplorerWPF.Views.Fractal3DWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
+        xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls"
+        xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
+        Title="Трёхмерный фрактал" Width="1240" Height="800"
+        MinWidth="960" MinHeight="600" WindowStartupLocation="CenterOwner"
+        KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
+    <Window.Resources>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/>
+        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/>
+        </Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Margin" Value="0,6,0,2"/>
+        </Style>
+        <Style x:Key="FieldCaption" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="ControlsColumn" Width="340"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border x:Name="ControlsHost" Margin="10" Padding="14"
+                Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock x:Name="PanelTitleText" FontSize="18" FontWeight="SemiBold" Text="Трёхмерный фрактал"/>
+                    <TextBlock x:Name="KindDescriptionText" Margin="0,5,0,10" TextWrapping="Wrap"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+
+                    <TextBlock Style="{StaticResource FieldCaption}" Text="Готовый вид"/>
+                    <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_OnSelectionChanged"/>
+
+                    <Expander Header="Форма" IsExpanded="True" Margin="0,6,0,4">
+                        <StackPanel Margin="10,6,0,2">
+                            <StackPanel x:Name="PowerPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Степень n"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
+                                         TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="JuliaPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Константа C"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Margin="0,4,4,4" numeric:NumericSpinner.IsEnabled="True"
+                                             x:Name="JuliaCXBox" ToolTip="Первая координата C"
+                                             TextChanged="Parameter_OnChanged"/>
+                                    <TextBox Grid.Column="1" Margin="0,4,4,4" numeric:NumericSpinner.IsEnabled="True"
+                                             x:Name="JuliaCYBox" ToolTip="Вторая координата C"
+                                             TextChanged="Parameter_OnChanged"/>
+                                    <TextBox Grid.Column="2" Margin="0,4,0,4" numeric:NumericSpinner.IsEnabled="True"
+                                             x:Name="JuliaCZBox" ToolTip="Третья координата C"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </Grid>
+                                <StackPanel x:Name="QuaternionPanel">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Четвёртая координата C"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="JuliaCWBox"
+                                             TextChanged="Parameter_OnChanged"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Координата среза w"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SliceBox"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="BoxPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб свёртки"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxScaleBox"
+                                         TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Минимальный радиус сферы"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxMinRadiusBox"
+                                         TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Предел свёртки по кубу"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxFoldingBox"
+                                         TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="SierpinskiPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб складывания"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SierpinskiScaleBox"
+                                         TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Итерации"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"
+                                     x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/>
+
+                            <StackPanel x:Name="BailoutPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус вылета"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BailoutBox"
+                                         TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Камера" IsExpanded="True" Margin="0,2,0,4">
+                        <StackPanel Margin="10,6,0,2">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Азимут, °"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="YawBox"
+                                             TextChanged="Camera_OnChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Наклон, °"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PitchBox"
+                                             TextChanged="Camera_OnChanged"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Расстояние"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DistanceBox"
+                                             TextChanged="Camera_OnChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Поле зрения, °"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="FieldOfViewBox"
+                                             TextChanged="Camera_OnChanged"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Точка, на которую смотрит камера"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Margin="0,4,4,4" numeric:NumericSpinner.IsEnabled="True"
+                                         x:Name="TargetXBox" ToolTip="X" TextChanged="Camera_OnChanged"/>
+                                <TextBox Grid.Column="1" Margin="0,4,4,4" numeric:NumericSpinner.IsEnabled="True"
+                                         x:Name="TargetYBox" ToolTip="Y" TextChanged="Camera_OnChanged"/>
+                                <TextBox Grid.Column="2" Margin="0,4,0,4" numeric:NumericSpinner.IsEnabled="True"
+                                         x:Name="TargetZBox" ToolTip="Z" TextChanged="Camera_OnChanged"/>
+                            </Grid>
+                            <Button Content="Сбросить вид" Click="ResetViewButton_OnClick"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Качество" Margin="0,2,0,4">
+                        <StackPanel Margin="10,6,0,2">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов луча"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"
+                                             x:Name="MaxStepsBox" TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Детализация"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="DetailBox"
+                                             ToolTip="Порог попадания в долях пикселя: меньше — тоньше детали и дольше рендер."
+                                             TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Дальность трассировки"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MaxDistanceBox"
+                                     TextChanged="Parameter_OnChanged"/>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Сглаживание предпросмотра"/>
+                            <ComboBox x:Name="SsaaBox" SelectionChanged="Parameter_OnChanged">
+                                <ComboBoxItem Content="Выкл. (1×)" Tag="1"/>
+                                <ComboBoxItem Content="Низкое (2×)" Tag="2"/>
+                                <ComboBoxItem Content="Высокое (4×)" Tag="4"/>
+                            </ComboBox>
+                            <TextBlock Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Theme.DisabledTextBrush}"
+                                       Text="Во время вращения и перемещения кадр считается в половинном разрешении, полный — после остановки."/>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Свет и тени" Margin="0,2,0,4">
+                        <StackPanel Margin="10,6,0,2">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Азимут света, °"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="LightYawBox"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Высота света, °"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="LightPitchBox"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Фоновый свет"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="AmbientBox"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Блики"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SpecularBox"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </StackPanel>
+                            </Grid>
+                            <CheckBox x:Name="SoftShadowsBox" Content="Мягкие тени"
+                                      Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Жёсткость теней"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ShadowSharpnessBox"
+                                     TextChanged="Parameter_OnChanged"/>
+                            <CheckBox x:Name="AmbientOcclusionBox" Content="Затенение складок (AO)"
+                                      Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Сила затенения"/>
+                            <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="AoStrengthBox"
+                                     TextChanged="Parameter_OnChanged"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander Header="Окраска" Margin="0,2,0,4">
+                        <StackPanel Margin="10,6,0,2">
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Источник цвета"/>
+                            <ComboBox x:Name="ColoringModeBox" SelectionChanged="ColoringModeBox_OnSelectionChanged">
+                                <ComboBoxItem Content="Материал"/>
+                                <ComboBoxItem Content="По нормали"/>
+                                <ComboBoxItem Content="Орбитальная ловушка"/>
+                                <ComboBoxItem Content="По глубине"/>
+                            </ComboBox>
+
+                            <StackPanel x:Name="MaterialColorPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет материала"/>
+                                <controls:ColorSelectorControl x:Name="SurfaceColorSelector"
+                                                               SelectedColorChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="GradientColorPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет A"/>
+                                <controls:ColorSelectorControl x:Name="ColorASelector"
+                                                               SelectedColorChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет B"/>
+                                <controls:ColorSelectorControl x:Name="ColorBSelector"
+                                                               SelectedColorChanged="Parameter_OnChanged"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб цвета"/>
+                                        <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ColorScaleBox"
+                                                 TextChanged="Parameter_OnChanged"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Сдвиг цвета"/>
+                                        <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ColorOffsetBox"
+                                                 TextChanged="Parameter_OnChanged"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Фон вверху"/>
+                            <controls:ColorSelectorControl x:Name="BackgroundTopSelector"
+                                                           SelectedColorChanged="Parameter_OnChanged"/>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Фон внизу"/>
+                            <controls:ColorSelectorControl x:Name="BackgroundBottomSelector"
+                                                           SelectedColorChanged="Parameter_OnChanged"/>
+                            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Theme.DisabledTextBrush}"
+                                       Text="Это базовая окраска. Палитры и эффекты шейдеров появятся отдельной системой."/>
+                        </StackPanel>
+                    </Expander>
+
+                    <Button Content="Запустить рендер" Click="RenderButton_OnClick"/>
+                    <Button x:Name="CancelButton" Content="Отмена" IsEnabled="False" Click="CancelButton_OnClick"/>
+                    <Button Content="Менеджер сохранений" Click="SavesButton_OnClick"/>
+                    <Button Content="Сохранить изображение" Click="ExportButton_OnClick"/>
+
+                    <TextBlock Margin="0,12,0,4" Text="Прогресс"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <ProgressBar x:Name="RenderProgress" Height="20" Minimum="0" Maximum="100"/>
+                    <TextBlock x:Name="CameraText" Margin="0,8,0,0" FontFamily="Consolas" TextWrapping="Wrap"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock x:Name="StatusText" Margin="0,7,0,0" Text="Готово" TextWrapping="Wrap"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock Margin="0,12,0,0" TextWrapping="Wrap"
+                               Foreground="{DynamicResource Theme.DisabledTextBrush}"
+                               Text="Левая кнопка: вращение вокруг цели. Правая или средняя: перемещение. Колесо: приближение (Ctrl — быстро, Shift — точно). F11: полноэкранный режим."/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" Background="Black"
+                ClipToBounds="True" BorderBrush="{DynamicResource Theme.BorderBrush}"
+                BorderThickness="1" CornerRadius="7" theme:ThemeContract.IgnoreAudit="True"
+                SizeChanged="CanvasHost_OnSizeChanged" MouseWheel="CanvasHost_OnMouseWheel"
+                MouseLeftButtonDown="CanvasHost_OnMouseLeftButtonDown"
+                MouseRightButtonDown="CanvasHost_OnMouseRightButtonDown"
+                MouseDown="CanvasHost_OnMouseDown"
+                MouseMove="CanvasHost_OnMouseMove"
+                MouseLeftButtonUp="CanvasHost_OnMouseUp"
+                MouseRightButtonUp="CanvasHost_OnMouseUp"
+                MouseUp="CanvasHost_OnMouseUp">
+            <Grid x:Name="SavePreviewLayer" ClipToBounds="True">
+                <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Grid>
+        </Border>
+
+        <Button x:Name="ToggleControlsButton" Grid.Column="1"
+                Style="{StaticResource FractalPanelToggleButtonStyle}" Content="✕"
+                ToolTip="Скрыть панель параметров" Click="ToggleControlsButton_OnClick"/>
+    </Grid>
+</Window>

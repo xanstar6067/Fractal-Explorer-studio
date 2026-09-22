@@ -3,15 +3,17 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Resources;
 using FractalExplorerWPF.Core.Rendering;
+using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Infrastructure;
 
 /// <summary>
 /// Превью плиток каталога. Встроенные PNG для сетки декодируются уменьшенными, в полном размере —
-/// только для пункта, открытого в панели деталей. Лаборатории и Gray–Scott своих картинок не имеют:
-/// их превью рендерится по состоянию по умолчанию в фоне, по одному, и хранится в памяти
-/// (все вместе — около двух секунд).
+/// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы и Gray–Scott
+/// своих картинок не имеют: их превью рендерится по состоянию по умолчанию в фоне, по одному,
+/// и хранится в памяти (все вместе — несколько секунд). Если рендер не удался (например, нет
+/// Direct3D 11 для трёхмерных видов), плитка показывает встроенную картинку-заглушку.
 /// </summary>
 internal sealed class CatalogPreviewLoader
 {
@@ -30,6 +32,7 @@ internal sealed class CatalogPreviewLoader
 
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
+        Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         item.LaunchKey == GrayScottLaunchKey;
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
@@ -63,6 +66,11 @@ internal sealed class CatalogPreviewLoader
         {
             return MathematicalLaboratoryRenderer.RenderBitmapAsync(
                 MathematicalLaboratoryCatalog.CreateDefaultState(kind), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out Fractal3DKind fractal3DKind))
+        {
+            return Fractal3DRenderer.RenderOnceAsync(
+                Fractal3DCatalog.CreateDefaultState(fractal3DKind), RenderedPixelSize, RenderedPixelSize, token);
         }
         if (item.LaunchKey == GrayScottLaunchKey)
         {

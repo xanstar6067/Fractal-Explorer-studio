@@ -449,6 +449,13 @@ internal static class Program
                 return;
             }
 
+            if (Fractal3DCatalog.TryParseLaunchKey(key, out Fractal3DKind fractal3DKind))
+            {
+                // Кадр считает GPU, отдельных редакторов у окна пока нет.
+                await CaptureAsync(() => new Fractal3DWindow(fractal3DKind), "fractal3d-" + Kebab(fractal3DKind.ToString()), 1600);
+                return;
+            }
+
             if (BasinExplorerCatalog.TryParseLaunchKey(key, out BasinExplorerKind basinKind))
             {
                 // Включает все 11 режимов, в том числе оптимизацию и непрерывные поля: список берётся

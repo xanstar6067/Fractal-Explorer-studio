@@ -444,6 +444,8 @@ public partial class MainWindow : Window
             return () => new MathematicalLaboratoryWindow(laboratoryKind);
         if (BasinExplorerCatalog.TryParseLaunchKey(launchKey, out BasinExplorerKind basinKind))
             return () => new BasinExplorerWindow(basinKind);
+        if (Fractal3DCatalog.TryParseLaunchKey(launchKey, out Fractal3DKind fractal3DKind))
+            return () => new Fractal3DWindow(fractal3DKind);
 
         Func<Window>? named = launchKey switch
         {
@@ -501,9 +503,6 @@ public partial class MainWindow : Window
     // ---------- Верхняя панель и настройки ----------
 
     private void CloudButton_OnClick(object sender, RoutedEventArgs e) => CloudSaveManagerWindow.Open(this);
-
-    private void Experiment3DButton_OnClick(object sender, RoutedEventArgs e) =>
-        new Fractal3DExperimentWindow { Owner = this }.Show();
 
     private void AboutButton_OnClick(object sender, RoutedEventArgs e)
     {
