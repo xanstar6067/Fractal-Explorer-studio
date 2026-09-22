@@ -77,6 +77,11 @@ internal static class Fractal3DShader
             return min(a.x, min(a.y, a.z));
         }
 
+        // Во сколько раз шаг луча должен быть короче оценки расстояния из последнего вызова Map.
+        // Сама поверхность (где оценка меньше порога) от этого не меняется — только длина шага,
+        // чтобы луч не перескакивал тонкие слои там, где оценка завышена.
+        static float StepScale = 1.0;
+
         // Дистанционная оценка до поверхности фрактала. trap — данные орбиты, из которых берётся
         // цвет: x — минимальный радиус, y — минимум по осям, z — номер последней итерации
         // (у вылетающих орбит это итерация вылета, у остальных — итерация минимума),
@@ -85,6 +90,7 @@ internal static class Fractal3DShader
         float Map(float3 p, out float4 trap)
         {
             int iterations = (int)March.w;
+            StepScale = 1.0;
             float trapRadius2 = 1e20;
             float trapAxis = 1e20;
             float trapIndex = 0.0;
@@ -227,6 +233,14 @@ internal static class Fractal3DShader
                 float invR = 1.0 / max(r, 1e-12);
                 float theta = acos(clamp(z.z * invR, -1.0, 1.0));
                 float phi = atan2(z.y, z.x);
+                // Вдоль параллели возведение в степень растягивает сильнее, чем по радиусу:
+                // в sin(n·θ)/sin(θ) раз, у полюса почти в n. Оценка ниже этого не учитывает
+                // и там завышена, поэтому луч шагает с запасом (см. StepScale).
+                float sinTheta0 = abs(sin(theta));
+                float stretch = sinTheta0 > 1e-4
+                    ? abs(sin(theta * power)) / sinTheta0
+                    : abs(power);
+                StepScale /= max(stretch, 1.0);
                 dr = pow(r, power - 1.0) * power * dr + 1.0;
 
                 float zr = pow(r, power);
@@ -392,11 +406,30 @@ internal static class Fractal3DShader
             float maxDistance = March.z;
             float entryDistance = 0.0;
 
+            // Начинаем трассировку у области фрактала: оценка расстояния далеко от него
+            // может перескочить переднюю поверхность, а фиксированная дальность — обрезать её.
         #if FRACTAL_KIND == 0
-            // Снаружи радиуса вылета оценка расстояния Мандельбульба может быть больше
-            // расстояния до самой фигуры. Начинаем шагать у границы содержащей её сферы,
-            // чтобы луч из далёкой камеры не перескочил через переднюю поверхность.
             float radius = ShapeA.w;
+        #elif FRACTAL_KIND == 1
+            float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
+        #elif FRACTAL_KIND == 2
+            // После кубической свёртки p превращается в -p + delta, |delta| <= 2*sqrt(3)*limit.
+            // При scale != 1 за этой сферой первая итерация превышает радиус вылета.
+            float foldReach = 1.7320508 * ShapeA.z;
+            float radius = max(2.0 * foldReach + 1.0,
+                (2.0 * abs(ShapeA.x) * foldReach + sqrt(ShapeA.w)) /
+                max(abs(1.0 - ShapeA.x), 0.05));
+        #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4
+            float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
+        #else
+            float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
+        #endif
+
+        #if FRACTAL_KIND == 2
+            // При scale ~= 1 множество может не иметь конечной границы.
+            if (abs(1.0 - ShapeA.x) >= 0.05)
+            {
+        #endif
             float closest = -dot(rayOrigin, rayDirection);
             float3 closestPoint = rayOrigin + rayDirection * closest;
             float distanceSquared = dot(closestPoint, closestPoint);
@@ -406,10 +439,19 @@ internal static class Fractal3DShader
             float halfChord = sqrt(max(radius * radius - distanceSquared, 0.0));
             if (closest + halfChord < 0.0)
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
+        #if FRACTAL_KIND == 2 || FRACTAL_KIND == 3 || FRACTAL_KIND == 4
+            // У этих форм близкий вид уже трассируется корректно; сохраняем его
+            // прежнюю глубинную окраску и ускоряем вход только с удалённой камеры.
+            if (length(rayOrigin) > 3.0 * radius)
+                entryDistance = max(0.0, closest - halfChord);
+        #else
             entryDistance = max(0.0, closest - halfChord);
+        #endif
             // Пользовательская дальность остаётся минимумом, но не обрезает фигуру
             // только из-за того, что камера отъехала от неё.
             maxDistance = max(maxDistance, closest + halfChord);
+        #if FRACTAL_KIND == 2
+            }
         #endif
 
             int style = (int)Style.x;
@@ -434,7 +476,8 @@ internal static class Fractal3DShader
                 float stepDistance = Map(samplePoint, stepTrap);
                 epsilon = max(pixelRadius * travelled, 1e-7);
                 usedSteps = i + 1;
-                float advance = stepDistance < epsilon ? max(epsilon * 2.0, stepDistance) : stepDistance;
+                float safeStep = max(stepDistance * StepScale, epsilon);
+                float advance = stepDistance < epsilon ? max(epsilon * 2.0, stepDistance) : safeStep;
                 // Близость копится с весом пройденного пути, а не по числу шагов: иначе луч,
                 // застрявший у поверхности, за пару кадров насыщал бы яркость до белого.
                 if (volumetric) proximity += exp(-abs(stepDistance) * 22.0) * advance;

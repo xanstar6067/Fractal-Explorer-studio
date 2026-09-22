@@ -112,6 +112,7 @@ internal static partial class Program
         VerifyFractal3DCameraMath();
         VerifyFractal3DZoomGlide();
         await VerifyFractal3DProbeAsync(renderer);
+        await VerifyDistantFractal3DProbesAsync(renderer);
         VerifyFractal3DPalettes();
         await VerifyFractal3DColoringAsync(renderer);
         VerifyFractal3DSaves();
@@ -419,6 +420,42 @@ internal static partial class Program
         Fractal3DRenderer renderer, Fractal3DState state, double pixelX, double pixelY) =>
         renderer.ProbeDistanceAsync(
             state, pixelX, pixelY, Fractal3DRayWidth, Fractal3DRayHeight, CancellationToken.None);
+
+    private static async Task VerifyDistantFractal3DProbesAsync(Fractal3DRenderer renderer)
+    {
+        foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>().Where(k => k != Fractal3DKind.Mandelbulb))
+        {
+            Fractal3DState nearby = Fractal3DCatalog.CreateDefaultState(kind);
+            Fractal3DState state = nearby.Clone();
+            state.CameraDistance = kind == Fractal3DKind.Mandelbox ? 240 : 48;
+            state.MaxDistance = 1;
+
+            bool found = false;
+            double distantCentre = double.NaN;
+            foreach (double y in new[] { 0.49, 0.5, 0.51 })
+            {
+                foreach (double x in new[] { 0.49, 0.5, 0.51 })
+                {
+                    double hit = await ProbeFractal3DAsync(
+                        renderer, state, Fractal3DRayWidth * x, Fractal3DRayHeight * y);
+                    if (x == 0.5 && y == 0.5) distantCentre = hit;
+                    found |= double.IsFinite(hit) && hit > 0 && hit < state.CameraDistance;
+                }
+            }
+
+            Check(found, $"{kind}: moving beyond the trace limit must still reveal the fractal.");
+            double nearbyCentre = await ProbeFractal3DAsync(
+                renderer, nearby, Fractal3DRayWidth / 2.0, Fractal3DRayHeight / 2.0);
+            if (double.IsFinite(nearbyCentre))
+            {
+                double tolerance = kind == Fractal3DKind.Mandelbox ? 2.0 : 0.5;
+                Check(double.IsFinite(distantCentre) &&
+                      Math.Abs((state.CameraDistance - distantCentre) -
+                               (nearby.CameraDistance - nearbyCentre)) < tolerance,
+                    $"{kind}: the distant ray must hit the same front surface as the nearby ray.");
+            }
+        }
+    }
 
     private static void VerifyFractal3DSaves()
     {
