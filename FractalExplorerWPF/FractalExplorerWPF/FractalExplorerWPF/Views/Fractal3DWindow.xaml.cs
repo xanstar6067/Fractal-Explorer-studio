@@ -191,6 +191,7 @@ public partial class Fractal3DWindow : Window
         _yawVelocity = 0;
         _pitchVelocity = 0;
         _surfaceDistance = double.NaN;
+        CancelPendingZoom();
 
         RotationAnchorBox.SelectedIndex = (int)state.RotationAnchor;
         MotionQualityBox.SelectedIndex = (int)state.MotionQuality;
@@ -332,6 +333,7 @@ public partial class Fractal3DWindow : Window
         if (TryReadDouble(TargetXBox.Text, out double x)) _target.X = (float)x;
         if (TryReadDouble(TargetYBox.Text, out double y)) _target.Y = (float)y;
         if (TryReadDouble(TargetZBox.Text, out double z)) _target.Z = (float)z;
+        CancelPendingZoom();
 
         UpdateCameraText();
         ScheduleRender();

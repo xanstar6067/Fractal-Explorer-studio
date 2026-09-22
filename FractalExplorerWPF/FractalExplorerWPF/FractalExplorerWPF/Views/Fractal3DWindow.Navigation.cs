@@ -35,7 +35,6 @@ public partial class Fractal3DWindow
     private const double ProbeIntervalMs = 120;
     private const double UiSyncIntervalMs = 90;
     private const double TransitionSeconds = 0.35;
-    private const double MaxCameraDistance = 1e5;
 
     /// <summary>Мировых единиц в секунду на единицу опорного расстояния при полёте с клавиатуры.</summary>
     private const double FlightSpeed = 1.2;
@@ -56,6 +55,7 @@ public partial class Fractal3DWindow
     private bool _probeSupported = true;
 
     private CameraTransition? _transition;
+    private readonly Fractal3DZoomGlide _zoom = new();
 
     private bool IsInteracting => _rotating || _panning;
 
@@ -63,7 +63,8 @@ public partial class Fractal3DWindow
         Math.Abs(_yawVelocity) > MinInertiaSpeed || Math.Abs(_pitchVelocity) > MinInertiaSpeed;
 
     /// <summary>Движется ли камера: от этого зависят черновое качество и лесенка уточнения.</summary>
-    private bool IsMoving => IsInteracting || HasInertia || _transition is not null || AutoRotateActive;
+    private bool IsMoving =>
+        IsInteracting || HasInertia || _transition is not null || AutoRotateActive || _zoom.IsActive(_distance);
 
     /// <summary>Автовращение с нулевой скоростью камеру не двигает и уточнению не мешает.</summary>
     private bool AutoRotateActive =>
@@ -84,7 +85,7 @@ public partial class Fractal3DWindow
     private bool AdvanceAnimation(double seconds)
     {
         if (seconds <= 0) return false;
-        bool changed = AdvanceTransition(seconds);
+        bool changed = AdvanceTransition(seconds) | AdvanceZoom(seconds);
 
         if (!IsInteracting && _transition is null && RotationInertiaBox.IsChecked == true && HasInertia)
         {
@@ -118,6 +119,23 @@ public partial class Fractal3DWindow
         return changed;
     }
 
+    /// <summary>Доводка колеса: камера догоняет цель, заданную последними щелчками.</summary>
+    private bool AdvanceZoom(double seconds)
+    {
+        var orbit = new Fractal3DOrbit(_yaw, _pitch, _distance, _target);
+        Fractal3DOrbit moved;
+        if (_zoom.IsActive(_distance)) moved = _zoom.Advance(orbit, seconds);
+        else if (_zoom.HasRemainder) moved = _zoom.Finish(orbit);
+        else return false;
+
+        _distance = moved.Distance;
+        _target = moved.Target;
+        return true;
+    }
+
+    /// <summary>Ручной ввод камеры и загрузка состояния отменяют недоеханный шаг колеса.</summary>
+    private void CancelPendingZoom() => _zoom.Clear();
+
     private bool AdvanceTransition(double seconds)
     {
         if (_transition is not { } transition) return false;
@@ -147,6 +165,7 @@ public partial class Fractal3DWindow
 
         _yawVelocity = 0;
         _pitchVelocity = 0;
+        _zoom.Clear();
         _transition = new CameraTransition
         {
             FromYaw = _yaw,
@@ -154,7 +173,7 @@ public partial class Fractal3DWindow
             FromPitch = _pitch,
             ToPitch = Math.Clamp(pitch, Fractal3DCamera.MinPitch, Fractal3DCamera.MaxPitch),
             FromDistance = Math.Max(_distance, Fractal3DCamera.MinDistance),
-            ToDistance = Math.Clamp(distance, Fractal3DCamera.MinDistance, MaxCameraDistance),
+            ToDistance = Math.Clamp(distance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance),
             FromTarget = _target,
             ToTarget = target
         };
@@ -305,6 +324,9 @@ public partial class Fractal3DWindow
         if (notches == 0) notches = Math.Sign(e.Delta);
         if (notches == 0) return;
 
+        // Колесо — это уже управление камерой: начатый перелёт к точке ему не хозяин.
+        _transition = null;
+
         if (_rotating) DollyCamera(notches);
         else ZoomCamera(notches, e.GetPosition(SavePreviewLayer));
 
@@ -312,29 +334,35 @@ public partial class Fractal3DWindow
         e.Handled = true;
     }
 
-    /// <summary>Обычное приближение: меняется радиус орбиты, точка наблюдения остаётся на месте.</summary>
+    /// <summary>
+    /// Обычное приближение: меняется радиус орбиты, точка наблюдения остаётся на месте. Цель
+    /// считается от уже назначенной колесом, а не от показанной сейчас, поэтому быстрая серия
+    /// щелчков складывается, а не спорит сама с собой.
+    /// </summary>
     private void ZoomCamera(int notches, Point point)
     {
-        double step = Math.Pow(WheelStep(), notches);
-        double distance = Math.Clamp(_distance / step, Fractal3DCamera.MinDistance, MaxCameraDistance);
+        double planned = _zoom.PlannedDistance(_distance);
+        double distance = Math.Clamp(planned / Math.Pow(WheelStep(), notches),
+            Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
+        Vector3 plannedTarget = _zoom.PlannedTarget(_target);
 
         if (ZoomToCursorBox.IsChecked == true)
         {
             // Точка под курсором остаётся на месте: цель подтягивается к ней в той же пропорции,
             // в какой сократилось расстояние.
-            Fractal3DState state = CaptureCameraOnly();
+            Fractal3DState state = PlannedCamera();
             Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
             double width = Math.Max(SavePreviewLayer.ActualWidth, 1);
             double height = Math.Max(SavePreviewLayer.ActualHeight, 1);
             double unit = Fractal3DCamera.WorldUnitsPerPixel(state, height);
-            Vector3 pivot = _target +
+            Vector3 pivot = plannedTarget +
                 camera.Right * (float)((point.X - width / 2) * unit) -
                 camera.Up * (float)((point.Y - height / 2) * unit);
-            float keep = (float)(distance / Math.Max(_distance, Fractal3DCamera.MinDistance));
-            _target = pivot + (_target - pivot) * keep;
+            float keep = (float)(distance / Math.Max(planned, Fractal3DCamera.MinDistance));
+            plannedTarget = pivot + (plannedTarget - pivot) * keep;
         }
 
-        _distance = distance;
+        _zoom.Aim(distance, plannedTarget - _target);
     }
 
     /// <summary>
@@ -348,7 +376,11 @@ public partial class Fractal3DWindow
             : Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 0.06
             : 0.25;
         Vector3 forward = -Fractal3DCamera.Direction(_yaw, _pitch);
-        _target += forward * (float)(MovementReference() * factor * notches);
+        // Уже назначенный, но ещё не проеханный путь вычитается из опорного расстояния: иначе
+        // быстрая серия щелчков прошла бы поверхность насквозь.
+        double reference = Math.Max(MovementReference() - Vector3.Dot(_zoom.Shift, forward),
+            Fractal3DCamera.MinDistance);
+        _zoom.Push(forward * (float)(reference * factor * notches));
         RequestProbe(ProbePoint, force: true);
     }
 
@@ -387,7 +419,19 @@ public partial class Fractal3DWindow
     private double MovementReference() =>
         double.IsNaN(_surfaceDistance)
             ? Math.Max(_distance, Fractal3DCamera.MinDistance)
-            : Math.Clamp(_surfaceDistance, Fractal3DCamera.MinDistance, MaxCameraDistance);
+            : Math.Clamp(_surfaceDistance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
+
+    /// <summary>Камера там, куда она приедет по уже назначенному шагу колеса.</summary>
+    private Fractal3DState PlannedCamera()
+    {
+        Fractal3DState state = CaptureCameraOnly();
+        Vector3 planned = _zoom.PlannedTarget(_target);
+        state.CameraDistance = _zoom.PlannedDistance(_distance);
+        state.TargetX = planned.X;
+        state.TargetY = planned.Y;
+        state.TargetZ = planned.Z;
+        return state;
+    }
 
     #endregion
 

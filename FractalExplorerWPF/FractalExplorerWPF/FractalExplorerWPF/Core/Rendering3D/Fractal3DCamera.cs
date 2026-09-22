@@ -14,11 +14,103 @@ public readonly record struct Fractal3DCameraBasis(
 /// <summary>Положение орбитальной камеры, которое меняет навигация окна.</summary>
 public readonly record struct Fractal3DOrbit(double Yaw, double Pitch, double Distance, Vector3 Target);
 
+/// <summary>
+/// Недоеханный остаток шага колеса: во сколько раз ещё должно измениться расстояние и куда ещё
+/// доехать точке наблюдения. Щелчок колеса не двигает камеру сам, а задаёт цель, к которой она
+/// идёт несколько кадров — поэтому зум плавный, а не ступеньками. Остаток хранится приращением,
+/// поэтому одновременные вращение и перетаскивание ему не мешают, а новые щелчки складываются с
+/// недоеханными.
+/// </summary>
+public sealed class Fractal3DZoomGlide
+{
+    /// <summary>Скорость догона цели, 1/с: за 0.2 с остаётся около 6 % пути.</summary>
+    public const double Rate = 14;
+
+    /// <summary>Остаток мельче этого (в долях расстояния) считается доеханным.</summary>
+    public const double Epsilon = 1e-4;
+
+    /// <summary>Расстояние, к которому идёт камера; <c>null</c> — колесо его не трогало.</summary>
+    public double? Aimed { get; private set; }
+
+    /// <summary>Сколько ещё проехать точке наблюдения. Хранится приращением, а не целью, чтобы
+    /// одновременные вращение и перетаскивание не спорили с колесом.</summary>
+    public Vector3 Shift { get; private set; }
+
+    /// <summary>Осталось ли что-то доехать вообще — пусть даже последний незаметный волосок.</summary>
+    public bool HasRemainder => Aimed.HasValue || Shift != Vector3.Zero;
+
+    /// <summary>Стоит ли ради остатка продолжать считать кадры.</summary>
+    public bool IsActive(double distance)
+    {
+        double current = Math.Max(distance, Fractal3DCamera.MinDistance);
+        return (Aimed is { } aim && Math.Abs(Math.Log(aim / current)) > Epsilon) ||
+               Shift.Length() > current * Epsilon;
+    }
+
+    public void Clear()
+    {
+        Aimed = null;
+        Shift = Vector3.Zero;
+    }
+
+    /// <summary>Куда приедет камера, если больше ничего не крутить.</summary>
+    public double PlannedDistance(double distance) =>
+        Aimed ?? Math.Clamp(distance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
+
+    public Vector3 PlannedTarget(Vector3 target) => target + Shift;
+
+    /// <summary>Назначить новую цель: расстояние абсолютно, сдвиг точки наблюдения — приращением.</summary>
+    public void Aim(double distance, Vector3 shift)
+    {
+        Aimed = Math.Clamp(distance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
+        Shift = shift;
+    }
+
+    /// <summary>Добавить к остатку ещё один сдвиг точки наблюдения.</summary>
+    public void Push(Vector3 shift) => Shift += shift;
+
+    /// <summary>
+    /// Доехать часть оставшегося пути за прошедшее время: расстояние — геометрически (на глаз
+    /// приближение идёт равномерно), точка наблюдения — по прямой.
+    /// </summary>
+    public Fractal3DOrbit Advance(Fractal3DOrbit orbit, double seconds)
+    {
+        double fraction = Math.Clamp(1 - Math.Exp(-Rate * seconds), 0, 1);
+        double distance = orbit.Distance;
+        if (Aimed is { } aim)
+        {
+            double current = Math.Max(distance, Fractal3DCamera.MinDistance);
+            distance = current * Math.Pow(aim / current, fraction);
+        }
+
+        Vector3 moved = Shift * (float)fraction;
+        Shift -= moved;
+        return orbit with { Distance = distance, Target = orbit.Target + moved };
+    }
+
+    /// <summary>
+    /// Доехать остаток разом. Геометрическое приближение приходит в цель только в пределе;
+    /// последний незаметный волосок отдаётся целиком, чтобы камера встала ровно там, куда её
+    /// послало колесо, и расстояние в поле не оставалось «почти круглым».
+    /// </summary>
+    public Fractal3DOrbit Finish(Fractal3DOrbit orbit)
+    {
+        Fractal3DOrbit arrived = orbit with
+        {
+            Distance = PlannedDistance(orbit.Distance),
+            Target = PlannedTarget(orbit.Target)
+        };
+        Clear();
+        return arrived;
+    }
+}
+
 public static class Fractal3DCamera
 {
     public const double MinPitch = -89.9;
     public const double MaxPitch = 89.9;
     public const double MinDistance = 1e-4;
+    public const double MaxDistance = 1e5;
 
     /// <summary>Единичный вектор от точки наблюдения к камере по азимуту и наклону.</summary>
     public static Vector3 Direction(double yaw, double pitch)

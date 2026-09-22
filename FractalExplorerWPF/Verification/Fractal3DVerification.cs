@@ -98,10 +98,11 @@ internal static partial class Program
             "A frame rendered into a ready buffer must match the ordinary frame.");
 
         VerifyFractal3DCameraMath();
+        VerifyFractal3DZoomGlide();
         await VerifyFractal3DProbeAsync(renderer);
         VerifyFractal3DSaves();
         Console.WriteLine($"PASS (fractal3d): {Enum.GetValues<Fractal3DKind>().Length} modes, presets, coloring, " +
-                          "camera, navigation, surface probe and saves.");
+                          "camera, navigation, smooth zoom, surface probe and saves.");
     }
 
     /// <summary>
@@ -142,6 +143,65 @@ internal static partial class Program
         (double yaw, double pitch) = Fractal3DCamera.Angles(Fractal3DCamera.Direction(35, 18));
         Check(Math.Abs(yaw - 35) < 1e-4 && Math.Abs(pitch - 18) < 1e-4,
             "Angles of a direction must round-trip.");
+    }
+
+    /// <summary>
+    /// Доводка колеса: щелчок задаёт цель, а камера идёт к ней несколько кадров. Главное —
+    /// прийти ровно в цель и ни разу её не проскочить, иначе зум «дышал» бы на каждом щелчке.
+    /// </summary>
+    private static void VerifyFractal3DZoomGlide()
+    {
+        var glide = new Fractal3DZoomGlide();
+        var orbit = new Fractal3DOrbit(20, 10, 4, new Vector3(1, 0, -1));
+        Check(!glide.IsActive(orbit.Distance), "A fresh glide has nothing to travel.");
+
+        var destination = new Vector3(1.5f, 0.25f, -1.25f);
+        glide.Aim(1, destination - orbit.Target);
+        Check(glide.PlannedDistance(orbit.Distance).Equals(1.0) &&
+              glide.PlannedTarget(orbit.Target) == destination,
+            "The glide must know where the wheel aimed it.");
+        Check(glide.IsActive(orbit.Distance), "An aimed glide must have something to travel.");
+
+        double previous = orbit.Distance;
+        int steps = 0;
+        while (glide.IsActive(orbit.Distance) && steps < 600)
+        {
+            orbit = glide.Advance(orbit, 1.0 / 60);
+            Check(orbit.Distance < previous && orbit.Distance >= 1,
+                $"The glide must approach the aim without overshooting it ({orbit.Distance:G6}).");
+            previous = orbit.Distance;
+            steps++;
+        }
+        Check(steps is > 3 and < 120,
+            $"The glide must take a few frames — neither a jump nor a crawl ({steps} frames).");
+        orbit = glide.Finish(orbit);
+        // Расстояние приходит точно — его показывает поле камеры; точка наблюдения хранится
+        // приращением, поэтому у неё остаётся обычная погрешность float.
+        Check(orbit.Distance.Equals(1d) && (orbit.Target - destination).Length() < 1e-6f &&
+              !glide.HasRemainder,
+            "The last hair of the way must land the camera exactly where the wheel aimed it.");
+
+        // Щелчки складываются, а огромный шаг времени не выносит камеру за цель.
+        glide.Clear();
+        glide.Push(new Vector3(1, 0, 0));
+        glide.Push(new Vector3(0, 2, 0));
+        Check(glide.Shift == new Vector3(1, 2, 0), "Wheel notches must add up while the camera travels.");
+        Fractal3DOrbit jumped = glide.Advance(orbit, 10);
+        Check((jumped.Target - (orbit.Target + new Vector3(1, 2, 0))).Length() < 1e-5f &&
+              !glide.IsActive(jumped.Distance),
+            "A long frame must land on the aim instead of flying past it.");
+
+        // Упор в минимальное расстояние не оставляет вечного остатка.
+        glide.Clear();
+        glide.Aim(Fractal3DCamera.MinDistance / 1000, Vector3.Zero);
+        Fractal3DOrbit squeezed = jumped with { Distance = 1 };
+        for (int index = 0; index < 600 && glide.IsActive(squeezed.Distance); index++)
+        {
+            squeezed = glide.Advance(squeezed, 1.0 / 60);
+        }
+        squeezed = glide.Finish(squeezed);
+        Check(squeezed.Distance.Equals(Fractal3DCamera.MinDistance) && !glide.HasRemainder,
+            "Hitting the closest distance must end the travel instead of leaving a remainder.");
     }
 
     /// <summary>
