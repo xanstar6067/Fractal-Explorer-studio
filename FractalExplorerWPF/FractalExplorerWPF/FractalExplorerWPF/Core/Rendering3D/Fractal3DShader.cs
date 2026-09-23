@@ -497,7 +497,10 @@ internal static class Fractal3DShader
                     bestTravelled = travelled;
                     bestTrap = stepTrap;
                 }
-                float safeStep = max(stepDistance * StepScale, epsilon);
+                // Во второй половине лимита запас плавно снимается: иначе луч, ползущий вдоль
+                // поверхности у полюса, тратил бы все шаги и оставлял на её месте чёрную щель.
+                float relax = saturate(2.0 * (float)i / max((float)maxSteps, 1.0) - 1.0);
+                float safeStep = max(stepDistance * lerp(StepScale, 1.0, relax), epsilon);
                 float advance = stepDistance < epsilon ? max(epsilon * 2.0, stepDistance) : safeStep;
                 // Близость копится с весом пройденного пути, а не по числу шагов: иначе луч,
                 // застрявший у поверхности, за пару кадров насыщал бы яркость до белого.
