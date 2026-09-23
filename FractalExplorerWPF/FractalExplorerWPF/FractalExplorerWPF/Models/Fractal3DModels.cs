@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Models;
@@ -13,7 +14,10 @@ public enum Fractal3DKind
     QuaternionJulia
 }
 
-/// <summary>Вокруг чего поворачивается камера при вращении правой кнопкой.</summary>
+/// <summary>
+/// Вокруг чего поворачивалась камера в прежней схеме навигации. Навигация его больше не читает;
+/// тип остаётся, пока в формате сохранений есть поле <see cref="Fractal3DState.RotationAnchor"/>.
+/// </summary>
 public enum Fractal3DRotationAnchor
 {
     /// <summary>Якорь в точке наблюдения: камера облетает фрактал, расстояние сохраняется.</summary>
@@ -240,10 +244,19 @@ public sealed class Fractal3DState
     public double TargetZ { get; set; }
     public double FieldOfView { get; set; } = 55;
 
+    /// <summary>
+    /// Крен камеры вокруг оси взгляда, градусы. Пока живёт только в окне и в кадре: в файл
+    /// сохранения не пишется, и загруженный вид открывается без крена.
+    /// </summary>
+    [JsonIgnore]
+    public double CameraRoll { get; set; }
+
     // ---- навигация ----
+    /// <summary>Устаревшее: навигация больше не различает якоря. Поле оставлено ради формата сохранений.</summary>
     public Fractal3DRotationAnchor RotationAnchor { get; set; } = Fractal3DRotationAnchor.Target;
     public Fractal3DMotionQuality MotionQuality { get; set; } = Fractal3DMotionQuality.NoShadows;
     public Fractal3DMotionResolution MotionResolution { get; set; } = Fractal3DMotionResolution.Adaptive;
+    /// <summary>Устаревшее: колесо всегда приближает к точке под курсором. Поле оставлено ради формата сохранений.</summary>
     public bool ZoomToCursor { get; set; } = true;
     public bool RotationInertia { get; set; } = true;
     public bool AutoRotate { get; set; }

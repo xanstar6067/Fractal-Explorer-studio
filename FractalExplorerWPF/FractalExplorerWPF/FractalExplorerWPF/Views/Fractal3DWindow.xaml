@@ -6,7 +6,7 @@
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
         Title="Трёхмерный фрактал" Width="1240" Height="800"
         MinWidth="960" MinHeight="600" WindowStartupLocation="CenterOwner"
-        KeyDown="Window_OnKeyDown" KeyUp="Window_OnKeyUp" Closing="Window_OnClosing">
+        KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
     <Window.Resources>
         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/>
@@ -110,15 +110,23 @@
                     <Expander Header="Камера" IsExpanded="True" Margin="0,2,0,4">
                         <StackPanel Margin="10,6,0,2">
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,4,0">
                                     <TextBlock Style="{StaticResource FieldCaption}" Text="Азимут, °"/>
                                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="YawBox"
                                              TextChanged="Camera_OnChanged"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1">
+                                <StackPanel Grid.Column="1" Margin="0,0,4,0">
                                     <TextBlock Style="{StaticResource FieldCaption}" Text="Наклон, °"/>
                                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PitchBox"
+                                             TextChanged="Camera_OnChanged"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Крен, °"/>
+                                    <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RollBox"
+                                             ToolTip="Поворот камеры вокруг оси взгляда. Пока не сохраняется: загруженный вид открывается без крена."
                                              TextChanged="Camera_OnChanged"/>
                                 </StackPanel>
                             </Grid>
@@ -147,18 +155,19 @@
                                 <TextBox Grid.Column="2" Margin="0,4,0,4" numeric:NumericSpinner.IsEnabled="True"
                                          x:Name="TargetZBox" ToolTip="Z" TextChanged="Camera_OnChanged"/>
                             </Grid>
-                            <Button Content="Сбросить вид" Click="ResetViewButton_OnClick"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Margin="0,0,4,0" Content="Сбросить вид"
+                                        Click="ResetViewButton_OnClick"/>
+                                <Button Grid.Column="1" Content="Выровнять горизонт"
+                                        ToolTip="Убрать крен, не меняя направления взгляда (двойной щелчок средней кнопкой)."
+                                        Click="LevelHorizonButton_OnClick"/>
+                            </Grid>
                         </StackPanel>
                     </Expander>
 
                     <Expander Header="Навигация" Margin="0,2,0,4">
                         <StackPanel Margin="10,6,0,2">
-                            <TextBlock Style="{StaticResource FieldCaption}" Text="Вращение правой кнопкой"/>
-                            <ComboBox x:Name="RotationAnchorBox" SelectionChanged="Navigation_OnChanged"
-                                      ToolTip="Вокруг фрактала — камера облетает точку наблюдения. Свободная камера — камера стоит на месте и поворачивается взгляд.">
-                                <ComboBoxItem Content="Вокруг фрактала"/>
-                                <ComboBoxItem Content="Свободная камера"/>
-                            </ComboBox>
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Качество в движении"/>
                             <ComboBox x:Name="MotionQualityBox" SelectionChanged="Navigation_OnChanged"
                                       ToolTip="Чем жертвует живой кадр, пока камера движется. После остановки кадр всегда достраивается полностью.">
@@ -174,8 +183,6 @@
                                 <ComboBoxItem Content="75%"/>
                                 <ComboBoxItem Content="50%"/>
                             </ComboBox>
-                            <CheckBox x:Name="ZoomToCursorBox" Content="Колесо приближает к курсору"
-                                      Checked="Navigation_OnChanged" Unchecked="Navigation_OnChanged"/>
                             <CheckBox x:Name="RotationInertiaBox" Content="Инерция вращения"
                                       Checked="Navigation_OnChanged" Unchecked="Navigation_OnChanged"/>
                             <CheckBox x:Name="AutoRotateBox" Content="Автовращение"
@@ -370,7 +377,7 @@
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                     <TextBlock Margin="0,12,0,0" TextWrapping="Wrap"
                                Foreground="{DynamicResource Theme.DisabledTextBrush}"
-                               Text="Правая кнопка: вращение, вместе с W/A/S/D/Q/E — полёт (Shift — быстрее, Ctrl — точнее). Левая или средняя: перемещение. Двойной щелчок: перелёт к точке под курсором. Колесо: приближение (Ctrl — быстро, Shift — точно), с зажатой правой кнопкой — движение вдоль взгляда. F11: полноэкранный режим."/>
+                               Text="Левая кнопка: вращение вокруг точки, за которую схватили; по фону — поворот взгляда на месте. Правая: сдвиг. Средняя, влево-вправо: крен. Колесо: приближение к точке под курсором (Ctrl — быстро, Shift — точно). Двойной щелчок левой: перелёт к точке, средней: выровнять горизонт. F11: полноэкранный режим."/>
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -386,9 +393,14 @@
                 MouseLeftButtonUp="CanvasHost_OnMouseUp"
                 MouseRightButtonUp="CanvasHost_OnMouseUp"
                 MouseUp="CanvasHost_OnMouseUp">
-            <Grid x:Name="SavePreviewLayer" ClipToBounds="True">
-                <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            <Grid>
+                <Grid x:Name="SavePreviewLayer" ClipToBounds="True">
+                    <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Grid>
+                <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->
+                <Canvas x:Name="AxisTriad" Width="64" Height="64" Margin="8"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
             </Grid>
         </Border>
 

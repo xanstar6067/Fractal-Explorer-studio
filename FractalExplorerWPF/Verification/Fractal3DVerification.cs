@@ -73,6 +73,11 @@ internal static partial class Program
         byte[] movedFrame = await Fractal3DFrameAsync(renderer, moved);
         Check(!reference.SequenceEqual(movedFrame), "The camera must change the frame.");
 
+        Fractal3DState rolled = state.Clone();
+        rolled.CameraRoll = 30;
+        byte[] rolledFrame = await Fractal3DFrameAsync(renderer, rolled);
+        Check(!reference.SequenceEqual(rolledFrame), "The roll of the camera must reach the shader.");
+
         // Отмена не должна оставлять недосчитанный кадр как готовый.
         using (var cancelled = new CancellationTokenSource())
         {
@@ -111,6 +116,7 @@ internal static partial class Program
 
         VerifyFractal3DCameraMath();
         VerifyFractal3DZoomGlide();
+        VerifyFractal3DWindowZoom();
         await VerifyFractal3DProbeAsync(renderer);
         await VerifyDistantFractal3DProbesAsync(renderer);
         await VerifyFractal3DDistanceShadingAsync(renderer);
@@ -122,11 +128,6 @@ internal static partial class Program
                           "coloring sources, camera, navigation, smooth zoom, surface probe and saves.");
     }
 
-    /// <summary>
-    /// Два якоря вращения: вокруг фрактала камера облетает точку наблюдения, игровая камера
-    /// поворачивает взгляд, не сходя с места. Плюс луч через пиксель, по которому зонд откладывает
-    /// измеренное расстояние.
-    /// </summary>
     /// <summary>
     /// Библиотека палитр: встроенный набор, его неизменность для света и фона и круг
     /// «сохранить — прочитать» пользовательской палитры через файл.
@@ -265,38 +266,120 @@ internal static partial class Program
             "The surface probe must keep working under the shader that pierces the surface.");
     }
 
+    /// <summary>
+    /// Камера в духе CAD: кватернионный поворот без упора в полюс, трекбол вокруг схваченной
+    /// точки, поворот взгляда на месте, крен и выравнивание горизонта. Во всех жестах картинка
+    /// должна идти за мышью. Плюс луч через пиксель, по которому зонд откладывает расстояние.
+    /// </summary>
     private static void VerifyFractal3DCameraMath()
     {
-        var orbit = new Fractal3DOrbit(35, 18, 2.8, new Vector3(0.1f, -0.2f, 0.3f));
-        Vector3 position = Fractal3DCamera.Position(orbit);
+        const double fov = 55, width = Fractal3DRayWidth, height = Fractal3DRayHeight;
+        static bool Near(Vector3 a, Vector3 b, float tolerance = 1e-4f) => (a - b).Length() < tolerance;
 
-        Fractal3DOrbit around = Fractal3DCamera.Rotate(orbit, Fractal3DRotationAnchor.Target, 24, 9);
-        Check(around.Target == orbit.Target && around.Distance.Equals(orbit.Distance),
-            "Orbiting must keep the target and the distance.");
-        Check((Fractal3DCamera.Position(around) - position).Length() > 0.1f, "Orbiting must move the camera.");
-        Check(Math.Abs(around.Yaw - (orbit.Yaw - 24)) < 1e-9 && Math.Abs(around.Pitch - (orbit.Pitch + 9)) < 1e-9,
-            "Orbiting must turn the camera by the drag.");
+        // Без крена поворот — ровно прежняя орбитальная камера, иначе старые сохранения сменили бы вид.
+        foreach ((double yaw, double pitch) in new[] { (35.0, 18.0), (-120.0, -60.0), (200.0, 85.0) })
+        {
+            var pose = new Fractal3DPose(Fractal3DCamera.Orientation(yaw, pitch, 0), 2, Vector3.Zero);
+            Vector3 forward = -Fractal3DCamera.Direction(yaw, pitch);
+            Vector3 side = Vector3.Normalize(Vector3.Cross(forward, Vector3.UnitY));
+            Check(Near(pose.Forward, forward) && Near(pose.Right, side) &&
+                  Near(pose.Up, Vector3.Cross(side, forward)),
+                $"Yaw {yaw}, pitch {pitch}: a camera without roll must match the former orbit camera.");
+        }
 
-        Fractal3DOrbit free = Fractal3DCamera.Rotate(orbit, Fractal3DRotationAnchor.FreeLook, 24, 9);
-        Check((Fractal3DCamera.Position(free) - position).Length() < 1e-5f,
-            "Free look must keep the camera in place.");
-        Check((free.Target - orbit.Target).Length() > 0.1f, "Free look must carry the target.");
-        Check(Math.Abs(free.Yaw - (orbit.Yaw + 24)) < 1e-9 && Math.Abs(free.Pitch - (orbit.Pitch - 9)) < 1e-9,
-            "Free look must turn the view opposite to orbiting.");
-
-        Check(Fractal3DCamera.Rotate(orbit, Fractal3DRotationAnchor.Target, 0, 500).Pitch <= Fractal3DCamera.MaxPitch &&
-              Fractal3DCamera.Rotate(orbit, Fractal3DRotationAnchor.FreeLook, 0, 500).Pitch >= Fractal3DCamera.MinPitch,
-            "The pitch must stay between the poles in both anchors.");
+        // Углы и поворот переводятся друг в друга, в том числе вверх ногами и у самого полюса.
+        foreach ((double yaw, double pitch, double roll) in new[]
+                 {
+                     (35.0, 18.0, 0.0), (35.0, 18.0, 40.0), (-150.0, -70.0, 170.0), (10.0, 89.5, -30.0),
+                     (0.0, 90.0, 0.0), (80.0, -90.0, 0.0)
+                 })
+        {
+            Quaternion orientation = Fractal3DCamera.Orientation(yaw, pitch, roll);
+            (double y, double p, double r) = Fractal3DCamera.Angles(orientation);
+            var original = new Fractal3DPose(orientation, 1, Vector3.Zero);
+            var restored = new Fractal3DPose(Fractal3DCamera.Orientation(y, p, r), 1, Vector3.Zero);
+            Check(Near(original.Forward, restored.Forward) && Near(original.Up, restored.Up) &&
+                  Near(original.Right, restored.Right),
+                $"Angles ({yaw}; {pitch}; {roll}) must round-trip through the orientation.");
+        }
 
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
-        Fractal3DCameraBasis basis = Fractal3DCamera.Build(state);
-        Vector3 centre = Fractal3DCamera.PixelRay(
-            state, Fractal3DRayWidth / 2.0, Fractal3DRayHeight / 2.0, Fractal3DRayWidth, Fractal3DRayHeight);
-        Check((centre - basis.Forward).Length() < 1e-5f,
-            "The ray through the centre of the frame must be the view direction.");
+        state.CameraRoll = 25;
+        Fractal3DPose start = Fractal3DCamera.Pose(state);
+        Fractal3DState written = state.Clone();
+        Fractal3DCamera.Apply(start, written);
+        Check(Near(Fractal3DCamera.Pose(written).Up, start.Up) &&
+              Near(Fractal3DCamera.Pose(written).Position, start.Position),
+            "Writing a pose into a state must keep it.");
 
-        (double yaw, double pitch) = Fractal3DCamera.Angles(Fractal3DCamera.Direction(35, 18));
-        Check(Math.Abs(yaw - 35) < 1e-4 && Math.Abs(pitch - 18) < 1e-4,
+        (double X, double Y) Screen(Fractal3DPose pose, Vector3 point) =>
+            Fractal3DCamera.Project(pose, fov, point, width, height);
+
+        // Трекбол: опорная точка стоит на месте, и на экране, и по расстоянию; ближняя к
+        // зрителю сторона идёт за мышью.
+        Vector3 pivot = start.Target + start.Right * 0.3f + start.Up * 0.2f;
+        Vector3 near = pivot - start.Forward * 0.5f;
+        (double pivotX, double pivotY) = Screen(start, pivot);
+        (double nearX, double nearY) = Screen(start, near);
+        Fractal3DPose right = Fractal3DCamera.Orbit(start, pivot, 12, 0);
+        Fractal3DPose down = Fractal3DCamera.Orbit(start, pivot, 0, 12);
+        (double rightPivotX, double rightPivotY) = Screen(right, pivot);
+        Check(Math.Abs(rightPivotX - pivotX) < 0.05 && Math.Abs(rightPivotY - pivotY) < 0.05 &&
+              Math.Abs((right.Position - pivot).Length() - (start.Position - pivot).Length()) < 1e-4f,
+            "Orbiting must keep the grabbed point in place.");
+        Check(Screen(right, near).X > nearX + 1 && Screen(down, near).Y > nearY + 1,
+            "Orbiting must drag the near side of the fractal along with the mouse.");
+
+        // Упора в полюс нет: полный круг по вертикали возвращает камеру туда же.
+        Fractal3DPose circled = start;
+        for (int step = 0; step < 36; step++) circled = Fractal3DCamera.Orbit(circled, pivot, 0, 10);
+        Fractal3DPose flipped = Fractal3DCamera.Orbit(start, pivot, 0, 180);
+        Check(Near(circled.Position, start.Position, 1e-3f) && Near(circled.Up, start.Up, 1e-3f),
+            "A full vertical circle must bring the camera back — without stopping at the pole.");
+        Check(Vector3.Dot(flipped.Up, start.Up) < -0.9f, "Orbiting over the pole must turn the camera upside down.");
+
+        // Поворот взгляда на месте: камера стоит, картинка идёт за мышью.
+        Vector3 ahead = start.Position + start.Forward * 3;
+        (double aheadX, double aheadY) = Screen(start, ahead);
+        Fractal3DPose looked = Fractal3DCamera.Look(start, 8, 6);
+        Check(Near(looked.Position, start.Position) && looked.Distance.Equals(start.Distance),
+            "Looking around must keep the camera in place.");
+        Check(Screen(looked, ahead).X > aheadX + 1 && Screen(looked, ahead).Y > aheadY + 1,
+            "Looking around must drag the picture along with the mouse.");
+
+        // Крен: взгляд тот же, точка над центром кадра уходит вправо — картинка по часовой стрелке.
+        Vector3 above = start.Position + start.Forward * 2 + start.Up * 0.5f;
+        Fractal3DPose rolled = Fractal3DCamera.Roll(start, 20);
+        Check(Near(rolled.Position, start.Position) && Near(rolled.Forward, start.Forward),
+            "Roll must keep the camera and the view direction.");
+        Check(Screen(rolled, above).X > Screen(start, above).X + 1, "A positive roll must turn the picture clockwise.");
+        Check(Math.Abs(Fractal3DCamera.Angles(rolled.Orientation).Roll - (state.CameraRoll + 20)) < 1e-3,
+            "Roll must add up with the roll of the state.");
+
+        // Выравнивание горизонта убирает крен и не трогает взгляд, даже у перевёрнутой камеры.
+        foreach (Fractal3DPose tilted in new[] { rolled, flipped })
+        {
+            Quaternion level = Fractal3DCamera.Level(tilted.Orientation);
+            var levelled = new Fractal3DPose(level, tilted.Distance, tilted.Target);
+            Check(Near(levelled.Forward, tilted.Forward, 1e-3f) && Math.Abs(levelled.Right.Y) < 1e-3f &&
+                  levelled.Up.Y > 0, "Levelling must keep the view and put the horizon straight.");
+        }
+
+        // Разворот к точке и луч через пиксель — взаимно обратные проекции.
+        Vector3 ray = Fractal3DCamera.PixelRay(start, fov, width * 0.3, height * 0.7, width, height);
+        (double rayX, double rayY) = Screen(start, start.Position + ray * 2);
+        Check(Math.Abs(rayX - width * 0.3) < 0.05 && Math.Abs(rayY - height * 0.7) < 0.05,
+            "Projecting a point of a pixel ray must land on that pixel.");
+        var turned = new Fractal3DPose(Fractal3DCamera.TurnToward(start.Orientation, ray), 1, Vector3.Zero);
+        Check(Near(turned.Forward, ray), "Turning toward a direction must look along it.");
+
+        Fractal3DCameraBasis basis = Fractal3DCamera.Build(state);
+        Vector3 centre = Fractal3DCamera.PixelRay(state, width / 2, height / 2, width, height);
+        Check(Near(centre, basis.Forward, 1e-5f) && Near(basis.Up, start.Up),
+            "The ray through the centre of the frame must be the view direction, rolled as the state says.");
+
+        (double dirYaw, double dirPitch) = Fractal3DCamera.Angles(Fractal3DCamera.Direction(35, 18));
+        Check(Math.Abs(dirYaw - 35) < 1e-4 && Math.Abs(dirPitch - 18) < 1e-4,
             "Angles of a direction must round-trip.");
     }
 
@@ -307,7 +390,7 @@ internal static partial class Program
     private static void VerifyFractal3DZoomGlide()
     {
         var glide = new Fractal3DZoomGlide();
-        var orbit = new Fractal3DOrbit(20, 10, 4, new Vector3(1, 0, -1));
+        var orbit = new Fractal3DPose(Quaternion.Identity, 4, new Vector3(1, 0, -1));
         Check(!glide.IsActive(orbit.Distance), "A fresh glide has nothing to travel.");
 
         var destination = new Vector3(1.5f, 0.25f, -1.25f);
@@ -341,7 +424,7 @@ internal static partial class Program
         glide.Push(new Vector3(1, 0, 0));
         glide.Push(new Vector3(0, 2, 0));
         Check(glide.Shift == new Vector3(1, 2, 0), "Wheel notches must add up while the camera travels.");
-        Fractal3DOrbit jumped = glide.Advance(orbit, 10);
+        Fractal3DPose jumped = glide.Advance(orbit, 10);
         Check((jumped.Target - (orbit.Target + new Vector3(1, 2, 0))).Length() < 1e-5f &&
               !glide.IsActive(jumped.Distance),
             "A long frame must land on the aim instead of flying past it.");
@@ -349,7 +432,7 @@ internal static partial class Program
         // Упор в минимальное расстояние не оставляет вечного остатка.
         glide.Clear();
         glide.Aim(Fractal3DCamera.MinDistance / 1000, Vector3.Zero);
-        Fractal3DOrbit squeezed = jumped with { Distance = 1 };
+        Fractal3DPose squeezed = jumped with { Distance = 1 };
         for (int index = 0; index < 600 && glide.IsActive(squeezed.Distance); index++)
         {
             squeezed = glide.Advance(squeezed, 1.0 / 60);
@@ -541,6 +624,7 @@ internal static partial class Program
             original.EffectStrength = 1.75;
             original.LightColor = Color.FromRgb(240, 210, 160);
             original.SkyLightMix = 0.5;
+            original.CameraRoll = 30;
             original.RotationAnchor = Fractal3DRotationAnchor.FreeLook;
             original.MotionQuality = Fractal3DMotionQuality.Draft;
             original.MotionResolution = Fractal3DMotionResolution.Full;
@@ -567,6 +651,8 @@ internal static partial class Program
                   loaded.EffectStrength.Equals(original.EffectStrength) &&
                   loaded.ColorRepeat == original.ColorRepeat && loaded.LightColor == original.LightColor &&
                   loaded.SkyLightMix.Equals(original.SkyLightMix) &&
+                  // Крен пока живёт только в окне: формат сохранений его не знает.
+                  loaded.CameraRoll == 0 &&
                   loaded.Palette is not null && loaded.Palette.Name == original.Palette.Name &&
                   loaded.Palette.Gamma.Equals(original.Palette.Gamma) &&
                   loaded.Palette.Colors.SequenceEqual(original.Palette.Colors),

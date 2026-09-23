@@ -71,11 +71,22 @@ public partial class Fractal3DWindow : Window
     private WriteableBitmap? _draftBitmap;
     private WriteableBitmap? _fullBitmap;
 
-    private double _yaw;
-    private double _pitch;
+    private Quaternion _orientation = Quaternion.Identity;
     private double _distance = 3;
     private double _fieldOfView = 55;
     private Vector3 _target;
+
+    /// <summary>Положение камеры целиком; запись раскладывает его обратно по полям окна.</summary>
+    private Fractal3DPose Pose
+    {
+        get => new(_orientation, _distance, _target);
+        set
+        {
+            _orientation = value.Orientation;
+            _distance = Math.Clamp(value.Distance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
+            _target = value.Target;
+        }
+    }
 
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
@@ -125,18 +136,17 @@ public partial class Fractal3DWindow : Window
         BoxFoldingLimit = ReadDouble(BoxFoldingBox, "Предел свёртки по кубу", 0.1, 8),
         SierpinskiScale = ReadDouble(SierpinskiScaleBox, "Масштаб складывания", 1.05, 8),
 
-        CameraYaw = _yaw,
-        CameraPitch = _pitch,
+        CameraYaw = CameraAngles.Yaw,
+        CameraPitch = CameraAngles.Pitch,
+        CameraRoll = CameraAngles.Roll,
         CameraDistance = _distance,
         TargetX = _target.X,
         TargetY = _target.Y,
         TargetZ = _target.Z,
         FieldOfView = _fieldOfView,
 
-        RotationAnchor = SelectedRotationAnchor,
         MotionQuality = SelectedMotionQuality,
         MotionResolution = SelectedMotionResolution,
-        ZoomToCursor = ZoomToCursorBox.IsChecked == true,
         RotationInertia = RotationInertiaBox.IsChecked == true,
         AutoRotate = AutoRotateBox.IsChecked == true,
         AutoRotateSpeed = ReadDouble(AutoRotateSpeedBox, "Скорость автовращения", -720, 720),
@@ -198,20 +208,13 @@ public partial class Fractal3DWindow : Window
     {
         _updatingUi = true;
 
-        _yaw = state.CameraYaw;
-        _pitch = Math.Clamp(state.CameraPitch, Fractal3DCamera.MinPitch, Fractal3DCamera.MaxPitch);
-        _distance = Math.Max(state.CameraDistance, Fractal3DCamera.MinDistance);
+        Pose = Fractal3DCamera.Pose(state);
         _fieldOfView = Math.Clamp(state.FieldOfView, 5, 160);
-        _target = new Vector3((float)state.TargetX, (float)state.TargetY, (float)state.TargetZ);
-        _yawVelocity = 0;
-        _pitchVelocity = 0;
+        StopCameraMotion();
         _surfaceDistance = double.NaN;
-        CancelPendingZoom();
 
-        RotationAnchorBox.SelectedIndex = (int)state.RotationAnchor;
         MotionQualityBox.SelectedIndex = (int)state.MotionQuality;
         MotionResolutionBox.SelectedIndex = (int)state.MotionResolution;
-        ZoomToCursorBox.IsChecked = state.ZoomToCursor;
         RotationInertiaBox.IsChecked = state.RotationInertia;
         AutoRotateBox.IsChecked = state.AutoRotate;
         AutoRotateSpeedBox.Text = Format(state.AutoRotateSpeed);
@@ -260,6 +263,7 @@ public partial class Fractal3DWindow : Window
         SkyLightMixBox.Text = Format(state.SkyLightMix);
 
         SyncCameraBoxes();
+        UpdateAxisTriad();
         _updatingUi = false;
 
         UpdateColoringPanels();
@@ -289,8 +293,7 @@ public partial class Fractal3DWindow : Window
     private Fractal3DColorRepeat SelectedColorRepeat =>
         (Fractal3DColorRepeat)Math.Clamp(ColorRepeatBox.SelectedIndex, 0, (int)Fractal3DColorRepeat.Mirror);
 
-    private Fractal3DRotationAnchor SelectedRotationAnchor =>
-        (Fractal3DRotationAnchor)Math.Clamp(RotationAnchorBox.SelectedIndex, 0, (int)Fractal3DRotationAnchor.FreeLook);
+    private (double Yaw, double Pitch, double Roll) CameraAngles => Fractal3DCamera.Angles(_orientation);
 
     private Fractal3DMotionQuality SelectedMotionQuality =>
         (Fractal3DMotionQuality)Math.Clamp(MotionQualityBox.SelectedIndex, 0, (int)Fractal3DMotionQuality.Draft);
@@ -394,18 +397,23 @@ public partial class Fractal3DWindow : Window
         if (!_updatingUi) ScheduleRender();
     }
 
-    private void UpdateCameraText() =>
-        CameraText.Text = $"Азимут {_yaw:F1}°, наклон {_pitch:F1}°\n" +
+    private void UpdateCameraText()
+    {
+        (double yaw, double pitch, double roll) = CameraAngles;
+        CameraText.Text = $"Азимут {yaw:F1}°, наклон {pitch:F1}°, крен {roll:F1}°\n" +
                           $"Расстояние {_distance:G6}, обзор {_fieldOfView:F0}°\n" +
                           $"Цель {_target.X:G5}; {_target.Y:G5}; {_target.Z:G5}\n" +
                           (double.IsNaN(_surfaceDistance)
                               ? "Под курсором фон"
                               : $"До поверхности под курсором {_surfaceDistance:G5}");
+    }
 
     private void SyncCameraBoxes()
     {
-        YawBox.Text = Format(Math.Round(_yaw, 3));
-        PitchBox.Text = Format(Math.Round(_pitch, 3));
+        (double yaw, double pitch, double roll) = CameraAngles;
+        YawBox.Text = Format(Math.Round(yaw, 3));
+        PitchBox.Text = Format(Math.Round(pitch, 3));
+        RollBox.Text = Format(Math.Round(roll, 3));
         DistanceBox.Text = Format(Math.Round(_distance, 6));
         FieldOfViewBox.Text = Format(Math.Round(_fieldOfView, 3));
         TargetXBox.Text = Format(Math.Round(_target.X, 6));
@@ -475,16 +483,19 @@ public partial class Fractal3DWindow : Window
     private void Camera_OnChanged(object sender, TextChangedEventArgs e)
     {
         if (_updatingUi) return;
-        if (TryReadDouble(YawBox.Text, out double yaw)) _yaw = yaw;
-        if (TryReadDouble(PitchBox.Text, out double pitch))
-            _pitch = Math.Clamp(pitch, Fractal3DCamera.MinPitch, Fractal3DCamera.MaxPitch);
+        (double yaw, double pitch, double roll) = CameraAngles;
+        if (TryReadDouble(YawBox.Text, out double typedYaw)) yaw = typedYaw;
+        if (TryReadDouble(PitchBox.Text, out double typedPitch)) pitch = Math.Clamp(typedPitch, -90, 90);
+        if (TryReadDouble(RollBox.Text, out double typedRoll)) roll = typedRoll;
+        _orientation = Fractal3DCamera.Orientation(yaw, pitch, roll);
         if (TryReadDouble(DistanceBox.Text, out double distance) && distance > 0) _distance = distance;
         if (TryReadDouble(FieldOfViewBox.Text, out double fieldOfView) && fieldOfView is >= 5 and <= 160)
             _fieldOfView = fieldOfView;
         if (TryReadDouble(TargetXBox.Text, out double x)) _target.X = (float)x;
         if (TryReadDouble(TargetYBox.Text, out double y)) _target.Y = (float)y;
         if (TryReadDouble(TargetZBox.Text, out double z)) _target.Z = (float)z;
-        CancelPendingZoom();
+        StopCameraMotion();
+        InvalidateCursorHit();
 
         UpdateCameraText();
         ScheduleRender();
@@ -498,9 +509,10 @@ public partial class Fractal3DWindow : Window
     {
         Fractal3DState defaults = Fractal3DCatalog.CreateDefaultState(Kind);
         _fieldOfView = Math.Clamp(defaults.FieldOfView, 5, 160);
-        BeginTransition(defaults.CameraYaw, defaults.CameraPitch, defaults.CameraDistance,
-            new Vector3((float)defaults.TargetX, (float)defaults.TargetY, (float)defaults.TargetZ));
+        BeginTransition(Fractal3DCamera.Pose(defaults));
     }
+
+    private void LevelHorizonButton_OnClick(object sender, RoutedEventArgs e) => LevelHorizon();
 
     private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
         SuspendLive(() => SaveManagerWindow.Open(this, SaveManagerConfigurations.ForFractal3D(this, _saveStore)));
@@ -859,19 +871,6 @@ public partial class Fractal3DWindow : Window
     private void CanvasHost_OnSizeChanged(object sender, SizeChangedEventArgs e) =>
         RequestFrame(FrameQuality.Draft, RefineDelayMs);
 
-    /// <summary>Камера без чтения остальных полей: нужна для навигации во время ввода параметров.</summary>
-    private Fractal3DState CaptureCameraOnly() => new()
-    {
-        Kind = Kind,
-        CameraYaw = _yaw,
-        CameraPitch = _pitch,
-        CameraDistance = _distance,
-        TargetX = _target.X,
-        TargetY = _target.Y,
-        TargetZ = _target.Z,
-        FieldOfView = _fieldOfView
-    };
-
     #endregion
 
     #region Окно
@@ -881,17 +880,8 @@ public partial class Fractal3DWindow : Window
         if (e.Key == Key.F11 || (e.Key == Key.Escape && _isFullscreen))
         {
             ToggleFullscreen();
-            return;
-        }
-        if (_rotating && IsFlightKey(e.Key))
-        {
-            _flightKeys.Add(e.Key);
-            AttachLoop();
-            e.Handled = true;
         }
     }
-
-    private void Window_OnKeyUp(object sender, KeyEventArgs e) => _flightKeys.Remove(e.Key);
 
     private void ToggleFullscreen()
     {

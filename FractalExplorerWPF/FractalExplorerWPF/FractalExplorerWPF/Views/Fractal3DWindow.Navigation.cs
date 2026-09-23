@@ -1,25 +1,34 @@
 using System.Numerics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Models;
+using Brush = System.Windows.Media.Brush;
+using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
 
 namespace FractalExplorerWPF.Views;
 
 /// <summary>
-/// Навигация окна трёхмерного фрактала. Правая кнопка вращает камеру — вокруг фрактала или как
-/// игровая камера, левая и средняя перемещают. Колесо без правой кнопки приближает к цели (по
-/// желанию — к точке под курсором), с зажатой правой едет вдоль оси объектива, как в редакторе
-/// уровней; там же работает полёт на WASD/QE. Шаг движения берётся от расстояния до поверхности
-/// под курсором, которое измеряет зонд <see cref="Fractal3DRenderer.ProbeDistanceAsync"/>.
-/// Анимация камеры — автовращение, инерция броска и перелёт к выбранной точке — живёт в
-/// <see cref="AdvanceAnimation"/> и двигается кадровым циклом живого превью.
+/// Навигация окна трёхмерного фрактала — только мышью, как в CAD. Левая кнопка вращает трекболом
+/// вокруг точки поверхности, за которую схватили; по фону — поворачивает взгляд на месте. Правая
+/// сдвигает картинку так, что схваченная точка идёт за курсором. Средняя, влево-вправо, кренит
+/// камеру вокруг оси взгляда. Колесо приближает к точке поверхности под курсором на долю
+/// расстояния до неё, поэтому сквозь поверхность не проскочить. Двойной щелчок левой — перелёт к
+/// точке, двойной щелчок средней — выровнять горизонт. Точку под курсором находит зонд
+/// <see cref="Fractal3DRenderer.ProbeDistanceAsync"/>. Анимация камеры — автовращение, инерция
+/// броска, доводка колеса и перелёты — живёт в <see cref="AdvanceAnimation"/> и двигается кадровым
+/// циклом живого превью.
 /// </summary>
 public partial class Fractal3DWindow
 {
     private const double RotationDegreesPerPixel = 0.35;
+    private const double RollDegreesPerPixel = 0.35;
 
     /// <summary>Затухание броска, 1/с: за это время скорость падает в e раз.</summary>
     private const double InertiaDamping = 7;
@@ -36,31 +45,61 @@ public partial class Fractal3DWindow
     private const double UiSyncIntervalMs = 90;
     private const double TransitionSeconds = 0.35;
 
-    /// <summary>Мировых единиц в секунду на единицу опорного расстояния при полёте с клавиатуры.</summary>
-    private const double FlightSpeed = 1.2;
+    private enum DragMode
+    {
+        None,
 
-    private bool _rotating;
-    private bool _panning;
+        /// <summary>Левая кнопка нажата, но зонд ещё не сказал, поверхность под ней или фон.</summary>
+        PendingRotate,
+
+        Orbit,
+        Look,
+        Pan,
+        Roll
+    }
+
+    private DragMode _drag;
+    private MouseButton _dragButton;
     private Point _lastPoint;
     private Point _cursorPoint = new(double.NaN, double.NaN);
+    private Vector3 _pivot;
+    private double _panUnit;
+    private double _pendingDragX;
+    private double _pendingDragY;
     private double _lastDragMs = double.NegativeInfinity;
     private double _lastUiSyncMs = double.NegativeInfinity;
-    private double _yawVelocity;
-    private double _pitchVelocity;
-    private readonly HashSet<Key> _flightKeys = [];
+
+    private double _spinX;
+    private double _spinY;
+    private Vector3? _spinPivot;
+
+    /// <summary>
+    /// Растёт при каждом движении камеры, кроме колеса: точка под курсором, измеренная до него,
+    /// уже не та. Колесо приближает вдоль луча через курсор, поэтому эта точка остаётся под ним.
+    /// </summary>
+    private int _viewRevision;
 
     private double _surfaceDistance = double.NaN;
+    private bool _hitKnown;
+    private Vector3? _cursorHit;
+    private Point _hitPoint;
+    private int _hitRevision;
+
     private double _lastProbeMs = double.NegativeInfinity;
     private bool _probeBusy;
     private bool _probeSupported = true;
+    private Point? _probeWanted;
+    private DispatcherTimer? _probeTimer;
 
     private CameraTransition? _transition;
     private readonly Fractal3DZoomGlide _zoom = new();
 
-    private bool IsInteracting => _rotating || _panning;
+    private Line[]? _axisLines;
+    private TextBlock[]? _axisLabels;
 
-    private bool HasInertia =>
-        Math.Abs(_yawVelocity) > MinInertiaSpeed || Math.Abs(_pitchVelocity) > MinInertiaSpeed;
+    private bool IsInteracting => _drag != DragMode.None;
+
+    private bool HasInertia => Math.Abs(_spinX) > MinInertiaSpeed || Math.Abs(_spinY) > MinInertiaSpeed;
 
     /// <summary>Движется ли камера: от этого зависят черновое качество и лесенка уточнения.</summary>
     private bool IsMoving =>
@@ -76,11 +115,30 @@ public partial class Fractal3DWindow
         ? new Point(SavePreviewLayer.ActualWidth / 2, SavePreviewLayer.ActualHeight / 2)
         : _cursorPoint;
 
+    /// <summary>Новое положение камеры от вращения, сдвига или перелёта: точка под курсором устарела.</summary>
+    private void MoveCamera(Fractal3DPose pose)
+    {
+        Pose = pose;
+        InvalidateCursorHit();
+    }
+
+    private void InvalidateCursorHit() => _viewRevision++;
+
+    /// <summary>Загрузка состояния и ручной ввод камеры гасят любое её движение.</summary>
+    private void StopCameraMotion()
+    {
+        _transition = null;
+        _spinX = 0;
+        _spinY = 0;
+        _zoom.Clear();
+        InvalidateCursorHit();
+    }
+
     #region Анимация камеры
 
     /// <summary>
-    /// Шаг анимации кадрового цикла: перелёт к точке, инерция броска, автовращение и полёт с
-    /// клавиатуры. Возвращает, изменилась ли камера.
+    /// Шаг анимации кадрового цикла: перелёт, доводка колеса, инерция броска и автовращение.
+    /// Возвращает, изменилась ли камера.
     /// </summary>
     private bool AdvanceAnimation(double seconds)
     {
@@ -89,29 +147,24 @@ public partial class Fractal3DWindow
 
         if (!IsInteracting && _transition is null && RotationInertiaBox.IsChecked == true && HasInertia)
         {
-            ApplyRotation(_yawVelocity * seconds, _pitchVelocity * seconds);
+            ApplyRotation(_spinPivot, _spinX * seconds, _spinY * seconds);
             double damping = Math.Exp(-InertiaDamping * seconds);
-            _yawVelocity *= damping;
-            _pitchVelocity *= damping;
+            _spinX *= damping;
+            _spinY *= damping;
             changed = true;
         }
         else if (!IsInteracting)
         {
-            _yawVelocity = 0;
-            _pitchVelocity = 0;
+            _spinX = 0;
+            _spinY = 0;
         }
 
-        if (AutoRotateActive && !_rotating && _transition is null &&
+        if (AutoRotateActive && !IsInteracting && _transition is null &&
             TryReadDouble(AutoRotateSpeedBox.Text, out double speed))
         {
-            _yaw += speed * seconds;
-            changed = true;
-        }
-
-        if (_rotating && _flightKeys.Count > 0 && FlyStep(seconds))
-        {
-            // В полёте курсор стоит на месте, поэтому расстояние до поверхности обновляем сами.
-            RequestProbe(ProbePoint);
+            // Поворотный стол вокруг мировой вертикали через точку наблюдения.
+            MoveCamera(Fractal3DCamera.RotateAround(Pose, _target,
+                Quaternion.CreateFromAxisAngle(Vector3.UnitY, (float)(speed * seconds * Math.PI / 180))));
             changed = true;
         }
 
@@ -122,19 +175,17 @@ public partial class Fractal3DWindow
     /// <summary>Доводка колеса: камера догоняет цель, заданную последними щелчками.</summary>
     private bool AdvanceZoom(double seconds)
     {
-        var orbit = new Fractal3DOrbit(_yaw, _pitch, _distance, _target);
-        Fractal3DOrbit moved;
-        if (_zoom.IsActive(_distance)) moved = _zoom.Advance(orbit, seconds);
-        else if (_zoom.HasRemainder) moved = _zoom.Finish(orbit);
+        if (_zoom.IsActive(_distance)) Pose = _zoom.Advance(Pose, seconds);
+        else if (_zoom.HasRemainder) Pose = _zoom.Finish(Pose);
         else return false;
-
-        _distance = moved.Distance;
-        _target = moved.Target;
         return true;
     }
 
-    /// <summary>Ручной ввод камеры и загрузка состояния отменяют недоеханный шаг колеса.</summary>
-    private void CancelPendingZoom() => _zoom.Clear();
+    /// <summary>Доехать недоеханный шаг колеса разом: вращение и сдвиг начинаются с места, где камера будет.</summary>
+    private void FinishZoom()
+    {
+        if (_zoom.HasRemainder) Pose = _zoom.Finish(Pose);
+    }
 
     private bool AdvanceTransition(double seconds)
     {
@@ -142,55 +193,45 @@ public partial class Fractal3DWindow
 
         transition.Elapsed += seconds;
         double progress = Math.Clamp(transition.Elapsed / TransitionSeconds, 0, 1);
-        double eased = progress * progress * (3 - 2 * progress);
+        float eased = (float)(progress * progress * (3 - 2 * progress));
 
-        _yaw = transition.FromYaw + (transition.ToYaw - transition.FromYaw) * eased;
-        _pitch = Math.Clamp(transition.FromPitch + (transition.ToPitch - transition.FromPitch) * eased,
-            Fractal3DCamera.MinPitch, Fractal3DCamera.MaxPitch);
+        Fractal3DPose from = transition.From, to = transition.To;
         // Расстояние ведётся геометрически: приближение к поверхности идёт равномерно на глаз.
-        _distance = transition.FromDistance *
-            Math.Pow(transition.ToDistance / transition.FromDistance, eased);
-        _target = Vector3.Lerp(transition.FromTarget, transition.ToTarget, (float)eased);
+        MoveCamera(new Fractal3DPose(
+            Quaternion.Normalize(Quaternion.Slerp(from.Orientation, to.Orientation, eased)),
+            from.Distance * Math.Pow(to.Distance / from.Distance, eased),
+            Vector3.Lerp(from.Target, to.Target, eased)));
 
         if (progress >= 1) _transition = null;
         return true;
     }
 
     /// <summary>Плавный перелёт камеры к новому виду вместо скачка.</summary>
-    private void BeginTransition(double yaw, double pitch, double distance, Vector3 target)
+    private void BeginTransition(Fractal3DPose to)
     {
-        // Кратчайший поворот: без этого «сброс вида» мог бы прокрутить почти полный круг.
-        while (yaw - _yaw > 180) yaw -= 360;
-        while (yaw - _yaw < -180) yaw += 360;
-
-        _yawVelocity = 0;
-        _pitchVelocity = 0;
-        _zoom.Clear();
-        _transition = new CameraTransition
+        FinishZoom();
+        _spinX = 0;
+        _spinY = 0;
+        _transition = new CameraTransition(Pose, to with
         {
-            FromYaw = _yaw,
-            ToYaw = yaw,
-            FromPitch = _pitch,
-            ToPitch = Math.Clamp(pitch, Fractal3DCamera.MinPitch, Fractal3DCamera.MaxPitch),
-            FromDistance = Math.Max(_distance, Fractal3DCamera.MinDistance),
-            ToDistance = Math.Clamp(distance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance),
-            FromTarget = _target,
-            ToTarget = target
-        };
+            Distance = Math.Clamp(to.Distance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance)
+        });
         AttachLoop();
         RequestFrame(FrameQuality.Draft);
     }
 
-    private sealed class CameraTransition
+    /// <summary>Убрать крен, не меняя направления взгляда.</summary>
+    private void LevelHorizon()
     {
-        public double FromYaw { get; init; }
-        public double ToYaw { get; init; }
-        public double FromPitch { get; init; }
-        public double ToPitch { get; init; }
-        public double FromDistance { get; init; }
-        public double ToDistance { get; init; }
-        public Vector3 FromTarget { get; init; }
-        public Vector3 ToTarget { get; init; }
+        Fractal3DPose pose = Pose;
+        BeginTransition(pose with { Orientation = Fractal3DCamera.Level(pose.Orientation) });
+        StatusText.Text = "Горизонт выровнен.";
+    }
+
+    private sealed class CameraTransition(Fractal3DPose from, Fractal3DPose to)
+    {
+        public Fractal3DPose From { get; } = from;
+        public Fractal3DPose To { get; } = to;
         public double Elapsed { get; set; }
     }
 
@@ -200,70 +241,161 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        Point point = e.GetPosition(SavePreviewLayer);
         if (e.ClickCount == 2)
         {
-            _ = FlyToCursorAsync(e.GetPosition(SavePreviewLayer));
+            _ = FlyToCursorAsync(point);
             e.Handled = true;
             return;
         }
-        BeginInteraction(e.GetPosition(CanvasHost), rotate: false);
+        if (IsInteracting) return;
+
+        BeginDrag(DragMode.PendingRotate, MouseButton.Left, point, Cursors.ScrollAll);
+        if (!_probeSupported)
+        {
+            // Без зонда поверхность не найти: вращаем вокруг точки наблюдения, как раньше.
+            StartRotation(_target);
+        }
+        else if (TryGetCursorHit(point, out Vector3? hit))
+        {
+            StartRotation(hit);
+        }
+        else
+        {
+            _ = ResolvePivotAsync(point);
+        }
+        e.Handled = true;
     }
 
     private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        BeginInteraction(e.GetPosition(CanvasHost), rotate: true);
+        if (IsInteracting) return;
+        Point point = e.GetPosition(SavePreviewLayer);
+        FinishZoom();
+
+        // Схваченная точка должна идти за курсором: шаг сдвига считается на её глубине.
+        double depth = _distance;
+        if (TryGetCursorHit(point, out Vector3? hit) && hit is { } surface)
+            depth = Math.Max(Vector3.Dot(surface - Pose.Position, Pose.Forward), Fractal3DCamera.MinDistance);
+        _panUnit = Fractal3DCamera.WorldUnitsPerPixel(depth, _fieldOfView, SavePreviewLayer.ActualHeight);
+
+        BeginDrag(DragMode.Pan, MouseButton.Right, point, Cursors.SizeAll);
         e.Handled = true;
     }
 
     private void CanvasHost_OnMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Middle) BeginInteraction(e.GetPosition(CanvasHost), rotate: false);
+        if (e.ChangedButton != MouseButton.Middle) return;
+        if (e.ClickCount == 2)
+        {
+            LevelHorizon();
+        }
+        else if (!IsInteracting)
+        {
+            FinishZoom();
+            BeginDrag(DragMode.Roll, MouseButton.Middle, e.GetPosition(SavePreviewLayer), Cursors.SizeWE);
+        }
+        e.Handled = true;
     }
 
-    private void BeginInteraction(Point point, bool rotate)
+    private void BeginDrag(DragMode mode, MouseButton button, Point point, Cursor cursor)
     {
         _transition = null;
-        _yawVelocity = 0;
-        _pitchVelocity = 0;
-        _rotating = rotate;
-        _panning = !rotate;
+        _spinX = 0;
+        _spinY = 0;
+        _pendingDragX = 0;
+        _pendingDragY = 0;
+        _drag = mode;
+        _dragButton = button;
         _lastPoint = point;
         _lastDragMs = _clock.Elapsed.TotalMilliseconds;
         CanvasHost.CaptureMouse();
-        Mouse.OverrideCursor = rotate ? Cursors.ScrollAll : Cursors.SizeAll;
+        Mouse.OverrideCursor = cursor;
         AttachLoop();
+    }
+
+    /// <summary>Вокруг точки поверхности — трекбол, по фону (<c>null</c>) — поворот взгляда на месте.</summary>
+    private void StartRotation(Vector3? pivot)
+    {
+        FinishZoom();
+        _drag = pivot is null ? DragMode.Look : DragMode.Orbit;
+        _pivot = pivot ?? default;
+        if (_pendingDragX != 0 || _pendingDragY != 0)
+        {
+            ApplyRotation(pivot, _pendingDragX, _pendingDragY);
+            _pendingDragX = 0;
+            _pendingDragY = 0;
+            AfterCameraChanged();
+        }
+    }
+
+    /// <summary>Зонд под точкой нажатия: пока он считает, движение мыши копится и применяется потом.</summary>
+    private async Task ResolvePivotAsync(Point point)
+    {
+        Vector3? pivot = _target;
+        try
+        {
+            if (TryCaptureState(out Fractal3DState state))
+            {
+                (double x, double y, int width, int height) = ToFramePixel(point);
+                double distance = await _renderer.ProbeDistanceAsync(state, x, y, width, height, CancellationToken.None);
+                pivot = double.IsNaN(distance)
+                    ? null
+                    : Fractal3DCamera.Position(state) +
+                      Fractal3DCamera.PixelRay(state, x, y, width, height) * (float)distance;
+            }
+        }
+        catch (Exception)
+        {
+            _probeSupported = false;
+        }
+
+        if (!_isClosing && _drag == DragMode.PendingRotate) StartRotation(pivot);
     }
 
     private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
     {
-        _cursorPoint = e.GetPosition(SavePreviewLayer);
+        Point current = e.GetPosition(SavePreviewLayer);
+        _cursorPoint = current;
         if (!IsInteracting)
         {
-            RequestProbe(_cursorPoint);
+            RequestProbe(current);
             return;
         }
 
-        Point current = e.GetPosition(CanvasHost);
         double deltaX = current.X - _lastPoint.X;
         double deltaY = current.Y - _lastPoint.Y;
         if (deltaX == 0 && deltaY == 0) return;
         _lastPoint = current;
-
         double now = _clock.Elapsed.TotalMilliseconds;
-        if (_rotating)
+
+        switch (_drag)
         {
-            double dragYaw = deltaX * RotationDegreesPerPixel;
-            double dragPitch = deltaY * RotationDegreesPerPixel;
-            ApplyRotation(dragYaw, dragPitch);
-            TrackInertia(dragYaw, dragPitch, now);
-        }
-        else
-        {
-            Fractal3DState state = CaptureCameraOnly();
-            Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
-            double unit = Fractal3DCamera.WorldUnitsPerPixel(state, CanvasHost.ActualHeight);
-            _target -= camera.Right * (float)(deltaX * unit);
-            _target += camera.Up * (float)(deltaY * unit);
+            case DragMode.PendingRotate:
+                _pendingDragX += deltaX * RotationDegreesPerPixel;
+                _pendingDragY += deltaY * RotationDegreesPerPixel;
+                return;
+            case DragMode.Orbit:
+            case DragMode.Look:
+            {
+                double dragX = deltaX * RotationDegreesPerPixel;
+                double dragY = deltaY * RotationDegreesPerPixel;
+                ApplyRotation(_drag == DragMode.Orbit ? _pivot : null, dragX, dragY);
+                TrackInertia(dragX, dragY, now);
+                break;
+            }
+            case DragMode.Pan:
+            {
+                Fractal3DPose pose = Pose;
+                MoveCamera(pose with
+                {
+                    Target = pose.Target + (pose.Up * (float)deltaY - pose.Right * (float)deltaX) * (float)_panUnit
+                });
+                break;
+            }
+            case DragMode.Roll:
+                MoveCamera(Fractal3DCamera.Roll(Pose, deltaX * RollDegreesPerPixel));
+                break;
         }
 
         _lastDragMs = now;
@@ -272,51 +404,46 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (!IsInteracting) return;
-        if (_rotating && e.ChangedButton != MouseButton.Right) return;
-        if (_panning && e.ChangedButton is not (MouseButton.Left or MouseButton.Middle)) return;
+        if (!IsInteracting || e.ChangedButton != _dragButton) return;
 
-        bool wasRotating = _rotating;
-        _rotating = false;
-        _panning = false;
-        _flightKeys.Clear();
+        bool rotating = _drag is DragMode.Orbit or DragMode.Look;
+        _spinPivot = _drag == DragMode.Orbit ? _pivot : null;
+        _drag = DragMode.None;
         CanvasHost.ReleaseMouseCapture();
         Mouse.OverrideCursor = null;
 
-        bool fling = wasRotating && RotationInertiaBox.IsChecked == true &&
+        bool fling = rotating && RotationInertiaBox.IsChecked == true &&
                      _clock.Elapsed.TotalMilliseconds - _lastDragMs < FlingWindowMs;
         if (!fling)
         {
-            _yawVelocity = 0;
-            _pitchVelocity = 0;
+            _spinX = 0;
+            _spinY = 0;
         }
 
         // Полный кадр попросит сам цикл, когда увидит, что движение кончилось: отпускание кнопки
         // ещё не остановка, если включена инерция.
         SyncCameraUi(immediate: true);
+        RequestProbe(e.GetPosition(SavePreviewLayer), force: true);
+        e.Handled = true;
     }
 
-    private void ApplyRotation(double dragYaw, double dragPitch)
-    {
-        Fractal3DOrbit rotated = Fractal3DCamera.Rotate(
-            new Fractal3DOrbit(_yaw, _pitch, _distance, _target), SelectedRotationAnchor, dragYaw, dragPitch);
-        _yaw = rotated.Yaw;
-        _pitch = rotated.Pitch;
-        _target = rotated.Target;
-    }
+    private void ApplyRotation(Vector3? pivot, double dragX, double dragY) =>
+        MoveCamera(pivot is { } point
+            ? Fractal3DCamera.Orbit(Pose, point, dragX, dragY)
+            : Fractal3DCamera.Look(Pose, dragX, dragY));
 
-    private void TrackInertia(double dragYaw, double dragPitch, double now)
+    private void TrackInertia(double dragX, double dragY, double now)
     {
         double seconds = Math.Clamp((now - _lastDragMs) / 1000, 0.004, 0.1);
-        double yawSpeed = Math.Clamp(dragYaw / seconds, -MaxInertiaSpeed, MaxInertiaSpeed);
-        double pitchSpeed = Math.Clamp(dragPitch / seconds, -MaxInertiaSpeed, MaxInertiaSpeed);
-        _yawVelocity = _yawVelocity * 0.6 + yawSpeed * 0.4;
-        _pitchVelocity = _pitchVelocity * 0.6 + pitchSpeed * 0.4;
+        double speedX = Math.Clamp(dragX / seconds, -MaxInertiaSpeed, MaxInertiaSpeed);
+        double speedY = Math.Clamp(dragY / seconds, -MaxInertiaSpeed, MaxInertiaSpeed);
+        _spinX = _spinX * 0.6 + speedX * 0.4;
+        _spinY = _spinY * 0.6 + speedY * 0.4;
     }
 
     #endregion
 
-    #region Колесо и полёт
+    #region Колесо
 
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -326,62 +453,42 @@ public partial class Fractal3DWindow
 
         // Колесо — это уже управление камерой: начатый перелёт к точке ему не хозяин.
         _transition = null;
-
-        if (_rotating) DollyCamera(notches);
-        else ZoomCamera(notches, e.GetPosition(SavePreviewLayer));
-
+        ZoomCamera(notches, e.GetPosition(SavePreviewLayer));
         AfterCameraChanged();
         e.Handled = true;
     }
 
     /// <summary>
-    /// Обычное приближение: меняется радиус орбиты, точка наблюдения остаётся на месте. Цель
-    /// считается от уже назначенной колесом, а не от показанной сейчас, поэтому быстрая серия
-    /// щелчков складывается, а не спорит сама с собой.
+    /// Приближение к точке под курсором, как в CAD: камера едет по лучу через курсор, и за каждый
+    /// щелчок расстояние до этой точки сокращается в одно и то же число раз — к поверхности можно
+    /// подходить сколько угодно, но сквозь неё не проскочить. Если под курсором фон, опорой служит
+    /// точка луча на глубине точки наблюдения. Цель считается от уже назначенной колесом, поэтому
+    /// быстрая серия щелчков складывается, а не спорит сама с собой.
     /// </summary>
     private void ZoomCamera(int notches, Point point)
     {
-        double planned = _zoom.PlannedDistance(_distance);
-        double distance = Math.Clamp(planned / Math.Pow(WheelStep(), notches),
-            Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
-        Vector3 plannedTarget = _zoom.PlannedTarget(_target);
+        Fractal3DPose planned = new(_orientation, _zoom.PlannedDistance(_distance), _zoom.PlannedTarget(_target));
+        Vector3 forward = planned.Forward;
+        Vector3 plannedPosition = planned.Position;
+        Vector3 ray = Fractal3DCamera.PixelRay(planned, _fieldOfView, point.X, point.Y,
+            Math.Max(SavePreviewLayer.ActualWidth, 1), Math.Max(SavePreviewLayer.ActualHeight, 1));
 
-        if (ZoomToCursorBox.IsChecked == true)
-        {
-            // Точка под курсором остаётся на месте: цель подтягивается к ней в той же пропорции,
-            // в какой сократилось расстояние.
-            Fractal3DState state = PlannedCamera();
-            Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
-            double width = Math.Max(SavePreviewLayer.ActualWidth, 1);
-            double height = Math.Max(SavePreviewLayer.ActualHeight, 1);
-            double unit = Fractal3DCamera.WorldUnitsPerPixel(state, height);
-            Vector3 pivot = plannedTarget +
-                camera.Right * (float)((point.X - width / 2) * unit) -
-                camera.Up * (float)((point.Y - height / 2) * unit);
-            float keep = (float)(distance / Math.Max(planned, Fractal3DCamera.MinDistance));
-            plannedTarget = pivot + (plannedTarget - pivot) * keep;
-        }
+        bool known = TryGetCursorHit(point, out Vector3? hit);
+        Vector3 pivot = hit ?? plannedPosition + ray * (float)(planned.Distance / Math.Max(Vector3.Dot(ray, forward), 1e-3f));
+        if (!known) RequestProbe(point, force: true);
 
-        _zoom.Aim(distance, plannedTarget - _target);
-    }
+        // Точка наблюдения переезжает на глубину опоры — вид от этого не меняется, зато расстояние
+        // теперь мерит путь до неё, и геометрическая доводка не проедет сквозь поверхность.
+        double MinDepth(double depth) => Math.Clamp(depth, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
+        Vector3 position = Pose.Position;
+        _distance = MinDepth(Vector3.Dot(pivot - position, forward));
+        _target = position + forward * (float)_distance;
+        double plannedDepth = MinDepth(Vector3.Dot(pivot - plannedPosition, forward));
+        Vector3 plannedTarget = plannedPosition + forward * (float)plannedDepth;
 
-    /// <summary>
-    /// Игровое приближение при зажатой правой кнопке: камера вместе с точкой наблюдения едет вдоль
-    /// оси объектива, поэтому внутрь фрактала можно влететь. Шаг — доля расстояния до поверхности
-    /// под курсором, так что вплотную он мельчает сам и сквозь поверхность не проскочить.
-    /// </summary>
-    private void DollyCamera(int notches)
-    {
-        double factor = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? 0.6
-            : Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 0.06
-            : 0.25;
-        Vector3 forward = -Fractal3DCamera.Direction(_yaw, _pitch);
-        // Уже назначенный, но ещё не проеханный путь вычитается из опорного расстояния: иначе
-        // быстрая серия щелчков прошла бы поверхность насквозь.
-        double reference = Math.Max(MovementReference() - Vector3.Dot(_zoom.Shift, forward),
-            Fractal3DCamera.MinDistance);
-        _zoom.Push(forward * (float)(reference * factor * notches));
-        RequestProbe(ProbePoint, force: true);
+        double distance = MinDepth(plannedDepth / Math.Pow(WheelStep(), notches));
+        float keep = (float)(distance / plannedDepth);
+        _zoom.Aim(distance, pivot + (plannedTarget - pivot) * keep - _target);
     }
 
     private static double WheelStep() =>
@@ -389,62 +496,62 @@ public partial class Fractal3DWindow
         : Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 1.03
         : 1.15;
 
-    private static bool IsFlightKey(Key key) =>
-        key is Key.W or Key.A or Key.S or Key.D or Key.Q or Key.E;
-
-    private bool FlyStep(double seconds)
-    {
-        Fractal3DCameraBasis camera = Fractal3DCamera.Build(CaptureCameraOnly());
-        Vector3 move = Vector3.Zero;
-        if (_flightKeys.Contains(Key.W)) move += camera.Forward;
-        if (_flightKeys.Contains(Key.S)) move -= camera.Forward;
-        if (_flightKeys.Contains(Key.D)) move += camera.Right;
-        if (_flightKeys.Contains(Key.A)) move -= camera.Right;
-        if (_flightKeys.Contains(Key.E)) move += camera.Up;
-        if (_flightKeys.Contains(Key.Q)) move -= camera.Up;
-        if (move.LengthSquared() < 1e-12f) return false;
-
-        double modifier = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 4
-            : Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? 0.25
-            : 1;
-        _target += Vector3.Normalize(move) *
-            (float)(MovementReference() * FlightSpeed * modifier * seconds);
-        return true;
-    }
-
-    /// <summary>
-    /// Опорное расстояние для шага движения: до поверхности под курсором, если зонд её нашёл,
-    /// иначе радиус орбиты.
-    /// </summary>
-    private double MovementReference() =>
-        double.IsNaN(_surfaceDistance)
-            ? Math.Max(_distance, Fractal3DCamera.MinDistance)
-            : Math.Clamp(_surfaceDistance, Fractal3DCamera.MinDistance, Fractal3DCamera.MaxDistance);
-
-    /// <summary>Камера там, куда она приедет по уже назначенному шагу колеса.</summary>
-    private Fractal3DState PlannedCamera()
-    {
-        Fractal3DState state = CaptureCameraOnly();
-        Vector3 planned = _zoom.PlannedTarget(_target);
-        state.CameraDistance = _zoom.PlannedDistance(_distance);
-        state.TargetX = planned.X;
-        state.TargetY = planned.Y;
-        state.TargetZ = planned.Z;
-        return state;
-    }
-
     #endregion
 
     #region Зонд поверхности
 
-    /// <summary>Измеряет расстояние до поверхности под курсором, не чаще чем раз в <see cref="ProbeIntervalMs"/>.</summary>
+    /// <summary>
+    /// Точка поверхности под курсором, если зонд уже измерил её для этого положения камеры:
+    /// <c>true</c> и <paramref name="hit"/> = <c>null</c> значит «там фон».
+    /// </summary>
+    private bool TryGetCursorHit(Point point, out Vector3? hit)
+    {
+        hit = _cursorHit;
+        return _hitKnown && _hitRevision == _viewRevision &&
+               Math.Abs(point.X - _hitPoint.X) < 0.5 && Math.Abs(point.Y - _hitPoint.Y) < 0.5;
+    }
+
+    /// <summary>
+    /// Измеряет расстояние до поверхности под курсором не чаще чем раз в
+    /// <see cref="ProbeIntervalMs"/>. Отложенный запрос не теряется: последняя точка, где
+    /// остановился курсор, будет измерена, как только зонд освободится.
+    /// </summary>
     private void RequestProbe(Point point, bool force = false)
     {
-        if (_isClosing || _probeBusy || !_probeSupported) return;
-        double now = _clock.Elapsed.TotalMilliseconds;
-        if (!force && now - _lastProbeMs < ProbeIntervalMs) return;
+        if (_isClosing || !_probeSupported) return;
+        _probeWanted = point;
+        if (_probeBusy) return;
 
-        _lastProbeMs = now;
+        double wait = force ? 0 : ProbeIntervalMs - (_clock.Elapsed.TotalMilliseconds - _lastProbeMs);
+        if (wait <= 0)
+        {
+            StartProbe();
+            return;
+        }
+
+        _probeTimer ??= CreateProbeTimer();
+        if (_probeTimer.IsEnabled) return;
+        _probeTimer.Interval = TimeSpan.FromMilliseconds(wait);
+        _probeTimer.Start();
+    }
+
+    private DispatcherTimer CreateProbeTimer()
+    {
+        var timer = new DispatcherTimer(DispatcherPriority.Input, Dispatcher);
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (!_probeBusy) StartProbe();
+        };
+        return timer;
+    }
+
+    private void StartProbe()
+    {
+        if (_probeWanted is not { } point) return;
+        _probeWanted = null;
+        _probeTimer?.Stop();
+        _lastProbeMs = _clock.Elapsed.TotalMilliseconds;
         _probeBusy = true;
         _ = ProbeAsync(point);
     }
@@ -453,12 +560,28 @@ public partial class Fractal3DWindow
     {
         try
         {
+            int revision = _viewRevision;
             if (!TryCaptureState(out Fractal3DState state)) return;
             (double x, double y, int width, int height) = ToFramePixel(point);
             if (x < 0 || y < 0 || x > width || y > height) return;
-            _surfaceDistance = await _renderer.ProbeDistanceAsync(
+            double distance = await _renderer.ProbeDistanceAsync(
                 state, x, y, width, height, CancellationToken.None);
-            if (!_isClosing) UpdateCameraText();
+            if (_isClosing) return;
+
+            _surfaceDistance = distance;
+            if (revision == _viewRevision)
+            {
+                // Точка откладывается от камеры, для которой её мерили: колесо, покрутившееся за
+                // это время, двигает камеру по тому же лучу, и точка остаётся под курсором.
+                _hitKnown = true;
+                _hitPoint = point;
+                _hitRevision = revision;
+                _cursorHit = double.IsNaN(distance)
+                    ? null
+                    : Fractal3DCamera.Position(state) +
+                      Fractal3DCamera.PixelRay(state, x, y, width, height) * (float)distance;
+            }
+            UpdateCameraText();
         }
         catch (OperationCanceledException)
         {
@@ -466,17 +589,18 @@ public partial class Fractal3DWindow
         catch (Exception)
         {
             // Зонд — удобство, а не обязательная часть кадра: если устройство его не потянуло,
-            // шаг движения дальше считается от радиуса орбиты.
+            // вращение идёт вокруг точки наблюдения, а колесо приближает к её плоскости.
             _surfaceDistance = double.NaN;
             _probeSupported = false;
         }
         finally
         {
             _probeBusy = false;
+            if (_probeWanted is { } next && !_isClosing) RequestProbe(next);
         }
     }
 
-    /// <summary>Двойной щелчок: перелёт к точке поверхности под курсором.</summary>
+    /// <summary>Двойной щелчок: камера разворачивается к точке поверхности под курсором и берёт её целью.</summary>
     private async Task FlyToCursorAsync(Point point)
     {
         if (!_probeSupported || !TryCaptureState(out Fractal3DState state)) return;
@@ -500,11 +624,11 @@ public partial class Fractal3DWindow
             return;
         }
 
-        Vector3 position = Fractal3DCamera.Position(state);
-        Vector3 hit = position + Fractal3DCamera.PixelRay(state, x, y, width, height) * (float)distance;
-        (double yaw, double pitch) = Fractal3DCamera.Angles(position - hit);
+        Fractal3DPose pose = Fractal3DCamera.Pose(state);
+        Vector3 ray = Fractal3DCamera.PixelRay(state, x, y, width, height);
+        Vector3 hit = pose.Position + ray * (float)distance;
         _surfaceDistance = distance;
-        BeginTransition(yaw, pitch, distance, hit);
+        BeginTransition(new Fractal3DPose(Fractal3DCamera.TurnToward(pose.Orientation, ray), distance, hit));
         StatusText.Text = $"Перелёт к точке на расстоянии {distance:G4}.";
     }
 
@@ -536,12 +660,7 @@ public partial class Fractal3DWindow
                 return false;
             }
             state = _lastGoodState.Clone();
-            state.CameraYaw = _yaw;
-            state.CameraPitch = _pitch;
-            state.CameraDistance = _distance;
-            state.TargetX = _target.X;
-            state.TargetY = _target.Y;
-            state.TargetZ = _target.Z;
+            Fractal3DCamera.Apply(Pose, state);
             state.FieldOfView = _fieldOfView;
             return true;
         }
@@ -549,7 +668,7 @@ public partial class Fractal3DWindow
 
     #endregion
 
-    #region Панель навигации
+    #region Панель навигации и оси
 
     private void Navigation_OnChanged(object sender, EventArgs e)
     {
@@ -560,14 +679,15 @@ public partial class Fractal3DWindow
 
     private void AfterCameraChanged()
     {
-        _yaw -= Math.Floor((_yaw + 180) / 360) * 360;
+        UpdateAxisTriad();
         SyncCameraUi(immediate: !IsMoving);
         RequestFrame(FrameQuality.Draft);
+        if (!IsInteracting) RequestProbe(ProbePoint);
     }
 
     /// <summary>
     /// Поля камеры обновляются не чаще <see cref="UiSyncIntervalMs"/>: во время движения полная
-    /// перерисовка семи полей на каждом кадре стоила бы дороже самого кадра.
+    /// перерисовка восьми полей на каждом кадре стоила бы дороже самого кадра.
     /// </summary>
     private void SyncCameraUi(bool immediate)
     {
@@ -579,6 +699,60 @@ public partial class Fractal3DWindow
         SyncCameraBoxes();
         _updatingUi = false;
         UpdateCameraText();
+    }
+
+    /// <summary>
+    /// Мировые оси в углу холста, как в CAD: без выделенного верха у камеры это главный ориентир,
+    /// где сейчас X, Y и Z. Ось, уходящая от зрителя, рисуется бледнее и под остальными.
+    /// </summary>
+    private void UpdateAxisTriad()
+    {
+        const double centre = 32, length = 22;
+        if (_axisLines is null)
+        {
+            Brush[] brushes =
+            [
+                new SolidColorBrush(Color.FromRgb(232, 72, 72)),
+                new SolidColorBrush(Color.FromRgb(96, 204, 96)),
+                new SolidColorBrush(Color.FromRgb(88, 140, 255))
+            ];
+            string[] names = ["X", "Y", "Z"];
+            _axisLines = new Line[3];
+            _axisLabels = new TextBlock[3];
+            for (int i = 0; i < 3; i++)
+            {
+                _axisLines[i] = new Line
+                {
+                    X1 = centre, Y1 = centre, Stroke = brushes[i], StrokeThickness = 2.5,
+                    StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round
+                };
+                _axisLabels[i] = new TextBlock
+                {
+                    Text = names[i], Foreground = brushes[i], FontWeight = FontWeights.Bold, FontSize = 11
+                };
+                AxisTriad.Children.Add(_axisLines[i]);
+                AxisTriad.Children.Add(_axisLabels[i]);
+            }
+        }
+
+        Fractal3DPose pose = Pose;
+        Vector3[] axes = [Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ];
+        for (int i = 0; i < 3; i++)
+        {
+            double screenX = Vector3.Dot(axes[i], pose.Right) * length;
+            double screenY = -Vector3.Dot(axes[i], pose.Up) * length;
+            double away = Vector3.Dot(axes[i], pose.Forward);
+            _axisLines[i].X2 = centre + screenX;
+            _axisLines[i].Y2 = centre + screenY;
+            _axisLines[i].Opacity = away > 0 ? 0.45 : 1;
+            TextBlock label = _axisLabels![i];
+            Canvas.SetLeft(label, centre + screenX * 1.3 - 4);
+            Canvas.SetTop(label, centre + screenY * 1.3 - 8);
+            label.Opacity = _axisLines[i].Opacity;
+            int z = away > 0 ? 0 : 2;
+            Panel.SetZIndex(_axisLines[i], z);
+            Panel.SetZIndex(label, z + 1);
+        }
     }
 
     #endregion
