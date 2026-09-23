@@ -54,6 +54,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private int _surfaceWidth;
     private int _surfaceHeight;
     private bool _disposed;
+    private readonly bool _softwareRendering;
+
+    /// <param name="softwareRendering">Use WARP for a GPU-independent diagnostic render.</param>
+    public Fractal3DRenderer(bool softwareRendering = false) => _softwareRendering = softwareRendering;
 
     /// <summary>Разовый рендер во временном устройстве — для превью каталога и проверок.</summary>
     public static async Task<BitmapSource> RenderOnceAsync(
@@ -460,7 +464,33 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         if (_device is not null) return;
 
-        foreach (DriverType driver in (ReadOnlySpan<DriverType>)[DriverType.Hardware, DriverType.Warp])
+        if (!_softwareRendering)
+        {
+            // A null hardware adapter selects adapter 0, often the integrated GPU on laptops.
+            // Rendering reads pixels back into RAM, so the dedicated adapter needs no WPF interop.
+            using IDXGIFactory1? factory = DXGI.CreateDXGIFactory1<IDXGIFactory1>();
+            var adapters = new List<IDXGIAdapter1>();
+            try
+            {
+                for (uint index = 0; factory is not null && factory.EnumAdapters1(index, out IDXGIAdapter1? adapter).Success; index++)
+                    if (adapter is not null) adapters.Add(adapter);
+                foreach (IDXGIAdapter1 adapter in adapters.OrderByDescending(candidate => candidate.Description1.DedicatedVideoMemory))
+                {
+                    if (!D3D11.D3D11CreateDevice(adapter, DriverType.Unknown, DeviceCreationFlags.BgraSupport,
+                            [FeatureLevel.Level_11_0], out ID3D11Device? preferredDevice,
+                            out ID3D11DeviceContext? preferredContext).Success) continue;
+                    _device = preferredDevice;
+                    _context = preferredContext;
+                    break;
+                }
+            }
+            finally { foreach (IDXGIAdapter1 adapter in adapters) adapter.Dispose(); }
+        }
+
+        ReadOnlySpan<DriverType> drivers = _softwareRendering
+            ? [DriverType.Warp]
+            : [DriverType.Hardware, DriverType.Warp];
+        foreach (DriverType driver in _device is null ? drivers : [])
         {
             if (D3D11.D3D11CreateDevice(null, driver, DeviceCreationFlags.BgraSupport,
                     [FeatureLevel.Level_11_0], out ID3D11Device? device, out ID3D11DeviceContext? context).Success)

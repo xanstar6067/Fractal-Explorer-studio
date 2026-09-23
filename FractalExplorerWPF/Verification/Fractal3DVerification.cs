@@ -19,6 +19,22 @@ internal static partial class Program
     private const int Fractal3DRayWidth = 480;
     private const int Fractal3DRayHeight = 360;
 
+    private static async Task WriteIfsDiagnosticAsync(string[] args)
+    {
+        if (args.Length is < 2 or > 3) throw new ArgumentException("ifs-diagnostic <output PNG> [warp]");
+        if (args.Length == 3 && args[2] != "warp") throw new ArgumentException("Expected 'warp' as the third argument.");
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D);
+        bool warp = args.Length == 3 && args[2] == "warp";
+        using var renderer = new Fractal3DRenderer(warp);
+        BitmapSource bitmap = await renderer.RenderAsync(state, warp ? 440 : 872, warp ? 440 : 740,
+            null, CancellationToken.None);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using FileStream stream = File.Create(args[1]);
+        encoder.Save(stream);
+        Console.WriteLine($"Saved IFS diagnostic frame to {args[1]}");
+    }
+
     private static async Task WriteIfsClosePreviewAsync(string[] args)
     {
         if (args.Length != 2) throw new ArgumentException("ifs-close <output directory>");

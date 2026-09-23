@@ -29,6 +29,7 @@ internal static partial class Program
     //   planar   — градиентный спуск, комплексный поток и полиномиальные векторные поля;
     //   fractal3d — семь видов трёхмерных фракталов: дистанционные оценки на GPU, пресеты,
     //              навигация камеры, зонд поверхности под курсором и сохранения;
+    //   ifs-diagnostic <PNG> [warp] — контрольный кадр IFS на выбранном GPU или WARP;
     //   poi [фильтр] [--out папка] — встроенные точки интереса комплексной динамики не дают
     //              однотонный кадр (фильтр — часть имени группы, например Nova или Mandelbrot-Celtic);
     //   poi-probe <группа> <кандидаты.json> <папка> — рендер состояний-кандидатов без пересборки;
@@ -62,6 +63,7 @@ internal static partial class Program
                 if (group == "shadercache") await VerifyShaderCacheAsync();
                 // Reproduce the close camera angle that once exposed voxel blocks and ray-limit rings.
                 if (group == "ifs-close") await WriteIfsClosePreviewAsync(args);
+                if (group == "ifs-diagnostic") await WriteIfsDiagnosticAsync(args);
                 if (group == "planar") VerifyPlanarBasins();
                 if (group is "basins" or "planar" && args.Length == 3 && args[1] == "--planar-previews") WritePlanarBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
@@ -83,9 +85,9 @@ internal static partial class Program
                     if (args.Length != 4) throw new ArgumentException("poi-probe <группа> <кандидаты.json> <папка PNG>");
                     await ProbePointsOfInterestAsync(args[1], args[2], args[3]);
                 }
-                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "shadercache" or "ifs-close" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
-                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar, fractal3d, poi, poi-probe, catalog.");
-                if (group is not ("cloud" or "cloud-live" or "numeric" or "fractal3d" or "shadercache" or "ifs-close" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("all" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
+                    throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar, fractal3d, ifs-diagnostic, poi, poi-probe, catalog.");
+                if (group is not ("cloud" or "cloud-live" or "numeric" or "fractal3d" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)
