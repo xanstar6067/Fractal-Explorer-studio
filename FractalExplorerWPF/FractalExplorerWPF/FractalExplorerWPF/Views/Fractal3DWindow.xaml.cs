@@ -125,7 +125,10 @@ public partial class Fractal3DWindow : Window
         Kind = Kind,
         Iterations = ReadInt(IterationsBox,
             Kind == Fractal3DKind.ApollonianPacking ? "Поколения сфер" : "Итерации",
-            1, Kind == Fractal3DKind.ApollonianPacking ? ApollonianSpherePacking.MaxGeneration : 64),
+            Kind == Fractal3DKind.Ifs3D ? 10_000 : 1,
+            Kind == Fractal3DKind.ApollonianPacking ? ApollonianSpherePacking.MaxGeneration :
+            Kind == Fractal3DKind.Ifs3D ? 10_000_000 : 64),
+        IfsTransforms = CaptureIfsTransforms(),
         Power = ReadDouble(PowerBox, "Степень", -32, 32),
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
@@ -170,7 +173,7 @@ public partial class Fractal3DWindow : Window
         ColoringMode = SelectedColoringMode,
         ShadingStyle = SelectedShadingStyle,
         EffectStrength = ReadDouble(EffectStrengthBox, "Сила эффекта", 0, 8),
-        SurfaceColor = SurfaceColorSelector.SelectedColor,
+        SurfaceColor = Kind == Fractal3DKind.Ifs3D ? IfsPointColorSelector.SelectedColor : SurfaceColorSelector.SelectedColor,
         Palette = _palette.Clone(),
 
         // Устаревшие цвета пишутся по краям палитры: файл, открытый сборкой без палитр,
@@ -181,8 +184,8 @@ public partial class Fractal3DWindow : Window
         ColorScale = ReadDouble(ColorScaleBox, "Масштаб цвета", 0.01, 100),
         ColorOffset = ReadDouble(ColorOffsetBox, "Сдвиг цвета", -100, 100),
         ColorRepeat = SelectedColorRepeat,
-        BackgroundTop = BackgroundTopSelector.SelectedColor,
-        BackgroundBottom = BackgroundBottomSelector.SelectedColor,
+        BackgroundTop = Kind == Fractal3DKind.Ifs3D ? IfsBackgroundColorSelector.SelectedColor : BackgroundTopSelector.SelectedColor,
+        BackgroundBottom = Kind == Fractal3DKind.Ifs3D ? IfsBackgroundColorSelector.SelectedColor : BackgroundBottomSelector.SelectedColor,
         LightColor = LightColorSelector.SelectedColor,
         SkyLightMix = ReadDouble(SkyLightMixBox, "Влияние неба на свет", 0, 1)
     };
@@ -233,6 +236,9 @@ public partial class Fractal3DWindow : Window
         BoxMinRadiusBox.Text = Format(state.BoxMinRadius);
         BoxFoldingBox.Text = Format(state.BoxFoldingLimit);
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
+        LoadIfsTransforms(state.IfsTransforms);
+        IfsPointColorSelector.SelectedColor = state.SurfaceColor;
+        IfsBackgroundColorSelector.SelectedColor = state.BackgroundTop;
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -277,7 +283,7 @@ public partial class Fractal3DWindow : Window
     {
         IterationsLabel.Text = Kind == Fractal3DKind.ApollonianPacking
             ? "Поколения сфер (1–5)"
-            : "Итерации";
+            : Kind == Fractal3DKind.Ifs3D ? "Точки орбиты (10 000–10 000 000)" : "Итерации";
         if (Kind == Fractal3DKind.ApollonianPacking)
         {
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.OrbitTrap]).Content = "По диаметру сферы";
@@ -290,8 +296,12 @@ public partial class Fractal3DWindow : Window
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
         BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
+        IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
+        LightExpander.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        ShadingExpander.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        ColoringExpander.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking));
+            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -832,6 +842,7 @@ public partial class Fractal3DWindow : Window
     /// <summary>Чем жертвует живой кадр в движении; выбирается в разделе «Навигация».</summary>
     private Fractal3DState ApplyMotionQuality(Fractal3DState state)
     {
+        if (Kind == Fractal3DKind.Ifs3D) return state;
         Fractal3DMotionQuality quality = SelectedMotionQuality;
         if (quality == Fractal3DMotionQuality.Full) return state;
 

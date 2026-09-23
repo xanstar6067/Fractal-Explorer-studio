@@ -463,7 +463,6 @@ public partial class MainWindow : Window
             "Buddhabrot" => () => new BuddhabrotWindow(),
             "Flame" => () => new FlameWindow(),
             "IFS" => () => new IfsWindow(),
-            "IFS3D" => () => new Ifs3DWindow(),
             "ApollonianGasket" => () => new ApollonianWindow(),
             "DLA" => () => new DlaWindow(),
             "GrayScott" => () => new GrayScottWindow(),

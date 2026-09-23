@@ -11,7 +11,8 @@ public enum Fractal3DKind
     MengerSponge,
     SierpinskiTetrahedron,
     QuaternionJulia,
-    ApollonianPacking
+    ApollonianPacking,
+    Ifs3D
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -221,6 +222,7 @@ public sealed class Fractal3DState
     public double BoxMinRadius { get; set; } = 0.5;
     public double BoxFoldingLimit { get; set; } = 1;
     public double SierpinskiScale { get; set; } = 2;
+    public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
 
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
@@ -303,6 +305,7 @@ public sealed class Fractal3DState
     {
         var clone = (Fractal3DState)MemberwiseClone();
         clone.Palette = Palette?.Clone();
+        clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         return clone;
     }
 }
@@ -417,6 +420,10 @@ public static class Fractal3DCatalog
             "Аполлонова упаковка сфер", "Аполлонова упаковка сфер",
             "Рекурсивная упаковка взаимно касающихся сфер внутри внешней сферы. Число поколений задаёт глубину заполнения промежутков.",
             "Fractal3DApollonian", "apollonian-spheres"),
+        Fractal3DKind.Ifs3D => new(
+            "Конструктор объёмных IFS", "Конструктор объёмных IFS",
+            "Редактируемые аффинные преобразования порождают трёхмерный аттрактор. Кадр строится на Direct3D 11; камера и навигация общие с другими трёхмерными фракталами.",
+            "IFS3D", "ifs3d"),
         _ => new(
             "Мандельбульб", "Мандельбульб",
             "Трёхмерное обобщение множества Мандельброта через сферические координаты: z → zⁿ + c с произвольной степенью n.",
@@ -551,6 +558,9 @@ public static class Fractal3DCatalog
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 state.Palette = Fractal3DPalettes.Get("Медь и патина");
                 break;
+            case Fractal3DKind.Ifs3D:
+                ApplyIfsPreset(state, Ifs3DPresets.All[0]);
+                break;
             default:
                 state.Power = 8;
                 state.Iterations = 9;
@@ -563,6 +573,13 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Ifs3D => Ifs3DPresets.All.Select(preset =>
+        {
+            Fractal3DState state = CreateDefaultState(kind);
+            ApplyIfsPreset(state, preset);
+            state.SaveName = preset.Name;
+            return state;
+        }).ToList(),
         Fractal3DKind.Mandelbulb =>
         [
             Preset(kind, "Степень 8 — классический вид", _ => { }),
@@ -821,5 +838,23 @@ public static class Fractal3DCatalog
         state.SaveName = name;
         configure(state);
         return state;
+    }
+
+    private static void ApplyIfsPreset(Fractal3DState target, Ifs3DPreset preset)
+    {
+        Ifs3DState source = preset.State;
+        target.Iterations = source.Iterations;
+        target.IfsTransforms = source.Transforms.Select(transform => transform.Clone()).ToList();
+        target.CameraYaw = source.Yaw;
+        target.CameraPitch = source.Pitch;
+        target.CameraDistance = 3.5;
+        target.MaxSteps = 320;
+        target.SurfaceColor = source.PointColor;
+        target.BackgroundTop = source.BackgroundColor;
+        target.BackgroundBottom = source.BackgroundColor;
+        target.ColoringMode = Fractal3DColoringMode.Material;
+        target.SoftShadows = false;
+        target.AmbientOcclusion = false;
+        target.Palette = Fractal3DPalette.FromPair("IFS", source.PointColor, Color.FromRgb(235, 255, 255));
     }
 }

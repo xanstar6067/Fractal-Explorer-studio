@@ -215,23 +215,6 @@ public static class SaveManagerConfigurations
         PointsOfInterest = PresetManager.GetIfsPresets()
     };
 
-    public static SaveManagerConfiguration<Ifs3DState> ForIfs3D(
-        Ifs3DWindow window, Ifs3DSaveStore store) => new()
-    {
-        WindowTitle = "Сохранение/Загрузка: объёмный IFS",
-        Store = store,
-        CaptureState = window.CaptureState,
-        CapturePreview = window.CaptureCurrentPreview,
-        LoadState = state => window.LoadState(state.Clone()),
-        RenderPreviewAsync = (state, width, height, token, progress) =>
-            window.RenderStatePreviewAsync(state.Clone(), width, height, token, progress),
-        GetName = state => state.SaveName,
-        GetTimestamp = state => state.Timestamp,
-        GetDetails = state => $"{Prefix(state.Timestamp)} · {state.Iterations:N0} итераций · {state.Transforms.Count} преобразований\n" +
-                                    $"Азимут: {state.Yaw:G4}° · наклон: {state.Pitch:G4}° · масштаб: {state.Zoom:G4}",
-        PointsOfInterest = PresetManager.GetIfs3DPresets()
-    };
-
     public static SaveManagerConfiguration<ApollonianState> ForApollonian(
         ApollonianWindow window, ApollonianSaveStore store) => new()
     {
@@ -298,6 +281,11 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Ifs3D)
+            return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · " +
+                   $"{state.IfsTransforms.Count} преобразований\n" +
+                   $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, " +
+                   $"крен {state.CameraRoll:F1}°, расстояние {state.CameraDistance:G6}";
         string shape = state.Kind switch
         {
             Fractal3DKind.Mandelbox =>

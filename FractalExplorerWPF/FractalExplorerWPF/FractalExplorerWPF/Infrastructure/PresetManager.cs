@@ -278,14 +278,6 @@ public static class PresetManager
         FractalColor = Colors.Lime, BackgroundColor = Colors.Black
     }).ToList();
 
-    public static IReadOnlyList<Ifs3DState> GetIfs3DPresets() => Ifs3DPresets.All.Select(preset =>
-    {
-        Ifs3DState state = preset.State.Clone(preset.Name);
-        state.Timestamp = DateTime.MinValue;
-        state.PointOfInterestId = preset.Id;
-        return state;
-    }).ToList();
-
     public static IReadOnlyList<FlameState> GetFlamePresets() =>
     [
         F("Огненный лист",0,.1,4.2,1_500_000,22,24,1.42,2.15,

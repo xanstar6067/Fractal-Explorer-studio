@@ -24,7 +24,7 @@ public readonly record struct Fractal3DPixels(byte[] Buffer, bool Completed);
 /// сторожевой таймер драйвера (TDR), который снимает один слишком долгий вызов отрисовки.
 /// Результат забирается обратно в оперативную память, поэтому окну не нужен D3D-интероп.
 /// </summary>
-public sealed class Fractal3DRenderer : IDisposable
+public sealed partial class Fractal3DRenderer : IDisposable
 {
     /// <summary>Сколько пикселей считается за одну отрисовку при качестве по умолчанию.</summary>
     private const int BaseStripBudget = 1_000_000;
@@ -136,12 +136,14 @@ public sealed class Fractal3DRenderer : IDisposable
             constants.Probe = new Vector4(1, 0, 0, 0);
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
+            if (state.Kind == Fractal3DKind.Ifs3D) EnsureIfsVolume(state, token);
 
             context.OMSetRenderTargets(_probeView!);
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             context.VSSetShader(_vertexShader!);
-            context.PSSetShader(GetPixelShader(state.Kind));
+            context.PSSetShader(state.Kind == Fractal3DKind.Ifs3D ? GetIfsPixelShader() : GetPixelShader(state.Kind));
+            if (state.Kind == Fractal3DKind.Ifs3D) context.PSSetShaderResource(0, _ifsVolumeView!);
             context.PSSetConstantBuffer(0, _constantBuffer!);
             context.Draw(3, 0);
             context.CopyResource(_probeStaging!, _probeTarget!);
@@ -193,7 +195,7 @@ public sealed class Fractal3DRenderer : IDisposable
                 EnsureDevice();
                 EnsureSurface(width, stripRows);
                 int offsetY = index * stripRows;
-                RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result);
+                RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token);
             }
             finally
             {
@@ -210,6 +212,8 @@ public sealed class Fractal3DRenderer : IDisposable
     /// </summary>
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
+        if (state.Kind == Fractal3DKind.Ifs3D)
+            return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
         double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0);
         // Поиск ближайшей сферы обходит дерево, а не одну формулу: полосы короче,
         // чтобы экспорт не занимал GPU дольше сторожевого таймера драйвера.
@@ -219,17 +223,20 @@ public sealed class Fractal3DRenderer : IDisposable
     }
 
     private void RenderStrip(
-        Fractal3DState state, int width, int height, int offsetY, int rows, byte[] destination)
+        Fractal3DState state, int width, int height, int offsetY, int rows, byte[] destination,
+        CancellationToken token)
     {
         ID3D11DeviceContext context = _context!;
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
+        if (state.Kind == Fractal3DKind.Ifs3D) EnsureIfsVolume(state, token);
 
         context.OMSetRenderTargets(_renderTargetView!);
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
         context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         context.VSSetShader(_vertexShader!);
-        context.PSSetShader(GetPixelShader(state.Kind));
+        context.PSSetShader(state.Kind == Fractal3DKind.Ifs3D ? GetIfsPixelShader() : GetPixelShader(state.Kind));
+        if (state.Kind == Fractal3DKind.Ifs3D) context.PSSetShaderResource(0, _ifsVolumeView!);
         context.PSSetConstantBuffer(0, _constantBuffer!);
         context.Draw(3, 0);
 
@@ -521,6 +528,7 @@ public sealed class Fractal3DRenderer : IDisposable
         _probeTarget?.Dispose();
         _probeStaging?.Dispose();
         _constantBuffer?.Dispose();
+        DisposeIfsResources();
         _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();
