@@ -16,7 +16,7 @@ public sealed partial class Fractal3DRenderer
     private ID3D11PixelShader GetIfsPixelShader()
     {
         if (_ifsPixelShader is not null) return _ifsPixelShader;
-        _ifsPixelShader = _device!.CreatePixelShader(Compile(Ifs3DShader.Source, "PSMain", "ps_5_0").Span);
+        _ifsPixelShader = _device!.CreatePixelShader(Compile(IfsPixelShaderEntry()).Span);
         return _ifsPixelShader;
     }
 

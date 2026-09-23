@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using Vortice.D3DCompiler;
 using Vortice.Direct3D;
@@ -414,17 +415,39 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private ID3D11PixelShader GetPixelShader(Fractal3DKind kind)
     {
         if (_pixelShaders.TryGetValue(kind, out ID3D11PixelShader? shader)) return shader;
-        ReadOnlyMemory<byte> bytecode = Compile(Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
+        ReadOnlyMemory<byte> bytecode = Compile(PixelShaderEntry(kind));
         shader = _device!.CreatePixelShader(bytecode.Span);
         _pixelShaders[kind] = shader;
         return shader;
     }
 
-    private static ReadOnlyMemory<byte> Compile(string source, string entryPoint, string profile)
+    private static ShaderCacheEntry PixelShaderEntry(Fractal3DKind kind) =>
+        new($"fractal3d-{kind}-pixel", Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
+
+    private static ShaderCacheEntry VertexShaderEntry() =>
+        new("fractal3d-vertex", Fractal3DShader.Build(Fractal3DKind.Mandelbulb), "VSMain", "vs_5_0");
+
+    private static ShaderCacheEntry IfsPixelShaderEntry() =>
+        new("ifs3d-pixel", Ifs3DShader.Source, "PSMain", "ps_5_0");
+
+    private static ReadOnlyMemory<byte> Compile(ShaderCacheEntry entry) =>
+        ShaderBytecodeCache.GetOrCompile(entry, CompileUncached);
+
+    /// <summary>Перекомпилирует и заменяет все шейдеры 3D-режимов; вызывать в фоновом потоке.</summary>
+    public static void RebuildShaderCache(Action<int, int, string>? progress = null)
+    {
+        var entries = new List<ShaderCacheEntry> { VertexShaderEntry() };
+        foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
+            if (kind != Fractal3DKind.Ifs3D) entries.Add(PixelShaderEntry(kind));
+        entries.Add(IfsPixelShaderEntry());
+        ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
+    }
+
+    private static ReadOnlyMemory<byte> CompileUncached(ShaderCacheEntry entry)
     {
         try
         {
-            return Compiler.Compile(source, entryPoint, "Fractal3D", profile);
+            return Compiler.Compile(entry.Source, entry.EntryPoint, "Fractal3D", entry.Profile);
         }
         catch (Exception exception)
         {
@@ -455,7 +478,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         }
 
         _vertexShader = _device.CreateVertexShader(
-            Compile(Fractal3DShader.Build(Fractal3DKind.Mandelbulb), "VSMain", "vs_5_0").Span);
+            Compile(VertexShaderEntry()).Span);
         _constantBuffer = _device.CreateBuffer(new BufferDescription
         {
             ByteWidth = FrameConstants.BufferSizeInBytes,

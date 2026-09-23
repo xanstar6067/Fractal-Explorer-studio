@@ -12,6 +12,7 @@ namespace FractalExplorerWPF.Infrastructure;
 /// Themes\                               — пользовательские темы оформления
 /// Settings\                             — настройки и предпочтения
 /// Logs\                                 — журнал ошибок
+/// shadercache\                          — скомпилированные шейдеры Direct3D
 /// Backups\                              — резервные копии файлов, изменённых миграциями
 /// data-version.json                     — достигнутая версия каталога данных
 /// </code>
@@ -35,6 +36,7 @@ public static class AppPaths
     public static string ThemesDirectory => Path.Combine(DataRoot, "Themes");
     public static string SettingsDirectory => Path.Combine(DataRoot, "Settings");
     public static string LogsDirectory => Path.Combine(DataRoot, "Logs");
+    public static string ShaderCacheDirectory => Path.Combine(DataRoot, "shadercache");
 
     /// <summary>Каталог сохранений прежних версий — рядом с exe.</summary>
     public static string LegacySavesDirectory => Path.Combine(AppContext.BaseDirectory, "Saves");
@@ -55,6 +57,8 @@ public static class AppPaths
     public static string GetPaletteFile(string fileName) => Path.Combine(PalettesDirectory, fileName);
     public static string GetThemeFile(string fileName) => Path.Combine(ThemesDirectory, fileName);
     public static string GetSettingsFile(string fileName) => Path.Combine(SettingsDirectory, fileName);
+    public static string GetShaderCacheFile(string fileName) =>
+        Path.Combine(ShaderCacheDirectory, ToSafeFileName(fileName) + ".cso");
 
     /// <summary>
     /// Свободный путь «Имя.json», «Имя (2).json», … — разные имена сохранений могут дать одно

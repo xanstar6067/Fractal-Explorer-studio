@@ -10,6 +10,7 @@ using FractalExplorerWPF.Views;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Theming;
 using FractalExplorerWPF.Core.Rendering;
+using FractalExplorerWPF.Core.Rendering3D;
 
 namespace FractalExplorerWPF;
 
@@ -546,6 +547,32 @@ public partial class MainWindow : Window
         CloseSettings();
         new ThemeEditorWindow { Owner = this }.ShowDialog();
         ReloadThemeSelector();
+    }
+
+    private async void RebuildShadersButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        RebuildShadersButton.IsEnabled = false;
+        ShaderCacheStatus.Visibility = Visibility.Visible;
+        ShaderCacheStatus.Text = "Компиляция шейдеров… Это может занять несколько минут.";
+        IProgress<(int Completed, int Total, string Key)> progress = new Progress<(int Completed, int Total, string Key)>(value =>
+            ShaderCacheStatus.Text = $"Скомпилировано {value.Completed} из {value.Total}: {value.Key}");
+        try
+        {
+            await Task.Run(() => Fractal3DRenderer.RebuildShaderCache((completed, total, key) =>
+                progress.Report((completed, total, key))));
+            ShaderCacheStatus.Text = "Готово: кэш всех 3D-шейдеров обновлён.";
+        }
+        catch (Exception exception)
+        {
+            CrashLogger.Log("MainWindow.RebuildShaders", exception);
+            ShaderCacheStatus.Text = "Не удалось пересобрать шейдеры.";
+            MessageBox.Show(this, exception.Message, "Пересборка шейдеров",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            RebuildShadersButton.IsEnabled = true;
+        }
     }
 
     private void ThemeManager_OnThemeChanged(object? sender, EventArgs e) => ReloadThemeSelector();

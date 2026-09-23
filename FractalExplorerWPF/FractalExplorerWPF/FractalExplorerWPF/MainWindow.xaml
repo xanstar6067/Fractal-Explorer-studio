@@ -597,6 +597,14 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                     <Button Margin="0,8,0,0" Content="Редактор тем…" Click="ThemeEditor_OnClick"/>
+
+                    <TextBlock Margin="0,16,0,5" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                               Text="Шейдеры трёхмерных фракталов"/>
+                    <Button x:Name="RebuildShadersButton" Content="Пересобрать шейдеры"
+                            Click="RebuildShadersButton_OnClick"/>
+                    <TextBlock x:Name="ShaderCacheStatus" Margin="0,6,0,0" FontSize="12"
+                               TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                               Visibility="Collapsed"/>
                 </StackPanel>
             </Border>
         </Grid>
