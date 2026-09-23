@@ -81,6 +81,12 @@ internal static class Fractal3DShader
         // Сама поверхность (где оценка меньше порога) от этого не меняется — только длина шага,
         // чтобы луч не перескакивал тонкие слои там, где оценка завышена.
         static float StepScale = 1.0;
+        // Оценка Мандельбокса местами завышена: луч с полным шагом проскакивал поверхностный
+        // слой и выедал в стенах тёмные полости.
+        #define BOX_STEP 0.6
+        // Нижняя граница запаса у полюсов бульбов. Произведение множителей по всем итерациям
+        // быстро становится крошечным, и тогда луч тратит все шаги, не дойдя до поверхности.
+        #define BULB_STEP_FLOOR 0.125
 
         // Дистанционная оценка до поверхности фрактала. trap — данные орбиты, из которых берётся
         // цвет: x — минимальный радиус, y — минимум по осям, z — номер последней итерации
@@ -130,6 +136,7 @@ internal static class Fractal3DShader
                 if (dot(z, z) > bailout) break;
             }
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
+            StepScale = BOX_STEP;
             return length(z) / max(abs(dr), 1e-9);
 
         #elif FRACTAL_KIND == 3
@@ -251,6 +258,7 @@ internal static class Fractal3DShader
             }
             r = length(z);
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
+            StepScale = max(StepScale, BULB_STEP_FLOOR);
             return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
 
         #endif
@@ -467,6 +475,12 @@ internal static class Fractal3DShader
             float proximity = 0.0;
             int usedSteps = 0;
             bool hit = false;
+            // Ближайший подход луча к поверхности в долях пикселя: если шаги кончились раньше,
+            // чем луч сошёлся или ушёл за дальность, берём эту точку, а не рисуем фон.
+            float bestRatio = 1e20;
+            float bestTravelled = travelled;
+            float4 bestTrap = 0.0;
+            bool exhausted = true;
 
             [loop]
             for (int i = 0; i < maxSteps; i++)
@@ -476,6 +490,13 @@ internal static class Fractal3DShader
                 float stepDistance = Map(samplePoint, stepTrap);
                 epsilon = max(pixelRadius * travelled, 1e-7);
                 usedSteps = i + 1;
+                float ratio = stepDistance / epsilon;
+                if (ratio < bestRatio)
+                {
+                    bestRatio = ratio;
+                    bestTravelled = travelled;
+                    bestTrap = stepTrap;
+                }
                 float safeStep = max(stepDistance * StepScale, epsilon);
                 float advance = stepDistance < epsilon ? max(epsilon * 2.0, stepDistance) : safeStep;
                 // Близость копится с весом пройденного пути, а не по числу шагов: иначе луч,
@@ -488,7 +509,21 @@ internal static class Fractal3DShader
                     break;
                 }
                 travelled += advance;
-                if (travelled > maxDistance) break;
+                if (travelled > maxDistance)
+                {
+                    exhausted = false;
+                    break;
+                }
+            }
+
+            // Касательный луч и луч в узкой щели тратят все шаги у самой поверхности.
+            // Фон на их месте выглядел бы чёрной дырой, поэтому, если луч подходил к поверхности
+            // ближе нескольких пикселей, считаем попаданием ближайшую точку (Enhanced Sphere Tracing).
+            if (!hit && !pierce && exhausted && bestRatio < 16.0)
+            {
+                hit = true;
+                travelled = bestTravelled;
+                trap = bestTrap;
             }
 
             if (Probe.x > 0.5) return PackFloat(hit ? travelled : -1.0);
