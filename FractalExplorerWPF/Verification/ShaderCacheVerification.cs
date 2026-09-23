@@ -46,8 +46,11 @@ internal static partial class Program
         Console.WriteLine($"Shader cache: cold renderer {coldMs:F0} ms, new renderer from disk {warmMs:F0} ms.");
 
         Fractal3DRenderer.RebuildShaderCache();
-        Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length == 9,
-            "Rebuild must create all seven geometry shaders, the IFS shader and the vertex shader.");
+        Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length ==
+              Enum.GetValues<Fractal3DKind>().Length + 1 &&
+              File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Vicsek-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("fractal3d-CantorDust-pixel")),
+            "Rebuild must create a shader for every 3D mode and the shared vertex shader.");
         Console.WriteLine("PASS (shadercache): reuse, invalidation, corruption recovery, real rendering and full rebuild.");
     }
 }

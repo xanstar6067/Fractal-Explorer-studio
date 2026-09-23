@@ -171,6 +171,40 @@ internal static class Fractal3DShader
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(last));
             return d;
 
+        #elif FRACTAL_KIND == 8 || FRACTAL_KIND == 9
+
+            // Каждая итерация проверяет один разряд трёхмерной сетки 3×3×3.
+            // Для Вицека остаются три пересекающихся осевых бруска (7 кубиков),
+            // для пыли Кантора — восемь угловых кубиков. Расстояние до каждого
+            // уровня даёт консервативную оценку расстояния до их пересечения.
+            float outer = BoxDistance(p, float3(1.0, 1.0, 1.0));
+            float detail = -1e20;
+            float scale = 1.0;
+            float3 last = p;
+            [loop]
+            for (int i = 0; i < iterations; i++)
+            {
+                float3 a = RepeatSpace(p * scale + 1.0, 2.0) - 1.0;
+        #if FRACTAL_KIND == 8
+                float level = min(
+                    BoxDistance(a, float3(1.0, 1.0 / 3.0, 1.0 / 3.0)),
+                    min(BoxDistance(a, float3(1.0 / 3.0, 1.0, 1.0 / 3.0)),
+                        BoxDistance(a, float3(1.0 / 3.0, 1.0 / 3.0, 1.0))));
+        #else
+                float3 corner = abs(a) - float3(2.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0);
+                float level = BoxDistance(corner, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0));
+        #endif
+                detail = max(detail, level / scale);
+                float r2 = dot(a, a);
+                if (r2 < trapRadius2) { trapRadius2 = r2; trapIndex = (float)i; }
+                trapAxis = min(trapAxis, MinAxis(a));
+                last = a;
+                scale *= 3.0;
+            }
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(last));
+            // Смещение измеряется в единицах самого мелкого кубика; 1 — классика.
+            return max(outer, detail - (ShapeA.x - 1.0) / scale);
+
         #elif FRACTAL_KIND == 4
 
             float scale = ShapeA.x;
@@ -494,7 +528,7 @@ internal static class Fractal3DShader
             float radius = max(2.0 * foldReach + 1.0,
                 (2.0 * abs(ShapeA.x) * foldReach + sqrt(ShapeA.w)) /
                 max(abs(1.0 - ShapeA.x), 0.05));
-        #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4
+        #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
         #elif FRACTAL_KIND == 6
             float radius = 1.112373;

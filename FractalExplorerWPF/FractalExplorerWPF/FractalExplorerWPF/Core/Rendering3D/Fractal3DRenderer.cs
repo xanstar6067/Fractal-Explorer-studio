@@ -337,6 +337,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)(state.BoxMinRadius * state.BoxMinRadius),
                 (float)state.BoxFoldingLimit),
             Fractal3DKind.SierpinskiTetrahedron => ((float)state.SierpinskiScale, 0f, 0f),
+            Fractal3DKind.Vicsek or Fractal3DKind.CantorDust => ((float)state.CubeThickness, 0f, 0f),
             _ => ((float)state.Power, 0f, 0f)
         };
 

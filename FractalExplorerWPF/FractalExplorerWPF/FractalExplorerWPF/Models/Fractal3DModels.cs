@@ -12,7 +12,9 @@ public enum Fractal3DKind
     SierpinskiTetrahedron,
     QuaternionJulia,
     ApollonianPacking,
-    Ifs3D
+    Ifs3D,
+    Vicsek,
+    CantorDust
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -222,6 +224,7 @@ public sealed class Fractal3DState
     public double BoxMinRadius { get; set; } = 0.5;
     public double BoxFoldingLimit { get; set; } = 1;
     public double SierpinskiScale { get; set; } = 2;
+    public double CubeThickness { get; set; } = 1;
     public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
 
     // ---- камера ----
@@ -408,6 +411,14 @@ public static class Fractal3DCatalog
             "Губка Менгера", "Губка Менгера",
             "Куб, из которого рекурсивно вырезаются крестообразные тоннели; классический самоподобный объект размерности log20/log3.",
             "Fractal3DMengerSponge", "menger-sponge"),
+        Fractal3DKind.Vicsek => new(
+            "Объёмный фрактал Вицека", "Объёмный фрактал Вицека",
+            "На каждом уровне куб заменяется центральным кубиком и шестью кубиками на гранях.",
+            "Fractal3DVicsek", "vicsek-3d"),
+        Fractal3DKind.CantorDust => new(
+            "Кубическая пыль Кантора", "Кубическая пыль Кантора",
+            "На каждом уровне остаются восемь угловых кубиков из 27; структура повторяется в каждом из них.",
+            "Fractal3DCantorDust", "cantor-dust-3d"),
         Fractal3DKind.SierpinskiTetrahedron => new(
             "Тетраэдр Серпинского", "Тетраэдр Серпинского",
             "Трёхмерный аналог треугольника Серпинского: складывание пространства к ближайшей вершине тетраэдра.",
@@ -528,6 +539,16 @@ public static class Fractal3DCatalog
                 state.CameraPitch = 24;
                 state.ColoringMode = Fractal3DColoringMode.Depth;
                 // Глубина — не циклическая величина: градиент проходится один раз от ближнего края.
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                break;
+            case Fractal3DKind.Vicsek:
+            case Fractal3DKind.CantorDust:
+                state.Iterations = 4;
+                state.CameraDistance = 4.2;
+                state.CameraYaw = 28;
+                state.CameraPitch = 24;
+                state.MaxSteps = 220;
+                state.ColoringMode = Fractal3DColoringMode.Depth;
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
             case Fractal3DKind.SierpinskiTetrahedron:
@@ -733,6 +754,13 @@ public static class Fractal3DCatalog
                 s.Palette = Fractal3DPalettes.Get("Сепия");
                 s.ColorRepeat = Fractal3DColorRepeat.Clamp;
             })
+        ],
+        Fractal3DKind.Vicsek or Fractal3DKind.CantorDust =>
+        [
+            Preset(kind, "Классический вид", _ => { }),
+            Preset(kind, "Крупные детали", s => s.Iterations = 2),
+            Preset(kind, "Тонкие элементы", s => s.CubeThickness = 0.7),
+            Preset(kind, "Массивные элементы", s => s.CubeThickness = 1.4)
         ],
         Fractal3DKind.SierpinskiTetrahedron =>
         [

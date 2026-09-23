@@ -143,6 +143,21 @@ internal static partial class Program
         Check(!firstGeneration.SequenceEqual(fifthGeneration),
             "Apollonian sphere generations must change the rendered geometry.");
 
+        foreach (Fractal3DKind kind in new[] { Fractal3DKind.Vicsek, Fractal3DKind.CantorDust })
+        {
+            Fractal3DState cubes = Fractal3DCatalog.CreateDefaultState(kind);
+            byte[] classic = await Fractal3DFrameAsync(renderer, cubes);
+            cubes.Iterations = 2;
+            byte[] shallow = await Fractal3DFrameAsync(renderer, cubes);
+            Check(!classic.SequenceEqual(shallow),
+                $"{kind}: recursion depth must change the geometry.");
+            cubes.Iterations = 4;
+            cubes.CubeThickness = 1.5;
+            byte[] thick = await Fractal3DFrameAsync(renderer, cubes);
+            Check(!classic.SequenceEqual(thick),
+                $"{kind}: element thickness must change the geometry.");
+        }
+
         // Один и тот же кадр должен считаться одинаково: превью сохранения и экспорт обязаны совпасть.
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
         byte[] reference = await Fractal3DFrameAsync(renderer, state);

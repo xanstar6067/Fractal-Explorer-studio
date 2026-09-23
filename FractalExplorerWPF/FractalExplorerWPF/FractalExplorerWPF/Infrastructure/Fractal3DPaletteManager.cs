@@ -5,7 +5,7 @@ using FractalExplorerWPF.Models;
 namespace FractalExplorerWPF.Infrastructure;
 
 /// <summary>
-/// Библиотека палитр семи исходных трёхмерных фракталов. IFS использует отдельный
+/// Библиотека палитр девяти трёхмерных фракталов с дистанционной оценкой. IFS использует отдельный
 /// <see cref="Ifs3DPaletteManager"/> с другим файлом пользовательских палитр.
 /// </summary>
 public class Fractal3DPaletteManager

@@ -95,6 +95,13 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="CubeThicknessPanel">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Толщина элементов"/>
+                                <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CubeThicknessBox"
+                                         ToolTip="1 — классическая форма; меньше — тоньше, больше — массивнее"
+                                         TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
                             <StackPanel x:Name="IfsPanel" Visibility="Collapsed">
                                 <Button Content="Трансформации" Click="IfsTransforms_OnClick"/>
                                 <TextBlock Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"

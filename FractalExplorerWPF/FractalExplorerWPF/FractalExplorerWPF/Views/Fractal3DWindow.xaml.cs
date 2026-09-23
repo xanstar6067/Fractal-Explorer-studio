@@ -143,6 +143,7 @@ public partial class Fractal3DWindow : Window
         BoxMinRadius = ReadDouble(BoxMinRadiusBox, "Минимальный радиус сферы", 0.01, 4),
         BoxFoldingLimit = ReadDouble(BoxFoldingBox, "Предел свёртки по кубу", 0.1, 8),
         SierpinskiScale = ReadDouble(SierpinskiScaleBox, "Масштаб складывания", 1.05, 8),
+        CubeThickness = ReadDouble(CubeThicknessBox, "Толщина элементов", 0.5, 1.5),
 
         CameraYaw = CameraAngles.Yaw,
         CameraPitch = CameraAngles.Pitch,
@@ -239,6 +240,7 @@ public partial class Fractal3DWindow : Window
         BoxMinRadiusBox.Text = Format(state.BoxMinRadius);
         BoxFoldingBox.Text = Format(state.BoxFoldingLimit);
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
+        CubeThicknessBox.Text = Format(state.CubeThickness);
         LoadIfsTransforms(state.IfsTransforms);
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
@@ -309,6 +311,7 @@ public partial class Fractal3DWindow : Window
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
         BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
+        CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
         RayQualityGrid.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
         MaxDistanceLabel.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
@@ -316,7 +319,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D));
+            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;

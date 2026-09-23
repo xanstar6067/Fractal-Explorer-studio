@@ -292,6 +292,8 @@ public static class SaveManagerConfigurations
                 $"Масштаб: {state.BoxScale:G6} · Мин. радиус: {state.BoxMinRadius:G6} · Свёртка: {state.BoxFoldingLimit:G6}",
             Fractal3DKind.SierpinskiTetrahedron => $"Масштаб складывания: {state.SierpinskiScale:G6}",
             Fractal3DKind.MengerSponge => "Рекурсивные тоннели куба",
+            Fractal3DKind.Vicsek => $"Семь кубиков · Толщина: {state.CubeThickness:G4}",
+            Fractal3DKind.CantorDust => $"Восемь угловых кубиков · Толщина: {state.CubeThickness:G4}",
             Fractal3DKind.ApollonianPacking => "Взаимно касающиеся сферы",
             Fractal3DKind.QuaternionJulia =>
                 $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}",
