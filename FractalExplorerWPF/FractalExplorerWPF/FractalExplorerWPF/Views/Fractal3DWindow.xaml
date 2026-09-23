@@ -166,6 +166,14 @@
                                 <ComboBoxItem Content="Без мягких теней"/>
                                 <ComboBoxItem Content="Черновое"/>
                             </ComboBox>
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Разрешение в движении"/>
+                            <ComboBox x:Name="MotionResolutionBox" SelectionChanged="Navigation_OnChanged"
+                                      ToolTip="Размер живого кадра, пока камера движется. «Авто» уменьшает его, чтобы держать около 30 к/с; «Полное» не снижает разрешение никогда.">
+                                <ComboBoxItem Content="Авто (около 30 к/с)"/>
+                                <ComboBoxItem Content="Полное (100%)"/>
+                                <ComboBoxItem Content="75%"/>
+                                <ComboBoxItem Content="50%"/>
+                            </ComboBox>
                             <CheckBox x:Name="ZoomToCursorBox" Content="Колесо приближает к курсору"
                                       Checked="Navigation_OnChanged" Unchecked="Navigation_OnChanged"/>
                             <CheckBox x:Name="RotationInertiaBox" Content="Инерция вращения"

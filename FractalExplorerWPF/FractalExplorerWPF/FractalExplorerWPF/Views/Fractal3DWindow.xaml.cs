@@ -135,6 +135,7 @@ public partial class Fractal3DWindow : Window
 
         RotationAnchor = SelectedRotationAnchor,
         MotionQuality = SelectedMotionQuality,
+        MotionResolution = SelectedMotionResolution,
         ZoomToCursor = ZoomToCursorBox.IsChecked == true,
         RotationInertia = RotationInertiaBox.IsChecked == true,
         AutoRotate = AutoRotateBox.IsChecked == true,
@@ -209,6 +210,7 @@ public partial class Fractal3DWindow : Window
 
         RotationAnchorBox.SelectedIndex = (int)state.RotationAnchor;
         MotionQualityBox.SelectedIndex = (int)state.MotionQuality;
+        MotionResolutionBox.SelectedIndex = (int)state.MotionResolution;
         ZoomToCursorBox.IsChecked = state.ZoomToCursor;
         RotationInertiaBox.IsChecked = state.RotationInertia;
         AutoRotateBox.IsChecked = state.AutoRotate;
@@ -292,6 +294,9 @@ public partial class Fractal3DWindow : Window
 
     private Fractal3DMotionQuality SelectedMotionQuality =>
         (Fractal3DMotionQuality)Math.Clamp(MotionQualityBox.SelectedIndex, 0, (int)Fractal3DMotionQuality.Draft);
+
+    private Fractal3DMotionResolution SelectedMotionResolution =>
+        (Fractal3DMotionResolution)Math.Clamp(MotionResolutionBox.SelectedIndex, 0, (int)Fractal3DMotionResolution.Half);
 
     private int SelectedSsaa => SsaaBox.SelectedItem is ComboBoxItem item
         ? Convert.ToInt32(item.Tag, CultureInfo.InvariantCulture)
@@ -668,7 +673,8 @@ public partial class Fractal3DWindow : Window
 
         // Черновик во весь холст, да ещё и без движения, ничем не отличается от полного кадра:
         // считаем его сразу полным, чтобы не гонять ту же работу дважды и честно назвать результат.
-        if (quality == FrameQuality.Draft && !moving && _draftScale >= 1) quality = FrameQuality.Full;
+        double draftScale = DraftScale;
+        if (quality == FrameQuality.Draft && !moving && draftScale >= 1) quality = FrameQuality.Full;
         _renderingQuality = quality;
 
         var watch = Stopwatch.StartNew();
@@ -678,7 +684,7 @@ public partial class Fractal3DWindow : Window
         {
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
             int ssaa = Math.Clamp(state.Ssaa, 1, MaxSsaa);
-            double scale = quality == FrameQuality.Draft ? _draftScale : 1;
+            double scale = quality == FrameQuality.Draft ? draftScale : 1;
             bool simplified = false;
             int width = Math.Max(1, (int)Math.Round(surface.PixelWidth * scale));
             int height = Math.Max(1, (int)Math.Round(surface.PixelHeight * scale));
@@ -732,7 +738,8 @@ public partial class Fractal3DWindow : Window
                 double elapsedMs = watch.Elapsed.TotalMilliseconds;
                 if (draft)
                 {
-                    if (moving) AdaptDraftScale(elapsedMs);
+                    if (moving && SelectedMotionResolution == Fractal3DMotionResolution.Adaptive)
+                        AdaptDraftScale(elapsedMs);
                     StatusText.Text = $"Живой кадр {width}×{height} · {elapsedMs:F0} мс " +
                                       $"({1000 / Math.Max(elapsedMs, 1):F0} к/с)";
                 }
@@ -777,6 +784,15 @@ public partial class Fractal3DWindow : Window
         else if (quality != FrameQuality.Antialiased && ssaa > 1)
             RequestFrame(FrameQuality.Antialiased, RefineDelayMs);
     }
+
+    /// <summary>Доля холста для живого кадра: подобранная по времени или заданная в разделе «Навигация».</summary>
+    private double DraftScale => SelectedMotionResolution switch
+    {
+        Fractal3DMotionResolution.Full => 1,
+        Fractal3DMotionResolution.ThreeQuarters => 0.75,
+        Fractal3DMotionResolution.Half => 0.5,
+        _ => _draftScale
+    };
 
     /// <summary>
     /// Размер живого кадра подбирается по времени предыдущего: цель — <see cref="TargetFrameMs"/>.

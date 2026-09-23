@@ -475,6 +475,7 @@ internal static partial class Program
             original.SkyLightMix = 0.5;
             original.RotationAnchor = Fractal3DRotationAnchor.FreeLook;
             original.MotionQuality = Fractal3DMotionQuality.Draft;
+            original.MotionResolution = Fractal3DMotionResolution.Full;
             original.ZoomToCursor = false;
             original.RotationInertia = false;
             original.AutoRotate = true;
@@ -491,6 +492,7 @@ internal static partial class Program
                   loaded.ColoringMode == original.ColoringMode && loaded.ColorA == original.ColorA &&
                   loaded.SoftShadows == original.SoftShadows && loaded.AmbientOcclusion == original.AmbientOcclusion &&
                   loaded.RotationAnchor == original.RotationAnchor && loaded.MotionQuality == original.MotionQuality &&
+                  loaded.MotionResolution == original.MotionResolution &&
                   loaded.ZoomToCursor == original.ZoomToCursor && loaded.RotationInertia == original.RotationInertia &&
                   loaded.AutoRotate == original.AutoRotate && loaded.AutoRotateSpeed.Equals(original.AutoRotateSpeed) &&
                   loaded.ShadingStyle == original.ShadingStyle &&

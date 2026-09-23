@@ -37,6 +37,25 @@ public enum Fractal3DMotionQuality
 }
 
 /// <summary>
+/// Разрешение живого кадра, пока камера движется. Значения сериализуются числами, поэтому новые
+/// варианты только дописываются в конец.
+/// </summary>
+public enum Fractal3DMotionResolution
+{
+    /// <summary>Подбирается по времени предыдущего кадра, чтобы держать около 30 к/с.</summary>
+    Adaptive,
+
+    /// <summary>Всегда во весь холст: движение ничем не отличается от готового кадра.</summary>
+    Full,
+
+    /// <summary>Три четверти холста по каждой стороне.</summary>
+    ThreeQuarters,
+
+    /// <summary>Половина холста по каждой стороне.</summary>
+    Half
+}
+
+/// <summary>
 /// Что именно окрашивается палитрой: источник числа, которое шейдер превращает в позицию на
 /// градиенте. Значения сериализуются числами, поэтому новые источники только дописываются в конец.
 /// <see cref="Material"/> и <see cref="Normal"/> палитрой не пользуются: первый берёт один цвет
@@ -224,6 +243,7 @@ public sealed class Fractal3DState
     // ---- навигация ----
     public Fractal3DRotationAnchor RotationAnchor { get; set; } = Fractal3DRotationAnchor.Target;
     public Fractal3DMotionQuality MotionQuality { get; set; } = Fractal3DMotionQuality.NoShadows;
+    public Fractal3DMotionResolution MotionResolution { get; set; } = Fractal3DMotionResolution.Adaptive;
     public bool ZoomToCursor { get; set; } = true;
     public bool RotationInertia { get; set; } = true;
     public bool AutoRotate { get; set; }
