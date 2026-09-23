@@ -86,6 +86,75 @@ public static class Ifs3DPresets
         },
         new()
         {
+            Id = "octahedron", Name = "Октаэдр Серпинского",
+            State = new Ifs3DState
+            {
+                Iterations = 500_000, Yaw = 35, Pitch = 25, PointColor = Colors.DeepSkyBlue,
+                Transforms =
+                [
+                    Ifs3DTransform.Contract(.5, -.5, 0, 0),
+                    Ifs3DTransform.Contract(.5, .5, 0, 0),
+                    Ifs3DTransform.Contract(.5, 0, -.5, 0),
+                    Ifs3DTransform.Contract(.5, 0, .5, 0),
+                    Ifs3DTransform.Contract(.5, 0, 0, -.5),
+                    Ifs3DTransform.Contract(.5, 0, 0, .5)
+                ]
+            }
+        },
+        new()
+        {
+            Id = "pyramid", Name = "Пирамида Серпинского",
+            State = new Ifs3DState
+            {
+                Iterations = 500_000, Yaw = 40, Pitch = 22, PointColor = Colors.Gold,
+                Transforms =
+                [
+                    Ifs3DTransform.Contract(.5, -.5, -.5, -.5),
+                    Ifs3DTransform.Contract(.5, .5, -.5, -.5),
+                    Ifs3DTransform.Contract(.5, -.5, -.5, .5),
+                    Ifs3DTransform.Contract(.5, .5, -.5, .5),
+                    Ifs3DTransform.Contract(.5, 0, .5, 0)
+                ]
+            }
+        },
+        new()
+        {
+            Id = "prism", Name = "Призма Серпинского",
+            State = new Ifs3DState
+            {
+                Iterations = 550_000, Yaw = 38, Pitch = 18, PointColor = Colors.MediumTurquoise,
+                Transforms = CreateSierpinskiPrism()
+            }
+        },
+        new()
+        {
+            Id = "vicsek", Name = "Объёмный фрактал Вицека",
+            State = new Ifs3DState
+            {
+                Iterations = 600_000, Yaw = 38, Pitch = 30, PointColor = Colors.Coral,
+                Transforms =
+                [
+                    Ifs3DTransform.Contract(1d / 3, 0, 0, 0),
+                    Ifs3DTransform.Contract(1d / 3, -2d / 3, 0, 0),
+                    Ifs3DTransform.Contract(1d / 3, 2d / 3, 0, 0),
+                    Ifs3DTransform.Contract(1d / 3, 0, -2d / 3, 0),
+                    Ifs3DTransform.Contract(1d / 3, 0, 2d / 3, 0),
+                    Ifs3DTransform.Contract(1d / 3, 0, 0, -2d / 3),
+                    Ifs3DTransform.Contract(1d / 3, 0, 0, 2d / 3)
+                ]
+            }
+        },
+        new()
+        {
+            Id = "cantor-dust", Name = "Кубическая пыль Кантора",
+            State = new Ifs3DState
+            {
+                Iterations = 550_000, Yaw = 42, Pitch = 27, PointColor = Colors.Plum,
+                Transforms = CreateCantorDust()
+            }
+        },
+        new()
+        {
             Id = "fern", Name = "Объёмный папоротник",
             State = new Ifs3DState
             {
@@ -112,6 +181,26 @@ public static class Ifs3DPresets
                 continue;
             transforms.Add(Ifs3DTransform.Contract(1d / 3, x * 2d / 3, y * 2d / 3, z * 2d / 3));
         }
+        return transforms;
+    }
+
+    private static List<Ifs3DTransform> CreateSierpinskiPrism()
+    {
+        var transforms = new List<Ifs3DTransform>();
+        (double X, double Y)[] corners = [(-1, -.6), (1, -.6), (0, 1.2)];
+        foreach ((double x, double y) in corners)
+        foreach (int z in new[] { -1, 1 })
+            transforms.Add(Ifs3DTransform.Contract(.5, x / 2, y / 2, z / 2d));
+        return transforms;
+    }
+
+    private static List<Ifs3DTransform> CreateCantorDust()
+    {
+        var transforms = new List<Ifs3DTransform>();
+        foreach (int x in new[] { -1, 1 })
+        foreach (int y in new[] { -1, 1 })
+        foreach (int z in new[] { -1, 1 })
+            transforms.Add(Ifs3DTransform.Contract(1d / 3, x * 2d / 3, y * 2d / 3, z * 2d / 3));
         return transforms;
     }
 }
