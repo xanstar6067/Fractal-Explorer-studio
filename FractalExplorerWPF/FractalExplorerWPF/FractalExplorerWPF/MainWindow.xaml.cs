@@ -554,12 +554,12 @@ public partial class MainWindow : Window
         RebuildShadersButton.IsEnabled = false;
         ShaderCacheStatus.Visibility = Visibility.Visible;
         ShaderCacheStatus.Text = "Компиляция шейдеров… Это может занять несколько минут.";
-        IProgress<(int Completed, int Total, string Key)> progress = new Progress<(int Completed, int Total, string Key)>(value =>
-            ShaderCacheStatus.Text = $"Скомпилировано {value.Completed} из {value.Total}: {value.Key}");
+        IProgress<(int Completed, int Total)> progress = new Progress<(int Completed, int Total)>(value =>
+            ShaderCacheStatus.Text = $"Скомпилировано {value.Completed} из {value.Total} шейдеров…");
         try
         {
-            await Task.Run(() => Fractal3DRenderer.RebuildShaderCache((completed, total, key) =>
-                progress.Report((completed, total, key))));
+            await Task.Run(() => Fractal3DRenderer.RebuildShaderCache((completed, total, _) =>
+                progress.Report((completed, total))));
             ShaderCacheStatus.Text = "Готово: кэш всех 3D-шейдеров обновлён.";
         }
         catch (Exception exception)
