@@ -16,6 +16,22 @@ public static class FractalControlPanel
         isVisible = !isVisible;
         column.Width = isVisible ? new GridLength(expandedWidth) : new GridLength(0);
         panel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        if (button.Parent is Grid grid)
+        {
+            foreach (UIElement child in grid.Children)
+            {
+                if (child is not Border viewport || Grid.GetColumn(viewport) != Grid.GetColumn(button))
+                    continue;
+
+                Thickness margin = viewport.Margin;
+                viewport.Margin = new Thickness(
+                    isVisible ? 0 : margin.Right,
+                    margin.Top,
+                    margin.Right,
+                    margin.Bottom);
+                break;
+            }
+        }
         button.Content = isVisible ? "✕" : "☰";
         button.ToolTip = isVisible ? "Скрыть панель параметров" : "Показать панель параметров";
         layoutChanged?.Invoke();
