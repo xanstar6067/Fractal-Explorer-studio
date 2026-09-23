@@ -414,6 +414,7 @@ internal static class Fractal3DShader
             int maxSteps = (int)March.x;
             float maxDistance = March.z;
             float entryDistance = 0.0;
+            float shadeOrigin = 0.0;
 
             // Начинаем трассировку у области фрактала: оценка расстояния далеко от него
             // может перескочить переднюю поверхность, а фиксированная дальность — обрезать её.
@@ -448,14 +449,12 @@ internal static class Fractal3DShader
             float halfChord = sqrt(max(radius * radius - distanceSquared, 0.0));
             if (closest + halfChord < 0.0)
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
-        #if FRACTAL_KIND == 2 || FRACTAL_KIND == 3 || FRACTAL_KIND == 4
-            // У этих форм близкий вид уже трассируется корректно; сохраняем его
-            // прежнюю глубинную окраску и ускоряем вход только с удалённой камеры.
-            if (length(rayOrigin) > 3.0 * radius)
-                entryDistance = max(0.0, closest - halfChord);
-        #else
             entryDistance = max(0.0, closest - halfChord);
-        #endif
+            // Туман и окраска по глубине меряются от камеры, пока она не дальше трёх радиусов
+            // сферы: это привычный вид. Дальше точка отсчёта едет вслед за камерой, и отъезд
+            // не красит фигуру в конец палитры и не топит её в тумане. Сдвиг непрерывен по
+            // положению камеры и одинаков для всех лучей кадра, поэтому цвет не скачет.
+            shadeOrigin = max(0.0, length(rayOrigin) - 3.0 * radius);
             // Пользовательская дальность остаётся минимумом, но не обрезает фигуру
             // только из-за того, что камера отъехала от неё.
             maxDistance = max(maxDistance, closest + halfChord);
@@ -534,11 +533,15 @@ internal static class Fractal3DShader
 
             float3 sky = SkyAt(rayDirection);
             float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
-            float traceSpan = max(maxDistance - entryDistance, 1e-3);
+            // Туман, глубина и накопленная близость нормируются на заданную дальность, а не на
+            // рабочий предел луча: тот растёт при отъезде камеры, и фигура меняла бы цвет от
+            // одного лишь расстояния до неё.
+            float traceSpan = max(March.z, 1e-3);
+            float shadeDepth = travelled - shadeOrigin;
 
             if (style == 4)
             {
-                // Накопленный путь соотносится с дальностью трассировки, иначе крупная фигура
+                // Накопленный путь соотносится с заданной дальностью, иначе крупная фигура
                 // (Мандельбокс стоит в сотне единиц) насыщала бы плотность до сплошного пятна.
                 float density = saturate(proximity / traceSpan * 12.0 * max(strength, 1e-3));
                 float3 tint = SamplePalette(density * ShapeC.y + ShapeC.z, 0);
@@ -572,7 +575,7 @@ internal static class Fractal3DShader
             float3 ambientTint = lerp(float3(1.0, 1.0, 1.0), SkyAt(normal) * 3.0, saturate(Style.z));
             float3 ambient = Flags.w * ambientTint;
             float3 albedo = SurfaceAlbedo(
-                normal, trap, travelled - entryDistance, surfacePoint, rayDirection, occlusion, stepsRatio);
+                normal, trap, shadeDepth, surfacePoint, rayDirection, occlusion, stepsRatio);
             float3 halfVector = normalize(lightDirection - rayDirection);
             float specular = Light.w * pow(saturate(dot(normal, halfVector)), 32.0) * shadow;
 
@@ -626,7 +629,7 @@ internal static class Fractal3DShader
             }
 
             if (style == 3) color += glowTint * glow * 1.2;
-            color = lerp(color, sky, saturate((travelled - entryDistance) / traceSpan));
+            color = lerp(color, sky, saturate(shadeDepth / traceSpan));
             return float4(LinearToSrgb(color), 1.0);
         }
         """;

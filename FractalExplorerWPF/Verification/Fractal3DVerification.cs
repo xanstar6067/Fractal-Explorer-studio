@@ -113,6 +113,7 @@ internal static partial class Program
         VerifyFractal3DZoomGlide();
         await VerifyFractal3DProbeAsync(renderer);
         await VerifyDistantFractal3DProbesAsync(renderer);
+        await VerifyFractal3DDistanceShadingAsync(renderer);
         VerifyFractal3DPalettes();
         await VerifyFractal3DColoringAsync(renderer);
         VerifyFractal3DSaves();
@@ -455,6 +456,73 @@ internal static partial class Program
                     $"{kind}: the distant ray must hit the same front surface as the nearby ray.");
             }
         }
+    }
+
+    /// <summary>
+    /// Отъезд камеры не должен менять цвет фигуры скачком. Окраска по глубине законно меняется
+    /// с расстоянием, поэтому сравниваются кадры, разнесённые на полпроцента: плавное изменение
+    /// даёт в такой паре единицы, разрыв — сотни. Раньше у губки, тетраэдра и Мандельбокса
+    /// отсчёт глубины переключался на трёх радиусах описанной сферы, и цвет прыгал; эти
+    /// расстояния проверяются отдельно.
+    /// </summary>
+    private static async Task VerifyFractal3DDistanceShadingAsync(Fractal3DRenderer renderer)
+    {
+        foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
+        {
+            foreach ((Fractal3DColoringMode coloring, Fractal3DShadingStyle style) in new[]
+                     {
+                         (Fractal3DColoringMode.Material, Fractal3DShadingStyle.Classic),
+                         (Fractal3DColoringMode.Depth, Fractal3DShadingStyle.Classic),
+                         (Fractal3DColoringMode.Material, Fractal3DShadingStyle.Density)
+                     })
+            {
+                Fractal3DState state = Fractal3DCatalog.CreateDefaultState(kind);
+                state.ColoringMode = coloring;
+                state.ShadingStyle = style;
+                state.EffectStrength = 1;
+                double start = state.CameraDistance;
+
+                // 3·√3 — прежний порог губки и тетраэдра, 3·16.93 — Мандельбокса с масштабом 2.
+                IEnumerable<double> distances = Enumerable.Range(0, 13)
+                    .Select(step => start * Math.Pow(4, step / 12.0))
+                    .Append(3 * Math.Sqrt(3))
+                    .Append(3 * 16.93);
+
+                double worst = 0;
+                foreach (double distance in distances)
+                {
+                    state.CameraDistance = distance / Math.Sqrt(ShadingPairRatio);
+                    double[] near = CentreColour(await Fractal3DFrameAsync(renderer, state));
+                    state.CameraDistance = distance * Math.Sqrt(ShadingPairRatio);
+                    double[] far = CentreColour(await Fractal3DFrameAsync(renderer, state));
+                    worst = Math.Max(worst, near.Zip(far, (x, y) => Math.Abs(x - y)).Max());
+                }
+                Check(worst < ShadingJumpTolerance,
+                    $"{kind} {coloring}/{style}: moving the camera away must not change the colour abruptly " +
+                    $"(centre colour jumped by {worst:F1}).");
+            }
+        }
+    }
+
+    private const double ShadingPairRatio = 1.005;
+    // На полупроцентном шаге плавная окраска меняется до 14 единиц, прежний разрыв давал 119–131.
+    private const double ShadingJumpTolerance = 20;
+
+    /// <summary>Средний цвет центрального пятна кадра по каналам B, G, R.</summary>
+    private static double[] CentreColour(byte[] pixels)
+    {
+        int stride = Fractal3DProbeWidth * 4;
+        var sum = new double[3];
+        int count = 0;
+        for (int row = Fractal3DProbeHeight / 2 - 3; row < Fractal3DProbeHeight / 2 + 3; row++)
+        {
+            for (int column = Fractal3DProbeWidth / 2 - 3; column < Fractal3DProbeWidth / 2 + 3; column++)
+            {
+                for (int channel = 0; channel < 3; channel++) sum[channel] += pixels[row * stride + column * 4 + channel];
+                count++;
+            }
+        }
+        return sum.Select(value => value / count).ToArray();
     }
 
     private static void VerifyFractal3DSaves()
