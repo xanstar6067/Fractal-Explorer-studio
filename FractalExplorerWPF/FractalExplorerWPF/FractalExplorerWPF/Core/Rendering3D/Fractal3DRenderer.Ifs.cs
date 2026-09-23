@@ -8,6 +8,7 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 public sealed partial class Fractal3DRenderer
 {
     private ID3D11PixelShader? _ifsPixelShader;
+    private ID3D11SamplerState? _ifsSampler;
     private ID3D11Texture3D? _ifsVolumeTexture;
     private ID3D11ShaderResourceView? _ifsVolumeView;
     private Fractal3DState? _ifsVolumeState;
@@ -18,6 +19,10 @@ public sealed partial class Fractal3DRenderer
         _ifsPixelShader = _device!.CreatePixelShader(Compile(Ifs3DShader.Source, "PSMain", "ps_5_0").Span);
         return _ifsPixelShader;
     }
+
+    private ID3D11SamplerState GetIfsSampler() =>
+        _ifsSampler ??= _device!.CreateSamplerState(
+            new SamplerDescription(Filter.MinMagMipLinear, TextureAddressMode.Clamp));
 
     private void EnsureIfsVolume(Fractal3DState state, CancellationToken token)
     {
@@ -85,6 +90,7 @@ public sealed partial class Fractal3DRenderer
         _ifsVolumeView?.Dispose();
         _ifsVolumeTexture?.Dispose();
         _ifsPixelShader?.Dispose();
+        _ifsSampler?.Dispose();
         _ifsVolumeState = null;
     }
 }

@@ -9,7 +9,7 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 /// </summary>
 internal static class Ifs3DVolume
 {
-    public const int Side = 256;
+    public const int Side = 512;
 
     public static byte[] Build(Fractal3DState state, CancellationToken token)
     {
@@ -65,10 +65,16 @@ internal static class Ifs3DVolume
             int vy = Math.Clamp((int)((point.Y + 1) * (Side / 2d)), 1, Side - 2);
             int vz = Math.Clamp((int)((point.Z + 1) * (Side / 2d)), 1, Side - 2);
             int index = (vz * Side + vy) * Side + vx;
-            Add(voxels, index, 96);
-            Add(voxels, index - 1, 32); Add(voxels, index + 1, 32);
-            Add(voxels, index - Side, 32); Add(voxels, index + Side, 32);
-            Add(voxels, index - Side * Side, 32); Add(voxels, index + Side * Side, 32);
+            // A complete 3D footprint avoids the axis-aligned crosses and pinholes
+            // produced by the previous seven-cell splat.
+            for (int dz = -1; dz <= 1; dz++)
+            for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int squaredRadius = dx * dx + dy * dy + dz * dz;
+                int weight = squaredRadius switch { 0 => 96, 1 => 48, 2 => 24, _ => 12 };
+                Add(voxels, index + (dz * Side + dy) * Side + dx, weight);
+            }
         }
         return voxels;
     }

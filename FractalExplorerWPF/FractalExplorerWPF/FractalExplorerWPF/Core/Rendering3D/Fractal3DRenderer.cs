@@ -143,7 +143,11 @@ public sealed partial class Fractal3DRenderer : IDisposable
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             context.VSSetShader(_vertexShader!);
             context.PSSetShader(state.Kind == Fractal3DKind.Ifs3D ? GetIfsPixelShader() : GetPixelShader(state.Kind));
-            if (state.Kind == Fractal3DKind.Ifs3D) context.PSSetShaderResource(0, _ifsVolumeView!);
+            if (state.Kind == Fractal3DKind.Ifs3D)
+            {
+                context.PSSetShaderResource(0, _ifsVolumeView!);
+                context.PSSetSampler(0, GetIfsSampler());
+            }
             context.PSSetConstantBuffer(0, _constantBuffer!);
             context.Draw(3, 0);
             context.CopyResource(_probeStaging!, _probeTarget!);
@@ -236,7 +240,11 @@ public sealed partial class Fractal3DRenderer : IDisposable
         context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         context.VSSetShader(_vertexShader!);
         context.PSSetShader(state.Kind == Fractal3DKind.Ifs3D ? GetIfsPixelShader() : GetPixelShader(state.Kind));
-        if (state.Kind == Fractal3DKind.Ifs3D) context.PSSetShaderResource(0, _ifsVolumeView!);
+        if (state.Kind == Fractal3DKind.Ifs3D)
+        {
+            context.PSSetShaderResource(0, _ifsVolumeView!);
+            context.PSSetSampler(0, GetIfsSampler());
+        }
         context.PSSetConstantBuffer(0, _constantBuffer!);
         context.Draw(3, 0);
 

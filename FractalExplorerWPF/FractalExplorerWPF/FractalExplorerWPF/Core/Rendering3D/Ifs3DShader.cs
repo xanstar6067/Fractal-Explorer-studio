@@ -28,6 +28,7 @@ internal static class Ifs3DShader
         };
 
         Texture3D<float> Density : register(t0);
+        SamplerState DensitySampler : register(s0);
 
         struct PSInput { float4 position : SV_POSITION; };
 
@@ -56,8 +57,7 @@ internal static class Ifs3DShader
 
         float SampleDensity(float3 samplePosition)
         {
-            int3 cell = clamp((int3)((samplePosition + 1.0) * 128.0), int3(0, 0, 0), int3(255, 255, 255));
-            return Density.Load(int4(cell, 0));
+            return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0);
         }
 
         float4 PSMain(PSInput input) : SV_TARGET
@@ -80,28 +80,40 @@ internal static class Ifs3DShader
             if (entry >= exitDistance)
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(sky), 1.0);
 
-            float stepLength = 2.0 / 256.0 * clamp(March.y, 0.5, 2.0);
+            // The traversal must cover the whole box. A fixed user ray-step limit used to
+            // terminate halfway through it, leaving camera-centered circular silhouettes.
+            float cell = 2.0 / 512.0;
+            float stepLength = cell * 0.65;
+            const float threshold = 0.075;
             float distance = entry;
+            float previousDensity = SampleDensity(origin + direction * distance);
             [loop]
-            for (int i = 0; i < (int)March.x && distance < exitDistance; i++)
+            for (int i = 0; i < 1536 && distance < exitDistance; i++)
             {
-                float3 samplePosition = origin + direction * distance;
-                float density = SampleDensity(samplePosition);
-                if (density > 0.025)
+                float nextDistance = min(distance + stepLength, exitDistance);
+                float density = SampleDensity(origin + direction * nextDistance);
+                if (previousDensity >= threshold || density >= threshold)
                 {
-                    if (Probe.x > 0.5) return PackFloat(distance);
-                    float cell = 2.0 / 256.0;
+                    // Interpolate the crossing to keep both shading and the camera probe
+                    // stable as the ray sampling phase changes during movement.
+                    float crossing = previousDensity >= threshold ? distance :
+                        lerp(distance, nextDistance,
+                             saturate((threshold - previousDensity) /
+                                      max(density - previousDensity, 1e-6)));
+                    if (Probe.x > 0.5) return PackFloat(crossing);
+                    float3 samplePosition = origin + direction * crossing;
                     float3 gradient = float3(
                         SampleDensity(samplePosition + float3(cell, 0, 0)) - SampleDensity(samplePosition - float3(cell, 0, 0)),
                         SampleDensity(samplePosition + float3(0, cell, 0)) - SampleDensity(samplePosition - float3(0, cell, 0)),
                         SampleDensity(samplePosition + float3(0, 0, cell)) - SampleDensity(samplePosition - float3(0, 0, cell)));
                     float3 normal = -normalize(gradient + 1e-5);
-                    float lit = 0.4 + 0.6 * abs(dot(normal, normalize(Light.xyz)));
-                    float depthShade = saturate(1.2 - distance * 0.16);
+                    float lit = 0.4 + 0.6 * max(0.0, dot(normal, normalize(Light.xyz)));
+                    float depthShade = saturate(1.2 - crossing * 0.16);
                     float3 color = Surface.rgb * lit * depthShade;
                     return float4(LinearToSrgb(color), 1.0);
                 }
-                distance += stepLength;
+                previousDensity = density;
+                distance = nextDistance;
             }
             return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(sky), 1.0);
         }

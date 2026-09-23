@@ -19,6 +19,31 @@ internal static partial class Program
     private const int Fractal3DRayWidth = 480;
     private const int Fractal3DRayHeight = 360;
 
+    private static async Task WriteIfsClosePreviewAsync(string[] args)
+    {
+        if (args.Length != 2) throw new ArgumentException("ifs-close <output directory>");
+        Directory.CreateDirectory(args[1]);
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D);
+        state.CameraYaw = -168.1;
+        state.CameraPitch = 34.71;
+        state.CameraRoll = -104.4;
+        state.CameraDistance = 0.147266;
+        state.TargetX = 0.0154;
+        state.TargetY = -0.098;
+        state.TargetZ = 0.7804;
+        using var renderer = new Fractal3DRenderer();
+        for (int index = 0; index < 2; index++)
+        {
+            state.TargetX = 0.0154 + index * 0.002;
+            BitmapSource bitmap = await renderer.RenderAsync(state, 872, 740, null, CancellationToken.None);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using FileStream stream = File.Create(Path.Combine(args[1], $"ifs-close-{index}.png"));
+            encoder.Save(stream);
+        }
+        Console.WriteLine("PASS (ifs-close): wrote two neighboring close views.");
+    }
+
     private static async Task VerifyFractal3DAsync()
     {
         using var sandbox = DataSandbox.Create("fractal3d");
