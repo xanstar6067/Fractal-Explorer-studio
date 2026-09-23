@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Models;
@@ -12,19 +11,6 @@ public enum Fractal3DKind
     MengerSponge,
     SierpinskiTetrahedron,
     QuaternionJulia
-}
-
-/// <summary>
-/// Вокруг чего поворачивалась камера в прежней схеме навигации. Навигация его больше не читает;
-/// тип остаётся, пока в формате сохранений есть поле <see cref="Fractal3DState.RotationAnchor"/>.
-/// </summary>
-public enum Fractal3DRotationAnchor
-{
-    /// <summary>Якорь в точке наблюдения: камера облетает фрактал, расстояние сохраняется.</summary>
-    Target,
-
-    /// <summary>Игровая камера: поворачивается взгляд, положение камеры остаётся на месте.</summary>
-    FreeLook
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -245,19 +231,15 @@ public sealed class Fractal3DState
     public double FieldOfView { get; set; } = 55;
 
     /// <summary>
-    /// Крен камеры вокруг оси взгляда, градусы. Пока живёт только в окне и в кадре: в файл
-    /// сохранения не пишется, и загруженный вид открывается без крена.
+    /// Крен камеры вокруг оси взгляда, градусы; положительный поворачивает картинку по часовой
+    /// стрелке. Сохранения, сделанные до появления крена, его не содержат и читаются с нулём —
+    /// ровно так, как они и выглядели.
     /// </summary>
-    [JsonIgnore]
     public double CameraRoll { get; set; }
 
     // ---- навигация ----
-    /// <summary>Устаревшее: навигация больше не различает якоря. Поле оставлено ради формата сохранений.</summary>
-    public Fractal3DRotationAnchor RotationAnchor { get; set; } = Fractal3DRotationAnchor.Target;
     public Fractal3DMotionQuality MotionQuality { get; set; } = Fractal3DMotionQuality.NoShadows;
     public Fractal3DMotionResolution MotionResolution { get; set; } = Fractal3DMotionResolution.Adaptive;
-    /// <summary>Устаревшее: колесо всегда приближает к точке под курсором. Поле оставлено ради формата сохранений.</summary>
-    public bool ZoomToCursor { get; set; } = true;
     public bool RotationInertia { get; set; } = true;
     public bool AutoRotate { get; set; }
     public double AutoRotateSpeed { get; set; } = 18;
@@ -423,12 +405,6 @@ public static class Fractal3DCatalog
             "Мандельбульб", "Мандельбульб",
             "Трёхмерное обобщение множества Мандельброта через сферические координаты: z → zⁿ + c с произвольной степенью n.",
             "Fractal3DMandelbulb", "mandelbulb")
-    };
-
-    public static string RotationAnchorName(Fractal3DRotationAnchor anchor) => anchor switch
-    {
-        Fractal3DRotationAnchor.FreeLook => "Свободная камера",
-        _ => "Вокруг фрактала"
     };
 
     public static string MotionQualityName(Fractal3DMotionQuality quality) => quality switch

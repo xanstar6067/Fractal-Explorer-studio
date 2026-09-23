@@ -294,7 +294,9 @@ public static class SaveManagerConfigurations
             _ => $"Степень: {state.Power:G6}"
         };
         return $"{Prefix(state.Timestamp)} · Итерации: {state.Iterations} · {shape}\n" +
-               $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, расстояние {state.CameraDistance:G6}\n" +
+               $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°" +
+               (Math.Abs(state.CameraRoll) >= 0.05 ? $", крен {state.CameraRoll:F1}°" : "") +
+               $", расстояние {state.CameraDistance:G6}\n" +
                $"Цель: {state.TargetX:G5}; {state.TargetY:G5}; {state.TargetZ:G5} · " +
                $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode)} · Шагов: {state.MaxSteps}";
     }

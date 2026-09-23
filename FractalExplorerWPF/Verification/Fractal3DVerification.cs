@@ -1,4 +1,6 @@
+using System.IO;
 using System.Numerics;
+using System.Text.Json.Nodes;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF.Core.Rendering3D;
@@ -625,10 +627,8 @@ internal static partial class Program
             original.LightColor = Color.FromRgb(240, 210, 160);
             original.SkyLightMix = 0.5;
             original.CameraRoll = 30;
-            original.RotationAnchor = Fractal3DRotationAnchor.FreeLook;
             original.MotionQuality = Fractal3DMotionQuality.Draft;
             original.MotionResolution = Fractal3DMotionResolution.Full;
-            original.ZoomToCursor = false;
             original.RotationInertia = false;
             original.AutoRotate = true;
             original.AutoRotateSpeed = -27.5;
@@ -643,20 +643,33 @@ internal static partial class Program
                   loaded.MaxSteps == original.MaxSteps && loaded.Detail.Equals(original.Detail) &&
                   loaded.ColoringMode == original.ColoringMode && loaded.ColorA == original.ColorA &&
                   loaded.SoftShadows == original.SoftShadows && loaded.AmbientOcclusion == original.AmbientOcclusion &&
-                  loaded.RotationAnchor == original.RotationAnchor && loaded.MotionQuality == original.MotionQuality &&
+                  loaded.MotionQuality == original.MotionQuality &&
                   loaded.MotionResolution == original.MotionResolution &&
-                  loaded.ZoomToCursor == original.ZoomToCursor && loaded.RotationInertia == original.RotationInertia &&
+                  loaded.RotationInertia == original.RotationInertia &&
                   loaded.AutoRotate == original.AutoRotate && loaded.AutoRotateSpeed.Equals(original.AutoRotateSpeed) &&
                   loaded.ShadingStyle == original.ShadingStyle &&
                   loaded.EffectStrength.Equals(original.EffectStrength) &&
                   loaded.ColorRepeat == original.ColorRepeat && loaded.LightColor == original.LightColor &&
                   loaded.SkyLightMix.Equals(original.SkyLightMix) &&
-                  // Крен пока живёт только в окне: формат сохранений его не знает.
-                  loaded.CameraRoll == 0 &&
+                  loaded.CameraRoll.Equals(original.CameraRoll) &&
                   loaded.Palette is not null && loaded.Palette.Name == original.Palette.Name &&
                   loaded.Palette.Gamma.Equals(original.Palette.Gamma) &&
                   loaded.Palette.Colors.SequenceEqual(original.Palette.Colors),
                 $"{kind}: the save must restore every parameter of the state.");
+
+            // Файл прежнего формата: без крена, зато с полями прежней навигации. Он обязан
+            // читаться без ошибок и открываться без крена — так, как он и выглядел.
+            string file = Directory.GetFiles(AppPaths.GetSavesDirectory(Fractal3DCatalog.GetDefinition(kind).SaveCategory), "*.json")
+                .Single(path => JsonNode.Parse(File.ReadAllText(path))?["SaveName"]?.GetValue<string>() == original.SaveName);
+            var legacy = (JsonObject)JsonNode.Parse(File.ReadAllText(file))!;
+            legacy.Remove(nameof(Fractal3DState.CameraRoll));
+            legacy["RotationAnchor"] = 1;
+            legacy["ZoomToCursor"] = false;
+            File.WriteAllText(file, legacy.ToJsonString());
+            Fractal3DState old = store.Load().Single(item => item.SaveName == original.SaveName);
+            Check(old.CameraRoll == 0 && old.CameraYaw.Equals(original.CameraYaw) &&
+                  old.CameraDistance.Equals(original.CameraDistance),
+                $"{kind}: a save made before the roll must load without it and keep the rest of the camera.");
         }
     }
 
