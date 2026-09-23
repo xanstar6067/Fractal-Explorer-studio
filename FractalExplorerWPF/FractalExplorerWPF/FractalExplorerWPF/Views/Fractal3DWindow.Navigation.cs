@@ -17,11 +17,10 @@ namespace FractalExplorerWPF.Views;
 /// <summary>
 /// Навигация окна трёхмерного фрактала — только мышью, как в CAD. Левая кнопка вращает трекболом
 /// вокруг точки поверхности, за которую схватили; по фону — поворачивает взгляд на месте. Правая
-/// сдвигает картинку так, что схваченная точка идёт за курсором. Средняя кренит камеру, как
-/// ручку: картинка поворачивается вокруг центра кадра вслед за курсором. Колесо приближает к
+/// сдвигает картинку так, что схваченная точка идёт за курсором. Средняя влево-вправо кренит
+/// камеру вокруг оси взгляда, вверх-вниз наклоняет взгляд на месте (тангаж). Колесо приближает к
 /// точке поверхности под курсором на долю расстояния до неё, поэтому сквозь поверхность не
-/// проскочить. Двойной щелчок левой — перелёт к
-/// точке, двойной щелчок средней — выровнять горизонт. Точку под курсором находит зонд
+/// проскочить. Двойной щелчок левой — перелёт к точке, двойной щелчок средней — выровнять горизонт. Точку под курсором находит зонд
 /// <see cref="Fractal3DRenderer.ProbeDistanceAsync"/>. Анимация камеры — автовращение, инерция
 /// броска, доводка колеса и перелёты — живёт в <see cref="AdvanceAnimation"/> и двигается кадровым
 /// циклом живого превью.
@@ -30,9 +29,6 @@ public partial class Fractal3DWindow
 {
     private const double RotationDegreesPerPixel = 0.35;
     private const double RollDegreesPerPixel = 0.35;
-
-    /// <summary>Ближе к центру кадра (в пикселях) крен идёт по горизонтали, а не по углу обхода.</summary>
-    private const double KnobDeadRadius = 40;
 
     /// <summary>Затухание броска, 1/с: за это время скорость падает в e раз.</summary>
     private const double InertiaDamping = 7;
@@ -297,7 +293,7 @@ public partial class Fractal3DWindow
         else if (!IsInteracting)
         {
             FinishZoom();
-            BeginDrag(DragMode.Roll, MouseButton.Middle, e.GetPosition(SavePreviewLayer), Cursors.SizeWE);
+            BeginDrag(DragMode.Roll, MouseButton.Middle, e.GetPosition(SavePreviewLayer), Cursors.SizeAll);
         }
         e.Handled = true;
     }
@@ -398,7 +394,9 @@ public partial class Fractal3DWindow
                 break;
             }
             case DragMode.Roll:
-                MoveCamera(Fractal3DCamera.Roll(Pose, KnobAngle(current, deltaX, deltaY)));
+                // Влево-вправо — крен, вверх-вниз — тангаж на месте; картинка в обоих идёт за мышью.
+                MoveCamera(Fractal3DCamera.Look(
+                    Fractal3DCamera.Roll(Pose, deltaX * RollDegreesPerPixel), 0, deltaY * RotationDegreesPerPixel));
                 break;
         }
 
@@ -429,27 +427,6 @@ public partial class Fractal3DWindow
         SyncCameraUi(immediate: true);
         RequestProbe(e.GetPosition(SavePreviewLayer), force: true);
         e.Handled = true;
-    }
-
-    /// <summary>
-    /// Крен как поворот ручки: угол, на который курсор обошёл центр кадра, — картинка
-    /// поворачивается вместе с ним и остаётся «приклеенной» к курсору. Вблизи центра угол
-    /// скачет от каждого пикселя, поэтому там крен идёт по горизонтали, как у ручки, взятой сверху.
-    /// </summary>
-    private double KnobAngle(Point current, double deltaX, double deltaY)
-    {
-        double centreX = SavePreviewLayer.ActualWidth / 2, centreY = SavePreviewLayer.ActualHeight / 2;
-        double x = current.X - centreX, y = current.Y - centreY;
-        double previousX = x - deltaX, previousY = y - deltaY;
-        if (Math.Min(Math.Sqrt(x * x + y * y), Math.Sqrt(previousX * previousX + previousY * previousY)) < KnobDeadRadius)
-            return deltaX * RollDegreesPerPixel;
-
-        // В экранных координатах ось Y смотрит вниз, поэтому рост угла — это обход по часовой
-        // стрелке, в ту же сторону, что положительный крен картинки.
-        double angle = Math.Atan2(y, x) - Math.Atan2(previousY, previousX);
-        if (angle > Math.PI) angle -= 2 * Math.PI;
-        if (angle < -Math.PI) angle += 2 * Math.PI;
-        return angle * 180 / Math.PI;
     }
 
     private void ApplyRotation(Vector3? pivot, double dragX, double dragY) =>
