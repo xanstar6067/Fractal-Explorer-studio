@@ -472,6 +472,8 @@ internal static class Program
                     var mgr = (Ifs3DPaletteManager)GetMember(w, "_paletteManager")!;
                     var palette = (Fractal3DPalette)GetMember(w, "_palette")!;
                     await CaptureChildAsync(w, new Ifs3DPaletteWindow(mgr, palette), "ifs3d-palette-editor");
+                    var transforms = (List<Ifs3DTransform>)GetMember(w, "_ifsTransforms")!;
+                    await CaptureChildAsync(w, new Ifs3DTransformEditorWindow(transforms), "ifs3d-transform-editor");
                 }
                 SafeCloseIfAny(w);
                 return;

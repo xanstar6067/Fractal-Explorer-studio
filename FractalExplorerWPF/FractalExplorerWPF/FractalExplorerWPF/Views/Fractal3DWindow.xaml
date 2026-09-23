@@ -96,27 +96,9 @@
                             </StackPanel>
 
                             <StackPanel x:Name="IfsPanel" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Преобразования пространства" FontWeight="SemiBold"/>
-                                <ListBox x:Name="IfsTransformList" Height="104" SelectionChanged="IfsTransformList_OnChanged">
-                                    <ListBox.ItemTemplate><DataTemplate><TextBlock Padding="4" Text="{Binding Probability, StringFormat='Вес: {0:G4}'}"/></DataTemplate></ListBox.ItemTemplate>
-                                </ListBox>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="+ Добавить" Click="IfsAdd_OnClick"/>
-                                    <Button Content="Дублировать" Click="IfsDuplicate_OnClick"/>
-                                    <Button Content="Удалить" Click="IfsDelete_OnClick"/>
-                                </StackPanel>
-                                <TextBlock Margin="0,6,0,0" Text="Строки матрицы: x′, y′, z′. Справа — перенос." TextWrapping="Wrap"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                    <TextBlock Text="x" HorizontalAlignment="Center"/><TextBlock Grid.Column="1" Text="y" HorizontalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="z" HorizontalAlignment="Center"/><TextBlock Grid.Column="3" Text="перенос" HorizontalAlignment="Center"/>
-                                    <TextBox x:Name="IfsM11Box" Grid.Row="1" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsM12Box" Grid.Row="1" Grid.Column="1" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsM13Box" Grid.Row="1" Grid.Column="2" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsTxBox" Grid.Row="1" Grid.Column="3" Margin="2" TextChanged="IfsMatrix_OnChanged"/>
-                                    <TextBox x:Name="IfsM21Box" Grid.Row="2" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsM22Box" Grid.Row="2" Grid.Column="1" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsM23Box" Grid.Row="2" Grid.Column="2" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsTyBox" Grid.Row="2" Grid.Column="3" Margin="2" TextChanged="IfsMatrix_OnChanged"/>
-                                    <TextBox x:Name="IfsM31Box" Grid.Row="3" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsM32Box" Grid.Row="3" Grid.Column="1" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsM33Box" Grid.Row="3" Grid.Column="2" Margin="2" TextChanged="IfsMatrix_OnChanged"/><TextBox x:Name="IfsTzBox" Grid.Row="3" Grid.Column="3" Margin="2" TextChanged="IfsMatrix_OnChanged"/>
-                                </Grid>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вес выбора"/>
-                                <TextBox x:Name="IfsProbabilityBox" TextChanged="IfsMatrix_OnChanged"/>
+                                <Button Content="Трансформации" Click="IfsTransforms_OnClick"/>
+                                <TextBlock Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Матрицы, веса и случайная генерация — в отдельном редакторе." TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <TextBlock x:Name="IterationsLabel" Style="{StaticResource FieldCaption}" Text="Итерации"/>

@@ -67,7 +67,19 @@ internal static partial class Program
             using FileStream stream = File.Create(Path.Combine(args[1], $"ifs-color-{(int)mode}.png"));
             encoder.Save(stream);
         }
-        Console.WriteLine("PASS (ifs-close): close views, eight styles and six palette/color sources.");
+        var randomSettings = new Ifs3DRandomizationSettings { MinimumTransforms = 7, MaximumTransforms = 7 };
+        state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D);
+        foreach (Ifs3DPlacementMode placement in Enum.GetValues<Ifs3DPlacementMode>())
+        {
+            randomSettings.PlacementMode = placement;
+            state.IfsTransforms = Ifs3DRandomizer.Create(randomSettings, new Random(730 + (int)placement));
+            BitmapSource bitmap = await renderer.RenderAsync(state, 440, 440, null, CancellationToken.None);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using FileStream stream = File.Create(Path.Combine(args[1], $"ifs-random-{placement}.png"));
+            encoder.Save(stream);
+        }
+        Console.WriteLine("PASS (ifs-close): close views, styles, color sources and four generated IFS placements.");
     }
 
     private static async Task VerifyFractal3DAsync()
@@ -105,6 +117,7 @@ internal static partial class Program
         }
 
         await VerifyIfsPaletteAndShadingAsync(renderer);
+        await VerifyIfs3DRandomizationAsync(renderer);
 
         Fractal3DState packing = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.ApollonianPacking);
         packing.Iterations = 1;
@@ -189,6 +202,57 @@ internal static partial class Program
         Console.WriteLine($"PASS (fractal3d): {Enum.GetValues<Fractal3DKind>().Length} modes, presets, " +
                           $"{Fractal3DPalettes.All.Count} palettes, {Enum.GetValues<Fractal3DShadingStyle>().Length} shaders, " +
                           "coloring sources, camera, navigation, smooth zoom, surface probe and saves.");
+    }
+
+    private static async Task VerifyIfs3DRandomizationAsync(Fractal3DRenderer renderer)
+    {
+        var settings = new Ifs3DRandomizationSettings
+        {
+            MinimumTransforms = 6, MaximumTransforms = 6,
+            Families = [.. Enum.GetValues<Ifs3DTransformFamily>()]
+        };
+        var signatures = new HashSet<string>();
+        foreach (Ifs3DPlacementMode placement in Enum.GetValues<Ifs3DPlacementMode>())
+        foreach (Ifs3DProbabilityMode probability in Enum.GetValues<Ifs3DProbabilityMode>())
+        {
+            settings.PlacementMode = placement;
+            settings.ProbabilityMode = probability;
+            List<Ifs3DTransform> transforms = Ifs3DRandomizer.Create(settings, new Random(500 + (int)placement * 10 + (int)probability));
+            Check(transforms.Count == 6 && Math.Abs(transforms.Sum(t => t.Probability) - 1) < 1e-12 &&
+                  transforms.All(t => t.Probability > 0),
+                $"IFS 3D randomizer {placement}/{probability}: count and weights must be valid.");
+            foreach (Ifs3DTransform t in transforms)
+            {
+                double frobenius = Math.Sqrt(t.M11 * t.M11 + t.M12 * t.M12 + t.M13 * t.M13 +
+                    t.M21 * t.M21 + t.M22 * t.M22 + t.M23 * t.M23 +
+                    t.M31 * t.M31 + t.M32 * t.M32 + t.M33 * t.M33);
+                Check(frobenius <= .880001 && double.IsFinite(t.Tx + t.Ty + t.Tz),
+                    $"IFS 3D randomizer {placement}/{probability}: a map must remain contractive.");
+            }
+            signatures.Add(string.Join(";", transforms.Select(t => $"{t.Tx:F2},{t.Ty:F2},{t.Tz:F2}")));
+            if (placement == Ifs3DPlacementMode.Bilateral)
+                for (int i = 0; i < transforms.Count; i += 2)
+                    Check(Math.Abs(transforms[i].Tx + transforms[i + 1].Tx) < 1e-6 &&
+                          Math.Abs(transforms[i].Ty - transforms[i + 1].Ty) < 1e-6 &&
+                          Math.Abs(transforms[i].Tz - transforms[i + 1].Tz) < 1e-6,
+                        "Mirrored IFS maps must have paired anchors.");
+        }
+        Check(signatures.Count == 12, "3D placement settings must generate distinct maps.");
+
+        settings.PlacementMode = Ifs3DPlacementMode.Spherical;
+        settings.ProbabilityMode = Ifs3DProbabilityMode.VolumeWeighted;
+        Ifs3DRandomizationSettingsStore.Save(settings);
+        Ifs3DRandomizationSettings restored = Ifs3DRandomizationSettingsStore.Load();
+        Check(restored.PlacementMode == settings.PlacementMode &&
+              restored.ProbabilityMode == settings.ProbabilityMode &&
+              restored.Families.Count == settings.Families.Count,
+            "IFS 3D randomizer settings must persist independently.");
+
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D);
+        state.Iterations = 100_000;
+        state.IfsTransforms = Ifs3DRandomizer.Create(settings, new Random(71));
+        Check(HasFractal3DStructure(await Fractal3DFrameAsync(renderer, state)),
+            "A generated 3D IFS must render a visible attractor.");
     }
 
     private static async Task VerifyIfsPaletteAndShadingAsync(Fractal3DRenderer renderer)
