@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -9,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF;
 using FractalExplorerWPF.Controls;
+using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Theming;
@@ -21,9 +23,43 @@ internal static partial class Program
     {
         VerifyCatalogData();
         VerifyCatalogSearch();
+        VerifyIfs3DPresets();
         VerifyRecentFractalsStore();
         await VerifyMainWindowCatalogAsync(outputDirectory);
         Console.WriteLine("PASS (catalog): catalog data, previews, launch keys, search, recents, scopes, grouping, selection, details, favorites, bindings and themes.");
+    }
+
+    private static void VerifyIfs3DPresets()
+    {
+        Check(Ifs3DPresets.All.Count >= 3 &&
+              Ifs3DPresets.All.Select(p => p.Id).Distinct().Count() == Ifs3DPresets.All.Count,
+            "IFS3D presets need distinct identities.");
+        foreach (Ifs3DPreset preset in Ifs3DPresets.All)
+        {
+            Ifs3DState state = preset.State.Clone();
+            state.Iterations = 100_000;
+            byte[] pixels = Ifs3DRenderer.RenderPixels(state, 192, 192, CancellationToken.None);
+            int lit = 0;
+            for (int i = 0; i < pixels.Length; i += 4)
+                if (pixels[i] != state.BackgroundColor.B || pixels[i + 1] != state.BackgroundColor.G ||
+                    pixels[i + 2] != state.BackgroundColor.R) lit++;
+            Check(lit > 250, $"IFS3D preset {preset.Id} must yield a visible point cloud, got {lit} pixels.");
+        }
+        Ifs3DState rotated = Ifs3DPresets.All[0].State.Clone();
+        rotated.Iterations = 100_000;
+        byte[] first = Ifs3DRenderer.RenderPixels(rotated, 192, 192, CancellationToken.None);
+        rotated.Yaw += 70;
+        byte[] second = Ifs3DRenderer.RenderPixels(rotated, 192, 192, CancellationToken.None);
+        Check(!first.SequenceEqual(second), "Rotating the IFS3D camera must change the image.");
+        rotated.Transforms[0].Tx += .2;
+        byte[] edited = Ifs3DRenderer.RenderPixels(rotated, 192, 192, CancellationToken.None);
+        Check(!second.SequenceEqual(edited), "Editing an IFS3D transform must change the attractor.");
+        string json = JsonSerializer.Serialize(rotated, JsonOptionsFactory.Create());
+        Ifs3DState? restored = JsonSerializer.Deserialize<Ifs3DState>(json, JsonOptionsFactory.Create());
+        Check(restored is not null && restored.Transforms.Count == rotated.Transforms.Count &&
+              restored.Transforms[0].Tx == rotated.Transforms[0].Tx && restored.Yaw == rotated.Yaw &&
+              restored.PointColor == rotated.PointColor,
+            "IFS3D saves must preserve transforms, camera and color.");
     }
 
     private static void VerifyCatalogData()
@@ -222,8 +258,8 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + 1,
-                "Laboratories, 3D fractals and Gray–Scott must be the modes rendered on the fly.");
+                    Enum.GetValues<Fractal3DKind>().Length + 2,
+                "Laboratories, 3D fractals, IFS3D and Gray–Scott must be the modes rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,

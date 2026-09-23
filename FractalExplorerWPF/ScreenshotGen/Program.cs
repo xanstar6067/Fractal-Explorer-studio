@@ -619,6 +619,9 @@ internal static class Program
                     SafeCloseIfAny(w);
                     return;
                 }
+                case "IFS3D":
+                    await CaptureAsync(() => new Ifs3DWindow(), "ifs3d", 2200);
+                    return;
                 case "ApollonianGasket":
                     await CaptureAsync(() => new ApollonianWindow(), "apollonian", 1800);
                     return;

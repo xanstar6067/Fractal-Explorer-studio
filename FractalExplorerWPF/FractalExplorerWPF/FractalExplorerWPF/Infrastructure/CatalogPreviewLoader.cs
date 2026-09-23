@@ -33,6 +33,7 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
+        item.LaunchKey == "IFS3D" ||
         item.LaunchKey == GrayScottLaunchKey;
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
@@ -76,6 +77,12 @@ internal sealed class CatalogPreviewLoader
         {
             return GrayScottRenderer.RenderPreviewAsync(
                 GrayScottPresets.All[0].State.Clone(), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (item.LaunchKey == "IFS3D")
+        {
+            Ifs3DState state = Ifs3DPresets.All[0].State.Clone();
+            state.Iterations = 150_000;
+            return Ifs3DRenderer.RenderBitmapAsync(state, RenderedPixelSize, RenderedPixelSize, token);
         }
         throw new ArgumentException($"Превью «{item.DisplayName}» не рендерится на лету.", nameof(item));
     }
