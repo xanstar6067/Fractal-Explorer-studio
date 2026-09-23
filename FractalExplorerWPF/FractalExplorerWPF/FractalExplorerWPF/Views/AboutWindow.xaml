@@ -3,124 +3,179 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="О программе"
         Width="600"
-        Height="560"
-        MinWidth="520"
-        MinHeight="460"
-        ResizeMode="CanResize"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         Icon="../Assets/Icons/FractalExplorer.ico">
-    <Grid Margin="24">
+    <Window.Resources>
+        <Style x:Key="IconText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.AccentPrimaryBrush}"/>
+        </Style>
+
+        <Style x:Key="Chip" TargetType="Border">
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Padding" Value="9,2,9,3"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Background" Value="{DynamicResource Theme.ControlBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="ChipText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+        </Style>
+
+        <Style x:Key="InfoLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="12,0,16,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="64"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- ===== Шапка: логотип, название и технологии ===== -->
+        <Grid Background="{DynamicResource Theme.PanelBackgroundBrush}">
+            <Grid Margin="28,26,28,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-            <Border Width="52" Height="52"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
+                <Border Width="76" Height="76"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource Theme.ControlBackgroundAltBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16">
+                    <Image x:Name="LogoImage" Margin="10" RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center">
+                    <TextBlock FontSize="25" FontWeight="SemiBold" Text="Fractal Explorer Studio"/>
+                    <TextBlock Margin="0,3,0,0"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                               Text="Менеджер и исследователь фракталов"/>
+                    <WrapPanel Margin="0,12,0,0">
+                        <Border Style="{StaticResource Chip}">
+                            <TextBlock Style="{StaticResource ChipText}" Text="C# · WPF"/>
+                        </Border>
+                        <Border Style="{StaticResource Chip}">
+                            <TextBlock Style="{StaticResource ChipText}" Text=".NET 10"/>
+                        </Border>
+                        <Border Style="{StaticResource Chip}">
+                            <TextBlock Style="{StaticResource ChipText}" Text="Direct3D 11"/>
+                        </Border>
+                    </WrapPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Акцентная линия, угасающая к правому краю. -->
+            <Border Height="2" VerticalAlignment="Bottom" Background="{DynamicResource Theme.AccentPrimaryBrush}">
+                <Border.OpacityMask>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF000000"/>
+                        <GradientStop Offset="0.65" Color="#30000000"/>
+                        <GradientStop Offset="1" Color="#00000000"/>
+                    </LinearGradientBrush>
+                </Border.OpacityMask>
+            </Border>
+        </Grid>
+
+        <!-- ===== Описание и сведения ===== -->
+        <StackPanel Grid.Row="1" Margin="28,22,28,26">
+            <TextBlock LineHeight="22"
+                       TextWrapping="Wrap"
+                       Text="Fractal Explorer Studio — это WPF-приложение на C#, которое позволяет генерировать, исследовать и настраивать множество фракталов с гибким управлением цветом, интерактивными селекторами параметров, сохранением состояний и экспортом изображений в высоком качестве."/>
+
+            <Border Margin="0,20,0,0"
                     Background="{DynamicResource Theme.ControlBackgroundAltBrush}"
                     BorderBrush="{DynamicResource Theme.BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
-                <Image x:Name="LogoImage" Margin="8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="46"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="46"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="46"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Margin="16,0,0,0" Style="{StaticResource IconText}" Text="&#xE77B;"/>
+                    <TextBlock Grid.Column="1" Style="{StaticResource InfoLabel}" Text="Автор"/>
+                    <TextBlock Grid.Column="2" Margin="0,0,16,0" VerticalAlignment="Center" Text="xanstar6067"/>
+
+                    <Border Grid.Row="1" Grid.ColumnSpan="3" Height="1" Background="{DynamicResource Theme.BorderBrush}"/>
+
+                    <TextBlock Grid.Row="2" Margin="16,0,0,0" Style="{StaticResource IconText}" Text="&#xE71B;"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource InfoLabel}" Text="Репозиторий"/>
+                    <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,0,16,0" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis">
+                        <Hyperlink NavigateUri="https://github.com/xanstar6067/Fractal-Explorer-studio"
+                                   Foreground="{DynamicResource Theme.AccentPrimaryBrush}"
+                                   TextDecorations="None"
+                                   ToolTip="Открыть в браузере"
+                                   RequestNavigate="RepositoryLink_OnRequestNavigate">
+                            github.com/xanstar6067/Fractal-Explorer-studio
+                        </Hyperlink>
+                    </TextBlock>
+
+                    <Border Grid.Row="3" Grid.ColumnSpan="3" Height="1" Background="{DynamicResource Theme.BorderBrush}"/>
+
+                    <TextBlock Grid.Row="4" Margin="16,0,0,0" Style="{StaticResource IconText}" Text="&#xE8A9;"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource InfoLabel}" Text="Каталог"/>
+                    <TextBlock x:Name="CatalogSummaryText" Grid.Row="4" Grid.Column="2" Margin="0,0,16,0"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </Grid>
             </Border>
+        </StackPanel>
 
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock FontSize="23"
-                           FontWeight="SemiBold"
-                           Text="Fractal Explorer Studio"/>
-                <TextBlock Margin="0,4,0,0"
-                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                           Text="Менеджер и исследователь фракталов"/>
-            </StackPanel>
-        </Grid>
+        <!-- ===== Подвал: благодарность ИИ и закрытие ===== -->
+        <Border Grid.Row="2"
+                Padding="28,14"
+                Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource Theme.BorderBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-        <Separator Grid.Row="1" Margin="0,20,0,20"/>
-
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="112"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <TextBlock Margin="0,0,12,14"
-                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                       Text="Автор:"/>
-            <TextBlock Grid.Column="1" Margin="0,0,0,14" Text="xanstar6067"/>
-
-            <TextBlock Grid.Row="1" Margin="0,0,12,20"
-                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                       Text="Репозиторий:"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,0,0,20" TextWrapping="Wrap">
-                <Hyperlink NavigateUri="https://github.com/xanstar6067/Fractal-Explorer-studio"
-                           Foreground="{DynamicResource Theme.AccentPrimaryBrush}"
-                           RequestNavigate="RepositoryLink_OnRequestNavigate">
-                    github.com/xanstar6067/Fractal-Explorer-studio
-                </Hyperlink>
-            </TextBlock>
-
-            <TextBlock Grid.Row="2" Margin="0,0,12,20"
-                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                       Text="Данные:"/>
-            <TextBlock x:Name="DataFolderText"
-                       Grid.Row="2" Grid.Column="1" Margin="0,0,0,20"
-                       TextWrapping="Wrap"
-                       ToolTip="Сохранения, превью, палитры, темы, настройки и журнал ошибок"/>
-
-            <Border Grid.Row="3"
-                    Grid.ColumnSpan="2"
-                    Margin="0,0,0,20"
-                    Padding="14,11"
-                    Background="{DynamicResource Theme.ControlBackgroundAltBrush}"
-                    BorderBrush="{DynamicResource Theme.BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                <StackPanel>
-                    <TextBlock FontWeight="SemiBold"
-                               Foreground="{DynamicResource Theme.AccentPrimaryBrush}"
-                               Text="Создано при поддержке ИИ"/>
-                    <TextBlock Margin="0,5,0,0"
+                <Border Width="34" Height="34" VerticalAlignment="Center" CornerRadius="17"
+                        Background="{DynamicResource Theme.ControlBackgroundBrush}">
+                    <TextBlock HorizontalAlignment="Center" FontSize="16" Style="{StaticResource IconText}" Text="&#xE99A;"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,16,0" VerticalAlignment="Center">
+                    <TextBlock FontSize="12.5" FontWeight="SemiBold" Text="Создано при поддержке ИИ"/>
+                    <TextBlock Margin="0,2,0,0" FontSize="12" TextWrapping="Wrap"
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                               TextWrapping="Wrap"
-                               Text="В разработке помогали технологии Google AI, ChatGPT, Claude и Grok."/>
+                               Text="Google AI · ChatGPT · Claude · Grok"/>
                 </StackPanel>
-            </Border>
-
-            <TextBlock Grid.Row="4" Margin="0,0,12,0"
-                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                       Text="Описание:"/>
-            <TextBlock Grid.Row="4" Grid.Column="1"
-                       LineHeight="22"
-                       TextWrapping="Wrap"
-                       Text="Fractal Explorer Studio — это WPF-приложение на C#, которое позволяет генерировать, исследовать и настраивать множество фракталов с гибким управлением цветом, интерактивными селекторами параметров, сохранением состояний и экспортом изображений в высоком качестве."/>
-        </Grid>
-
-        <DockPanel Grid.Row="3" Margin="0,24,0,0" LastChildFill="False">
-            <Button DockPanel.Dock="Left"
-                    Padding="14,0"
-                    Content="Открыть папку с данными"
-                    ToolTip="Сохранения, превью, палитры, темы, настройки и журнал ошибок"
-                    Click="OpenDataFolder_OnClick"/>
-            <Button DockPanel.Dock="Right"
-                    Width="100"
-                    IsCancel="True"
-                    Content="Закрыть"/>
-        </DockPanel>
+                <Button Grid.Column="2"
+                        Width="100"
+                        VerticalAlignment="Center"
+                        IsCancel="True"
+                        IsDefault="True"
+                        Content="Закрыть"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

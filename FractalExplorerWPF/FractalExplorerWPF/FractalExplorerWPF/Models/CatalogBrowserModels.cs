@@ -196,7 +196,7 @@ public sealed class CatalogScope : INotifyPropertyChanged
     public static CatalogScope All() => new(CatalogScopeKind.All, "Все режимы", "\uE8A9", []);
     public static CatalogScope Favorites() => new(CatalogScopeKind.Favorites, "Избранное", "\uE734", []);
     public static CatalogScope Recent() => new(CatalogScopeKind.Recent, "Недавние", "\uE823", []);
-    public static CatalogScope ThreeDimensional() => new(CatalogScopeKind.ThreeDimensional, "Трёхмерные", "", []);
+    public static CatalogScope ThreeDimensional() => new(CatalogScopeKind.ThreeDimensional, "Трёхмерные", "\uF158", []);
     public static CatalogScope Category(IReadOnlyList<string> path) => new(CatalogScopeKind.Category, path[^1], string.Empty, path.ToArray());
 
     public bool Includes(CatalogTile tile) => Kind switch

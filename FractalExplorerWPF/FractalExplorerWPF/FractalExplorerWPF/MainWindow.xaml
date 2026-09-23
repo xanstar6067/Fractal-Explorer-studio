@@ -612,6 +612,15 @@
                     <TextBlock x:Name="ShaderCacheStatus" Margin="0,6,0,0" FontSize="12"
                                TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                Visibility="Collapsed"/>
+
+                    <TextBlock Margin="0,16,0,5" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                               Text="Пользовательские данные"/>
+                    <Button x:Name="OpenDataFolderButton" Content="Открыть папку с данными"
+                            ToolTip="Сохранения, превью, палитры, темы, настройки и журнал ошибок"
+                            Click="OpenDataFolderButton_OnClick"/>
+                    <TextBlock x:Name="DataFolderText" Margin="0,6,0,0" FontSize="12"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
+                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                 </StackPanel>
             </Border>
         </Grid>

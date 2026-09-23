@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         CatalogLogo.Source = IconResourceLoader.LoadLargestFrame("Assets/Icons/FractalExplorer.ico");
+        DataFolderText.Text = AppPaths.DataRoot;
 
         _tiles = CreateTiles(_catalog);
         Scopes = CatalogScope.Build(_catalog);
@@ -508,6 +509,24 @@ public partial class MainWindow : Window
     private void AboutButton_OnClick(object sender, RoutedEventArgs e)
     {
         new AboutWindow { Owner = this }.ShowDialog();
+    }
+
+    private void OpenDataFolderButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string folder = AppPaths.EnsureDataRoot();
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(folder) { UseShellExecute = true });
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(
+                this,
+                $"Не удалось открыть папку с данными:\n{AppPaths.DataRoot}\n\n{exception.Message}",
+                "Настройки",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
     private void SettingsToggle_OnChecked(object sender, RoutedEventArgs e) =>

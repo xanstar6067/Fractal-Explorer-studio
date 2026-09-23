@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Navigation;
 using FractalExplorerWPF.Infrastructure;
+using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Views;
 
@@ -14,25 +15,10 @@ public partial class AboutWindow : Window
         // Image со .ico по умолчанию берёт наименьший кадр и растягивает его —
         // получается размытая иконка. Явно выбираем самый крупный кадр.
         LogoImage.Source = IconResourceLoader.LoadLargestFrame("Assets/Icons/FractalExplorer.ico");
-        DataFolderText.Text = AppPaths.DataRoot;
-    }
 
-    private void OpenDataFolder_OnClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            string folder = AppPaths.EnsureDataRoot();
-            Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(
-                this,
-                $"Не удалось открыть папку с данными:\n{AppPaths.DataRoot}\n\n{exception.Message}",
-                "О программе",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-        }
+        IReadOnlyList<FractalCatalogItem> catalog = FractalCatalog.Create();
+        int threeDimensional = catalog.Count(item => item.IsThreeDimensional);
+        CatalogSummaryText.Text = $"{CatalogSearch.CountModes(catalog.Count)}, из них трёхмерных — {threeDimensional}";
     }
 
     private void RepositoryLink_OnRequestNavigate(object sender, RequestNavigateEventArgs e)
