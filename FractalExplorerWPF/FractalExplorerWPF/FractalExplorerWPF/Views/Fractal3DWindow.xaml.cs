@@ -44,7 +44,7 @@ public partial class Fractal3DWindow : Window
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Fractal3DRenderer _renderer = new();
     private readonly Fractal3DSaveStore _saveStore;
-    private readonly Fractal3DPaletteManager _paletteManager = new();
+    private readonly Fractal3DPaletteManager _paletteManager;
     private readonly Fractal3DDefinition _definition;
     private readonly IReadOnlyList<Fractal3DState> _presets;
 
@@ -95,6 +95,9 @@ public partial class Fractal3DWindow : Window
     {
         InitializeComponent();
         Kind = kind;
+        _paletteManager = kind == Fractal3DKind.Ifs3D
+            ? new Ifs3DPaletteManager()
+            : new Fractal3DPaletteManager();
         _definition = Fractal3DCatalog.GetDefinition(kind);
         _saveStore = new Fractal3DSaveStore(kind);
         _presets = Fractal3DCatalog.GetPresets(kind);
@@ -173,7 +176,7 @@ public partial class Fractal3DWindow : Window
         ColoringMode = SelectedColoringMode,
         ShadingStyle = SelectedShadingStyle,
         EffectStrength = ReadDouble(EffectStrengthBox, "Сила эффекта", 0, 8),
-        SurfaceColor = Kind == Fractal3DKind.Ifs3D ? IfsPointColorSelector.SelectedColor : SurfaceColorSelector.SelectedColor,
+        SurfaceColor = SurfaceColorSelector.SelectedColor,
         Palette = _palette.Clone(),
 
         // Устаревшие цвета пишутся по краям палитры: файл, открытый сборкой без палитр,
@@ -184,8 +187,8 @@ public partial class Fractal3DWindow : Window
         ColorScale = ReadDouble(ColorScaleBox, "Масштаб цвета", 0.01, 100),
         ColorOffset = ReadDouble(ColorOffsetBox, "Сдвиг цвета", -100, 100),
         ColorRepeat = SelectedColorRepeat,
-        BackgroundTop = Kind == Fractal3DKind.Ifs3D ? IfsBackgroundColorSelector.SelectedColor : BackgroundTopSelector.SelectedColor,
-        BackgroundBottom = Kind == Fractal3DKind.Ifs3D ? IfsBackgroundColorSelector.SelectedColor : BackgroundBottomSelector.SelectedColor,
+        BackgroundTop = BackgroundTopSelector.SelectedColor,
+        BackgroundBottom = BackgroundBottomSelector.SelectedColor,
         LightColor = LightColorSelector.SelectedColor,
         SkyLightMix = ReadDouble(SkyLightMixBox, "Влияние неба на свет", 0, 1)
     };
@@ -237,8 +240,6 @@ public partial class Fractal3DWindow : Window
         BoxFoldingBox.Text = Format(state.BoxFoldingLimit);
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
         LoadIfsTransforms(state.IfsTransforms);
-        IfsPointColorSelector.SelectedColor = state.SurfaceColor;
-        IfsBackgroundColorSelector.SelectedColor = state.BackgroundTop;
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -291,15 +292,29 @@ public partial class Fractal3DWindow : Window
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.IterationIndex]).Content = "По масштабу сферы";
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.Escape]).Content = "По радиусу сферы";
         }
+        if (Kind == Fractal3DKind.Ifs3D)
+        {
+            // These four sources require orbit/escape metadata that a density volume does not contain.
+            foreach (Fractal3DColoringMode mode in new[]
+            {
+                Fractal3DColoringMode.OrbitTrap,
+                Fractal3DColoringMode.CrossTrap,
+                Fractal3DColoringMode.IterationIndex,
+                Fractal3DColoringMode.Escape
+            })
+                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
+        }
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
         BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
-        LightExpander.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
-        ShadingExpander.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
-        ColoringExpander.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        RayQualityGrid.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        MaxDistanceLabel.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        MaxDistanceBox.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        if (Kind == Fractal3DKind.Ifs3D)
+            PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
             Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D));
     }
@@ -332,7 +347,8 @@ public partial class Fractal3DWindow : Window
         if (MaterialColorPanel is null) return;
         Fractal3DColoringMode mode = SelectedColoringMode;
         MaterialColorPanel.Visibility = Collapse(mode == Fractal3DColoringMode.Material);
-        PalettePanel.Visibility = Collapse(Fractal3DCatalog.UsesPalette(mode));
+        PalettePanel.Visibility = Collapse(Fractal3DCatalog.UsesPalette(mode) ||
+            SelectedShadingStyle is Fractal3DShadingStyle.Glow or Fractal3DShadingStyle.Density);
         UpdatePalettePreview();
         UpdateShadingHint();
     }
@@ -455,6 +471,7 @@ public partial class Fractal3DWindow : Window
 
     private void Parameter_OnChanged(object sender, EventArgs e)
     {
+        if (ReferenceEquals(sender, ShadingStyleBox)) UpdateColoringPanels();
         if (!_updatingUi) ScheduleRender();
     }
 
@@ -473,10 +490,10 @@ public partial class Fractal3DWindow : Window
 
     private void PaletteManagerButton_OnClick(object sender, RoutedEventArgs e) => SuspendLive(() =>
     {
-        var window = new Fractal3DPaletteWindow(_paletteManager, _palette, RenderPalettePreviewAsync)
-        {
-            Owner = this
-        };
+        Fractal3DPaletteWindow window = Kind == Fractal3DKind.Ifs3D
+            ? new Ifs3DPaletteWindow((Ifs3DPaletteManager)_paletteManager, _palette, RenderPalettePreviewAsync)
+            : new Fractal3DPaletteWindow(_paletteManager, _palette, RenderPalettePreviewAsync);
+        window.Owner = this;
         window.PaletteApplied += (_, palette) => ApplyPalette(palette);
         window.ShowDialog();
         RefreshPaletteBox();
@@ -842,7 +859,6 @@ public partial class Fractal3DWindow : Window
     /// <summary>Чем жертвует живой кадр в движении; выбирается в разделе «Навигация».</summary>
     private Fractal3DState ApplyMotionQuality(Fractal3DState state)
     {
-        if (Kind == Fractal3DKind.Ifs3D) return state;
         Fractal3DMotionQuality quality = SelectedMotionQuality;
         if (quality == Fractal3DMotionQuality.Full) return state;
 
@@ -851,6 +867,7 @@ public partial class Fractal3DWindow : Window
         if (quality == Fractal3DMotionQuality.Draft)
         {
             draft.AmbientOcclusion = false;
+            if (Kind == Fractal3DKind.Ifs3D) return draft;
             draft.MaxSteps = Math.Max(48, (int)(state.MaxSteps * 0.6));
             draft.Detail = Math.Min(8, state.Detail * 1.5);
         }

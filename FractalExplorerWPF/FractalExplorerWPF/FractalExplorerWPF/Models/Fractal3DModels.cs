@@ -855,6 +855,7 @@ public static class Fractal3DCatalog
         target.ColoringMode = Fractal3DColoringMode.Material;
         target.SoftShadows = false;
         target.AmbientOcclusion = false;
-        target.Palette = Fractal3DPalette.FromPair("IFS", source.PointColor, Color.FromRgb(235, 255, 255));
+        target.Palette = Fractal3DPalette.FromPair(
+            $"IFS: {preset.Name}", source.PointColor, Color.FromRgb(235, 255, 255));
     }
 }

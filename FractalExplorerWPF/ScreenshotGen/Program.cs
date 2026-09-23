@@ -467,6 +467,12 @@ internal static class Program
                     await CaptureChildAsync(w, (Window)Activator.CreateInstance(
                         typeof(Fractal3DPaletteWindow), mgr, palette, null)!, "fractal3d-palette-editor");
                 }
+                if (w != null && fractal3DKind == Fractal3DKind.Ifs3D)
+                {
+                    var mgr = (Ifs3DPaletteManager)GetMember(w, "_paletteManager")!;
+                    var palette = (Fractal3DPalette)GetMember(w, "_palette")!;
+                    await CaptureChildAsync(w, new Ifs3DPaletteWindow(mgr, palette), "ifs3d-palette-editor");
+                }
                 SafeCloseIfAny(w);
                 return;
             }

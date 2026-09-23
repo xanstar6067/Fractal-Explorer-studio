@@ -117,10 +117,6 @@
                                 </Grid>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Вес выбора"/>
                                 <TextBox x:Name="IfsProbabilityBox" TextChanged="IfsMatrix_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет аттрактора"/>
-                                <controls:ColorSelectorControl x:Name="IfsPointColorSelector" SelectedColorChanged="Parameter_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Цвет фона"/>
-                                <controls:ColorSelectorControl x:Name="IfsBackgroundColorSelector" SelectedColorChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
                             <TextBlock x:Name="IterationsLabel" Style="{StaticResource FieldCaption}" Text="Итерации"/>
@@ -223,7 +219,7 @@
 
                     <Expander Header="Качество" Margin="0,2,0,4">
                         <StackPanel Margin="10,6,0,2">
-                            <Grid>
+                            <Grid x:Name="RayQualityGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,4,0">
                                     <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов луча"/>
@@ -237,7 +233,7 @@
                                              TextChanged="Parameter_OnChanged"/>
                                 </StackPanel>
                             </Grid>
-                            <TextBlock Style="{StaticResource FieldCaption}" Text="Дальность трассировки"/>
+                            <TextBlock x:Name="MaxDistanceLabel" Style="{StaticResource FieldCaption}" Text="Дальность трассировки"/>
                             <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="MaxDistanceBox"
                                      TextChanged="Parameter_OnChanged"/>
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Сглаживание предпросмотра"/>
@@ -346,7 +342,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <ComboBox x:Name="PaletteBox" DisplayMemberPath="Name"
                                               SelectionChanged="PaletteBox_OnSelectionChanged"/>
-                                    <Button Grid.Column="1" Margin="6,4,0,4" MinWidth="42" Content="…"
+                                    <Button x:Name="PaletteManagerButton" Grid.Column="1" Margin="6,4,0,4" MinWidth="42" Content="…"
                                             ToolTip="Менеджер палитр трёхмерных фракталов"
                                             Click="PaletteManagerButton_OnClick"/>
                                 </Grid>

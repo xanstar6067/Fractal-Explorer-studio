@@ -5,17 +5,22 @@ using FractalExplorerWPF.Models;
 namespace FractalExplorerWPF.Infrastructure;
 
 /// <summary>
-/// Библиотека палитр трёхмерных фракталов: встроенный набор плюс пользовательские палитры из
-/// <c>Palettes\custom_palettes_fractal3d.json</c>. Библиотека общая для всех шести видов — цвета
-/// не зависят от формы, и палитра, собранная на Мандельбульбе, годится Мандельбоксу.
+/// Библиотека палитр семи исходных трёхмерных фракталов. IFS использует отдельный
+/// <see cref="Ifs3DPaletteManager"/> с другим файлом пользовательских палитр.
 /// </summary>
-public sealed class Fractal3DPaletteManager
+public class Fractal3DPaletteManager
 {
-    private const string FileName = "custom_palettes_fractal3d.json";
+    private readonly string _fileName;
 
     public Fractal3DPaletteManager()
+        : this("custom_palettes_fractal3d.json", Fractal3DPalettes.All)
     {
-        Palettes = [.. Fractal3DPalettes.All.Select(BuiltInCopy)];
+    }
+
+    protected Fractal3DPaletteManager(string fileName, IEnumerable<Fractal3DPalette> builtIns)
+    {
+        _fileName = fileName;
+        Palettes = [.. builtIns.Select(BuiltInCopy)];
         try { LoadCustomPalettes(); } catch { }
     }
 
@@ -28,14 +33,14 @@ public sealed class Fractal3DPaletteManager
 
     public void SaveCustomPalettes()
     {
-        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
+        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(_fileName));
         File.WriteAllText(path, JsonSerializer.Serialize(
             Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
     }
 
     private void LoadCustomPalettes()
     {
-        string path = AppPaths.GetPaletteFile(FileName);
+        string path = AppPaths.GetPaletteFile(_fileName);
         if (!File.Exists(path)) return;
         List<Fractal3DPalette>? custom = JsonSerializer.Deserialize<List<Fractal3DPalette>>(
             File.ReadAllText(path), JsonOptionsFactory.Create());

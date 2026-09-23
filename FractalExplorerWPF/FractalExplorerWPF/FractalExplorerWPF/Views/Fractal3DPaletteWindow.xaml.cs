@@ -120,7 +120,7 @@ public partial class Fractal3DPaletteWindow : Window
     private void Delete_OnClick(object sender, RoutedEventArgs e)
     {
         if (!CanEdit || _selected is null) return;
-        if (MessageBox.Show(this, $"Удалить «{_selected.Name}»?", "Палитры трёхмерных фракталов",
+        if (MessageBox.Show(this, $"Удалить «{_selected.Name}»?", Title,
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         _manager.Palettes.Remove(_selected);
         _manager.SaveCustomPalettes();
@@ -226,7 +226,7 @@ public partial class Fractal3DPaletteWindow : Window
             !double.TryParse(GammaBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double gamma) ||
             gamma is < 0.1 or > 5)
         {
-            MessageBox.Show(this, "Проверьте название, цвета и гамму палитры.", "Палитры трёхмерных фракталов",
+            MessageBox.Show(this, "Проверьте название, цвета и гамму палитры.", Title,
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }

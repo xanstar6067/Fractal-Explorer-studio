@@ -41,7 +41,33 @@ internal static partial class Program
             using FileStream stream = File.Create(Path.Combine(args[1], $"ifs-close-{index}.png"));
             encoder.Save(stream);
         }
-        Console.WriteLine("PASS (ifs-close): wrote two neighboring close views.");
+        state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D);
+        foreach (Fractal3DShadingStyle style in Enum.GetValues<Fractal3DShadingStyle>())
+        {
+            state.ShadingStyle = style;
+            BitmapSource bitmap = await renderer.RenderAsync(state, 440, 440, null, CancellationToken.None);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using FileStream stream = File.Create(Path.Combine(args[1], $"ifs-style-{(int)style}.png"));
+            encoder.Save(stream);
+        }
+        state.ShadingStyle = Fractal3DShadingStyle.Classic;
+        state.Palette = Fractal3DPalettes.All[6].Clone();
+        foreach (Fractal3DColoringMode mode in new[]
+        {
+            Fractal3DColoringMode.Normal, Fractal3DColoringMode.Depth,
+            Fractal3DColoringMode.Height, Fractal3DColoringMode.Occlusion,
+            Fractal3DColoringMode.Fresnel, Fractal3DColoringMode.Steps
+        })
+        {
+            state.ColoringMode = mode;
+            BitmapSource bitmap = await renderer.RenderAsync(state, 440, 440, null, CancellationToken.None);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using FileStream stream = File.Create(Path.Combine(args[1], $"ifs-color-{(int)mode}.png"));
+            encoder.Save(stream);
+        }
+        Console.WriteLine("PASS (ifs-close): close views, eight styles and six palette/color sources.");
     }
 
     private static async Task VerifyFractal3DAsync()
@@ -77,6 +103,8 @@ internal static partial class Program
                     $"{kind} «{preset.SaveName}»: the frame shows only the background.");
             }
         }
+
+        await VerifyIfsPaletteAndShadingAsync(renderer);
 
         Fractal3DState packing = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.ApollonianPacking);
         packing.Iterations = 1;
@@ -161,6 +189,36 @@ internal static partial class Program
         Console.WriteLine($"PASS (fractal3d): {Enum.GetValues<Fractal3DKind>().Length} modes, presets, " +
                           $"{Fractal3DPalettes.All.Count} palettes, {Enum.GetValues<Fractal3DShadingStyle>().Length} shaders, " +
                           "coloring sources, camera, navigation, smooth zoom, surface probe and saves.");
+    }
+
+    private static async Task VerifyIfsPaletteAndShadingAsync(Fractal3DRenderer renderer)
+    {
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D);
+        state.Iterations = 100_000;
+        byte[] classic = await Fractal3DFrameAsync(renderer, state);
+        foreach (Fractal3DShadingStyle style in Enum.GetValues<Fractal3DShadingStyle>().Skip(1))
+        {
+            state.ShadingStyle = style;
+            byte[] styled = await Fractal3DFrameAsync(renderer, state);
+            Check(!classic.SequenceEqual(styled), $"IFS shader {style} must change the image.");
+        }
+
+        state.ShadingStyle = Fractal3DShadingStyle.Classic;
+        state.ColoringMode = Fractal3DColoringMode.Height;
+        state.Palette = Fractal3DPalettes.All[0].Clone();
+        byte[] firstPalette = await Fractal3DFrameAsync(renderer, state);
+        state.Palette = Fractal3DPalettes.All[1].Clone();
+        byte[] secondPalette = await Fractal3DFrameAsync(renderer, state);
+        Check(!firstPalette.SequenceEqual(secondPalette), "IFS palette selection must change the image.");
+
+        var ifsManager = new Ifs3DPaletteManager();
+        var otherManager = new Fractal3DPaletteManager();
+        string name = "IFS isolated palette verification";
+        ifsManager.Palettes.Add(Fractal3DPalette.FromPair(name, Colors.Red, Colors.Blue));
+        ifsManager.SaveCustomPalettes();
+        Check(new Ifs3DPaletteManager().Find(name) is not null &&
+              new Fractal3DPaletteManager().Find(name) is null && otherManager.Find(name) is null,
+            "IFS custom palettes must persist only in the IFS library.");
     }
 
     /// <summary>
