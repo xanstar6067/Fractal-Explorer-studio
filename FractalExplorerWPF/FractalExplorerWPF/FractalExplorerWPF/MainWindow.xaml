@@ -279,6 +279,13 @@
                         <TextBlock HorizontalAlignment="Center" FontSize="12" Style="{StaticResource IconText}"
                                    Foreground="{DynamicResource Theme.WarningBrush}" Text="&#xE735;"/>
                     </Border>
+                    <Border Height="20" Margin="6" Padding="6,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            CornerRadius="5" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                            ToolTip="Трёхмерный режим"
+                            Visibility="{Binding IsThreeDimensional, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock VerticalAlignment="Center" FontSize="11" FontWeight="Bold"
+                                   Foreground="{DynamicResource Theme.AccentPrimaryBrush}" Text="3D"/>
+                    </Border>
                 </Grid>
                 <TextBlock Margin="2,7,2,2" FontSize="12.5" TextWrapping="Wrap" Text="{Binding DisplayName}"/>
             </StackPanel>

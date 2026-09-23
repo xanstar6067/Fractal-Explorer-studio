@@ -100,8 +100,14 @@ internal static partial class Program
             "Unknown launch keys must not open a window.");
 
         IReadOnlyList<CatalogScope> scopes = CatalogScope.Build(catalog);
-        Check(scopes.Take(3).Select(scope => scope.Kind).SequenceEqual([CatalogScopeKind.All, CatalogScopeKind.Favorites, CatalogScopeKind.Recent]),
-            "The menu must start with all modes, favorites and recents.");
+        Check(scopes.Take(4).Select(scope => scope.Kind).SequenceEqual([CatalogScopeKind.All, CatalogScopeKind.Favorites, CatalogScopeKind.Recent, CatalogScopeKind.ThreeDimensional]),
+            "The menu must start with all modes, favorites, recents and 3D modes.");
+        Check(catalog.Where(item => item.IsThreeDimensional).Select(item => item.LaunchKey).OrderBy(key => key)
+                  .SequenceEqual(Enum.GetValues<Fractal3DKind>().Select(Fractal3DCatalog.LaunchKey).OrderBy(key => key)),
+            "Exactly the 3D window modes must be marked as three-dimensional.");
+        Check(catalog.Single(item => item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.ApollonianPacking)).CategoryPath
+                  .SequenceEqual(catalog.Single(item => item.LaunchKey == "ApollonianGasket").CategoryPath),
+            "The Apollonian sphere packing must sit next to the Apollonian gasket.");
         int prefixes = catalog
             .SelectMany(item => Enumerable.Range(1, item.CategoryPath.Count).Select(length => string.Join("\u001F", item.CategoryPath.Take(length))))
             .Distinct().Count();
@@ -210,6 +216,8 @@ internal static partial class Program
 
             Check(all.Count == catalog.Count && favorites.Count == 2 && recents.Count == 3,
                 $"Menu counts must ignore names missing from the catalog: {all.Count}/{favorites.Count}/{recents.Count}.");
+            Check(window.Scopes[3].Kind == CatalogScopeKind.ThreeDimensional && window.Scopes[3].Count == Enum.GetValues<Fractal3DKind>().Length,
+                $"The 3D menu entry must count every 3D mode: {window.Scopes[3].Count}.");
             foreach (CatalogScope scope in window.Scopes.Where(scope => scope.Kind == CatalogScopeKind.Category))
             {
                 int expected = catalog.Count(item => item.CategoryPath.Take(scope.Path.Count).SequenceEqual(scope.Path));

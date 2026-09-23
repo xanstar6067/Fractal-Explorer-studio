@@ -53,6 +53,7 @@ public sealed class CatalogTile : INotifyPropertyChanged
     public string Description => Item.Description;
     public string Breadcrumb => Item.CategoryBreadcrumb;
     public bool CanLaunch => Item.LaunchKey is not null;
+    public bool IsThreeDimensional => Item.IsThreeDimensional;
 
     /// <summary>Нормализованный текст для поиска: название, описание и разделы.</summary>
     internal string SearchText { get; }
@@ -126,6 +127,7 @@ public enum CatalogScopeKind
     All,
     Favorites,
     Recent,
+    ThreeDimensional,
     Category
 }
 
@@ -194,6 +196,7 @@ public sealed class CatalogScope : INotifyPropertyChanged
     public static CatalogScope All() => new(CatalogScopeKind.All, "Все режимы", "\uE8A9", []);
     public static CatalogScope Favorites() => new(CatalogScopeKind.Favorites, "Избранное", "\uE734", []);
     public static CatalogScope Recent() => new(CatalogScopeKind.Recent, "Недавние", "\uE823", []);
+    public static CatalogScope ThreeDimensional() => new(CatalogScopeKind.ThreeDimensional, "Трёхмерные", "", []);
     public static CatalogScope Category(IReadOnlyList<string> path) => new(CatalogScopeKind.Category, path[^1], string.Empty, path.ToArray());
 
     public bool Includes(CatalogTile tile) => Kind switch
@@ -201,17 +204,18 @@ public sealed class CatalogScope : INotifyPropertyChanged
         CatalogScopeKind.All => true,
         CatalogScopeKind.Favorites => tile.IsFavorite,
         CatalogScopeKind.Recent => tile.IsRecent,
+        CatalogScopeKind.ThreeDimensional => tile.IsThreeDimensional,
         CatalogScopeKind.Category => StartsWith(tile.Item.CategoryPath, Path),
         _ => false
     };
 
     /// <summary>
-    /// Меню в порядке каталога: «Все режимы», «Избранное», «Недавние», затем каждый различный
-    /// префикс пути категорий — раздел, подраздел, группа.
+    /// Меню в порядке каталога: «Все режимы», «Избранное», «Недавние», «Трёхмерные» (сквозная подборка
+    /// 3D-режимов из разных разделов), затем каждый различный префикс пути категорий — раздел, подраздел, группа.
     /// </summary>
     public static IReadOnlyList<CatalogScope> Build(IEnumerable<FractalCatalogItem> catalog)
     {
-        var scopes = new List<CatalogScope> { All(), Favorites(), Recent() };
+        var scopes = new List<CatalogScope> { All(), Favorites(), Recent(), ThreeDimensional() };
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (FractalCatalogItem item in catalog)
         {
@@ -263,7 +267,8 @@ public static class CatalogSearch
         Normalize(query).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
     public static string BuildSearchText(FractalCatalogItem item) =>
-        Normalize(string.Join('\n', new[] { item.DisplayName, item.Description }.Concat(item.CategoryPath)));
+        Normalize(string.Join('\n', new[] { item.DisplayName, item.Description }.Concat(item.CategoryPath)
+            .Concat(item.IsThreeDimensional ? ["3D", "Трёхмерные"] : [])));
 
     public static bool Matches(FractalCatalogItem item, string? query) =>
         Matches(BuildSearchText(item), Tokenize(query));
