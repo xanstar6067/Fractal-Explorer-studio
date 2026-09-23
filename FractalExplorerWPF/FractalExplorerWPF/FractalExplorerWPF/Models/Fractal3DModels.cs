@@ -10,7 +10,8 @@ public enum Fractal3DKind
     Mandelbox,
     MengerSponge,
     SierpinskiTetrahedron,
-    QuaternionJulia
+    QuaternionJulia,
+    ApollonianPacking
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -373,6 +374,17 @@ public static class Fractal3DCatalog
                Enum.TryParse(launchKey[LaunchPrefix.Length..], out kind);
     }
 
+    // Лениво, чтобы не зависеть от порядка инициализации статических полей.
+    private static readonly Lazy<Dictionary<Fractal3DKind, double>> HomeDistances = new(() =>
+        Enum.GetValues<Fractal3DKind>().ToDictionary(kind => kind, kind => CreateDefaultState(kind).CameraDistance));
+
+    /// <summary>
+    /// Расстояние камеры в стартовом виде. От него отсчитывается масштаб тумана и окраски
+    /// по глубине: ближе этого расстояния их шкала сжимается вместе с видом.
+    /// </summary>
+    public static double HomeCameraDistance(Fractal3DKind kind) =>
+        HomeDistances.Value.TryGetValue(kind, out double distance) ? distance : 3.0;
+
     public static bool UsesPower(Fractal3DKind kind) =>
         kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb;
 
@@ -401,6 +413,10 @@ public static class Fractal3DCatalog
             "Кватернионное Жюлиа", "Кватернионное Жюлиа",
             "Множество Жюлиа в алгебре кватернионов: трёхмерный срез четырёхмерного множества с настраиваемой координатой среза.",
             "Fractal3DQuaternionJulia", "quaternion-julia"),
+        Fractal3DKind.ApollonianPacking => new(
+            "Аполлонова упаковка сфер", "Аполлонова упаковка сфер",
+            "Рекурсивная упаковка взаимно касающихся сфер внутри внешней сферы. Число поколений задаёт глубину заполнения промежутков.",
+            "Fractal3DApollonian", "apollonian-spheres"),
         _ => new(
             "Мандельбульб", "Мандельбульб",
             "Трёхмерное обобщение множества Мандельброта через сферические координаты: z → zⁿ + c с произвольной степенью n.",
@@ -414,20 +430,34 @@ public static class Fractal3DCatalog
         _ => "Без мягких теней"
     };
 
-    public static string ColoringModeName(Fractal3DColoringMode mode) => mode switch
+    public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
-        Fractal3DColoringMode.Material => "Материал",
-        Fractal3DColoringMode.Normal => "По нормали",
-        Fractal3DColoringMode.Depth => "По глубине",
-        Fractal3DColoringMode.CrossTrap => "Ловушка по осям",
-        Fractal3DColoringMode.IterationIndex => "Номер итерации",
-        Fractal3DColoringMode.Escape => "Скорость убегания",
-        Fractal3DColoringMode.Height => "По высоте",
-        Fractal3DColoringMode.Occlusion => "По затенению складок",
-        Fractal3DColoringMode.Fresnel => "По углу взгляда",
-        Fractal3DColoringMode.Steps => "По числу шагов луча",
-        _ => "Орбитальная ловушка"
-    };
+        if (kind == Fractal3DKind.ApollonianPacking)
+        {
+            return mode switch
+            {
+                Fractal3DColoringMode.OrbitTrap => "По диаметру сферы",
+                Fractal3DColoringMode.CrossTrap => "По положению сферы",
+                Fractal3DColoringMode.IterationIndex => "По масштабу сферы",
+                Fractal3DColoringMode.Escape => "По радиусу сферы",
+                _ => ColoringModeName(mode)
+            };
+        }
+        return mode switch
+        {
+            Fractal3DColoringMode.Material => "Материал",
+            Fractal3DColoringMode.Normal => "По нормали",
+            Fractal3DColoringMode.Depth => "По глубине",
+            Fractal3DColoringMode.CrossTrap => "Ловушка по осям",
+            Fractal3DColoringMode.IterationIndex => "Номер итерации",
+            Fractal3DColoringMode.Escape => "Скорость убегания",
+            Fractal3DColoringMode.Height => "По высоте",
+            Fractal3DColoringMode.Occlusion => "По затенению складок",
+            Fractal3DColoringMode.Fresnel => "По углу взгляда",
+            Fractal3DColoringMode.Steps => "По числу шагов луча",
+            _ => "Орбитальная ловушка"
+        };
+    }
 
     /// <summary>Пользуется ли источник цвета палитрой; материал и нормаль обходятся без неё.</summary>
     public static bool UsesPalette(Fractal3DColoringMode mode) =>
@@ -509,6 +539,17 @@ public static class Fractal3DCatalog
                 state.JuliaCZ = 0.6818;
                 state.JuliaCW = -0.2727;
                 state.CameraDistance = 3;
+                break;
+            case Fractal3DKind.ApollonianPacking:
+                state.Iterations = 4;
+                state.CameraDistance = 3.7;
+                state.CameraYaw = 32;
+                state.CameraPitch = 20;
+                state.MaxDistance = 30;
+                state.MaxSteps = 192;
+                state.ColoringMode = Fractal3DColoringMode.IterationIndex;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.Palette = Fractal3DPalettes.Get("Медь и патина");
                 break;
             default:
                 state.Power = 8;
@@ -708,6 +749,33 @@ public static class Fractal3DCatalog
                 s.ColorOffset = 0.5;
                 s.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 s.EffectStrength = 1.2;
+            })
+        ],
+        Fractal3DKind.ApollonianPacking =>
+        [
+            Preset(kind, "Четыре поколения — общий вид", _ => { }),
+            Preset(kind, "Два поколения — крупные сферы", s =>
+            {
+                s.Iterations = 2;
+                s.CameraYaw = 25;
+            }),
+            Preset(kind, "Пять поколений — сеть касаний", s =>
+            {
+                s.Iterations = 5;
+                s.CameraDistance = 3.2;
+                s.MaxSteps = 240;
+                s.Detail = 0.6;
+            }),
+            Preset(kind, "Центральный просвет", s =>
+            {
+                s.Iterations = 5;
+                s.CameraDistance = 1.7;
+                s.CameraYaw = 44;
+                s.CameraPitch = 8;
+                s.TargetX = 0.08;
+                s.TargetY = -0.05;
+                s.Detail = 0.5;
+                s.MaxSteps = 280;
             })
         ],
         _ =>

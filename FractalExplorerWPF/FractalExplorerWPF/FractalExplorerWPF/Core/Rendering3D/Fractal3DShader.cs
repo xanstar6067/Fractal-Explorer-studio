@@ -38,11 +38,18 @@ internal static class Fractal3DShader
             float4 BackgroundBottom;
             float4 Flags;             // x — режим окраски, y — жёсткость теней (0 — выкл), z — затенение, w — фоновый свет
             float4 Probe;             // x — 0: обычный кадр, 1: расстояние до поверхности вдоль луча
-            float4 Style;             // x — шейдер освещения, y — сила эффекта, z — влияние неба
+            float4 Style;             // x — шейдер освещения, y — сила эффекта, z — влияние неба, w — масштаб глубины
             float4 LightColor;        // rgb — цвет источника света
             float4 PaletteInfo;       // x — число цветов, y — повтор, z — полосы, w — гамма
             float4 Palette[16];       // rgb — опорные цвета градиента
         };
+
+        #if FRACTAL_KIND == 6
+        cbuffer ApollonianTree : register(b1)
+        {
+            float4 SphereTree[4095]; // xyz — центр, w — радиус; листья начинаются с 2047
+        };
+        #endif
 
         PSInput VSMain(uint id : SV_VertexID)
         {
@@ -191,6 +198,55 @@ internal static class Fractal3DShader
             }
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
             return length(z) * pow(max(abs(scale), 1.0001), -float(iterations));
+
+        #elif FRACTAL_KIND == 6
+
+            // Точная знаковая дистанция до объединения касающихся сфер. Иерархия содержит
+            // охватывающие сферы: если её нижняя граница дальше уже найденной поверхности,
+            // целая ветка пропускается. Ближнего ребёнка посещаем первым.
+            float best = 1e20;
+            float4 nearestSphere = 0.0;
+            int stack[16];
+            int top = 0;
+            stack[top++] = 0;
+            [loop]
+            while (top > 0)
+            {
+                int node = stack[--top];
+                float4 bound = SphereTree[node];
+                if (bound.w < 0.0) continue;
+                float lower = length(p - bound.xyz) - bound.w;
+                if (lower > best) continue;
+                if (node >= 2047)
+                {
+                    if (lower < best)
+                    {
+                        best = lower;
+                        nearestSphere = bound;
+                    }
+                    continue;
+                }
+                int left = node * 2 + 1;
+                int right = left + 1;
+                float4 a = SphereTree[left];
+                float4 b = SphereTree[right];
+                float da = a.w < 0.0 ? 1e20 : length(p - a.xyz) - a.w;
+                float db = b.w < 0.0 ? 1e20 : length(p - b.xyz) - b.w;
+                if (da < db)
+                {
+                    if (db <= best) stack[top++] = right;
+                    if (da <= best) stack[top++] = left;
+                }
+                else
+                {
+                    if (da <= best) stack[top++] = left;
+                    if (db <= best) stack[top++] = right;
+                }
+            }
+            float sphereRadius = max(nearestSphere.w, 1e-5);
+            trap = float4(sphereRadius * 2.0, MinAxis(nearestSphere.xyz),
+                          max(0.0, log2(0.5 / sphereRadius)), sphereRadius);
+            return best;
 
         #elif FRACTAL_KIND == 5
 
@@ -358,6 +414,15 @@ internal static class Fractal3DShader
             return lerp(BackgroundBottom.rgb, BackgroundTop.rgb, saturate(direction.y * 0.5 + 0.5));
         }
 
+        // Шкала тумана и окраски по глубине: заданная дальность, сжатая, когда камера ближе
+        // стартового расстояния. Иначе при приближении к самоподобной фигуре весь кадр
+        // съезжал бы к началу палитры, а туман пропадал.
+        float DepthSpan()
+        {
+            float scale = Style.w > 0.0 ? Style.w : 1.0;
+            return max(March.z * scale, 1e-6);
+        }
+
         // Цвет поверхности до освещения. Каждый источник приводится к величине порядка единицы,
         // чтобы масштаб и сдвиг окраски означали примерно одно и то же во всех режимах.
         float3 SurfaceAlbedo(
@@ -370,7 +435,7 @@ internal static class Fractal3DShader
 
             float value;
             if (mode == 2) value = trap.x;
-            else if (mode == 3) value = travelled / max(March.z, 1e-3) * 6.0;
+            else if (mode == 3) value = travelled / DepthSpan() * 6.0;
             else if (mode == 4) value = trap.y * 3.0;
             else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
             else if (mode == 6) value = log(1.0 + trap.w) * 0.5;
@@ -431,6 +496,8 @@ internal static class Fractal3DShader
                 max(abs(1.0 - ShapeA.x), 0.05));
         #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
+        #elif FRACTAL_KIND == 6
+            float radius = 1.112373;
         #else
             float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
         #endif
@@ -633,7 +700,7 @@ internal static class Fractal3DShader
             }
 
             if (style == 3) color += glowTint * glow * 1.2;
-            color = lerp(color, sky, saturate(shadeDepth / traceSpan));
+            color = lerp(color, sky, saturate(shadeDepth / DepthSpan()));
             return float4(LinearToSrgb(color), 1.0);
         }
         """;

@@ -42,6 +42,8 @@ public sealed class Fractal3DRenderer : IDisposable
     private ID3D11DeviceContext? _context;
     private ID3D11VertexShader? _vertexShader;
     private ID3D11Buffer? _constantBuffer;
+    private ID3D11Buffer? _apollonianTreeBuffer;
+    private int _apollonianGeneration = -1;
     private ID3D11Texture2D? _renderTarget;
     private ID3D11Texture2D? _stagingTexture;
     private ID3D11RenderTargetView? _renderTargetView;
@@ -133,6 +135,7 @@ public sealed class Fractal3DRenderer : IDisposable
             constants.Resolution = new Vector4(width, height, (float)(pixelX - 0.5), (float)(pixelY - 0.5));
             constants.Probe = new Vector4(1, 0, 0, 0);
             WriteConstants(constants, state);
+            EnsureApollonianTree(state);
 
             context.OMSetRenderTargets(_probeView!);
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
@@ -208,7 +211,10 @@ public sealed class Fractal3DRenderer : IDisposable
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
         double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0);
-        int budget = (int)Math.Clamp(BaseStripBudget / cost, 100_000, 2_000_000);
+        // Поиск ближайшей сферы обходит дерево, а не одну формулу: полосы короче,
+        // чтобы экспорт не занимал GPU дольше сторожевого таймера драйвера.
+        if (state.Kind == Fractal3DKind.ApollonianPacking) cost *= 5;
+        int budget = (int)Math.Clamp(BaseStripBudget / cost, 40_000, 2_000_000);
         return Math.Clamp(budget / Math.Max(width, 1), 8, height);
     }
 
@@ -217,6 +223,7 @@ public sealed class Fractal3DRenderer : IDisposable
     {
         ID3D11DeviceContext context = _context!;
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
+        EnsureApollonianTree(state);
 
         context.OMSetRenderTargets(_renderTargetView!);
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
@@ -257,6 +264,44 @@ public sealed class Fractal3DRenderer : IDisposable
         Marshal.StructureToPtr(constants, mapped.DataPointer, false);
         Marshal.Copy(_palette, 0, IntPtr.Add(mapped.DataPointer, FrameConstants.SizeInBytes), _palette.Length);
         context.Unmap(_constantBuffer!, 0);
+    }
+
+    /// <summary>Геометрия меняется только при смене числа поколений; камера и свет её не пересоздают.</summary>
+    private void EnsureApollonianTree(Fractal3DState state)
+    {
+        if (state.Kind != Fractal3DKind.ApollonianPacking) return;
+        int generation = Math.Clamp(state.Iterations, 1, ApollonianSpherePacking.MaxGeneration);
+        if (_apollonianTreeBuffer is null)
+        {
+            _apollonianTreeBuffer = _device!.CreateBuffer(new BufferDescription
+            {
+                ByteWidth = ApollonianSpherePacking.MaxTreeNodes * 16,
+                Usage = ResourceUsage.Dynamic,
+                BindFlags = BindFlags.ConstantBuffer,
+                CPUAccessFlags = CpuAccessFlags.Write
+            });
+        }
+        if (_apollonianGeneration != generation)
+        {
+            float[] tree = ApollonianSpherePacking.BuildTree(generation);
+            MappedSubresource mapped = _context!.Map(_apollonianTreeBuffer, MapMode.WriteDiscard);
+            Marshal.Copy(tree, 0, mapped.DataPointer, tree.Length);
+            _context.Unmap(_apollonianTreeBuffer, 0);
+            _apollonianGeneration = generation;
+        }
+        _context!.PSSetConstantBuffer(1, _apollonianTreeBuffer);
+    }
+
+    /// <summary>
+    /// Во сколько раз сжать шкалу тумана и окраски по глубине. Фрактал самоподобен, а колесо
+    /// приближает в одно и то же число раз, поэтому при подъезде ближе стартового расстояния
+    /// шкала уменьшается вместе с видом и цвет не сползает к началу палитры. В стартовом виде
+    /// и дальше множитель равен единице — там всё как раньше.
+    /// </summary>
+    internal static double DepthScale(Fractal3DState state)
+    {
+        double home = Fractal3DCatalog.HomeCameraDistance(state.Kind);
+        return Math.Clamp(state.CameraDistance / home, 1e-6, 1.0);
     }
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
@@ -308,7 +353,7 @@ public sealed class Fractal3DRenderer : IDisposable
                 (int)state.ShadingStyle,
                 (float)Math.Clamp(state.EffectStrength, 0, 8),
                 (float)Math.Clamp(state.SkyLightMix, 0, 1),
-                0),
+                (float)DepthScale(state)),
             LightColor = ToLinear(state.LightColor),
             PaletteInfo = new Vector4(
                 Math.Clamp(palette.Colors.Count, 1, Fractal3DPalette.MaxColors),
@@ -476,6 +521,7 @@ public sealed class Fractal3DRenderer : IDisposable
         _probeTarget?.Dispose();
         _probeStaging?.Dispose();
         _constantBuffer?.Dispose();
+        _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();
         _vertexShader?.Dispose();

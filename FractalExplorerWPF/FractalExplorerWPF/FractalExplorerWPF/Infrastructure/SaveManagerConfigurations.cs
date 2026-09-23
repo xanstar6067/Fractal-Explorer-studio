@@ -287,18 +287,20 @@ public static class SaveManagerConfigurations
                 $"Масштаб: {state.BoxScale:G6} · Мин. радиус: {state.BoxMinRadius:G6} · Свёртка: {state.BoxFoldingLimit:G6}",
             Fractal3DKind.SierpinskiTetrahedron => $"Масштаб складывания: {state.SierpinskiScale:G6}",
             Fractal3DKind.MengerSponge => "Рекурсивные тоннели куба",
+            Fractal3DKind.ApollonianPacking => "Взаимно касающиеся сферы",
             Fractal3DKind.QuaternionJulia =>
                 $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}",
             Fractal3DKind.Juliabulb =>
                 $"Степень: {state.Power:G6} · C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}",
             _ => $"Степень: {state.Power:G6}"
         };
-        return $"{Prefix(state.Timestamp)} · Итерации: {state.Iterations} · {shape}\n" +
+        string iterationLabel = state.Kind == Fractal3DKind.ApollonianPacking ? "Поколения сфер" : "Итерации";
+        return $"{Prefix(state.Timestamp)} · {iterationLabel}: {state.Iterations} · {shape}\n" +
                $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°" +
                (Math.Abs(state.CameraRoll) >= 0.05 ? $", крен {state.CameraRoll:F1}°" : "") +
                $", расстояние {state.CameraDistance:G6}\n" +
                $"Цель: {state.TargetX:G5}; {state.TargetY:G5}; {state.TargetZ:G5} · " +
-               $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode)} · Шагов: {state.MaxSteps}";
+               $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Шагов: {state.MaxSteps}";
     }
 
     private static string DescribeMandelbrot(MandelbrotState state)

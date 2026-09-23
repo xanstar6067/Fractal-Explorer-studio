@@ -19,7 +19,7 @@ namespace FractalExplorerWPF.Views;
 
 /// <summary>
 /// Универсальное окно трёхмерных фракталов: Мандельбульб, Жюлиабульб, Мандельбокс, губка Менгера,
-/// тетраэдр Серпинского и кватернионное Жюлиа. Вид задаётся при создании окна, разметка показывает
+/// тетраэдр Серпинского, кватернионное Жюлиа и аполлонова упаковка сфер. Вид задаётся при создании окна, разметка показывает
 /// только параметры выбранной формы. Кадр целиком считает GPU (<see cref="Fractal3DRenderer"/>),
 /// поэтому отдельного тайлового прогресса нет: прогресс идёт по горизонтальным полосам кадра.
 /// Превью живое: кадровый цикл считает черновик подобранного размера столько раз, сколько успевает,
@@ -123,7 +123,9 @@ public partial class Fractal3DWindow : Window
         SaveName = saveName,
         Timestamp = DateTime.Now,
         Kind = Kind,
-        Iterations = ReadInt(IterationsBox, "Итерации", 1, 64),
+        Iterations = ReadInt(IterationsBox,
+            Kind == Fractal3DKind.ApollonianPacking ? "Поколения сфер" : "Итерации",
+            1, Kind == Fractal3DKind.ApollonianPacking ? ApollonianSpherePacking.MaxGeneration : 64),
         Power = ReadDouble(PowerBox, "Степень", -32, 32),
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
@@ -273,13 +275,23 @@ public partial class Fractal3DWindow : Window
 
     private void ConfigureKindLayout()
     {
+        IterationsLabel.Text = Kind == Fractal3DKind.ApollonianPacking
+            ? "Поколения сфер (1–5)"
+            : "Итерации";
+        if (Kind == Fractal3DKind.ApollonianPacking)
+        {
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.OrbitTrap]).Content = "По диаметру сферы";
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.CrossTrap]).Content = "По положению сферы";
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.IterationIndex]).Content = "По масштабу сферы";
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.Escape]).Content = "По радиусу сферы";
+        }
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
         BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.SierpinskiTetrahedron));
+            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;

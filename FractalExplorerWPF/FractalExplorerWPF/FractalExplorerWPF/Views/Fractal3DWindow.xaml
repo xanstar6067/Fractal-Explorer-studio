@@ -95,7 +95,7 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
-                            <TextBlock Style="{StaticResource FieldCaption}" Text="Итерации"/>
+                            <TextBlock x:Name="IterationsLabel" Style="{StaticResource FieldCaption}" Text="Итерации"/>
                             <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"
                                      x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/>
 

@@ -7,7 +7,7 @@ using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 
-// Трёхмерные фракталы: дистанционные оценки шести видов на GPU, их пресеты и сохранения.
+// Трёхмерные фракталы: дистанционные оценки семи видов на GPU, их пресеты и сохранения.
 // Окна не показываются, кадры считаются в маленьком разрешении.
 internal static partial class Program
 {
@@ -52,6 +52,14 @@ internal static partial class Program
                     $"{kind} «{preset.SaveName}»: the frame shows only the background.");
             }
         }
+
+        Fractal3DState packing = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.ApollonianPacking);
+        packing.Iterations = 1;
+        byte[] firstGeneration = await Fractal3DFrameAsync(renderer, packing);
+        packing.Iterations = 5;
+        byte[] fifthGeneration = await Fractal3DFrameAsync(renderer, packing);
+        Check(!firstGeneration.SequenceEqual(fifthGeneration),
+            "Apollonian sphere generations must change the rendered geometry.");
 
         // Один и тот же кадр должен считаться одинаково: превью сохранения и экспорт обязаны совпасть.
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
