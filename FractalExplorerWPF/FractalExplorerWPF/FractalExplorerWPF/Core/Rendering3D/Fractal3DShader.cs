@@ -440,13 +440,17 @@ internal static class Fractal3DShader
             if (abs(1.0 - ShapeA.x) >= 0.05)
             {
         #endif
+            // Сфера описана вплотную: вершины губки и тетраэдра лежат ровно на ней. Луч же
+            // засчитывает попадание, не дойдя до поверхности порога в долю пикселя, да и float
+            // округляет — без запаса лучи к вершинам уходили в фон и срезали уголки.
+            float bound = radius * 1.001 + 2.0 * pixelRadius * (length(rayOrigin) + radius);
             float closest = -dot(rayOrigin, rayDirection);
             float3 closestPoint = rayOrigin + rayDirection * closest;
             float distanceSquared = dot(closestPoint, closestPoint);
-            if (distanceSquared > radius * radius)
+            if (distanceSquared > bound * bound)
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
 
-            float halfChord = sqrt(max(radius * radius - distanceSquared, 0.0));
+            float halfChord = sqrt(max(bound * bound - distanceSquared, 0.0));
             if (closest + halfChord < 0.0)
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
             entryDistance = max(0.0, closest - halfChord);

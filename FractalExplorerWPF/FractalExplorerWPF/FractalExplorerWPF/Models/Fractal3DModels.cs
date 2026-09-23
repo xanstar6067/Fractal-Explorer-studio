@@ -496,7 +496,8 @@ public static class Fractal3DCatalog
                 break;
             case Fractal3DKind.MengerSponge:
                 state.Iterations = 5;
-                state.CameraDistance = 3.4;
+                // С этого расстояния куб целиком помещается в квадратную карточку каталога.
+                state.CameraDistance = 4.2;
                 state.CameraYaw = 28;
                 state.CameraPitch = 24;
                 state.ColoringMode = Fractal3DColoringMode.Depth;
