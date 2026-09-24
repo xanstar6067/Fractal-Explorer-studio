@@ -252,6 +252,8 @@ public sealed class Fractal3DState
 
     // ---- навигация ----
     public Fractal3DNavigationMode NavigationMode { get; set; } = Fractal3DNavigationMode.Cad;
+    public double GameMovementSpeed { get; set; } = 1;
+    public double GameMouseSensitivity { get; set; } = 1;
     public Fractal3DMotionQuality MotionQuality { get; set; } = Fractal3DMotionQuality.NoShadows;
     public Fractal3DMotionResolution MotionResolution { get; set; } = Fractal3DMotionResolution.Adaptive;
     public bool RotationInertia { get; set; } = true;

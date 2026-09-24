@@ -199,11 +199,12 @@ public partial class Fractal3DWindow
         if (forward == 0 && right == 0 && roll == 0) return false;
 
         Fractal3DPose pose = Pose;
-        if (roll != 0) pose = Fractal3DCamera.Roll(pose, roll * GameRollDegreesPerSecond * seconds);
+        double speedMultiplier = GameSpeedSlider.Value;
+        if (roll != 0) pose = Fractal3DCamera.Roll(pose, roll * GameRollDegreesPerSecond * speedMultiplier * seconds);
         Vector3 direction = pose.Forward * forward + pose.Right * right;
         if (direction != Vector3.Zero)
         {
-            double speed = Math.Clamp(pose.Distance * 1.5, 0.05, 500);
+            double speed = Math.Clamp(pose.Distance * 1.5, 0.05, 500) * speedMultiplier;
             pose = pose with { Target = pose.Target + Vector3.Normalize(direction) * (float)(speed * seconds) };
         }
         MoveCamera(pose);
@@ -426,8 +427,8 @@ public partial class Fractal3DWindow
                 double dx = local.X - centre.X, dy = local.Y - centre.Y;
                 if (Math.Abs(dx) >= 0.5 || Math.Abs(dy) >= 0.5)
                 {
-                    MoveCamera(Fractal3DCamera.Look(Pose,
-                        -dx * RotationDegreesPerPixel, -dy * RotationDegreesPerPixel));
+                    double sensitivity = RotationDegreesPerPixel * GameSensitivitySlider.Value;
+                    MoveCamera(Fractal3DCamera.Look(Pose, -dx * sensitivity, -dy * sensitivity));
                     CenterGameCursor();
                     AfterCameraChanged();
                 }
@@ -786,12 +787,24 @@ public partial class Fractal3DWindow
     private void UpdateNavigationHelp()
     {
         bool game = SelectedNavigationMode == Fractal3DNavigationMode.Game;
+        GameNavigationPanel.Visibility = game ? Visibility.Visible : Visibility.Collapsed;
         NavigationHelpText.Text = game
             ? "Щёлкните по холсту для управления. W/S: вперёд/назад по направлению взгляда, A/D: влево/вправо, Q/E: крен. Удерживайте правую кнопку мыши для обзора; курсор вернётся на место после отпускания. Левая, средняя кнопки и колесо не меняют вид. F11: полноэкранный режим."
             : "Левая кнопка: вращение вокруг точки, за которую схватили; по фону — поворот взгляда на месте. Правая: сдвиг. Средняя: влево-вправо — крен, вверх-вниз — наклон взгляда на месте. Колесо: приближение к точке под курсором (Ctrl — быстро, Shift — точно). Двойной щелчок левой: перелёт к точке, средней: выровнять горизонт. F11: полноэкранный режим.";
         RotationInertiaBox.IsEnabled = !game;
         AutoRotateBox.IsEnabled = !game;
         AutoRotateSpeedBox.IsEnabled = !game;
+    }
+
+    private void GameSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_updatingUi) UpdateGameSliderLabels();
+    }
+
+    private void UpdateGameSliderLabels()
+    {
+        GameSpeedLabel.Text = $"Скорость движения: {GameSpeedSlider.Value:0.0}×";
+        GameSensitivityLabel.Text = $"Чувствительность мыши: {GameSensitivitySlider.Value:0.0}×";
     }
 
     private bool HandleGameKeyDown(KeyEventArgs e)

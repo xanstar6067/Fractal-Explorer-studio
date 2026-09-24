@@ -169,10 +169,10 @@
                                          x:Name="TargetZBox" ToolTip="Z" TextChanged="Camera_OnChanged"/>
                             </Grid>
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Height="40" Margin="0,0,4,0" Content="Сбросить вид"
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="44*"/><ColumnDefinition Width="56*"/></Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Height="40" Margin="0,0,4,0" Padding="4,0" FontSize="11" Content="Сбросить вид"
                                         Click="ResetViewButton_OnClick"/>
-                                <Button Grid.Column="1" Height="40" Content="Выровнять горизонт"
+                                <Button Grid.Column="1" Height="40" Padding="4,0" FontSize="11" Content="Выровнять горизонт"
                                         ToolTip="Убрать крен, не меняя направления взгляда (двойной щелчок средней кнопкой)."
                                         Click="LevelHorizonButton_OnClick"/>
                             </Grid>
@@ -186,6 +186,18 @@
                                 <ComboBoxItem Content="CAD"/>
                                 <ComboBoxItem Content="Игровой"/>
                             </ComboBox>
+                            <StackPanel x:Name="GameNavigationPanel" Visibility="Collapsed">
+                                <TextBlock x:Name="GameSpeedLabel" Style="{StaticResource FieldCaption}" Text="Скорость движения: 1,0×"/>
+                                <Slider x:Name="GameSpeedSlider" Minimum="0.1" Maximum="5" Value="1"
+                                        TickFrequency="0.1" IsSnapToTickEnabled="True" SmallChange="0.1" LargeChange="0.5"
+                                        AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1"
+                                        ValueChanged="GameSlider_OnValueChanged"/>
+                                <TextBlock x:Name="GameSensitivityLabel" Style="{StaticResource FieldCaption}" Text="Чувствительность мыши: 1,0×"/>
+                                <Slider x:Name="GameSensitivitySlider" Minimum="0.1" Maximum="3" Value="1"
+                                        TickFrequency="0.1" IsSnapToTickEnabled="True" SmallChange="0.1" LargeChange="0.5"
+                                        AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1"
+                                        ValueChanged="GameSlider_OnValueChanged"/>
+                            </StackPanel>
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Качество в движении"/>
                             <ComboBox x:Name="MotionQualityBox" SelectionChanged="Navigation_OnChanged"
                                       ToolTip="Чем жертвует живой кадр, пока камера движется. После остановки кадр всегда достраивается полностью.">

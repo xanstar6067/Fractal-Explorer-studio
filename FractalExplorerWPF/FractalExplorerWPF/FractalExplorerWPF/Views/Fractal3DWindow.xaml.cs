@@ -157,6 +157,8 @@ public partial class Fractal3DWindow : Window
         MotionQuality = SelectedMotionQuality,
         MotionResolution = SelectedMotionResolution,
         NavigationMode = SelectedNavigationMode,
+        GameMovementSpeed = GameSpeedSlider.Value,
+        GameMouseSensitivity = GameSensitivitySlider.Value,
         RotationInertia = RotationInertiaBox.IsChecked == true,
         AutoRotate = AutoRotateBox.IsChecked == true,
         AutoRotateSpeed = ReadDouble(AutoRotateSpeedBox, "Скорость автовращения", -720, 720),
@@ -226,6 +228,11 @@ public partial class Fractal3DWindow : Window
         MotionQualityBox.SelectedIndex = (int)state.MotionQuality;
         MotionResolutionBox.SelectedIndex = (int)state.MotionResolution;
         NavigationModeBox.SelectedIndex = (int)state.NavigationMode;
+        GameSpeedSlider.Value = double.IsFinite(state.GameMovementSpeed)
+            ? Math.Clamp(state.GameMovementSpeed, GameSpeedSlider.Minimum, GameSpeedSlider.Maximum) : 1;
+        GameSensitivitySlider.Value = double.IsFinite(state.GameMouseSensitivity)
+            ? Math.Clamp(state.GameMouseSensitivity, GameSensitivitySlider.Minimum, GameSensitivitySlider.Maximum) : 1;
+        UpdateGameSliderLabels();
         UpdateNavigationHelp();
         RotationInertiaBox.IsChecked = state.RotationInertia;
         AutoRotateBox.IsChecked = state.AutoRotate;
