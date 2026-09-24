@@ -52,7 +52,6 @@
                 MouseMove="MapHost_OnMouseMove" LostMouseCapture="MapHost_OnLostMouseCapture">
             <Grid>
                 <Image x:Name="PreviewImage" Stretch="Fill" SnapsToDevicePixels="True"/>
-                <Canvas x:Name="MarkerLayer" IsHitTestVisible="False"/>
             </Grid>
         </Border>
 

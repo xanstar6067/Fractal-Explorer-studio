@@ -668,6 +668,34 @@ internal static partial class Program
                 samples++;
             }
             Check(nonBlack > samples / 10, "The first picker frame must contain the Mandelbulb and its background.");
+
+            // Движение не должно ждать отпускания мыши: следующий черновой кадр появляется,
+            // пока окно находится в режиме перетаскивания.
+            var draggingField = window.GetType().GetField("_dragging",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            var rotate = window.GetType().GetMethod("RotateBy",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            draggingField.SetValue(window, true);
+            rotate.Invoke(window, [new System.Windows.Vector(65, 18)]);
+            for (int attempt = 0; attempt < 40 &&
+                 (image.Source is not BitmapSource current || current.PixelWidth >= bitmap.PixelWidth); attempt++)
+                await Task.Delay(100);
+            Check(image.Source is BitmapSource draft && draft.PixelWidth < bitmap.PixelWidth,
+                "Dragging must display a draft frame before the mouse button is released.");
+            var live = (BitmapSource)image.Source!;
+            byte[] firstDragFrame = new byte[live.PixelWidth * live.PixelHeight * 4];
+            live.CopyPixels(firstDragFrame, live.PixelWidth * 4, 0);
+            rotate.Invoke(window, [new System.Windows.Vector(52, -26)]);
+            bool changedWhileDragging = false;
+            for (int attempt = 0; attempt < 40 && !changedWhileDragging; attempt++)
+            {
+                await Task.Delay(100);
+                if (image.Source is not BitmapSource next) continue;
+                byte[] nextPixels = new byte[next.PixelWidth * next.PixelHeight * 4];
+                next.CopyPixels(nextPixels, next.PixelWidth * 4, 0);
+                changedWhileDragging = !nextPixels.AsSpan().SequenceEqual(firstDragFrame);
+            }
+            Check(changedWhileDragging, "A second drag must update the visible frame before release.");
         }
         finally { window.Close(); }
     }

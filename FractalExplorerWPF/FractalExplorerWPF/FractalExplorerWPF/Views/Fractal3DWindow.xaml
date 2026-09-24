@@ -89,7 +89,6 @@
                                             MouseLeftButtonDown="JuliabulbMapHost_OnMouseLeftButtonDown">
                                         <Grid>
                                             <Image x:Name="JuliabulbMapImage" Stretch="Fill" SnapsToDevicePixels="True"/>
-                                            <Canvas x:Name="JuliabulbMapMarkerLayer" IsHitTestVisible="False"/>
                                         </Grid>
                                     </Border>
                                 </StackPanel>

@@ -116,7 +116,6 @@ public partial class Fractal3DWindow : Window
         {
             ScheduleRender(immediate: true);
             ScheduleJuliabulbMapRender();
-            UpdateJuliabulbMapMarker();
         };
     }
 
@@ -296,7 +295,6 @@ public partial class Fractal3DWindow : Window
         UpdateCameraText();
         ScheduleRender();
         ScheduleJuliabulbMapRender();
-        UpdateJuliabulbMapMarker();
     }
 
     private void ConfigureKindLayout()
@@ -500,10 +498,7 @@ public partial class Fractal3DWindow : Window
                 ReferenceEquals(sender, BailoutBox)) ScheduleJuliabulbMapRender();
             if (ReferenceEquals(sender, JuliaCXBox) || ReferenceEquals(sender, JuliaCYBox) ||
                 ReferenceEquals(sender, JuliaCZBox))
-            {
-                UpdateJuliabulbMapMarker();
                 ScheduleJuliabulbMapRender();
-            }
         }
     }
 

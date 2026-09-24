@@ -66,11 +66,7 @@ public partial class Fractal3DWindow
         {
             var bitmap = await _juliabulbMapRenderer.RenderAsync(state, width, height, null, cts.Token);
             if (!cts.IsCancellationRequested && version == _juliabulbMapVersion && !_isClosing)
-            {
                 JuliabulbMapImage.Source = bitmap;
-                UpdateJuliabulbMapMarker();
-                JuliabulbMapMarkerLayer.Opacity = 0.35;
-            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -85,28 +81,8 @@ public partial class Fractal3DWindow
         }
     }
 
-    private void UpdateJuliabulbMapMarker()
-    {
-        if (Kind != Fractal3DKind.Juliabulb || !IsLoaded) return;
-        if (!TryReadDouble(JuliaCXBox.Text, out double x) ||
-            !TryReadDouble(JuliaCYBox.Text, out double y) ||
-            !TryReadDouble(JuliaCZBox.Text, out double z) ||
-            !double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(z))
-        {
-            JuliabulbMapMarkerLayer.Children.Clear();
-            return;
-        }
-        var state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
-        state.CameraDistance = 4.5;
-        state.CameraYaw = 35;
-        state.CameraPitch = 18;
-        Fractal3DConstantMarker.Draw(JuliabulbMapMarkerLayer, state, new Vector3((float)x, (float)y, (float)z));
-        JuliabulbMapMarkerLayer.Opacity = 1;
-    }
-
     private void JuliabulbMapHost_OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        UpdateJuliabulbMapMarker();
         ScheduleJuliabulbMapRender();
     }
 
@@ -136,7 +112,6 @@ public partial class Fractal3DWindow
             JuliaCYBox.Text = Format(picker.SelectedConstant.Y);
             JuliaCZBox.Text = Format(picker.SelectedConstant.Z);
             _updatingUi = false;
-            UpdateJuliabulbMapMarker();
             ScheduleJuliabulbMapRender();
         });
     }

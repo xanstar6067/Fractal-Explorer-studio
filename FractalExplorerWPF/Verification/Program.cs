@@ -66,7 +66,7 @@ internal static partial class Program
                     using var pickerRenderer = new FractalExplorerWPF.Core.Rendering3D.Fractal3DRenderer();
                     await VerifyFractal3DPickerMarkerAsync(pickerRenderer);
                     await VerifyPickerWindowFrameAsync();
-                    Console.WriteLine("PASS (picker-marker): first WPF frame, green 3D sphere and unchanged surface probe.");
+                    Console.WriteLine("PASS (picker-marker): first WPF frame, live drag frames, one GPU marker and unchanged surface probe.");
                 }
                 if (group == "shadercache") await VerifyShaderCacheAsync();
                 // Reproduce the close camera angle that once exposed voxel blocks and ray-limit rings.
