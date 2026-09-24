@@ -207,7 +207,7 @@ public partial class Fractal3DWindow
         if (!GameKeyboardActive) return false;
         int forward = (Keyboard.IsKeyDown(Key.W) ? 1 : 0) - (Keyboard.IsKeyDown(Key.S) ? 1 : 0);
         int right = (Keyboard.IsKeyDown(Key.D) ? 1 : 0) - (Keyboard.IsKeyDown(Key.A) ? 1 : 0);
-        int roll = (Keyboard.IsKeyDown(Key.E) ? 1 : 0) - (Keyboard.IsKeyDown(Key.Q) ? 1 : 0);
+        int roll = (Keyboard.IsKeyDown(Key.Q) ? 1 : 0) - (Keyboard.IsKeyDown(Key.E) ? 1 : 0);
         if (forward == 0 && right == 0 && roll == 0) return false;
 
         Fractal3DPose pose = Pose;
