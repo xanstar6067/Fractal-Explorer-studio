@@ -35,6 +35,16 @@ public partial class Fractal3DWindow
     [DllImport("user32.dll")]
     private static extern bool SetCursorPos(int x, int y);
 
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out NativeCursorPoint point);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeCursorPoint
+    {
+        public int X;
+        public int Y;
+    }
+
     /// <summary>Затухание броска, 1/с: за это время скорость падает в e раз.</summary>
     private const double InertiaDamping = 7;
 
@@ -67,7 +77,9 @@ public partial class Fractal3DWindow
     private MouseButton _dragButton;
     private Point _lastPoint;
     private Point _gameCursorScreen;
+    private NativeCursorPoint _gameCenterScreen;
     private bool _gameLookCaptured;
+    private bool _gameLookReady;
     private Point _cursorPoint = new(double.NaN, double.NaN);
     private Vector3 _pivot;
     private double _panUnit;
@@ -318,10 +330,14 @@ public partial class Fractal3DWindow
         CanvasHost.Focus();
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
-            _gameCursorScreen = CanvasHost.PointToScreen(e.GetPosition(CanvasHost));
+            _gameCursorScreen = GetCursorPos(out NativeCursorPoint cursor)
+                ? new Point(cursor.X, cursor.Y)
+                : CanvasHost.PointToScreen(e.GetPosition(CanvasHost));
             _gameLookCaptured = true;
+            _gameLookReady = false;
             BeginDrag(DragMode.Look, MouseButton.Right, e.GetPosition(SavePreviewLayer), Cursors.None);
             CenterGameCursor();
+            _gameLookReady = true;
             e.Handled = true;
             return;
         }
@@ -420,10 +436,15 @@ public partial class Fractal3DWindow
         _cursorPoint = current;
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
-            if (_drag == DragMode.Look)
+            if (_drag == DragMode.Look && _gameLookReady)
             {
+                // WPF может доставить старое MouseMove уже после SetCursorPos. Координаты
+                // такого события дают ложный большой поворот; читаем текущее положение ОС.
+                if (!GetCursorPos(out NativeCursorPoint cursor) ||
+                    cursor.X == _gameCenterScreen.X && cursor.Y == _gameCenterScreen.Y)
+                    return;
                 Point centre = new(CanvasHost.ActualWidth / 2, CanvasHost.ActualHeight / 2);
-                Point local = e.GetPosition(CanvasHost);
+                Point local = CanvasHost.PointFromScreen(new Point(cursor.X, cursor.Y));
                 double dx = local.X - centre.X, dy = local.Y - centre.Y;
                 if (Math.Abs(dx) >= 0.5 || Math.Abs(dy) >= 0.5)
                 {
@@ -488,6 +509,7 @@ public partial class Fractal3DWindow
 
         bool gameLook = _gameLookCaptured;
         _gameLookCaptured = false;
+        _gameLookReady = false;
         bool rotating = _drag is DragMode.Orbit or DragMode.Look;
         _spinPivot = _drag == DragMode.Orbit ? _pivot : null;
         _drag = DragMode.None;
@@ -513,7 +535,11 @@ public partial class Fractal3DWindow
     private void CenterGameCursor()
     {
         Point centre = CanvasHost.PointToScreen(new Point(CanvasHost.ActualWidth / 2, CanvasHost.ActualHeight / 2));
-        SetCursorPos((int)Math.Round(centre.X), (int)Math.Round(centre.Y));
+        _gameCenterScreen = new NativeCursorPoint
+        {
+            X = (int)Math.Round(centre.X), Y = (int)Math.Round(centre.Y)
+        };
+        SetCursorPos(_gameCenterScreen.X, _gameCenterScreen.Y);
     }
 
     private void CanvasHost_OnLostMouseCapture(object sender, MouseEventArgs e)
@@ -521,6 +547,7 @@ public partial class Fractal3DWindow
         if (_drag == DragMode.None) return;
         bool gameLook = _gameLookCaptured;
         _gameLookCaptured = false;
+        _gameLookReady = false;
         _drag = DragMode.None;
         Mouse.OverrideCursor = null;
         _spinX = _spinY = 0;
