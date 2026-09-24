@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -15,7 +16,7 @@ using Point = System.Windows.Point;
 namespace FractalExplorerWPF.Views;
 
 /// <summary>
-/// Навигация окна трёхмерного фрактала — только мышью, как в CAD. Левая кнопка вращает трекболом
+/// Навигация окна трёхмерного фрактала: CAD и игровой режим. В CAD левая кнопка вращает трекболом
 /// вокруг точки поверхности, за которую схватили; по фону — поворачивает взгляд на месте. Правая
 /// сдвигает картинку так, что схваченная точка идёт за курсором. Средняя влево-вправо кренит
 /// камеру вокруг оси взгляда, вверх-вниз наклоняет взгляд на месте (тангаж). Колесо приближает к
@@ -29,6 +30,10 @@ public partial class Fractal3DWindow
 {
     private const double RotationDegreesPerPixel = 0.35;
     private const double RollDegreesPerPixel = 0.35;
+    private const double GameRollDegreesPerSecond = 75;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetCursorPos(int x, int y);
 
     /// <summary>Затухание броска, 1/с: за это время скорость падает в e раз.</summary>
     private const double InertiaDamping = 7;
@@ -61,6 +66,8 @@ public partial class Fractal3DWindow
     private DragMode _drag;
     private MouseButton _dragButton;
     private Point _lastPoint;
+    private Point _gameCursorScreen;
+    private bool _gameLookCaptured;
     private Point _cursorPoint = new(double.NaN, double.NaN);
     private Vector3 _pivot;
     private double _panUnit;
@@ -103,11 +110,22 @@ public partial class Fractal3DWindow
 
     /// <summary>Движется ли камера: от этого зависят черновое качество и лесенка уточнения.</summary>
     private bool IsMoving =>
-        IsInteracting || HasInertia || _transition is not null || AutoRotateActive || _zoom.IsActive(_distance);
+        IsInteracting || HasInertia || _transition is not null || AutoRotateActive ||
+        _zoom.IsActive(_distance) || HasGameInput;
+
+    private Fractal3DNavigationMode SelectedNavigationMode => NavigationModeBox.SelectedIndex == 1
+        ? Fractal3DNavigationMode.Game : Fractal3DNavigationMode.Cad;
+
+    private bool GameKeyboardActive => SelectedNavigationMode == Fractal3DNavigationMode.Game &&
+        IsActive && CanvasHost.IsKeyboardFocusWithin;
+
+    private bool HasGameInput => GameKeyboardActive &&
+        (Keyboard.IsKeyDown(Key.W) || Keyboard.IsKeyDown(Key.A) || Keyboard.IsKeyDown(Key.S) ||
+         Keyboard.IsKeyDown(Key.D) || Keyboard.IsKeyDown(Key.Q) || Keyboard.IsKeyDown(Key.E));
 
     /// <summary>Автовращение с нулевой скоростью камеру не двигает и уточнению не мешает.</summary>
     private bool AutoRotateActive =>
-        AutoRotateBox.IsChecked == true &&
+        SelectedNavigationMode == Fractal3DNavigationMode.Cad && AutoRotateBox.IsChecked == true &&
         TryReadDouble(AutoRotateSpeedBox.Text, out double speed) && speed != 0;
 
     /// <summary>Точка, по которой меряется расстояние до поверхности: курсор или центр кадра.</summary>
@@ -143,7 +161,7 @@ public partial class Fractal3DWindow
     private bool AdvanceAnimation(double seconds)
     {
         if (seconds <= 0) return false;
-        bool changed = AdvanceTransition(seconds) | AdvanceZoom(seconds);
+        bool changed = AdvanceTransition(seconds) | AdvanceZoom(seconds) | AdvanceGameMovement(seconds);
 
         if (!IsInteracting && _transition is null && RotationInertiaBox.IsChecked == true && HasInertia)
         {
@@ -170,6 +188,26 @@ public partial class Fractal3DWindow
 
         if (changed) AfterCameraChanged();
         return changed;
+    }
+
+    private bool AdvanceGameMovement(double seconds)
+    {
+        if (!GameKeyboardActive) return false;
+        int forward = (Keyboard.IsKeyDown(Key.W) ? 1 : 0) - (Keyboard.IsKeyDown(Key.S) ? 1 : 0);
+        int right = (Keyboard.IsKeyDown(Key.D) ? 1 : 0) - (Keyboard.IsKeyDown(Key.A) ? 1 : 0);
+        int roll = (Keyboard.IsKeyDown(Key.E) ? 1 : 0) - (Keyboard.IsKeyDown(Key.Q) ? 1 : 0);
+        if (forward == 0 && right == 0 && roll == 0) return false;
+
+        Fractal3DPose pose = Pose;
+        if (roll != 0) pose = Fractal3DCamera.Roll(pose, roll * GameRollDegreesPerSecond * seconds);
+        Vector3 direction = pose.Forward * forward + pose.Right * right;
+        if (direction != Vector3.Zero)
+        {
+            double speed = Math.Clamp(pose.Distance * 1.5, 0.05, 500);
+            pose = pose with { Target = pose.Target + Vector3.Normalize(direction) * (float)(speed * seconds) };
+        }
+        MoveCamera(pose);
+        return true;
     }
 
     /// <summary>Доводка колеса: камера догоняет цель, заданную последними щелчками.</summary>
@@ -241,6 +279,12 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
+        {
+            CanvasHost.Focus();
+            e.Handled = true;
+            return;
+        }
         Point point = e.GetPosition(SavePreviewLayer);
         if (e.ClickCount == 2)
         {
@@ -270,6 +314,16 @@ public partial class Fractal3DWindow
     private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (IsInteracting) return;
+        CanvasHost.Focus();
+        if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
+        {
+            _gameCursorScreen = CanvasHost.PointToScreen(e.GetPosition(CanvasHost));
+            _gameLookCaptured = true;
+            BeginDrag(DragMode.Look, MouseButton.Right, e.GetPosition(SavePreviewLayer), Cursors.None);
+            CenterGameCursor();
+            e.Handled = true;
+            return;
+        }
         Point point = e.GetPosition(SavePreviewLayer);
         FinishZoom();
 
@@ -286,6 +340,12 @@ public partial class Fractal3DWindow
     private void CanvasHost_OnMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Middle) return;
+        if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
+        {
+            CanvasHost.Focus();
+            e.Handled = true;
+            return;
+        }
         if (e.ClickCount == 2)
         {
             LevelHorizon();
@@ -357,6 +417,23 @@ public partial class Fractal3DWindow
     {
         Point current = e.GetPosition(SavePreviewLayer);
         _cursorPoint = current;
+        if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
+        {
+            if (_drag == DragMode.Look)
+            {
+                Point centre = new(CanvasHost.ActualWidth / 2, CanvasHost.ActualHeight / 2);
+                Point local = e.GetPosition(CanvasHost);
+                double dx = local.X - centre.X, dy = local.Y - centre.Y;
+                if (Math.Abs(dx) >= 0.5 || Math.Abs(dy) >= 0.5)
+                {
+                    MoveCamera(Fractal3DCamera.Look(Pose,
+                        -dx * RotationDegreesPerPixel, -dy * RotationDegreesPerPixel));
+                    CenterGameCursor();
+                    AfterCameraChanged();
+                }
+            }
+            return;
+        }
         if (!IsInteracting)
         {
             RequestProbe(current);
@@ -408,13 +485,16 @@ public partial class Fractal3DWindow
     {
         if (!IsInteracting || e.ChangedButton != _dragButton) return;
 
+        bool gameLook = _gameLookCaptured;
+        _gameLookCaptured = false;
         bool rotating = _drag is DragMode.Orbit or DragMode.Look;
         _spinPivot = _drag == DragMode.Orbit ? _pivot : null;
         _drag = DragMode.None;
         CanvasHost.ReleaseMouseCapture();
         Mouse.OverrideCursor = null;
+        if (gameLook) SetCursorPos((int)Math.Round(_gameCursorScreen.X), (int)Math.Round(_gameCursorScreen.Y));
 
-        bool fling = rotating && RotationInertiaBox.IsChecked == true &&
+        bool fling = rotating && !gameLook && RotationInertiaBox.IsChecked == true &&
                      _clock.Elapsed.TotalMilliseconds - _lastDragMs < FlingWindowMs;
         if (!fling)
         {
@@ -425,8 +505,25 @@ public partial class Fractal3DWindow
         // Полный кадр попросит сам цикл, когда увидит, что движение кончилось: отпускание кнопки
         // ещё не остановка, если включена инерция.
         SyncCameraUi(immediate: true);
-        RequestProbe(e.GetPosition(SavePreviewLayer), force: true);
+        if (!gameLook) RequestProbe(e.GetPosition(SavePreviewLayer), force: true);
         e.Handled = true;
+    }
+
+    private void CenterGameCursor()
+    {
+        Point centre = CanvasHost.PointToScreen(new Point(CanvasHost.ActualWidth / 2, CanvasHost.ActualHeight / 2));
+        SetCursorPos((int)Math.Round(centre.X), (int)Math.Round(centre.Y));
+    }
+
+    private void CanvasHost_OnLostMouseCapture(object sender, MouseEventArgs e)
+    {
+        if (_drag == DragMode.None) return;
+        bool gameLook = _gameLookCaptured;
+        _gameLookCaptured = false;
+        _drag = DragMode.None;
+        Mouse.OverrideCursor = null;
+        _spinX = _spinY = 0;
+        if (gameLook) SetCursorPos((int)Math.Round(_gameCursorScreen.X), (int)Math.Round(_gameCursorScreen.Y));
     }
 
     private void ApplyRotation(Vector3? pivot, double dragX, double dragY) =>
@@ -449,6 +546,11 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
+        {
+            e.Handled = true;
+            return;
+        }
         int notches = e.Delta / 120;
         if (notches == 0) notches = Math.Sign(e.Delta);
         if (notches == 0) return;
@@ -671,6 +773,35 @@ public partial class Fractal3DWindow
     #endregion
 
     #region Панель навигации и оси
+
+    private void NavigationMode_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingUi) return;
+        if (_drag != DragMode.None) CanvasHost.ReleaseMouseCapture();
+        StopCameraMotion();
+        UpdateNavigationHelp();
+        RequestFrame(FrameQuality.Full);
+    }
+
+    private void UpdateNavigationHelp()
+    {
+        bool game = SelectedNavigationMode == Fractal3DNavigationMode.Game;
+        NavigationHelpText.Text = game
+            ? "Щёлкните по холсту для управления. W/S: вперёд/назад по направлению взгляда, A/D: влево/вправо, Q/E: крен. Удерживайте правую кнопку мыши для обзора; курсор вернётся на место после отпускания. Левая, средняя кнопки и колесо не меняют вид. F11: полноэкранный режим."
+            : "Левая кнопка: вращение вокруг точки, за которую схватили; по фону — поворот взгляда на месте. Правая: сдвиг. Средняя: влево-вправо — крен, вверх-вниз — наклон взгляда на месте. Колесо: приближение к точке под курсором (Ctrl — быстро, Shift — точно). Двойной щелчок левой: перелёт к точке, средней: выровнять горизонт. F11: полноэкранный режим.";
+        RotationInertiaBox.IsEnabled = !game;
+        AutoRotateBox.IsEnabled = !game;
+        AutoRotateSpeedBox.IsEnabled = !game;
+    }
+
+    private bool HandleGameKeyDown(KeyEventArgs e)
+    {
+        if (!GameKeyboardActive || e.Key is not (Key.W or Key.A or Key.S or Key.D or Key.Q or Key.E))
+            return false;
+        AttachLoop();
+        e.Handled = true;
+        return true;
+    }
 
     private void Navigation_OnChanged(object sender, EventArgs e)
     {

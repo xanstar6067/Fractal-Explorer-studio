@@ -156,6 +156,7 @@ public partial class Fractal3DWindow : Window
 
         MotionQuality = SelectedMotionQuality,
         MotionResolution = SelectedMotionResolution,
+        NavigationMode = SelectedNavigationMode,
         RotationInertia = RotationInertiaBox.IsChecked == true,
         AutoRotate = AutoRotateBox.IsChecked == true,
         AutoRotateSpeed = ReadDouble(AutoRotateSpeedBox, "Скорость автовращения", -720, 720),
@@ -224,6 +225,8 @@ public partial class Fractal3DWindow : Window
 
         MotionQualityBox.SelectedIndex = (int)state.MotionQuality;
         MotionResolutionBox.SelectedIndex = (int)state.MotionResolution;
+        NavigationModeBox.SelectedIndex = (int)state.NavigationMode;
+        UpdateNavigationHelp();
         RotationInertiaBox.IsChecked = state.RotationInertia;
         AutoRotateBox.IsChecked = state.AutoRotate;
         AutoRotateSpeedBox.Text = Format(state.AutoRotateSpeed);
@@ -920,6 +923,7 @@ public partial class Fractal3DWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
+        if (HandleGameKeyDown(e)) return;
         if (e.Key == Key.F11 || (e.Key == Key.Escape && _isFullscreen))
         {
             ToggleFullscreen();
@@ -945,6 +949,7 @@ public partial class Fractal3DWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        if (_drag != DragMode.None) CanvasHost.ReleaseMouseCapture();
         _isClosing = true;
         DetachLoop();
         _renderCts?.Cancel();

@@ -169,10 +169,10 @@
                                          x:Name="TargetZBox" ToolTip="Z" TextChanged="Camera_OnChanged"/>
                             </Grid>
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Margin="0,0,4,0" Content="Сбросить вид"
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Height="40" Margin="0,0,4,0" Content="Сбросить вид"
                                         Click="ResetViewButton_OnClick"/>
-                                <Button Grid.Column="1" Content="Выровнять горизонт"
+                                <Button Grid.Column="1" Height="40" Content="Выровнять горизонт"
                                         ToolTip="Убрать крен, не меняя направления взгляда (двойной щелчок средней кнопкой)."
                                         Click="LevelHorizonButton_OnClick"/>
                             </Grid>
@@ -181,6 +181,11 @@
 
                     <Expander Header="Навигация" Margin="0,2,0,4">
                         <StackPanel Margin="10,6,0,2">
+                            <TextBlock Style="{StaticResource FieldCaption}" Text="Управление камерой"/>
+                            <ComboBox x:Name="NavigationModeBox" SelectionChanged="NavigationMode_OnChanged">
+                                <ComboBoxItem Content="CAD"/>
+                                <ComboBoxItem Content="Игровой"/>
+                            </ComboBox>
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Качество в движении"/>
                             <ComboBox x:Name="MotionQualityBox" SelectionChanged="Navigation_OnChanged"
                                       ToolTip="Чем жертвует живой кадр, пока камера движется. После остановки кадр всегда достраивается полностью.">
@@ -388,14 +393,14 @@
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                     <TextBlock x:Name="StatusText" Margin="0,7,0,0" Text="Готово" TextWrapping="Wrap"
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                    <TextBlock Margin="0,12,0,0" TextWrapping="Wrap"
+                    <TextBlock x:Name="NavigationHelpText" Margin="0,12,0,0" TextWrapping="Wrap"
                                Foreground="{DynamicResource Theme.DisabledTextBrush}"
                                Text="Левая кнопка: вращение вокруг точки, за которую схватили; по фону — поворот взгляда на месте. Правая: сдвиг. Средняя: влево-вправо — крен, вверх-вниз — наклон взгляда на месте. Колесо: приближение к точке под курсором (Ctrl — быстро, Shift — точно). Двойной щелчок левой: перелёт к точке, средней: выровнять горизонт. F11: полноэкранный режим."/>
                 </StackPanel>
             </ScrollViewer>
         </Border>
 
-        <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" Background="Black"
+        <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" Background="Black" Focusable="True"
                 ClipToBounds="True" BorderBrush="{DynamicResource Theme.BorderBrush}"
                 BorderThickness="1" CornerRadius="7" theme:ThemeContract.IgnoreAudit="True"
                 SizeChanged="CanvasHost_OnSizeChanged" MouseWheel="CanvasHost_OnMouseWheel"
@@ -405,7 +410,7 @@
                 MouseMove="CanvasHost_OnMouseMove"
                 MouseLeftButtonUp="CanvasHost_OnMouseUp"
                 MouseRightButtonUp="CanvasHost_OnMouseUp"
-                MouseUp="CanvasHost_OnMouseUp">
+                MouseUp="CanvasHost_OnMouseUp" LostMouseCapture="CanvasHost_OnLostMouseCapture">
             <Grid>
                 <Grid x:Name="SavePreviewLayer" ClipToBounds="True">
                     <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"

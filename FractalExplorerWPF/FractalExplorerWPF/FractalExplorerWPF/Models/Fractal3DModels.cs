@@ -49,6 +49,13 @@ public enum Fractal3DMotionResolution
     Half
 }
 
+/// <summary>Способ управления камерой трёхмерного фрактала.</summary>
+public enum Fractal3DNavigationMode
+{
+    Cad,
+    Game
+}
+
 /// <summary>
 /// Что именно окрашивается палитрой: источник числа, которое шейдер превращает в позицию на
 /// градиенте. Значения сериализуются числами, поэтому новые источники только дописываются в конец.
@@ -244,6 +251,7 @@ public sealed class Fractal3DState
     public double CameraRoll { get; set; }
 
     // ---- навигация ----
+    public Fractal3DNavigationMode NavigationMode { get; set; } = Fractal3DNavigationMode.Cad;
     public Fractal3DMotionQuality MotionQuality { get; set; } = Fractal3DMotionQuality.NoShadows;
     public Fractal3DMotionResolution MotionResolution { get; set; } = Fractal3DMotionResolution.Adaptive;
     public bool RotationInertia { get; set; } = true;
