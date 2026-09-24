@@ -370,6 +370,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 state.AmbientOcclusion ? 1 : 0,
                 (float)Math.Clamp(state.Ambient, 0, 2)),
             Probe = Vector4.Zero,
+            PickerMarker = state.PickerMarker,
             Style = new Vector4(
                 (int)state.ShadingStyle,
                 (float)Math.Clamp(state.EffectStrength, 0, 8),
@@ -604,7 +605,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private struct FrameConstants
     {
         /// <summary>Размер самой структуры; следом за ней в буфер дописывается палитра.</summary>
-        public const int SizeInBytes = 18 * 16;
+        public const int SizeInBytes = 19 * 16;
 
         /// <summary>Полный размер буфера констант: структура плюс опорные цвета палитры.</summary>
         public const int BufferSizeInBytes = SizeInBytes + Fractal3DPalette.MaxColors * 16;
@@ -624,6 +625,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         public Vector4 BackgroundBottom;
         public Vector4 Flags;
         public Vector4 Probe;
+        public Vector4 PickerMarker;
         public Vector4 Style;
         public Vector4 LightColor;
         public Vector4 PaletteInfo;

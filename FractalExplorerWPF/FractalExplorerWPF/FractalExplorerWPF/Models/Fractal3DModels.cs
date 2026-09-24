@@ -1,3 +1,5 @@
+using System.Numerics;
+using System.Text.Json.Serialization;
 using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Models;
@@ -226,6 +228,9 @@ public sealed class Fractal3DState
     public double JuliaCY { get; set; }
     public double JuliaCZ { get; set; }
     public double JuliaCW { get; set; }
+    /// <summary>Временная минисфера редактора C; в сохранения фрактала не попадает.</summary>
+    [JsonIgnore]
+    public Vector4 PickerMarker { get; set; }
     public double QuaternionSlice { get; set; }
     public double BoxScale { get; set; } = 2;
     public double BoxMinRadius { get; set; } = 0.5;

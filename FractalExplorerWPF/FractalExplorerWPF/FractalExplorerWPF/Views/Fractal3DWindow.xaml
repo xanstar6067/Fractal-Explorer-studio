@@ -75,6 +75,24 @@
                                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SliceBox"
                                              TextChanged="Parameter_OnChanged"/>
                                 </StackPanel>
+                                <StackPanel x:Name="JuliabulbPickerPanel" Margin="0,7,0,3">
+                                    <Button Content="Выбрать C на Мандельбульбе" Click="JuliabulbPicker_OnClick"/>
+                                    <TextBlock Margin="0,4,0,4" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                               Text="Щёлкните по миниатюре, чтобы открыть 3D-карту выбора C"/>
+                                    <Border x:Name="JuliabulbMapHost" Height="150" Background="Black"
+                                            BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1"
+                                            CornerRadius="5" ClipToBounds="True" Cursor="Hand"
+                                            ToolTip="Открыть 3D-карту выбора C"
+                                            theme:ThemeContract.IgnoreAudit="True"
+                                            SizeChanged="JuliabulbMapHost_OnSizeChanged"
+                                            MouseLeftButtonDown="JuliabulbMapHost_OnMouseLeftButtonDown">
+                                        <Grid>
+                                            <Image x:Name="JuliabulbMapImage" Stretch="Fill" SnapsToDevicePixels="True"/>
+                                            <Canvas x:Name="JuliabulbMapMarkerLayer" IsHitTestVisible="False"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel x:Name="BoxPanel">

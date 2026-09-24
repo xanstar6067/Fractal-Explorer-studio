@@ -224,6 +224,7 @@ internal static partial class Program
         VerifyFractal3DCameraMath();
         VerifyFractal3DZoomGlide();
         VerifyFractal3DWindowZoom();
+        await VerifyFractal3DPickerMarkerAsync(renderer);
         await VerifyFractal3DProbeAsync(renderer);
         await VerifyDistantFractal3DProbesAsync(renderer);
         await VerifyFractal3DDistanceShadingAsync(renderer);
@@ -634,6 +635,28 @@ internal static partial class Program
     /// Зонд поверхности: от него зависят перелёт по двойному щелчку и шаг движения колесом и
     /// клавишами, поэтому проверяются и геометрия луча, и масштаб ответа.
     /// </summary>
+    private static async Task VerifyFractal3DPickerMarkerAsync(Fractal3DRenderer renderer)
+    {
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
+        state.CameraDistance = 4.5;
+        state.PickerMarker = new Vector4(Fractal3DCamera.Direction(state.CameraYaw, state.CameraPitch) * 2, 0.2f);
+        byte[] frame = await Fractal3DFrameAsync(renderer, state);
+        int centre = ((Fractal3DProbeHeight / 2) * Fractal3DProbeWidth + Fractal3DProbeWidth / 2) * 4;
+        Check(frame[centre + 1] > frame[centre + 2] + 35 &&
+              frame[centre + 1] > frame[centre] + 35,
+            "The C picker must render a green sphere in front of the Mandelbulb.");
+
+        double withMarker = await renderer.ProbeDistanceAsync(state,
+            Fractal3DProbeWidth / 2.0, Fractal3DProbeHeight / 2.0,
+            Fractal3DProbeWidth, Fractal3DProbeHeight, CancellationToken.None);
+        state.PickerMarker = Vector4.Zero;
+        double withoutMarker = await renderer.ProbeDistanceAsync(state,
+            Fractal3DProbeWidth / 2.0, Fractal3DProbeHeight / 2.0,
+            Fractal3DProbeWidth, Fractal3DProbeHeight, CancellationToken.None);
+        Check(double.IsFinite(withMarker) && Math.Abs(withMarker - withoutMarker) < 1e-4,
+            $"The surface probe must ignore the C picker marker ({withMarker:G9} vs {withoutMarker:G9}).");
+    }
+
     private static async Task VerifyFractal3DProbeAsync(Fractal3DRenderer renderer)
     {
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);

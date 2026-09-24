@@ -1,0 +1,70 @@
+<Window x:Class="FractalExplorerWPF.Views.Fractal3DConstantPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls"
+        xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
+        Title="Выбор константы C" Width="940" Height="700" MinWidth="700" MinHeight="520"
+        WindowStartupLocation="CenterOwner" Icon="../Assets/Icons/FractalExplorer.ico"
+        Closing="Window_OnClosing">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="105"/>
+                <ColumnDefinition Width="105"/>
+                <ColumnDefinition Width="105"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,12,0">
+                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Карта Мандельбульба"/>
+                <TextBlock Margin="0,3,0,8" TextWrapping="Wrap"
+                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                           Text="Щелчок по поверхности — выбрать C. Перетаскивание левой кнопкой — вращать вокруг центра. Колесо — масштаб, Ctrl — быстро, Shift — точно."/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0">
+                <TextBlock Text="X(C)"/>
+                <TextBox x:Name="XBox" Padding="5,4" numeric:NumericSpinner.IsEnabled="True"
+                         TextChanged="ConstantText_OnChanged"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="4,0">
+                <TextBlock Text="Y(C)"/>
+                <TextBox x:Name="YBox" Padding="5,4" numeric:NumericSpinner.IsEnabled="True"
+                         TextChanged="ConstantText_OnChanged"/>
+            </StackPanel>
+            <StackPanel Grid.Column="3" Margin="4,0">
+                <TextBlock Text="Z(C)"/>
+                <TextBox x:Name="ZBox" Padding="5,4" numeric:NumericSpinner.IsEnabled="True"
+                         TextChanged="ConstantText_OnChanged"/>
+            </StackPanel>
+        </Grid>
+
+        <Border x:Name="MapHost" Grid.Row="1" Margin="0,8" Background="Black"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7"
+                theme:ThemeContract.IgnoreAudit="True" ClipToBounds="True"
+                SizeChanged="MapHost_OnSizeChanged" MouseWheel="MapHost_OnMouseWheel"
+                MouseLeftButtonDown="MapHost_OnMouseLeftButtonDown"
+                MouseLeftButtonUp="MapHost_OnMouseLeftButtonUp"
+                MouseMove="MapHost_OnMouseMove" LostMouseCapture="MapHost_OnLostMouseCapture">
+            <Grid>
+                <Image x:Name="PreviewImage" Stretch="Fill" SnapsToDevicePixels="True"/>
+                <Canvas x:Name="MarkerLayer" IsHitTestVisible="False"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Подготовка 3D-карты..."/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Width="108" Margin="4" Content="Сбросить вид" Click="Reset_OnClick"/>
+                <Button Width="108" Margin="4" Content="Применить" IsDefault="True" Click="Accept_OnClick"/>
+                <Button Width="108" Margin="4" Content="Отмена" IsCancel="True"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

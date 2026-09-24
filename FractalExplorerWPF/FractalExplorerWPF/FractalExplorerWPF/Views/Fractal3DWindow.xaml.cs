@@ -112,7 +112,12 @@ public partial class Fractal3DWindow : Window
         _updatingUi = false;
 
         ApplyState(_presets[0]);
-        Loaded += (_, _) => ScheduleRender(immediate: true);
+        Loaded += (_, _) =>
+        {
+            ScheduleRender(immediate: true);
+            ScheduleJuliabulbMapRender();
+            UpdateJuliabulbMapMarker();
+        };
     }
 
     public Fractal3DKind Kind { get; }
@@ -290,6 +295,8 @@ public partial class Fractal3DWindow : Window
         UpdateColoringPanels();
         UpdateCameraText();
         ScheduleRender();
+        ScheduleJuliabulbMapRender();
+        UpdateJuliabulbMapMarker();
     }
 
     private void ConfigureKindLayout()
@@ -319,6 +326,7 @@ public partial class Fractal3DWindow : Window
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
+        JuliabulbPickerPanel.Visibility = Collapse(Kind == Fractal3DKind.Juliabulb);
         BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
@@ -485,7 +493,18 @@ public partial class Fractal3DWindow : Window
     private void Parameter_OnChanged(object sender, EventArgs e)
     {
         if (ReferenceEquals(sender, ShadingStyleBox)) UpdateColoringPanels();
-        if (!_updatingUi) ScheduleRender();
+        if (!_updatingUi)
+        {
+            ScheduleRender();
+            if (ReferenceEquals(sender, PowerBox) || ReferenceEquals(sender, IterationsBox) ||
+                ReferenceEquals(sender, BailoutBox)) ScheduleJuliabulbMapRender();
+            if (ReferenceEquals(sender, JuliaCXBox) || ReferenceEquals(sender, JuliaCYBox) ||
+                ReferenceEquals(sender, JuliaCZBox))
+            {
+                UpdateJuliabulbMapMarker();
+                ScheduleJuliabulbMapRender();
+            }
+        }
     }
 
     private void ColoringModeBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -960,6 +979,7 @@ public partial class Fractal3DWindow : Window
         _isClosing = true;
         DetachLoop();
         _renderCts?.Cancel();
+        DisposeJuliabulbMap();
         Mouse.OverrideCursor = null;
         // Освобождение ждёт выхода из текущей полосы кадра, поэтому уводим его с UI-потока.
         Fractal3DRenderer renderer = _renderer;

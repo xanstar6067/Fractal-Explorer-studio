@@ -21,6 +21,7 @@ internal static class Ifs3DShader
             float4 BackgroundBottom;
             float4 Flags;
             float4 Probe;
+            float4 PickerMarker; // общий буфер кадра; для объёмного IFS не используется
             float4 Style;
             float4 LightColor;
             float4 PaletteInfo;

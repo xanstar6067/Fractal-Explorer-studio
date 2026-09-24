@@ -38,6 +38,7 @@ internal static class Fractal3DShader
             float4 BackgroundBottom;
             float4 Flags;             // x — режим окраски, y — жёсткость теней (0 — выкл), z — затенение, w — фоновый свет
             float4 Probe;             // x — 0: обычный кадр, 1: расстояние до поверхности вдоль луча
+            float4 PickerMarker;      // xyz — C, w — радиус зелёной минисферы редактора
             float4 Style;             // x — шейдер освещения, y — сила эффекта, z — влияние неба, w — масштаб глубины
             float4 LightColor;        // rgb — цвет источника света
             float4 PaletteInfo;       // x — число цветов, y — повтор, z — полосы, w — гамма
@@ -497,6 +498,31 @@ internal static class Fractal3DShader
             return lerp(low, high, step(0.0031308, color));
         }
 
+        #if FRACTAL_KIND == 0
+        float MarkerDistance(float3 origin, float3 direction)
+        {
+            if (PickerMarker.w <= 0.0) return -1.0;
+            float3 relative = origin - PickerMarker.xyz;
+            float along = dot(relative, direction);
+            float discriminant = along * along - dot(relative, relative) + PickerMarker.w * PickerMarker.w;
+            if (discriminant < 0.0) return -1.0;
+            float nearSide = -along - sqrt(discriminant);
+            return nearSide > 0.0 ? nearSide : -1.0;
+        }
+
+        float4 ShadeMarker(float3 origin, float3 direction, float distance)
+        {
+            float3 normal = normalize(origin + direction * distance - PickerMarker.xyz);
+            float3 key = normalize(CameraUp.xyz - CameraRight.xyz * 0.55 - direction * 0.8);
+            float diffuse = saturate(dot(normal, key));
+            float glint = pow(saturate(dot(normal, normalize(key - direction))), 28.0);
+            float rim = pow(1.0 - saturate(dot(normal, -direction)), 3.0);
+            float3 green = float3(0.025, 0.55, 0.07) * (0.28 + diffuse * 1.15) +
+                           glint * float3(0.7, 1.0, 0.55) * 0.65 + rim * float3(0.03, 0.20, 0.02);
+            return float4(LinearToSrgb(green), 1.0);
+        }
+        #endif
+
         float4 PSMain(PSInput input) : SV_TARGET
         {
             float2 pixel = input.position.xy + Resolution.zw;
@@ -508,6 +534,10 @@ internal static class Fractal3DShader
             float3 rayDirection = normalize(
                 CameraForward.xyz * CameraPosition.w + CameraRight.xyz * plane.x + CameraUp.xyz * plane.y);
             float3 rayOrigin = CameraPosition.xyz;
+
+        #if FRACTAL_KIND == 0
+            float markerDistance = Probe.x < 0.5 ? MarkerDistance(rayOrigin, rayDirection) : -1.0;
+        #endif
 
             float pixelRadius = 2.0 * March.y / max(Resolution.y * CameraPosition.w, 1.0);
             int maxSteps = (int)March.x;
@@ -549,11 +579,21 @@ internal static class Fractal3DShader
             float3 closestPoint = rayOrigin + rayDirection * closest;
             float distanceSquared = dot(closestPoint, closestPoint);
             if (distanceSquared > bound * bound)
+            {
+            #if FRACTAL_KIND == 0
+                if (markerDistance > 0.0) return ShadeMarker(rayOrigin, rayDirection, markerDistance);
+            #endif
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
+            }
 
             float halfChord = sqrt(max(bound * bound - distanceSquared, 0.0));
             if (closest + halfChord < 0.0)
+            {
+            #if FRACTAL_KIND == 0
+                if (markerDistance > 0.0) return ShadeMarker(rayOrigin, rayDirection, markerDistance);
+            #endif
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
+            }
             entryDistance = max(0.0, closest - halfChord);
             // Туман и окраска по глубине меряются от камеры, пока она не дальше трёх радиусов
             // сферы: это привычный вид. Дальше точка отсчёта едет вслед за камерой, и отъезд
@@ -635,6 +675,11 @@ internal static class Fractal3DShader
             }
 
             if (Probe.x > 0.5) return PackFloat(hit ? travelled : -1.0);
+
+        #if FRACTAL_KIND == 0
+            if (markerDistance > 0.0 && (!hit || markerDistance < travelled))
+                return ShadeMarker(rayOrigin, rayDirection, markerDistance);
+        #endif
 
             float3 sky = SkyAt(rayDirection);
             float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
