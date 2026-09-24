@@ -961,15 +961,15 @@ internal static partial class Program
     /// Фон кадра — вертикальный градиент, поэтому его строки почти однотонны по горизонтали.
     /// Считаем, что фрактал попал в кадр, если заметная часть строк меняется вдоль себя.
     /// </summary>
-    private static bool HasFractal3DStructure(byte[] pixels)
+    private static bool HasFractal3DStructure(byte[] pixels, int width = Fractal3DProbeWidth, int height = Fractal3DProbeHeight)
     {
-        int stride = Fractal3DProbeWidth * 4;
+        int stride = width * 4;
         int varyingRows = 0;
-        for (int row = 0; row < Fractal3DProbeHeight; row++)
+        for (int row = 0; row < height; row++)
         {
             int minimum = 255;
             int maximum = 0;
-            for (int column = 0; column < Fractal3DProbeWidth; column++)
+            for (int column = 0; column < width; column++)
             {
                 int value = pixels[row * stride + column * 4 + 2];
                 minimum = Math.Min(minimum, value);
@@ -977,6 +977,6 @@ internal static partial class Program
             }
             if (maximum - minimum > 12) varyingRows++;
         }
-        return varyingRows >= Fractal3DProbeHeight / 4;
+        return varyingRows >= height / 4;
     }
 }

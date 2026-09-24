@@ -141,6 +141,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             constants.Probe = new Vector4(1, 0, 0, 0);
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
+            if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
             if (state.Kind == Fractal3DKind.Ifs3D) EnsureIfsVolume(state, token);
 
             context.OMSetRenderTargets(_probeView!);
@@ -206,6 +207,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 int offsetY = index * stripRows;
                 RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token);
             }
+            catch (OperationCanceledException) when (state.Kind == Fractal3DKind.Terrain && token.IsCancellationRequested)
+            {
+                return false;
+            }
             finally
             {
                 _gate.Release();
@@ -221,6 +226,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// </summary>
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
+        if (state.Kind == Fractal3DKind.Terrain)
+            return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.Ifs3D)
             return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
         double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0);
@@ -238,6 +245,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         ID3D11DeviceContext context = _context!;
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
+        if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
         if (state.Kind == Fractal3DKind.Ifs3D) EnsureIfsVolume(state, token);
 
         context.OMSetRenderTargets(_renderTargetView!);
@@ -332,6 +340,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.Terrain => ((float)state.Terrain.Size, (float)state.Terrain.Height, state.Terrain.Resolution),
             Fractal3DKind.Mandelbox => (
                 (float)state.BoxScale,
                 (float)(state.BoxMinRadius * state.BoxMinRadius),
@@ -592,6 +601,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         _probeStaging?.Dispose();
         _constantBuffer?.Dispose();
         DisposeIfsResources();
+        DisposeTerrainResources();
         _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();

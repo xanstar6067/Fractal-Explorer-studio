@@ -455,7 +455,8 @@ internal static class Program
 
             if (Fractal3DCatalog.TryParseLaunchKey(key, out Fractal3DKind fractal3DKind))
             {
-                // Кадр считает GPU. Менеджер палитр общий для всех шести видов, поэтому снимается
+                // Включая Terrain (fractal3d-terrain): параметры и экспорт встроены в окно.
+                // Кадр считает GPU. Общий менеджер палитр снимается
                 // один раз — на Мандельбульбе; предпросмотр фрактала в нём отключён (null), чтобы
                 // снимок не зависел от того, успела ли видеокарта посчитать кадр.
                 Window? w = await CaptureAsync(() => new Fractal3DWindow(fractal3DKind),

@@ -12,7 +12,8 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 internal static class Fractal3DShader
 {
     public static string Build(Fractal3DKind kind) =>
-        $"#define FRACTAL_KIND {(int)kind}\n" + Source;
+        $"#define FRACTAL_KIND {(int)kind}\n" + (kind == Fractal3DKind.Terrain
+            ? Source.Replace("float BoxDistance", TerrainShader.Source + "\nfloat BoxDistance") : Source);
 
     private const string Source = """
         struct PSInput
@@ -110,7 +111,13 @@ internal static class Fractal3DShader
             float trapAxis = 1e20;
             float trapIndex = 0.0;
 
-        #if FRACTAL_KIND == 2
+        #if FRACTAL_KIND == 10
+            float2 slope;
+            float height = TerrainHeight(p.xz, slope);
+            trap = 0;
+            float edge = max(abs(p.x), abs(p.z)) - ShapeA.x * 0.5;
+            return max(edge, (p.y - height) / sqrt(1.0 + dot(slope, slope)));
+        #elif FRACTAL_KIND == 2
 
             float scale = ShapeA.x;
             float minRadius2 = ShapeA.y;
@@ -369,6 +376,21 @@ internal static class Fractal3DShader
 
         float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDistance, float sharpness)
         {
+        #if FRACTAL_KIND == 10
+            float distance;
+            int steps;
+            float3 axis = normalize(cross(direction, abs(direction.y) < 0.9 ? float3(0,1,0) : float3(1,0,0)));
+            float3 other = cross(direction, axis);
+            float visibility = 0.0;
+            [unroll]
+            for (int sampleIndex = 0; sampleIndex < 4; sampleIndex++)
+            {
+                float angle = sampleIndex * 1.5707963;
+                float3 ray = normalize(direction + (cos(angle) * axis + sin(angle) * other) / (sharpness * 4.0));
+                visibility += TraceTerrain(origin + ray * minDistance, ray, maxDistance, distance, steps) ? 0.0 : 0.25;
+            }
+            return visibility;
+        #else
             float result = 1.0;
             float travelled = minDistance;
             float4 trap;
@@ -381,6 +403,7 @@ internal static class Fractal3DShader
                 if (result < 0.004 || travelled > maxDistance) break;
             }
             return saturate(result);
+        #endif
         }
 
         float Occlusion(float3 p, float3 normal)
@@ -474,7 +497,11 @@ internal static class Fractal3DShader
             else if (mode == 4) value = trap.y * 3.0;
             else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
             else if (mode == 6) value = log(1.0 + trap.w) * 0.5;
+        #if FRACTAL_KIND == 10
+            else if (mode == 7) value = surfacePoint.y / max(ShapeA.y, 1e-6);
+        #else
             else if (mode == 7) value = surfacePoint.y;
+        #endif
             else if (mode == 8) value = 1.0 - occlusion;
             else if (mode == 9) value = 1.0 - saturate(dot(normal, -rayDirection));
             else value = stepsRatio;
@@ -560,6 +587,8 @@ internal static class Fractal3DShader
                 max(abs(1.0 - ShapeA.x), 0.05));
         #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
+        #elif FRACTAL_KIND == 10
+            float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
         #elif FRACTAL_KIND == 6
             float radius = 1.112373;
         #else
@@ -627,6 +656,11 @@ internal static class Fractal3DShader
             float4 bestTrap = 0.0;
             bool exhausted = true;
 
+        #if FRACTAL_KIND == 10
+            hit = TraceTerrain(rayOrigin, rayDirection, maxDistance, travelled, usedSteps);
+            exhausted = false;
+            epsilon = max(pixelRadius * travelled * 0.1, 1e-6);
+        #else
             [loop]
             for (int i = 0; i < maxSteps; i++)
             {
@@ -664,6 +698,8 @@ internal static class Fractal3DShader
                 }
             }
 
+        #endif
+
             // Касательный луч и луч в узкой щели тратят все шаги у самой поверхности.
             // Фон на их месте выглядел бы чёрной дырой, поэтому, если луч подходил к поверхности
             // ближе нескольких пикселей, считаем попаданием ближайшую точку (Enhanced Sphere Tracing).
@@ -682,7 +718,11 @@ internal static class Fractal3DShader
         #endif
 
             float3 sky = SkyAt(rayDirection);
+        #if FRACTAL_KIND == 10
+            float stepsRatio = saturate((float)usedSteps / max(2.0 * (ShapeA.z - 1.0), 1.0));
+        #else
             float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
+        #endif
             // Туман, глубина и накопленная близость нормируются на заданную дальность, а не на
             // рабочий предел луча: тот растёт при отъезде камеры, и фигура меняла бы цвет от
             // одного лишь расстояния до неё.
@@ -706,7 +746,14 @@ internal static class Fractal3DShader
             if (!hit) return float4(LinearToSrgb(sky + glowTint * glow), 1.0);
 
             float3 surfacePoint = rayOrigin + rayDirection * travelled;
+        #if FRACTAL_KIND == 10
+            float2 terrainSlope;
+            TerrainHeight(surfacePoint.xz, terrainSlope);
+            float3 normal = normalize(float3(-terrainSlope.x, 1.0, -terrainSlope.y));
+            if (dot(normal, rayDirection) > 0) normal = -normal;
+        #else
             float3 normal = EstimateNormal(surfacePoint, max(epsilon, 1e-6));
+        #endif
             float3 lightDirection = Light.xyz;
             float3 lightTint = LightColor.rgb;
 

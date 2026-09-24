@@ -136,6 +136,7 @@ public partial class Fractal3DWindow : Window
             Kind == Fractal3DKind.ApollonianPacking ? ApollonianSpherePacking.MaxGeneration :
             Kind == Fractal3DKind.Ifs3D ? 10_000_000 : 64),
         IfsTransforms = CaptureIfsTransforms(),
+        Terrain = CaptureTerrain(),
         Power = ReadDouble(PowerBox, "Степень", -32, 32),
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
@@ -256,6 +257,7 @@ public partial class Fractal3DWindow : Window
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
         CubeThicknessBox.Text = Format(state.CubeThickness);
         LoadIfsTransforms(state.IfsTransforms);
+        LoadTerrain(state.Terrain);
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -309,7 +311,7 @@ public partial class Fractal3DWindow : Window
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.IterationIndex]).Content = "По масштабу сферы";
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.Escape]).Content = "По радиусу сферы";
         }
-        if (Kind == Fractal3DKind.Ifs3D)
+        if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Terrain)
         {
             // These four sources require orbit/escape metadata that a density volume does not contain.
             foreach (Fractal3DColoringMode mode in new[]
@@ -321,6 +323,11 @@ public partial class Fractal3DWindow : Window
             })
                 ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
         }
+        TerrainPanel.Visibility = Collapse(Kind == Fractal3DKind.Terrain);
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind != Fractal3DKind.Terrain);
+        if (Kind == Fractal3DKind.Terrain)
+            foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
+                ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
@@ -329,13 +336,13 @@ public partial class Fractal3DWindow : Window
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
-        RayQualityGrid.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
+        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain));
         MaxDistanceLabel.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
         MaxDistanceBox.Visibility = Collapse(Kind != Fractal3DKind.Ifs3D);
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D));
+            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;

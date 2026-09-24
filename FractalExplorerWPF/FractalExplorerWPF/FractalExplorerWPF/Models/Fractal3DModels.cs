@@ -16,7 +16,8 @@ public enum Fractal3DKind
     ApollonianPacking,
     Ifs3D,
     Vicsek,
-    CantorDust
+    CantorDust,
+    Terrain
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -239,6 +240,8 @@ public sealed class Fractal3DState
     public double CubeThickness { get; set; } = 1;
     public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
 
+    public TerrainSettings Terrain { get; set; } = new();
+
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
     public double CameraPitch { get; set; } = 18;
@@ -446,6 +449,10 @@ public static class Fractal3DCatalog
             "Аполлонова упаковка сфер", "Аполлонова упаковка сфер",
             "Рекурсивная упаковка взаимно касающихся сфер внутри внешней сферы. Число поколений задаёт глубину заполнения промежутков.",
             "Fractal3DApollonian", "apollonian-spheres"),
+        Fractal3DKind.Terrain => new(
+            "Фрактальные ландшафты", "Фрактальные ландшафты",
+            "Горы, хребты и поверхности: fBm, гребневый и гибридный шум. Шероховатость, масштабы деталей и экспорт 16-битной карты высот.",
+            "Fractal3DTerrain", "terrain"),
         Fractal3DKind.Ifs3D => new(
             "Конструктор объёмных IFS", "Конструктор объёмных IFS",
             "Редактируемые аффинные преобразования порождают трёхмерный аттрактор. Кадр строится на Direct3D 11; камера и навигация общие с другими трёхмерными фракталами.",
@@ -594,6 +601,23 @@ public static class Fractal3DCatalog
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 state.Palette = Fractal3DPalettes.Get("Медь и патина");
                 break;
+            case Fractal3DKind.Terrain:
+                state.CameraDistance = 9;
+                state.CameraPitch = 35;
+                state.TargetY = 0.6;
+                state.MaxDistance = 30;
+                state.ColoringMode = Fractal3DColoringMode.Height;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.Specular = 0.08;
+                state.Palette = new Fractal3DPalette
+                {
+                    Name = "Горный рельеф",
+                    Colors = [Color.FromRgb(30, 65, 47), Color.FromRgb(88, 116, 62),
+                        Color.FromRgb(142, 125, 87), Color.FromRgb(161, 156, 148), Color.FromRgb(246, 246, 239)]
+                };
+                state.BackgroundTop = Color.FromRgb(85, 130, 177);
+                state.BackgroundBottom = Color.FromRgb(187, 208, 218);
+                break;
             case Fractal3DKind.Ifs3D:
                 ApplyIfsPreset(state, Ifs3DPresets.All[0]);
                 break;
@@ -616,6 +640,16 @@ public static class Fractal3DCatalog
             state.SaveName = preset.Name;
             return state;
         }).ToList(),
+        Fractal3DKind.Terrain =>
+        [
+            Preset(kind, "Горные хребты", _ => { }),
+            Preset(kind, "Мягкие холмы — fBm", s => s.Terrain = s.Terrain with
+                { Type = TerrainKind.Fbm, Roughness = 0.35, Height = 2 }),
+            Preset(kind, "Альпийские вершины", s => s.Terrain = s.Terrain with
+                { Seed = 137, Height = 3, Roughness = 0.65, Scale = 4 }),
+            Preset(kind, "Гибридный рельеф", s => s.Terrain = s.Terrain with
+                { Type = TerrainKind.Hybrid, Seed = 91, Roughness = 0.65, Height = 3 })
+        ],
         Fractal3DKind.Mandelbulb =>
         [
             Preset(kind, "Степень 8 — классический вид", _ => { }),

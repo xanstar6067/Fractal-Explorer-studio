@@ -281,6 +281,15 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Terrain)
+        {
+            TerrainSettings terrain = state.Terrain;
+            string type = terrain.Type switch { TerrainKind.Fbm => "Холмы", TerrainKind.Hybrid => "Гибридный рельеф", _ => "Хребты" };
+            return $"{Prefix(state.Timestamp)} · {type} · Начальное число: {terrain.Seed}\n" +
+                   $"Шероховатость: {terrain.Roughness:G4} · Уровни: {terrain.Octaves} · Отношение масштабов: {terrain.Lacunarity:G4}\n" +
+                   $"Масштаб деталей: {terrain.Scale:G4} · Участок: {terrain.Size:G4} × {terrain.Size:G4} · Высота: {terrain.Height:G4}\n" +
+                   $"Карта высот: {terrain.Resolution} × {terrain.Resolution} · Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode)}";
+        }
         if (state.Kind == Fractal3DKind.Ifs3D)
             return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · " +
                    $"{state.IfsTransforms.Count} преобразований\n" +

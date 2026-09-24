@@ -119,6 +119,37 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="TerrainPanel" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Тип поверхности"/>
+                                <ComboBox x:Name="TerrainTypeBox" SelectionChanged="Terrain_OnChanged">
+                                    <ComboBoxItem Content="Холмы — fBm"/>
+                                    <ComboBoxItem Content="Горные хребты"/>
+                                    <ComboBoxItem Content="Гибридный рельеф"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное число (0–2 147 483 647)"/>
+                                <TextBox x:Name="TerrainSeedBox" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" ToolTip="Одно и то же число воспроизводит тот же ландшафт" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровни деталей (1–12)"/>
+                                <TextBox x:Name="TerrainOctavesBox" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" ToolTip="Слишком мелкие для выбранной сетки уровни отсекаются" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шероховатость (0,05–0,95)"/>
+                                <TextBox x:Name="TerrainRoughnessBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Амплитуда следующего уровня: больше — грубее" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Отношение масштабов (1,5–3)"/>
+                                <TextBox x:Name="TerrainLacunarityBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Рост частоты между соседними уровнями" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб деталей (0,25–16)"/>
+                                <TextBox x:Name="TerrainScaleBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Число базовых волн на участке: больше — мельче" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Высота (0,05–8)"/>
+                                <TextBox x:Name="TerrainHeightBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Белый цвет карты высот соответствует этой высоте" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Размер участка (1–20)"/>
+                                <TextBox x:Name="TerrainSizeBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Ширина и длина участка в единицах мира" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка / размер карты высот"/>
+                                <ComboBox x:Name="TerrainResolutionBox" SelectionChanged="Terrain_OnChanged">
+                                    <ComboBoxItem Content="257 × 257"/><ComboBoxItem Content="513 × 513"/>
+                                    <ComboBoxItem Content="1025 × 1025"/><ComboBoxItem Content="2049 × 2049"/>
+                                </ComboBox>
+                                <Button Content="Новый ландшафт" Click="TerrainRandom_OnClick" Margin="0,6,0,0"/>
+                                <Button x:Name="TerrainExportButton" Content="Экспорт карты высот…" Click="TerrainExport_OnClick" Margin="0,6,0,0"/>
+                                <TextBlock Text="PNG 16 бит: чёрный = 0, белый = высота. X слева направо, Z сверху вниз; весь участок без света и перспективы." TextWrapping="Wrap" Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
+
                             <StackPanel x:Name="IfsPanel" Visibility="Collapsed">
                                 <Button Content="Трансформации" Click="IfsTransforms_OnClick"/>
                                 <TextBlock Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
