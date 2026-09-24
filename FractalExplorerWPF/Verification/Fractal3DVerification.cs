@@ -635,6 +635,43 @@ internal static partial class Program
     /// Зонд поверхности: от него зависят перелёт по двойному щелчку и шаг движения колесом и
     /// клавишами, поэтому проверяются и геометрия луча, и масштаб ответа.
     /// </summary>
+    private static async Task VerifyPickerWindowFrameAsync()
+    {
+        Fractal3DState source = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Juliabulb);
+        var window = new FractalExplorerWPF.Views.Fractal3DConstantPickerWindow(source)
+        {
+            Left = -10000,
+            Top = -10000,
+            ShowInTaskbar = false,
+            ShowActivated = false
+        };
+        try
+        {
+            window.Show();
+            var image = (System.Windows.Controls.Image)window.FindName("PreviewImage");
+            for (int attempt = 0; attempt < 40 && image.Source is null; attempt++)
+                await Task.Delay(200);
+            var status = (System.Windows.Controls.TextBlock)window.FindName("StatusText");
+            Check(image.Source is BitmapSource,
+                $"The picker must render its first frame without an existing Image.Source ({status.Text}).");
+            var bitmap = (BitmapSource)image.Source!;
+            int stride = bitmap.PixelWidth * 4;
+            byte[] pixels = new byte[stride * bitmap.PixelHeight];
+            bitmap.CopyPixels(pixels, stride, 0);
+            int nonBlack = 0;
+            int samples = 0;
+            for (int y = 0; y < bitmap.PixelHeight; y += 16)
+            for (int x = 0; x < bitmap.PixelWidth; x += 16)
+            {
+                int offset = y * stride + x * 4;
+                if (pixels[offset] + pixels[offset + 1] + pixels[offset + 2] > 20) nonBlack++;
+                samples++;
+            }
+            Check(nonBlack > samples / 10, "The first picker frame must contain the Mandelbulb and its background.");
+        }
+        finally { window.Close(); }
+    }
+
     private static async Task VerifyFractal3DPickerMarkerAsync(Fractal3DRenderer renderer)
     {
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);

@@ -64,8 +64,9 @@ public partial class Fractal3DConstantPickerWindow : Window
     private async void RenderTimer_OnTick(object? sender, EventArgs e)
     {
         _renderTimer.Stop();
-        int width = Math.Max(1, (int)Math.Round(PreviewImage.ActualWidth));
-        int height = Math.Max(1, (int)Math.Round(PreviewImage.ActualHeight));
+        // Пустой Image до первого кадра ещё не имеет размера; контейнер карты уже разложен.
+        int width = Math.Max(1, (int)Math.Round(MapHost.ActualWidth - 2));
+        int height = Math.Max(1, (int)Math.Round(MapHost.ActualHeight - 2));
         if (width < 2 || height < 2) return;
         double scale = _dragging ? 0.55 : 1;
         int renderWidth = Math.Max(1, (int)Math.Round(width * scale));

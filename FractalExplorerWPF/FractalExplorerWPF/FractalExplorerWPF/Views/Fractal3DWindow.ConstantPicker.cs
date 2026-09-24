@@ -36,8 +36,10 @@ public partial class Fractal3DWindow
             !TryReadDouble(BailoutBox.Text, out double bailout) || !double.IsFinite(bailout) || bailout <= 1)
             return;
 
-        int width = Math.Max(1, (int)Math.Round(JuliabulbMapImage.ActualWidth));
-        int height = Math.Max(1, (int)Math.Round(JuliabulbMapImage.ActualHeight));
+        // До первого кадра Image с пустым Source имеет ActualWidth/ActualHeight == 0.
+        // Размер берём у уже разложенного контейнера, иначе первый рендер никогда не стартует.
+        int width = Math.Max(1, (int)Math.Round(JuliabulbMapHost.ActualWidth - 2));
+        int height = Math.Max(1, (int)Math.Round(JuliabulbMapHost.ActualHeight - 2));
         if (width < 2 || height < 2) return;
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
         state.Power = power;
