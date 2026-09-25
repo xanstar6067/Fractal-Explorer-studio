@@ -320,17 +320,20 @@ public sealed partial class Fractal3DRenderer : IDisposable
         _context!.PSSetConstantBuffer(1, _apollonianTreeBuffer);
     }
 
+    // Лениво, чтобы не зависеть от порядка инициализации статических полей каталога.
+    private static readonly Lazy<Dictionary<Fractal3DKind, Vector3>> HomeCameraPositions = new(() =>
+        Enum.GetValues<Fractal3DKind>().ToDictionary(
+            kind => kind, kind => Fractal3DCamera.Position(Fractal3DCatalog.CreateDefaultState(kind))));
+
     /// <summary>
-    /// Во сколько раз сжать шкалу тумана и окраски по глубине. Фрактал самоподобен, а колесо
-    /// приближает в одно и то же число раз, поэтому при подъезде ближе стартового расстояния
-    /// шкала уменьшается вместе с видом и цвет не сползает к началу палитры. В стартовом виде
-    /// и дальше множитель равен единице — там всё как раньше.
+    /// Положение камеры в стартовом виде. Шейдер сравнивает расстояние от него до поверхности
+    /// с расстоянием от текущей камеры и во столько же раз сжимает шкалу тумана, окраски по
+    /// глубине и затенения складок: фрактал самоподобен, и при подъезде вид должен выглядеть
+    /// как стартовый в уменьшенном масштабе. Точка наблюдения для этого не годится — колесо
+    /// переносит её на поверхность под курсором, и туман скакал вслед за курсором.
     /// </summary>
-    internal static double DepthScale(Fractal3DState state)
-    {
-        double home = Fractal3DCatalog.HomeCameraDistance(state.Kind);
-        return Math.Clamp(state.CameraDistance / home, 1e-6, 1.0);
-    }
+    internal static Vector3 HomeCameraPosition(Fractal3DKind kind) =>
+        HomeCameraPositions.Value.TryGetValue(kind, out Vector3 position) ? position : new Vector3(0, 0, 3);
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
@@ -393,13 +396,14 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (int)state.ShadingStyle,
                 (float)Math.Clamp(state.EffectStrength, 0, 8),
                 (float)Math.Clamp(state.SkyLightMix, 0, 1),
-                (float)DepthScale(state)),
+                0),
             LightColor = ToLinear(state.LightColor),
             PaletteInfo = new Vector4(
                 Math.Clamp(palette.Colors.Count, 1, Fractal3DPalette.MaxColors),
                 (int)state.ColorRepeat,
                 palette.IsGradient ? 0 : 1,
-                (float)Math.Clamp(palette.Gamma, 0.05, 8))
+                (float)Math.Clamp(palette.Gamma, 0.05, 8)),
+            HomeCamera = new Vector4(HomeCameraPosition(state.Kind), 0)
         };
     }
 
@@ -624,7 +628,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private struct FrameConstants
     {
         /// <summary>Размер самой структуры; следом за ней в буфер дописывается палитра.</summary>
-        public const int SizeInBytes = 19 * 16;
+        public const int SizeInBytes = 20 * 16;
 
         /// <summary>Полный размер буфера констант: структура плюс опорные цвета палитры.</summary>
         public const int BufferSizeInBytes = SizeInBytes + Fractal3DPalette.MaxColors * 16;
@@ -648,5 +652,6 @@ public sealed partial class Fractal3DRenderer : IDisposable
         public Vector4 Style;
         public Vector4 LightColor;
         public Vector4 PaletteInfo;
+        public Vector4 HomeCamera;
     }
 }

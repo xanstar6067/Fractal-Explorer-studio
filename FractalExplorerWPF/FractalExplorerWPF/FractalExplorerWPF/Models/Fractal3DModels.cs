@@ -421,17 +421,6 @@ public static class Fractal3DCatalog
                Enum.TryParse(launchKey[LaunchPrefix.Length..], out kind);
     }
 
-    // Лениво, чтобы не зависеть от порядка инициализации статических полей.
-    private static readonly Lazy<Dictionary<Fractal3DKind, double>> HomeDistances = new(() =>
-        Enum.GetValues<Fractal3DKind>().ToDictionary(kind => kind, kind => CreateDefaultState(kind).CameraDistance));
-
-    /// <summary>
-    /// Расстояние камеры в стартовом виде. От него отсчитывается масштаб тумана и окраски
-    /// по глубине: ближе этого расстояния их шкала сжимается вместе с видом.
-    /// </summary>
-    public static double HomeCameraDistance(Fractal3DKind kind) =>
-        HomeDistances.Value.TryGetValue(kind, out double distance) ? distance : 3.0;
-
     public static bool UsesPower(Fractal3DKind kind) =>
         kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb or
             Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia or Fractal3DKind.BulbBoxHybrid;

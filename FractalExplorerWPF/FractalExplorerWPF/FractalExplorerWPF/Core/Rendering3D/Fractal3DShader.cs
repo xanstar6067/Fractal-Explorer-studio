@@ -40,9 +40,10 @@ internal static class Fractal3DShader
             float4 Flags;             // x — режим окраски, y — жёсткость теней (0 — выкл), z — затенение, w — фоновый свет
             float4 Probe;             // x — 0: обычный кадр, 1: расстояние до поверхности вдоль луча
             float4 PickerMarker;      // xyz — C, w — радиус зелёной минисферы редактора
-            float4 Style;             // x — шейдер освещения, y — сила эффекта, z — влияние неба, w — масштаб глубины
+            float4 Style;             // x — шейдер освещения, y — сила эффекта, z — влияние неба
             float4 LightColor;        // rgb — цвет источника света
             float4 PaletteInfo;       // x — число цветов, y — повтор, z — полосы, w — гамма
+            float4 HomeCamera;        // xyz — положение камеры в стартовом виде
             float4 Palette[16];       // rgb — опорные цвета градиента
         };
 
@@ -97,6 +98,12 @@ internal static class Fractal3DShader
         // Нижняя граница запаса у полюсов бульбов. Произведение множителей по всем итерациям
         // быстро становится крошечным, и тогда луч тратит все шаги, не дойдя до поверхности.
         #define BULB_STEP_FLOOR 0.125
+        // Шаг гибрида. Произведение поправок бульба по итерациям у него почти всегда упиралось
+        // в нижнюю границу 0.15, и внутри фигуры лучи тратили весь лимит, не дойдя до стенок:
+        // вместо них в кадре мигали дыры. Сверка с трассировкой шагом 0.05 без лимита шагов
+        // (изнутри, снаружи и у полюса) показала, что 0.5 уже сходится до шума субпиксельных
+        // деталей, а полный шаг начинает проскакивать поверхность — 0.5 оставляет двойной запас.
+        #define HYBRID_STEP 0.5
 
         // Дистанционная оценка до поверхности фрактала. trap — данные орбиты, из которых берётся
         // цвет: x — минимальный радиус, y — минимум по осям, z — номер последней итерации
@@ -186,10 +193,6 @@ internal static class Fractal3DShader
                 float invR = 1.0 / max(r, 1e-12);
                 float theta = acos(clamp(z.z * invR, -1.0, 1.0));
                 float phi = atan2(z.y, z.x);
-                float sinTheta = abs(sin(theta));
-                float stretch = sinTheta > 1e-4
-                    ? abs(sin(theta * power)) / sinTheta : power;
-                StepScale /= max(lerp(1.0, stretch, bulbWeight), 1.0);
                 float bulbGain = power * pow(max(r, 1e-12), power - 1.0);
                 float zr = pow(r, power);
                 theta *= power;
@@ -209,7 +212,7 @@ internal static class Fractal3DShader
             }
             float finalRadius = length(z);
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, finalRadius);
-            StepScale = max(StepScale * BOX_STEP, 0.15);
+            StepScale = HYBRID_STEP;
             return min(0.5 * log(max(finalRadius, 1.000001)), 1.0) *
                 finalRadius / max(dr, 1e-9);
 
@@ -526,7 +529,10 @@ internal static class Fractal3DShader
         #endif
         }
 
-        float Occlusion(float3 p, float3 normal)
+        // unit — масштаб сцены вокруг точки: в стартовом виде 1, при приближении меньше. Иначе
+        // смещения в мировых единицах накрывали бы сразу много мелких деталей, и затенение
+        // расплывалось пятнами, не повторяя рельеф.
+        float Occlusion(float3 p, float3 normal, float unit)
         {
             float occluded = 0.0;
             float weight = 1.0;
@@ -534,8 +540,8 @@ internal static class Fractal3DShader
             [unroll]
             for (int i = 0; i < 5; i++)
             {
-                float offset = 0.01 + 0.12 * float(i) / 4.0;
-                occluded += (offset - Map(p + normal * offset, trap)) * weight;
+                float offset = (0.01 + 0.12 * float(i) / 4.0) * unit;
+                occluded += (offset - Map(p + normal * offset, trap)) / unit * weight;
                 weight *= 0.75;
             }
             return saturate(1.0 - 3.0 * occluded);
@@ -592,20 +598,41 @@ internal static class Fractal3DShader
             return lerp(BackgroundBottom.rgb, BackgroundTop.rgb, saturate(direction.y * 0.5 + 0.5));
         }
 
-        // Шкала тумана и окраски по глубине: заданная дальность, сжатая, когда камера ближе
-        // стартового расстояния. Иначе при приближении к самоподобной фигуре весь кадр
-        // съезжал бы к началу палитры, а туман пропадал.
-        float DepthSpan()
+        // Во сколько раз местный масштаб сцены меньше стартового: расстояние от камеры до
+        // ближайшей поверхности против того же расстояния из стартового вида. Оно меняется
+        // плавно вместе с камерой и не зависит от того, над какой точкой курсор был при
+        // последнем щелчке колеса (раньше шкала шла от глубины точки наблюдения и то
+        // схлопывала туман до стенки перед камерой, то снова раскрывала). Сжатие начинается,
+        // когда камера вдвое ближе к поверхности, чем в стартовом виде: при облёте на прежнем
+        // расстоянии выступы фигуры не нагоняют туман.
+        float ViewScale()
         {
-            float scale = Style.w > 0.0 ? Style.w : 1.0;
-            return max(March.z * scale, 1e-6);
+        #if FRACTAL_KIND == 10
+            // Ландшафт не самоподобен, а высота над рельефом скачет при каждом облёте холма:
+            // туман у него всегда на заданной дальности.
+            return 1.0;
+        #endif
+            float4 trap;
+            float home = Map(HomeCamera.xyz, trap);
+            float here = Map(CameraPosition.xyz, trap);
+            return clamp(2.0 * max(here, 0.0) / max(home, 1e-9), 1e-6, 1.0);
+        }
+
+        // Шкала тумана и окраски по глубине: заданная дальность, сжатая при приближении.
+        // Иначе у самоподобной фигуры весь кадр съезжал бы к началу палитры, а туман пропадал.
+        // Сжимается она медленнее вида, как корень из масштаба: внутри полости ближайшая стенка
+        // гораздо ближе того, что видно вглубь, и пропорциональное сжатие топило в тумане всё,
+        // кроме неё.
+        float DepthSpan(float viewScale)
+        {
+            return max(March.z * sqrt(viewScale), 1e-6);
         }
 
         // Цвет поверхности до освещения. Каждый источник приводится к величине порядка единицы,
         // чтобы масштаб и сдвиг окраски означали примерно одно и то же во всех режимах.
         float3 SurfaceAlbedo(
             float3 normal, float4 trap, float travelled, float3 surfacePoint,
-            float3 rayDirection, float occlusion, float stepsRatio)
+            float3 rayDirection, float occlusion, float stepsRatio, float depthSpan)
         {
             int mode = (int)Flags.x;
             if (mode == 0) return Surface.rgb;
@@ -613,7 +640,7 @@ internal static class Fractal3DShader
 
             float value;
             if (mode == 2) value = trap.x;
-            else if (mode == 3) value = travelled / DepthSpan() * 6.0;
+            else if (mode == 3) value = travelled / depthSpan * 6.0;
             else if (mode == 4) value = trap.y * 3.0;
             else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
             else if (mode == 6) value = log(1.0 + trap.w) * 0.5;
@@ -688,9 +715,6 @@ internal static class Fractal3DShader
 
             float pixelRadius = 2.0 * March.y / max(Resolution.y * CameraPosition.w, 1.0);
             int maxSteps = (int)March.x;
-        #if FRACTAL_KIND == 13
-            maxSteps = max(maxSteps, 360);
-        #endif
             float maxDistance = March.z;
             float entryDistance = 0.0;
             float shadeOrigin = 0.0;
@@ -709,10 +733,11 @@ internal static class Fractal3DShader
                 (2.0 * abs(ShapeA.x) * foldReach + sqrt(ShapeA.w)) /
                 max(abs(1.0 - ShapeA.x), 0.05));
         #elif FRACTAL_KIND == 13
+            // Как у Мандельбокса, только радиус вылета гибрид сравнивает с самим |z|, а не с |z|².
             float foldReach = 1.7320508 * ShapeA.z;
             float radius = max(6.0,
-                (2.0 * abs(ShapeB.x) * foldReach + sqrt(ShapeA.w)) /
-                max(abs(1.0 - ShapeB.x), 0.25));
+                (2.0 * abs(ShapeB.x) * foldReach + ShapeA.w) /
+                max(abs(1.0 - ShapeB.x), 0.05));
         #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
         #elif FRACTAL_KIND == 11
@@ -907,14 +932,22 @@ internal static class Fractal3DShader
                     max(epsilon * 8.0, 1e-5), maxDistance * 0.5, Flags.y);
             }
 
+            float viewScale = ViewScale();
+            float depthSpan = DepthSpan(viewScale);
             float occlusion = 1.0;
-            if (Flags.z > 0.5) occlusion = lerp(1.0, Occlusion(surfacePoint, normal), saturate(Surface.a));
+            if (Flags.z > 0.5)
+            {
+                // Далёкая от камеры точка крупнее пикселя не мельчит: там смещения ограничены
+                // снизу размером пикселя, а сверху — прежним стартовым масштабом.
+                float occlusionUnit = min(max(viewScale, epsilon * 20.0), 1.0);
+                occlusion = lerp(1.0, Occlusion(surfacePoint, normal, occlusionUnit), saturate(Surface.a));
+            }
 
             // Фоновый свет либо остаётся нейтральным, либо забирает цвет неба над точкой.
             float3 ambientTint = lerp(float3(1.0, 1.0, 1.0), SkyAt(normal) * 3.0, saturate(Style.z));
             float3 ambient = Flags.w * ambientTint;
             float3 albedo = SurfaceAlbedo(
-                normal, trap, shadeDepth, surfacePoint, rayDirection, occlusion, stepsRatio);
+                normal, trap, shadeDepth, surfacePoint, rayDirection, occlusion, stepsRatio, depthSpan);
             float3 halfVector = normalize(lightDirection - rayDirection);
             float specular = Light.w * pow(saturate(dot(normal, halfVector)), 32.0) * shadow;
 
@@ -968,7 +1001,7 @@ internal static class Fractal3DShader
             }
 
             if (style == 3) color += glowTint * glow * 1.2;
-            color = lerp(color, sky, saturate(shadeDepth / DepthSpan()));
+            color = lerp(color, sky, saturate(shadeDepth / depthSpan));
             return float4(LinearToSrgb(color), 1.0);
         }
         """;
