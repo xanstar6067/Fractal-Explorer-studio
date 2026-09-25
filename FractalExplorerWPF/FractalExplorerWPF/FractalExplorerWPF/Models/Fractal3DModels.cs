@@ -590,7 +590,7 @@ public static class Fractal3DCatalog
                 state.Bailout = 32;
                 state.CameraDistance = 5.5;
                 state.MaxDistance = 60;
-                state.MaxSteps = 220;
+                state.MaxSteps = 360;
                 state.Palette = Fractal3DPalettes.Get("Медь и патина");
                 break;
             case Fractal3DKind.BurningShip:

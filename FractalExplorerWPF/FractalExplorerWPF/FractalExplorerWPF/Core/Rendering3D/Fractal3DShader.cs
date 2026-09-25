@@ -688,6 +688,9 @@ internal static class Fractal3DShader
 
             float pixelRadius = 2.0 * March.y / max(Resolution.y * CameraPosition.w, 1.0);
             int maxSteps = (int)March.x;
+        #if FRACTAL_KIND == 13
+            maxSteps = max(maxSteps, 360);
+        #endif
             float maxDistance = March.z;
             float entryDistance = 0.0;
             float shadeOrigin = 0.0;
@@ -838,7 +841,7 @@ internal static class Fractal3DShader
             // ближе нескольких пикселей, считаем попаданием ближайшую точку (Enhanced Sphere Tracing).
             float exhaustedHitRatio =
         #if FRACTAL_KIND == 13
-                6.0;
+                1.25;
         #else
                 16.0;
         #endif
