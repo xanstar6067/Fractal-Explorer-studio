@@ -18,7 +18,8 @@ using Point = System.Windows.Point;
 namespace FractalExplorerWPF.Views;
 
 /// <summary>
-/// Универсальное окно трёхмерных фракталов: Мандельбульб, Горящий корабль 3D и их Julia-варианты, Мандельбокс, губка Менгера,
+/// Универсальное окно трёхмерных фракталов: Мандельбульб, Горящий корабль 3D и их Julia-варианты,
+/// гибрид Мандельбульба и Мандельбокса, губка Менгера,
 /// тетраэдр Серпинского, кватернионное Жюлиа и аполлонова упаковка сфер. Вид задаётся при создании окна, разметка показывает
 /// только параметры выбранной формы. Кадр целиком считает GPU (<see cref="Fractal3DRenderer"/>),
 /// поэтому отдельного тайлового прогресса нет: прогресс идёт по горизонтальным полосам кадра.
@@ -139,7 +140,8 @@ public partial class Fractal3DWindow : Window
         Terrain = CaptureTerrain(),
         Power = Fractal3DCatalog.IsBurningShip(Kind)
             ? ReadInt(PowerBox, "Степень", 2, 16)
-            : ReadDouble(PowerBox, "Степень", -32, 32),
+            : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
+                Kind == Fractal3DKind.BulbBoxHybrid ? 12 : 32),
         BurningShipFormula = SelectedBurningShipFormula,
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
@@ -150,6 +152,10 @@ public partial class Fractal3DWindow : Window
         BoxScale = ReadDouble(BoxScaleBox, "Масштаб свёртки", -8, 8),
         BoxMinRadius = ReadDouble(BoxMinRadiusBox, "Минимальный радиус сферы", 0.01, 4),
         BoxFoldingLimit = ReadDouble(BoxFoldingBox, "Предел свёртки по кубу", 0.1, 8),
+        HybridMix = ReadDouble(HybridMixBox, "Доля второй операции", 0, 1),
+        HybridBulbSteps = ReadInt(HybridBulbStepsBox, "Итерации Мандельбульба подряд", 1, 6),
+        HybridBoxSteps = ReadInt(HybridBoxStepsBox, "Итерации Мандельбокса подряд", 1, 6),
+        HybridOrder = SelectedHybridOrder,
         SierpinskiScale = ReadDouble(SierpinskiScaleBox, "Масштаб складывания", 1.05, 8),
         CubeThickness = ReadDouble(CubeThicknessBox, "Толщина элементов", 0.5, 1.5),
 
@@ -258,6 +264,10 @@ public partial class Fractal3DWindow : Window
         BoxScaleBox.Text = Format(state.BoxScale);
         BoxMinRadiusBox.Text = Format(state.BoxMinRadius);
         BoxFoldingBox.Text = Format(state.BoxFoldingLimit);
+        HybridMixBox.Text = Format(state.HybridMix);
+        HybridBulbStepsBox.Text = state.HybridBulbSteps.ToString(CultureInfo.InvariantCulture);
+        HybridBoxStepsBox.Text = state.HybridBoxSteps.ToString(CultureInfo.InvariantCulture);
+        HybridOrderBox.SelectedIndex = (int)state.HybridOrder;
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
         CubeThicknessBox.Text = Format(state.CubeThickness);
         LoadIfsTransforms(state.IfsTransforms);
@@ -334,13 +344,15 @@ public partial class Fractal3DWindow : Window
                 ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
         BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
-        PowerLabel.Text = Fractal3DCatalog.IsBurningShip(Kind) ? "Степень n (целая, 2–16)" : "Степень n";
+        PowerLabel.Text = Fractal3DCatalog.IsBurningShip(Kind) ? "Степень n (целая, 2–16)" :
+            Kind == Fractal3DKind.BulbBoxHybrid ? "Степень Мандельбульба (2–12)" : "Степень n";
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
         JuliabulbPickerPanel.Visibility = Collapse(Kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia);
         if (Kind == Fractal3DKind.BurningShipJulia)
             JuliaPickerButton.Content = "Выбрать C на Горящем корабле 3D";
-        BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
+        BoxPanel.Visibility = Collapse(Kind is Fractal3DKind.Mandelbox or Fractal3DKind.BulbBoxHybrid);
+        HybridPanel.Visibility = Collapse(Kind == Fractal3DKind.BulbBoxHybrid);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
@@ -367,6 +379,9 @@ public partial class Fractal3DWindow : Window
     private BurningShip3DFormula SelectedBurningShipFormula =>
         (BurningShip3DFormula)Math.Clamp(BurningShipFormulaBox.SelectedIndex, 0,
             (int)BurningShip3DFormula.SphericalFullFold);
+
+    private Hybrid3DOrder SelectedHybridOrder =>
+        (Hybrid3DOrder)Math.Clamp(HybridOrderBox.SelectedIndex, 0, (int)Hybrid3DOrder.BoxFirst);
 
     private (double Yaw, double Pitch, double Roll) CameraAngles => Fractal3DCamera.Angles(_orientation);
 

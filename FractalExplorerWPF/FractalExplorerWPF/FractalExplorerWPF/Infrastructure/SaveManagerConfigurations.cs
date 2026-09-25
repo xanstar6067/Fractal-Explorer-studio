@@ -299,6 +299,10 @@ public static class SaveManagerConfigurations
         {
             Fractal3DKind.Mandelbox =>
                 $"Масштаб: {state.BoxScale:G6} · Мин. радиус: {state.BoxMinRadius:G6} · Свёртка: {state.BoxFoldingLimit:G6}",
+            Fractal3DKind.BulbBoxHybrid =>
+                $"Бульб n={state.Power:G4} × {state.HybridBulbSteps} · Бокс {state.BoxScale:G4} × {state.HybridBoxSteps} · " +
+                $"смесь {state.HybridMix:G3} · " +
+                (state.HybridOrder == Hybrid3DOrder.BulbFirst ? "сначала бульб" : "сначала бокс"),
             Fractal3DKind.SierpinskiTetrahedron => $"Масштаб складывания: {state.SierpinskiScale:G6}",
             Fractal3DKind.MengerSponge => "Рекурсивные тоннели куба",
             Fractal3DKind.Vicsek => $"Семь кубиков · Толщина: {state.CubeThickness:G4}",

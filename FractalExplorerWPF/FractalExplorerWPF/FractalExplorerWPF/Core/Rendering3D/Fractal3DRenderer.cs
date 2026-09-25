@@ -345,6 +345,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)state.BoxScale,
                 (float)(state.BoxMinRadius * state.BoxMinRadius),
                 (float)state.BoxFoldingLimit),
+            Fractal3DKind.BulbBoxHybrid => (
+                (float)state.Power,
+                (float)(state.BoxMinRadius * state.BoxMinRadius),
+                (float)state.BoxFoldingLimit),
             Fractal3DKind.SierpinskiTetrahedron => ((float)state.SierpinskiScale, 0f, 0f),
             Fractal3DKind.Vicsek or Fractal3DKind.CantorDust => ((float)state.CubeThickness, 0f, 0f),
             Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia =>
@@ -365,12 +369,15 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = new Vector4((float)state.JuliaCX, (float)state.JuliaCY, (float)state.JuliaCZ, (float)state.JuliaCW),
+            ShapeB = state.Kind == Fractal3DKind.BulbBoxHybrid
+                ? new Vector4((float)state.BoxScale, (float)Math.Clamp(state.HybridMix, 0, 1),
+                    Math.Clamp(state.HybridBulbSteps, 1, 6), Math.Clamp(state.HybridBoxSteps, 1, 6))
+                : new Vector4((float)state.JuliaCX, (float)state.JuliaCY, (float)state.JuliaCZ, (float)state.JuliaCW),
             ShapeC = new Vector4(
                 (float)state.QuaternionSlice,
                 (float)Math.Clamp(state.ColorScale, 0.01, 100),
                 (float)state.ColorOffset,
-                0),
+                state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
             Light = new Vector4(light, (float)Math.Clamp(state.Specular, 0, 4)),
             Surface = ToLinear(state.SurfaceColor, (float)Math.Clamp(state.AoStrength, 0, 1)),
             BackgroundTop = ToLinear(state.BackgroundTop),

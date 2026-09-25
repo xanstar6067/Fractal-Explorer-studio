@@ -119,6 +119,24 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="HybridPanel" Margin="0,7,0,0">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Начало цикла"/>
+                                <ComboBox x:Name="HybridOrderBox" SelectionChanged="Parameter_OnChanged">
+                                    <ComboBoxItem Content="Сначала Мандельбульб"/>
+                                    <ComboBoxItem Content="Сначала Мандельбокс"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Итераций Мандельбульба подряд (1–6)"/>
+                                <TextBox x:Name="HybridBulbStepsBox" numeric:NumericSpinner.IsEnabled="True"
+                                         numeric:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Итераций Мандельбокса подряд (1–6)"/>
+                                <TextBox x:Name="HybridBoxStepsBox" numeric:NumericSpinner.IsEnabled="True"
+                                         numeric:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Доля второй операции (0–1)"/>
+                                <TextBox x:Name="HybridMixBox" numeric:NumericSpinner.IsEnabled="True"
+                                         ToolTip="0 — строгое чередование; 0,5 — равная смесь; 1 — операции меняются местами"
+                                         TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
                             <StackPanel x:Name="SierpinskiPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб складывания"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SierpinskiScaleBox"

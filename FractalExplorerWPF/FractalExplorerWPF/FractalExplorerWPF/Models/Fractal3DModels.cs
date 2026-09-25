@@ -19,7 +19,14 @@ public enum Fractal3DKind
     CantorDust,
     Terrain,
     BurningShip,
-    BurningShipJulia
+    BurningShipJulia,
+    BulbBoxHybrid
+}
+
+public enum Hybrid3DOrder
+{
+    BulbFirst,
+    BoxFirst
 }
 
 /// <summary>Способ продолжить отражённое комплексное возведение в степень до трёх координат.</summary>
@@ -248,6 +255,10 @@ public sealed class Fractal3DState
     public double BoxScale { get; set; } = 2;
     public double BoxMinRadius { get; set; } = 0.5;
     public double BoxFoldingLimit { get; set; } = 1;
+    public double HybridMix { get; set; }
+    public int HybridBulbSteps { get; set; } = 1;
+    public int HybridBoxSteps { get; set; } = 1;
+    public Hybrid3DOrder HybridOrder { get; set; }
     public double SierpinskiScale { get; set; } = 2;
     public double CubeThickness { get; set; } = 1;
     public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
@@ -423,7 +434,7 @@ public static class Fractal3DCatalog
 
     public static bool UsesPower(Fractal3DKind kind) =>
         kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb or
-            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia;
+            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia or Fractal3DKind.BulbBoxHybrid;
 
     public static bool UsesJuliaConstant(Fractal3DKind kind) =>
         kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia or Fractal3DKind.QuaternionJulia;
@@ -441,6 +452,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.BulbBoxHybrid => new(
+            "Гибрид Мандельбульб × Мандельбокс", "Гибрид Мандельбульб × Мандельбокс",
+            "Бульб и бокс чередуются заданными сериями итераций. Доля смешивания подмешивает вторую операцию к каждой серии; порядок, длины серий и параметры обеих форм меняют геометрию.",
+            "Fractal3DBulbBoxHybrid", "bulb-box-hybrid"),
         Fractal3DKind.BurningShip => new(
             "Горящий корабль 3D", "Горящий корабль 3D",
             "Трёхмерный «Горящий корабль»: степень, кватернионная или сферическая формула и отражение двух либо трёх координат меняют форму. Кватернионная степень 2 на срезе z = 0 совпадает с плоским фракталом.",
@@ -565,6 +580,19 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.BulbBoxHybrid:
+                state.Power = 3;
+                state.BoxScale = -1.8;
+                state.BoxMinRadius = 0.5;
+                state.BoxFoldingLimit = 1;
+                state.HybridMix = 0;
+                state.Iterations = 12;
+                state.Bailout = 32;
+                state.CameraDistance = 5.5;
+                state.MaxDistance = 60;
+                state.MaxSteps = 220;
+                state.Palette = Fractal3DPalettes.Get("Медь и патина");
+                break;
             case Fractal3DKind.BurningShip:
             case Fractal3DKind.BurningShipJulia:
                 state.Power = 2;
@@ -685,6 +713,42 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.BulbBoxHybrid =>
+        [
+            Preset(kind, "Чередование 1 : 1", _ => { }),
+            Preset(kind, "Сначала бокс · 2 : 1", s =>
+            {
+                s.HybridOrder = Hybrid3DOrder.BoxFirst;
+                s.HybridBoxSteps = 2;
+                s.HybridMix = 0.1;
+                s.CameraDistance = 15;
+            }),
+            Preset(kind, "Преобладание бульба · 3 : 1", s =>
+            {
+                s.HybridBulbSteps = 3;
+                s.HybridMix = 0.25;
+                s.Power = 4;
+            }),
+            Preset(kind, "Сильное смешивание", s =>
+            {
+                s.HybridMix = 0.45;
+                s.BoxScale = 2;
+                s.Power = 5;
+                s.Palette = Fractal3DPalettes.Get("Аметист");
+            }),
+            Preset(kind, "Ледяные складки", s =>
+            {
+                s.HybridOrder = Hybrid3DOrder.BoxFirst;
+                s.HybridBulbSteps = 2;
+                s.HybridBoxSteps = 2;
+                s.HybridMix = 0.15;
+                s.BoxScale = -2;
+                s.Power = 6;
+                s.Palette = Fractal3DPalettes.Get("Лёд");
+                s.ColoringMode = Fractal3DColoringMode.CrossTrap;
+                s.ColorScale = 0.6;
+            })
+        ],
         Fractal3DKind.BurningShip =>
         [
             Preset(kind, "Горящий корабль — общий вид", _ => { }),

@@ -155,6 +155,64 @@ internal static class Fractal3DShader
             StepScale = BOX_STEP;
             return length(z) / max(abs(dr), 1e-9);
 
+        #elif FRACTAL_KIND == 13
+
+            float power = ShapeA.x;
+            float minRadius2 = ShapeA.y;
+            float foldLimit = ShapeA.z;
+            float bailout = ShapeA.w;
+            float boxScale = ShapeB.x;
+            float mixAmount = saturate(ShapeB.y);
+            int bulbSteps = max(1, (int)ShapeB.z);
+            int boxSteps = max(1, (int)ShapeB.w);
+            bool bulbFirst = ShapeC.w < 0.5;
+            float3 z = p;
+            float dr = 1.0;
+            [loop]
+            for (int i = 0; i < iterations; i++)
+            {
+                float r = length(z);
+                trapIndex = (float)i;
+                trapRadius2 = min(trapRadius2, r * r);
+                trapAxis = min(trapAxis, MinAxis(z));
+                if (r > bailout) break;
+
+                // Две кандидатные операции получают одну точку. Доля 0 даёт строгое
+                // чередование, 0.5 — равную смесь, 1 меняет операции местами.
+                int phase = i % (bulbSteps + boxSteps);
+                bool bulbActive = bulbFirst ? phase < bulbSteps : phase >= boxSteps;
+                float bulbWeight = bulbActive ? 1.0 - mixAmount : mixAmount;
+
+                float invR = 1.0 / max(r, 1e-12);
+                float theta = acos(clamp(z.z * invR, -1.0, 1.0));
+                float phi = atan2(z.y, z.x);
+                float sinTheta = abs(sin(theta));
+                float stretch = sinTheta > 1e-4
+                    ? abs(sin(theta * power)) / sinTheta : power;
+                StepScale /= max(lerp(1.0, stretch, bulbWeight), 1.0);
+                float bulbGain = power * pow(max(r, 1e-12), power - 1.0);
+                float zr = pow(r, power);
+                theta *= power;
+                phi *= power;
+                float3 bulb = zr * float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+
+                float3 box = clamp(z, -foldLimit, foldLimit) * 2.0 - z;
+                float boxRadius2 = dot(box, box);
+                float foldFactor = boxRadius2 < minRadius2
+                    ? 1.0 / max(minRadius2, 1e-6)
+                    : boxRadius2 < 1.0 ? 1.0 / max(boxRadius2, 1e-6) : 1.0;
+                box *= boxScale * foldFactor;
+                float boxGain = abs(boxScale * foldFactor);
+
+                z = lerp(box, bulb, bulbWeight) + p;
+                dr = dr * lerp(boxGain, bulbGain, bulbWeight) + 1.0;
+            }
+            float finalRadius = length(z);
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, finalRadius);
+            StepScale = max(StepScale * 0.35, 0.15);
+            return min(0.5 * log(max(finalRadius, 1.000001)), 1.0) *
+                finalRadius / max(dr, 1e-9);
+
         #elif FRACTAL_KIND == 3
 
             float d = BoxDistance(p, float3(1.0, 1.0, 1.0));
@@ -647,6 +705,11 @@ internal static class Fractal3DShader
             float radius = max(2.0 * foldReach + 1.0,
                 (2.0 * abs(ShapeA.x) * foldReach + sqrt(ShapeA.w)) /
                 max(abs(1.0 - ShapeA.x), 0.05));
+        #elif FRACTAL_KIND == 13
+            float foldReach = 1.7320508 * ShapeA.z;
+            float radius = max(6.0,
+                (2.0 * abs(ShapeB.x) * foldReach + sqrt(ShapeA.w)) /
+                max(abs(1.0 - ShapeB.x), 0.25));
         #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
         #elif FRACTAL_KIND == 11
@@ -664,6 +727,10 @@ internal static class Fractal3DShader
         #if FRACTAL_KIND == 2
             // При scale ~= 1 множество может не иметь конечной границы.
             if (abs(1.0 - ShapeA.x) >= 0.05)
+            {
+        #elif FRACTAL_KIND == 13
+            // При масштабе бокса около 1 некоторые чередования имеют неограниченные орбиты.
+            if (abs(1.0 - ShapeB.x) >= 0.05)
             {
         #endif
             // Сфера описана вплотную: вершины губки и тетраэдра лежат ровно на ней. Луч же
@@ -698,7 +765,7 @@ internal static class Fractal3DShader
             // Пользовательская дальность остаётся минимумом, но не обрезает фигуру
             // только из-за того, что камера отъехала от неё.
             maxDistance = max(maxDistance, closest + halfChord);
-        #if FRACTAL_KIND == 2
+        #if FRACTAL_KIND == 2 || FRACTAL_KIND == 13
             }
         #endif
 
