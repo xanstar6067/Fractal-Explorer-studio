@@ -44,6 +44,7 @@ internal static class Fractal3DShader
             float4 LightColor;        // rgb — цвет источника света
             float4 PaletteInfo;       // x — число цветов, y — повтор, z — полосы, w — гамма
             float4 HomeCamera;        // xyz — положение камеры в стартовом виде
+            float4 BoxInversion;      // x — форма, y — вытяжение Z, z — показатель скругления
             float4 Palette[16];       // rgb — опорные цвета градиента
         };
 
@@ -73,6 +74,58 @@ internal static class Fractal3DShader
         {
             return v - period * floor(v / period);
         }
+
+        #if FRACTAL_KIND == 2 || FRACTAL_KIND == 13
+        // Граница звездообразной формы задаётся однородной нормой q(z)=1.
+        // Инверсия z/q(z)^2 совпадает с формулой I^2*z/|z|^2 из статьи,
+        // где I — пересечение луча через z с выбранной границей.
+        float ShapeInversionFactor(float3 z, float minRadius2, out float derivativeGain)
+        {
+            int shape = (int)BoxInversion.x;
+            float r2 = dot(z, z);
+            if (shape == 0)
+            {
+                float factor = r2 < minRadius2 ? 1.0 / max(minRadius2, 1e-6)
+                    : r2 < 1.0 ? 1.0 / max(r2, 1e-6) : 1.0;
+                derivativeGain = factor;
+                return factor;
+            }
+
+            float stretch = shape == 1 ? 1.0 : max(BoxInversion.y, 0.5);
+            float3 axes = float3(1.0, 1.0, stretch);
+            float3 a = z / axes;
+            float3 aa = abs(a);
+            float q;
+            float3 gradient;
+            if (shape == 1)
+            {
+                q = max(aa.x, max(aa.y, aa.z));
+                gradient = aa.x >= aa.y && aa.x >= aa.z ? float3(sign(a.x), 0, 0)
+                    : aa.y >= aa.z ? float3(0, sign(a.y), 0) : float3(0, 0, sign(a.z));
+            }
+            else
+            {
+                float power = shape == 2 ? 2.0 : clamp(BoxInversion.z, 2.0, 16.0);
+                float3 terms = pow(aa, power);
+                float sum = max(terms.x + terms.y + terms.z, 1e-12);
+                q = pow(sum, 1.0 / power);
+                gradient = sign(a) * pow(aa, power - 1.0) / (pow(q, power - 1.0) * axes);
+            }
+
+            float q2 = q * q;
+            float factor = q2 < minRadius2 ? 1.0 / max(minRadius2, 1e-6)
+                : q2 < 1.0 ? 1.0 / max(q2, 1e-6) : 1.0;
+            derivativeGain = factor;
+            if (q2 >= minRadius2 && q2 < 1.0)
+            {
+                // Максимальное сингулярное число якобиана инверсии.
+                // При сферической норме равно factor; у рёбер куба даёт запас для DE.
+                float tangent = sqrt(max(r2 * dot(gradient, gradient) / max(q2, 1e-12) - 1.0, 0.0));
+                derivativeGain *= sqrt(1.0 + tangent * tangent) + tangent;
+            }
+            return factor;
+        }
+        #endif
 
         float4 QuaternionSquare(float4 a)
         {
@@ -130,7 +183,6 @@ internal static class Fractal3DShader
             float minRadius2 = ShapeA.y;
             float foldingLimit = ShapeA.z;
             float bailout = ShapeA.w;
-            const float fixedRadius2 = 1.0;
 
             float3 z = p;
             float dr = 1.0;
@@ -142,18 +194,10 @@ internal static class Fractal3DShader
                 float r2 = dot(z, z);
                 trapRadius2 = min(trapRadius2, r2);
                 trapAxis = min(trapAxis, MinAxis(z));
-                if (r2 < minRadius2)
-                {
-                    float factor = fixedRadius2 / max(minRadius2, 1e-6);
-                    z *= factor;
-                    dr *= factor;
-                }
-                else if (r2 < fixedRadius2)
-                {
-                    float factor = fixedRadius2 / r2;
-                    z *= factor;
-                    dr *= factor;
-                }
+                float foldGain;
+                float foldFactor = ShapeInversionFactor(z, minRadius2, foldGain);
+                z *= foldFactor;
+                dr *= foldGain;
                 z = scale * z + p;
                 dr = dr * abs(scale) + 1.0;
                 if (dot(z, z) > bailout) break;
@@ -200,12 +244,10 @@ internal static class Fractal3DShader
                 float3 bulb = zr * float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
 
                 float3 box = clamp(z, -foldLimit, foldLimit) * 2.0 - z;
-                float boxRadius2 = dot(box, box);
-                float foldFactor = boxRadius2 < minRadius2
-                    ? 1.0 / max(minRadius2, 1e-6)
-                    : boxRadius2 < 1.0 ? 1.0 / max(boxRadius2, 1e-6) : 1.0;
+                float foldGain;
+                float foldFactor = ShapeInversionFactor(box, minRadius2, foldGain);
                 box *= boxScale * foldFactor;
-                float boxGain = abs(boxScale * foldFactor);
+                float boxGain = abs(boxScale) * foldGain;
 
                 z = lerp(box, bulb, bulbWeight) + p;
                 dr = dr * lerp(boxGain, bulbGain, bulbWeight) + 1.0;

@@ -381,6 +381,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.ColorScale, 0.01, 100),
                 (float)state.ColorOffset,
                 state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
+            BoxInversion = new Vector4(
+                (float)(Enum.IsDefined(state.BoxInversionShape) ? state.BoxInversionShape : BoxInversionShape.Sphere),
+                (float)Math.Clamp(state.BoxInversionStretch, 0.5, 2),
+                (float)Math.Clamp(state.BoxInversionPower, 2, 16), 0),
             Light = new Vector4(light, (float)Math.Clamp(state.Specular, 0, 4)),
             Surface = ToLinear(state.SurfaceColor, (float)Math.Clamp(state.AoStrength, 0, 1)),
             BackgroundTop = ToLinear(state.BackgroundTop),
@@ -628,7 +632,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private struct FrameConstants
     {
         /// <summary>Размер самой структуры; следом за ней в буфер дописывается палитра.</summary>
-        public const int SizeInBytes = 20 * 16;
+        public const int SizeInBytes = 21 * 16;
 
         /// <summary>Полный размер буфера констант: структура плюс опорные цвета палитры.</summary>
         public const int BufferSizeInBytes = SizeInBytes + Fractal3DPalette.MaxColors * 16;
@@ -653,5 +657,6 @@ public sealed partial class Fractal3DRenderer : IDisposable
         public Vector4 LightColor;
         public Vector4 PaletteInfo;
         public Vector4 HomeCamera;
+        public Vector4 BoxInversion;
     }
 }

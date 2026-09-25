@@ -29,6 +29,15 @@ public enum Hybrid3DOrder
     BoxFirst
 }
 
+/// <summary>Граница, относительно которой выполняется инверсия внутри свёртки Мандельбокса.</summary>
+public enum BoxInversionShape
+{
+    Sphere,
+    Cube,
+    Ellipsoid,
+    RoundedCube
+}
+
 /// <summary>Способ продолжить отражённое комплексное возведение в степень до трёх координат.</summary>
 public enum BurningShip3DFormula
 {
@@ -255,6 +264,9 @@ public sealed class Fractal3DState
     public double BoxScale { get; set; } = 2;
     public double BoxMinRadius { get; set; } = 0.5;
     public double BoxFoldingLimit { get; set; } = 1;
+    public BoxInversionShape BoxInversionShape { get; set; }
+    public double BoxInversionStretch { get; set; } = 1;
+    public double BoxInversionPower { get; set; } = 4;
     public double HybridMix { get; set; }
     public int HybridBulbSteps { get; set; } = 1;
     public int HybridBoxSteps { get; set; } = 1;
@@ -459,7 +471,7 @@ public static class Fractal3DCatalog
             "Fractal3DJuliabulb", "juliabulb"),
         Fractal3DKind.Mandelbox => new(
             "Мандельбокс", "Мандельбокс",
-            "Чередование сворачивания по кубу и по сфере с масштабированием даёт архитектурную структуру с галереями и арками.",
+            "Чередование свёртки по кубу и инверсии по сфере, кубу или вытянутой форме с масштабированием даёт архитектурную структуру с галереями и арками.",
             "Fractal3DMandelbox", "mandelbox"),
         Fractal3DKind.MengerSponge => new(
             "Губка Менгера", "Губка Менгера",
@@ -556,6 +568,14 @@ public static class Fractal3DCatalog
         Fractal3DColorRepeat.Clamp => "Зажать",
         Fractal3DColorRepeat.Cycle => "По кругу",
         _ => "Отражать"
+    };
+
+    public static string BoxInversionShapeName(BoxInversionShape shape) => shape switch
+    {
+        BoxInversionShape.Cube => "куб",
+        BoxInversionShape.Ellipsoid => "вытянутая сфера",
+        BoxInversionShape.RoundedCube => "скруглённый куб",
+        _ => "сфера"
     };
 
     /// <summary>Состояние по умолчанию; оно же — превью пункта каталога.</summary>
@@ -903,6 +923,17 @@ public static class Fractal3DCatalog
         Fractal3DKind.Mandelbox =>
         [
             Preset(kind, "Масштаб 2 — классическая коробка", _ => { }),
+            Preset(kind, "Кубическая инверсия", s => s.BoxInversionShape = BoxInversionShape.Cube),
+            Preset(kind, "Вытянутая инверсия", s =>
+            {
+                s.BoxInversionShape = BoxInversionShape.Ellipsoid;
+                s.BoxInversionStretch = 1.7;
+            }),
+            Preset(kind, "Скруглённый куб", s =>
+            {
+                s.BoxInversionShape = BoxInversionShape.RoundedCube;
+                s.BoxInversionPower = 6;
+            }),
             Preset(kind, "Масштаб 3 — плотная решётка", s =>
             {
                 s.BoxScale = 3;

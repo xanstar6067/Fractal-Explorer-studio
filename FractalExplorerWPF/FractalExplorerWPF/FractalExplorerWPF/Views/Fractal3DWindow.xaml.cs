@@ -150,8 +150,11 @@ public partial class Fractal3DWindow : Window
         JuliaCW = ReadDouble(JuliaCWBox, "Четвёртая координата C", -8, 8),
         QuaternionSlice = ReadDouble(SliceBox, "Координата среза", -4, 4),
         BoxScale = ReadDouble(BoxScaleBox, "Масштаб свёртки", -8, 8),
-        BoxMinRadius = ReadDouble(BoxMinRadiusBox, "Минимальный радиус сферы", 0.01, 4),
+        BoxMinRadius = ReadDouble(BoxMinRadiusBox, "Минимальный радиус инверсии", 0.01, 4),
         BoxFoldingLimit = ReadDouble(BoxFoldingBox, "Предел свёртки по кубу", 0.1, 8),
+        BoxInversionShape = SelectedBoxInversionShape,
+        BoxInversionStretch = BoxInversionStretchSlider.Value,
+        BoxInversionPower = BoxInversionPowerSlider.Value,
         HybridMix = ReadDouble(HybridMixBox, "Доля второй операции", 0, 1),
         HybridBulbSteps = ReadInt(HybridBulbStepsBox, "Итерации Мандельбульба подряд", 1, 6),
         HybridBoxSteps = ReadInt(HybridBoxStepsBox, "Итерации Мандельбокса подряд", 1, 6),
@@ -264,6 +267,13 @@ public partial class Fractal3DWindow : Window
         BoxScaleBox.Text = Format(state.BoxScale);
         BoxMinRadiusBox.Text = Format(state.BoxMinRadius);
         BoxFoldingBox.Text = Format(state.BoxFoldingLimit);
+        BoxInversionShapeBox.SelectedIndex = Math.Clamp((int)state.BoxInversionShape, 0,
+            (int)BoxInversionShape.RoundedCube);
+        BoxInversionStretchSlider.Value = double.IsFinite(state.BoxInversionStretch)
+            ? Math.Clamp(state.BoxInversionStretch, 0.5, 2) : 1;
+        BoxInversionPowerSlider.Value = double.IsFinite(state.BoxInversionPower)
+            ? Math.Clamp(state.BoxInversionPower, 2, 16) : 4;
+        UpdateBoxInversionPanels();
         HybridMixBox.Text = Format(state.HybridMix);
         HybridBulbStepsBox.Text = state.HybridBulbSteps.ToString(CultureInfo.InvariantCulture);
         HybridBoxStepsBox.Text = state.HybridBoxSteps.ToString(CultureInfo.InvariantCulture);
@@ -382,6 +392,24 @@ public partial class Fractal3DWindow : Window
 
     private Hybrid3DOrder SelectedHybridOrder =>
         (Hybrid3DOrder)Math.Clamp(HybridOrderBox.SelectedIndex, 0, (int)Hybrid3DOrder.BoxFirst);
+
+    private BoxInversionShape SelectedBoxInversionShape =>
+        (BoxInversionShape)Math.Clamp(BoxInversionShapeBox.SelectedIndex, 0,
+            (int)BoxInversionShape.RoundedCube);
+
+    private void BoxInversionShape_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateBoxInversionPanels();
+        Parameter_OnChanged(sender, e);
+    }
+
+    private void UpdateBoxInversionPanels()
+    {
+        if (BoxInversionStretchPanel is null || BoxInversionPowerPanel is null) return;
+        BoxInversionStretchPanel.Visibility = Collapse(SelectedBoxInversionShape is
+            BoxInversionShape.Ellipsoid or BoxInversionShape.RoundedCube);
+        BoxInversionPowerPanel.Visibility = Collapse(SelectedBoxInversionShape == BoxInversionShape.RoundedCube);
+    }
 
     private (double Yaw, double Pitch, double Roll) CameraAngles => Fractal3DCamera.Angles(_orientation);
 

@@ -111,12 +111,35 @@
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб свёртки"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxScaleBox"
                                          TextChanged="Parameter_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Минимальный радиус сферы"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Минимальный радиус инверсии"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxMinRadiusBox"
                                          TextChanged="Parameter_OnChanged"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Предел свёртки по кубу"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxFoldingBox"
                                          TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Форма инверсии"/>
+                                <ComboBox x:Name="BoxInversionShapeBox" SelectionChanged="BoxInversionShape_OnChanged">
+                                    <ComboBoxItem Content="Сфера (классическая)"/>
+                                    <ComboBoxItem Content="Куб"/>
+                                    <ComboBoxItem Content="Вытянутая сфера"/>
+                                    <ComboBoxItem Content="Скруглённый куб"/>
+                                </ComboBox>
+                                <StackPanel x:Name="BoxInversionStretchPanel">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Вытяжение по оси Z (0,5–2)"/>
+                                    <Slider x:Name="BoxInversionStretchSlider" Minimum="0.5" Maximum="2"
+                                            TickFrequency="0.1" IsSnapToTickEnabled="False"
+                                            ValueChanged="Parameter_OnChanged"/>
+                                    <TextBlock Text="{Binding ElementName=BoxInversionStretchSlider, Path=Value, StringFormat={}{0:F2}×}"
+                                               HorizontalAlignment="Right"/>
+                                </StackPanel>
+                                <StackPanel x:Name="BoxInversionPowerPanel">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Округлость куба (2–16)"/>
+                                    <Slider x:Name="BoxInversionPowerSlider" Minimum="2" Maximum="16"
+                                            TickFrequency="1" IsSnapToTickEnabled="True"
+                                            ValueChanged="Parameter_OnChanged"/>
+                                    <TextBlock Text="{Binding ElementName=BoxInversionPowerSlider, Path=Value, StringFormat={}{0:F0}}"
+                                               HorizontalAlignment="Right"/>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel x:Name="HybridPanel" Margin="0,7,0,0">

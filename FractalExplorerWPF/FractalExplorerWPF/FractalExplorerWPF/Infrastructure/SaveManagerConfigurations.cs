@@ -298,10 +298,10 @@ public static class SaveManagerConfigurations
         string shape = state.Kind switch
         {
             Fractal3DKind.Mandelbox =>
-                $"Масштаб: {state.BoxScale:G6} · Мин. радиус: {state.BoxMinRadius:G6} · Свёртка: {state.BoxFoldingLimit:G6}",
+                $"Масштаб: {state.BoxScale:G6} · Мин. радиус: {state.BoxMinRadius:G6} · Свёртка: {state.BoxFoldingLimit:G6} · Инверсия: {Fractal3DCatalog.BoxInversionShapeName(state.BoxInversionShape)}",
             Fractal3DKind.BulbBoxHybrid =>
                 $"Бульб n={state.Power:G4} × {state.HybridBulbSteps} · Бокс {state.BoxScale:G4} × {state.HybridBoxSteps} · " +
-                $"смесь {state.HybridMix:G3} · " +
+                $"смесь {state.HybridMix:G3} · инверсия {Fractal3DCatalog.BoxInversionShapeName(state.BoxInversionShape)} · " +
                 (state.HybridOrder == Hybrid3DOrder.BulbFirst ? "сначала бульб" : "сначала бокс"),
             Fractal3DKind.SierpinskiTetrahedron => $"Масштаб складывания: {state.SierpinskiScale:G6}",
             Fractal3DKind.MengerSponge => "Рекурсивные тоннели куба",
