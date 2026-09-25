@@ -17,7 +17,8 @@ public enum Fractal3DKind
     Ifs3D,
     Vicsek,
     CantorDust,
-    Terrain
+    Terrain,
+    BurningShip
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -417,6 +418,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.BurningShip => new(
+            "Горящий корабль 3D", "Горящий корабль 3D",
+            "Квадратичное трёхмерное продолжение «Горящего корабля»: отражение координат перед итерацией создаёт складки и гребни; срез z = 0 совпадает с плоским фракталом.",
+            "Fractal3DBurningShip", "burning-ship-3d"),
         Fractal3DKind.Juliabulb => new(
             "Жюлиабульб", "Жюлиабульб",
             "Julia-вариант Мандельбульба: вместо точки пространства в итерацию подставляется фиксированная константа C.",
@@ -533,6 +538,16 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.BurningShip:
+                state.Iterations = 16;
+                state.Bailout = 4;
+                state.CameraDistance = 4.2;
+                state.CameraYaw = 30;
+                state.CameraPitch = 24;
+                state.MaxSteps = 220;
+                state.Palette = Fractal3DPalettes.Get("Раскалённый металл");
+                state.ColorScale = 1.4;
+                break;
             case Fractal3DKind.Juliabulb:
                 state.Power = 8;
                 state.Iterations = 9;
@@ -633,6 +648,26 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.BurningShip =>
+        [
+            Preset(kind, "Горящий корабль — общий вид", _ => { }),
+            Preset(kind, "Вид вдоль киля", s =>
+            {
+                s.CameraYaw = 0;
+                s.CameraPitch = 8;
+                s.CameraDistance = 3.4;
+                s.Iterations = 20;
+            }),
+            Preset(kind, "Ледяные гребни", s =>
+            {
+                s.CameraYaw = 105;
+                s.CameraPitch = 32;
+                s.Iterations = 22;
+                s.Palette = Fractal3DPalettes.Get("Лёд");
+                s.ColoringMode = Fractal3DColoringMode.IterationIndex;
+                s.ColorScale = 0.8;
+            })
+        ],
         Fractal3DKind.Ifs3D => Ifs3DPresets.All.Select(preset =>
         {
             Fractal3DState state = CreateDefaultState(kind);

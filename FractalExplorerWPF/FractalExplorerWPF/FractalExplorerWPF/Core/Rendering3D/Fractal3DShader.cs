@@ -290,6 +290,36 @@ internal static class Fractal3DShader
                           max(0.0, log2(0.5 / sphereRadius)), sphereRadius);
             return best;
 
+        #elif FRACTAL_KIND == 11
+
+            // x — действительная часть, y и z — две мнимые координаты кватерниона.
+            // При z = 0 это ровно 2D Burning Ship: (|x| - i|y|)^2 + c.
+            float3 z = p;
+            float dr = 1.0;
+            float r = length(z);
+            [loop]
+            for (int i = 0; i < iterations; i++)
+            {
+                trapIndex = (float)i;
+                r = length(z);
+                trapRadius2 = min(trapRadius2, r * r);
+                trapAxis = min(trapAxis, MinAxis(z));
+                if (r > ShapeA.w) break;
+
+                // Отражение не меняет длину и локальную норму производной.
+                // 2r — верхняя граница растяжения квадрата кватерниона.
+                dr = 2.0 * r * dr + 1.0;
+                float3 folded = float3(abs(z.x), -abs(z.y), z.z);
+                z = float3(
+                    folded.x * folded.x - folded.y * folded.y - folded.z * folded.z,
+                    2.0 * folded.x * folded.y,
+                    2.0 * folded.x * folded.z) + p;
+            }
+            r = length(z);
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
+            StepScale = 0.5;
+            return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
+
         #elif FRACTAL_KIND == 5
 
             float bailout = ShapeA.w;
@@ -587,6 +617,8 @@ internal static class Fractal3DShader
                 max(abs(1.0 - ShapeA.x), 0.05));
         #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
+        #elif FRACTAL_KIND == 11
+            float radius = 2.5; // Для квадратичного отображения |c| > 2 даёт уход орбиты.
         #elif FRACTAL_KIND == 10
             float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
         #elif FRACTAL_KIND == 6

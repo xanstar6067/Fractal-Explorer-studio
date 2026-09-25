@@ -304,6 +304,7 @@ public static class SaveManagerConfigurations
             Fractal3DKind.Vicsek => $"Семь кубиков · Толщина: {state.CubeThickness:G4}",
             Fractal3DKind.CantorDust => $"Восемь угловых кубиков · Толщина: {state.CubeThickness:G4}",
             Fractal3DKind.ApollonianPacking => "Взаимно касающиеся сферы",
+            Fractal3DKind.BurningShip => "Квадратичная формула · отражение координат",
             Fractal3DKind.QuaternionJulia =>
                 $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}",
             Fractal3DKind.Juliabulb =>
