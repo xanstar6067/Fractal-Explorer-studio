@@ -247,6 +247,7 @@
                                     <ComboBoxItem Content="Халворсен · тройная симметрия"/>
                                     <ComboBoxItem Content="Айзава · круговая воронка"/>
                                     <ComboBoxItem Content="Дадрас · раскрытые крылья"/>
+                                    <ComboBoxItem Content="Чуа · двойная спираль"/>
                                 </ComboBox>
                                 <TextBlock x:Name="AttractorDescriptionText" Margin="0,5,0,8" TextWrapping="Wrap"
                                            Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>

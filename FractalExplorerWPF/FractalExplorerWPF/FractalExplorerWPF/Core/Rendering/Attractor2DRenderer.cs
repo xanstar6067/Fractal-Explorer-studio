@@ -23,6 +23,10 @@ public static class Attractor2DRenderer
         IProgress<int>? progress = null)
     {
         Attractor2DKind kind = ParseKind(state.Attractor2DMode);
+        if (kind == Attractor2DKind.SprottQuadratic &&
+            (state.QuadraticCoefficients is not { Length: SprottQuadraticMap.CoefficientCount } ||
+             state.QuadraticCoefficients.Any(v => !double.IsFinite(v))))
+            throw new InvalidOperationException("Квадратичная карта требует 12 конечных коэффициентов.");
         int[] density = AccumulateDensity(state, kind, width, height, token, progress);
         token.ThrowIfCancellationRequested();
         byte[] pixels = AttractorDensityColorizer.Colorize(
@@ -31,12 +35,13 @@ public static class Attractor2DRenderer
         return pixels;
     }
 
-    public static double GetBaseSpan(Attractor2DKind kind) => kind switch
+    public static double GetBaseSpan(Attractor2DKind kind, DynamicSystemState? state = null) => kind switch
     {
         Attractor2DKind.Clifford => 5,
         Attractor2DKind.PeterDeJong => 4.5,
         Attractor2DKind.Tinkerbell => 3.2,
         Attractor2DKind.GumowskiMira => 32,
+        Attractor2DKind.SprottQuadratic => Math.Max(.01, state?.QuadraticSpan ?? 5),
         _ => 5
     };
 
@@ -57,7 +62,7 @@ public static class Attractor2DRenderer
         int completedWorkers = 0;
         object mergeLock = new();
 
-        double spanX = GetBaseSpan(kind) / Math.Max(1e-9, state.Zoom);
+        double spanX = GetBaseSpan(kind, state) / Math.Max(1e-9, state.Zoom);
         double spanY = spanX * Math.Max(1, height) / Math.Max(1, width);
         double minX = state.CenterX - spanX * .5;
         double maxX = state.CenterX + spanX * .5;
@@ -143,6 +148,9 @@ public static class Attractor2DRenderer
                 nextX = y + state.A * (1 - state.B * y * y) * y + GumowskiMiraFunction(x, state.C);
                 nextY = -x + GumowskiMiraFunction(nextX, state.C);
                 break;
+            case Attractor2DKind.SprottQuadratic:
+                SprottQuadraticMap.Iterate(state.QuadraticCoefficients, ref x, ref y);
+                return;
             default:
                 nextX = x;
                 nextY = y;

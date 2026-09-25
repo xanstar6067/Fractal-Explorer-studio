@@ -12,7 +12,7 @@ public partial class Fractal3DWindow
             return Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return new Attractor3DSettings
         {
-            System = (Attractor3DSystem)Math.Clamp(AttractorSystemBox.SelectedIndex, 0, 5),
+            System = (Attractor3DSystem)Math.Clamp(AttractorSystemBox.SelectedIndex, 0, 6),
             A = ReadDouble(AttractorABox, "Параметр a", -100, 100),
             B = ReadDouble(AttractorBBox, "Параметр b", -100, 100),
             C = ReadDouble(AttractorCBox, "Параметр c", -100, 100),
@@ -47,14 +47,14 @@ public partial class Fractal3DWindow
     {
         if (_updatingUi || Kind != Fractal3DKind.StrangeAttractor) return;
         _updatingUi = true;
-        LoadAttractor(Attractor3DSystems.Default((Attractor3DSystem)Math.Clamp(AttractorSystemBox.SelectedIndex, 0, 5)));
+        LoadAttractor(Attractor3DSystems.Default((Attractor3DSystem)Math.Clamp(AttractorSystemBox.SelectedIndex, 0, 6)));
         _updatingUi = false;
         ScheduleRender();
     }
 
     private void UpdateAttractorLabels()
     {
-        Attractor3DSystem system = (Attractor3DSystem)Math.Clamp(AttractorSystemBox.SelectedIndex, 0, 5);
+        Attractor3DSystem system = (Attractor3DSystem)Math.Clamp(AttractorSystemBox.SelectedIndex, 0, 6);
         AttractorDescriptionText.Text = Attractor3DSystems.Description(system);
         string[] names = Attractor3DSystems.ParameterNames(system);
         StackPanel[] fields = [AttractorAField, AttractorBField, AttractorCField,

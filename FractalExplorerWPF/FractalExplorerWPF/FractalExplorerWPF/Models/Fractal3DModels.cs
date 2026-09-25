@@ -773,7 +773,9 @@ public static class Fractal3DCatalog
             Preset(kind, "Томас · тройной узел", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Thomas); s.CameraYaw = 45; s.CameraPitch = 28; s.Palette = Fractal3DPalettes.Get("Неон"); }),
             Preset(kind, "Халворсен · три рукава", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Halvorsen); s.CameraYaw = 35; s.Palette = Fractal3DPalettes.Get("Аметист"); }),
             Preset(kind, "Айзава · воронка", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Aizawa); s.CameraPitch = 38; s.Palette = Fractal3DPalettes.Get("Северное сияние"); }),
-            Preset(kind, "Дадрас · раскрытые крылья", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Dadras); s.CameraYaw = 22; s.Palette = Fractal3DPalettes.Get("Закат"); })
+            Preset(kind, "Дадрас · раскрытые крылья", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Dadras); s.CameraYaw = 22; s.Palette = Fractal3DPalettes.Get("Закат"); }),
+            Preset(kind, "Чуа · двойная спираль", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Chua); s.CameraYaw = 0; s.CameraPitch = 0; s.CameraDistance = 2.2; s.Palette = Fractal3DPalettes.Get("Северное сияние"); }),
+            Preset(kind, "Чуа · одиночная спираль", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Chua); s.Attractor.B = 32; s.Attractor.StartX = 1.5; s.CameraYaw = 0; s.CameraPitch = 45; s.CameraDistance = 2.2; s.Palette = Fractal3DPalettes.Get("Аметист"); })
         ],
         Fractal3DKind.Phoenix =>
         [

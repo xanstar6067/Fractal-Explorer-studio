@@ -468,6 +468,7 @@ public partial class MainWindow : Window
             "ApollonianGasket" => () => new ApollonianWindow(),
             "DLA" => () => new DlaWindow(),
             "GrayScott" => () => new GrayScottWindow(),
+            "SprottQuadratic" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SprottQuadratic),
             _ => null
         };
         if (named is not null) return named;

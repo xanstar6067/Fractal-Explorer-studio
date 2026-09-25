@@ -70,6 +70,8 @@ internal static class Attractor3DVolume
             Attractor3DSystem.Aizawa => new((z - b) * x - d * y, d * x + (z - b) * y,
                 c + a * z - z * z * z / 3 - (x * x + y * y) * (1 + e * z) + f * z * x * x * x),
             Attractor3DSystem.Dadras => new(y - a * x + b * y * z, c * y - x * z + z, d * x * y - e * z),
+            Attractor3DSystem.Chua => new(a * (y - x - (d * x + .5 * (c - d) * (Math.Abs(x + 1) - Math.Abs(x - 1)))),
+                x - y + z, -b * y),
             _ => throw new ArgumentOutOfRangeException(nameof(s.System))
         };
     }

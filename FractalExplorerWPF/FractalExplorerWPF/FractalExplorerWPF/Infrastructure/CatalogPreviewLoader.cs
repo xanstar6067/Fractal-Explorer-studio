@@ -33,7 +33,7 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
-        item.LaunchKey == GrayScottLaunchKey;
+        item.LaunchKey is GrayScottLaunchKey or "SprottQuadratic";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -76,6 +76,13 @@ internal sealed class CatalogPreviewLoader
         {
             return GrayScottRenderer.RenderPreviewAsync(
                 GrayScottPresets.All[0].State.Clone(), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (item.LaunchKey == "SprottQuadratic")
+        {
+            DynamicSystemState state = DynamicSystemState.CreateDefault(DynamicSystemKind.Attractors2D);
+            SprottQuadraticMap.ApplyCode(state, SprottQuadraticMap.Presets[0].Code, token);
+            state.Iterations = 600_000;
+            return DynamicSystemRenderer.RenderAsync(state, RenderedPixelSize, RenderedPixelSize, null, token);
         }
         throw new ArgumentException($"Превью «{item.DisplayName}» не рендерится на лету.", nameof(item));
     }

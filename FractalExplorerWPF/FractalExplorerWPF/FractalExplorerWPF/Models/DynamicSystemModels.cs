@@ -21,7 +21,8 @@ public enum Attractor2DKind
     Clifford,
     PeterDeJong,
     Tinkerbell,
-    GumowskiMira
+    GumowskiMira,
+    SprottQuadratic
 }
 
 public sealed class DynamicSystemState
@@ -69,6 +70,8 @@ public sealed class DynamicSystemState
     public int DiscardIterations { get; set; } = 500;
     public string Attractor2DMode { get; set; } = nameof(Attractor2DKind.Clifford);
     public double DensityGamma { get; set; } = .65;
+    public double[] QuadraticCoefficients { get; set; } = new double[12];
+    public double QuadraticSpan { get; set; } = 5;
     public string VisualizationMode { get; set; } = "Orbit";
     public double BifurcationRMin { get; set; } = 2.8;
     public double BifurcationRMax { get; set; } = 4;
@@ -89,6 +92,7 @@ public sealed class DynamicSystemState
     public DynamicSystemState Clone(string? name = null)
     {
         var clone = (DynamicSystemState)MemberwiseClone();
+        clone.QuadraticCoefficients = QuadraticCoefficients?.ToArray() ?? new double[12];
         if (name is not null) clone.SaveName = name;
         return clone;
     }
@@ -153,6 +157,10 @@ public sealed class DynamicSystemState
             case Attractor2DKind.GumowskiMira:
                 A = .008; B = .05; C = -.496; D = 0;
                 X0 = .1; Y0 = 0; CenterX = 0; CenterY = 0;
+                break;
+            case Attractor2DKind.SprottQuadratic:
+                X0 = .05; Y0 = .05; CenterX = 0; CenterY = 0;
+                QuadraticSpan = 5;
                 break;
         }
     }

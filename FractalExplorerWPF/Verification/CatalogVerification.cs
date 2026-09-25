@@ -270,8 +270,8 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + 1,
-                "Laboratories, 3D fractals, IFS3D and Gray–Scott must be the modes rendered on the fly.");
+                    Enum.GetValues<Fractal3DKind>().Length + 2,
+                "Laboratories, 3D fractals, Gray–Scott and Sprott must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,
@@ -379,8 +379,9 @@ internal static partial class Program
             window.ScopeList.SelectedItem = attractors;
             Check(window.SelectedTile?.Item.CategoryPath[^1] == "Аттракторы", "Leaving an empty scope must select a mode again.");
             window.ToggleFavorite(window.SelectedTile!);
-            Check(favorites.Count == 1 && window.SelectedTile!.IsFavorite && ViewItems(window).Count == 5,
-                "Adding a favorite outside the favorites view must only update the menu.");
+            int attractorCount = FractalCatalog.Create().Count(item => item.CategoryPath[^1] == "Аттракторы");
+            Check(favorites.Count == 1 && window.SelectedTile!.IsFavorite && ViewItems(window).Count == attractorCount,
+                $"Adding a favorite outside the favorites view must only update the menu (favorites={favorites.Count}, shown={ViewItems(window).Count}, expected={attractorCount}).");
 
             // ----- Поиск -----
             window.ScopeList.SelectedItem = mandelbrotFamily;
@@ -402,7 +403,7 @@ internal static partial class Program
 
             window.SearchBox.Text = "";
             Check(window.CurrentScope == mandelbrotFamily && window.ScopeList.SelectedItem == mandelbrotFamily &&
-                  !attractors.IsDimmed && attractors.Count == 5 && all.Count == catalog.Count,
+                  !attractors.IsDimmed && attractors.Count == attractorCount && all.Count == catalog.Count,
                 "Clearing the query must return to the scope opened before the search.");
             Check(window.ClearSearchButton.Visibility == Visibility.Collapsed && window.SearchPlaceholder.Visibility == Visibility.Visible,
                 "An empty query must hide the clear button.");

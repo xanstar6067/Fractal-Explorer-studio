@@ -47,10 +47,32 @@ public partial class DynamicSystemWindow : Window
     private WindowStyle _oldStyle;
     private WindowState _oldState;
     private TextBlock? _attractorFormulaText;
+    private StackPanel? _quadraticPanel;
+    private TextBox? _quadraticCodeBox;
+    private ComboBox? _quadraticPresetsBox;
+    private TextBlock? _quadraticStatus;
+    private Button? _quadraticSearchButton;
+    private readonly Dictionary<int, TextBox> _quadraticBoxes = [];
+    private CancellationTokenSource? _quadraticSearchCts;
+    private bool _quadraticCoefficientsDirty;
+    private static readonly Color[] QuadraticPresetColors =
+    [
+        Color.FromRgb(150, 231, 255), // ледяной плащ
+        Color.FromRgb(255, 178, 117), // комета
+        Color.FromRgb(186, 160, 255), // лезвие
+        Color.FromRgb(133, 244, 205), // острова
+        Color.FromRgb(255, 218, 151)  // игла
+    ];
 
-    public DynamicSystemWindow(DynamicSystemKind kind)
+    public DynamicSystemWindow(DynamicSystemKind kind, Attractor2DKind? initialAttractor = null)
     {
         _kind = kind; _state = DynamicSystemState.CreateDefault(kind); _saves = new(kind);
+        if (kind == DynamicSystemKind.Attractors2D && initialAttractor is { } selected)
+        {
+            _state.ApplyAttractor2DPreset(selected);
+            if (selected == Attractor2DKind.SprottQuadratic)
+                SprottQuadraticMap.ApplyCode(_state, SprottQuadraticMap.Presets[0].Code);
+        }
         if (kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.LogisticMap) _paletteStore = new(kind);
         InitializeComponent();
         _previewTransform.Children.Add(_previewScale);
@@ -58,7 +80,7 @@ public partial class DynamicSystemWindow : Window
         StableImage.RenderTransformOrigin = new Point(0.5, 0.5);
         StableImage.RenderTransform = _previewTransform;
         Title = DisplayName(kind);
-        BuildParameterPanel(); LoadPalettes(); SyncControls(); UpdateSwatches();
+        BuildParameterPanel(); LoadPalettes(); SyncControls(); UpdateAttractorPresentation(); UpdateSwatches();
         _timer.Tick += (_, _) => { _timer.Stop(); _ = RenderAsync(); };
         _visualizationTimer.Tick += (_, _) => FlushVisualizationEvents(false);
         Loaded += (_, _) => Schedule();
@@ -74,7 +96,8 @@ public partial class DynamicSystemWindow : Window
                 new("Клиффорд", nameof(Attractor2DKind.Clifford)),
                 new("Питер де Йонг", nameof(Attractor2DKind.PeterDeJong)),
                 new("Tinkerbell", nameof(Attractor2DKind.Tinkerbell)),
-                new("Gumowski–Mira", nameof(Attractor2DKind.GumowskiMira))
+                new("Gumowski–Mira", nameof(Attractor2DKind.GumowskiMira)),
+                new("Спротт · квадратичная карта", nameof(Attractor2DKind.SprottQuadratic))
             });
             _attractorFormulaText = new TextBlock
             {
@@ -83,6 +106,7 @@ public partial class DynamicSystemWindow : Window
             };
             _attractorFormulaText.SetResourceReference(TextBlock.ForegroundProperty, "Theme.SecondaryTextBrush");
             ParameterPanel.Children.Add(_attractorFormulaText);
+            BuildQuadraticPanel();
         }
         foreach ((string label, string key) in Fields(_kind)) AddField(label, key);
         if (_kind is DynamicSystemKind.Lorenz or DynamicSystemKind.Rossler) AddChoice("Проекция", "ProjectionMode", ["XY", "XZ", "YZ"]);
@@ -94,6 +118,63 @@ public partial class DynamicSystemWindow : Window
         BackgroundColorPanel.Visibility = _kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.Henon or DynamicSystemKind.Ikeda ? Visibility.Collapsed : Visibility.Visible;
         FractalColorButton.Content = _kind == DynamicSystemKind.Attractors2D ? "Цвет плотности" : "Цвет фрактала";
         UpdateAttractorPresentation();
+    }
+
+    private void BuildQuadraticPanel()
+    {
+        var panel = new StackPanel { Visibility = Visibility.Collapsed };
+        _quadraticPanel = panel;
+        panel.Children.Add(new TextBlock { Text = "Готовые формы" });
+        var presets = new ComboBox { ItemsSource = SprottQuadraticMap.Presets.Select(p => new ChoiceOption(p.Name, p.Code)).ToArray(),
+            DisplayMemberPath = nameof(ChoiceOption.Display) };
+        _quadraticPresetsBox = presets;
+        presets.SelectionChanged += (_, _) =>
+        {
+            if (_syncing || presets.SelectedItem is not ChoiceOption option) return;
+            ApplyQuadraticCode(option.Value);
+        };
+        panel.Children.Add(presets);
+        panel.Children.Add(new TextBlock { Text = "Код формы · E + 12 букв A–Y" });
+        _quadraticCodeBox = new TextBox { ToolTip = "Код Спротта позволяет точно повторить найденный аттрактор." };
+        panel.Children.Add(_quadraticCodeBox);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+        var apply = new Button { Content = "Открыть код", Padding = new Thickness(7, 2, 7, 2) };
+        apply.Click += (_, _) => ApplyQuadraticCode(_quadraticCodeBox.Text);
+        buttons.Children.Add(apply);
+        _quadraticSearchButton = new Button { Content = "Найти новую", Padding = new Thickness(7, 2, 7, 2) };
+        _quadraticSearchButton.Click += QuadraticSearch_OnClick;
+        buttons.Children.Add(_quadraticSearchButton);
+        panel.Children.Add(buttons);
+        _quadraticStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 8) };
+        _quadraticStatus.SetResourceReference(TextBlock.ForegroundProperty, "Theme.SecondaryTextBrush");
+        panel.Children.Add(_quadraticStatus);
+        var expander = new Expander { Header = "12 коэффициентов · точная настройка", IsExpanded = false };
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        for (int row = 0; row < 6; row++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (int i = 0; i < 12; i++)
+        {
+            var field = new StackPanel { Margin = i % 2 == 0 ? new Thickness(0, 0, 5, 0) : new Thickness(5, 0, 0, 0) };
+            string term = (i % 6) switch { 0 => "1", 1 => "x", 2 => "x²", 3 => "xy", 4 => "y", _ => "y²" };
+            field.Children.Add(new TextBlock { Text = $"a{i + 1} · {term}" });
+            var box = new TextBox();
+            NumericSpinner.SetIsEnabled(box, true);
+            box.TextChanged += (_, _) => { if (!_syncing) { _quadraticCoefficientsDirty = true; Schedule(); } };
+            field.Children.Add(box);
+            _quadraticBoxes[i] = box;
+            Grid.SetColumn(field, i / 6);
+            Grid.SetRow(field, i % 6);
+            grid.Children.Add(field);
+        }
+        var content = new StackPanel();
+        content.Children.Add(grid);
+        var fit = new Button { Content = "Подобрать кадр по орбите" };
+        fit.Click += QuadraticFit_OnClick;
+        content.Children.Add(fit);
+        expander.Content = content;
+        panel.Children.Add(expander);
+        ParameterPanel.Children.Add(panel);
     }
 
     private static IEnumerable<(string, string)> Fields(DynamicSystemKind kind) => kind switch
@@ -158,6 +239,8 @@ public partial class DynamicSystemWindow : Window
         if (key == "Attractor2DMode")
         {
             _state.ApplyAttractor2DPreset(Attractor2DRenderer.ParseKind(option.Value));
+            if (option.Value == nameof(Attractor2DKind.SprottQuadratic))
+                SprottQuadraticMap.ApplyCode(_state, SprottQuadraticMap.Presets[0].Code);
             SyncControls();
             UpdateAttractorPresentation();
         }
@@ -168,8 +251,14 @@ public partial class DynamicSystemWindow : Window
     {
         if (_kind != DynamicSystemKind.Attractors2D || _attractorFormulaText is null) return;
         Attractor2DKind kind = Attractor2DRenderer.ParseKind(_state.Attractor2DMode);
+        bool quadratic = kind == Attractor2DKind.SprottQuadratic;
+        Title = quadratic ? "Генератор аттракторов Спротта" : DisplayName(_kind);
+        Heading.Text = quadratic ? "Квадратичные карты" : "Параметры";
+        if (_quadraticPanel is not null) _quadraticPanel.Visibility = quadratic ? Visibility.Visible : Visibility.Collapsed;
+        foreach (string key in new[] { "A", "B", "C" })
+            if (_fieldPanels.TryGetValue(key, out StackPanel? panel)) panel.Visibility = quadratic ? Visibility.Collapsed : Visibility.Visible;
         if (_fieldPanels.TryGetValue("D", out StackPanel? dPanel))
-            dPanel.Visibility = kind == Attractor2DKind.GumowskiMira ? Visibility.Collapsed : Visibility.Visible;
+            dPanel.Visibility = kind is Attractor2DKind.GumowskiMira or Attractor2DKind.SprottQuadratic ? Visibility.Collapsed : Visibility.Visible;
         if (_fieldLabels.TryGetValue("C", out TextBlock? cLabel))
             cLabel.Text = kind == Attractor2DKind.GumowskiMira ? "μ" : "c";
         _attractorFormulaText.Text = kind switch
@@ -177,8 +266,114 @@ public partial class DynamicSystemWindow : Window
             Attractor2DKind.Clifford => "x′ = sin(a·y) + c·cos(a·x)\ny′ = sin(b·x) + d·cos(b·y)",
             Attractor2DKind.PeterDeJong => "x′ = sin(a·y) − cos(b·x)\ny′ = sin(c·x) − cos(d·y)",
             Attractor2DKind.Tinkerbell => "x′ = x² − y² + a·x + b·y\ny′ = 2xy + c·x + d·y",
+            Attractor2DKind.SprottQuadratic => "x′ и y′ — полные квадратичные многочлены от x и y.\nИщите ограниченные хаотические орбиты; код E + 12 букв хранит все коэффициенты с шагом 0,1.",
             _ => "x′ = y + a(1 − b·y²)y + f(x)\ny′ = −x + f(x′),  f(t) = μt + 2(1−μ)t²/(1+t²)"
-        } + "\n\nОкраска: монохромная плотность. Основа для многоцветных палитр уже отделена от расчёта орбит.";
+        } + "\n\nЦвет показывает плотность посещения точек орбитой.";
+    }
+
+    private void ApplyQuadraticCode(string code)
+    {
+        try
+        {
+            SprottQuadraticMap.Analysis view = SprottQuadraticMap.ApplyCode(_state, code);
+            int presetIndex = Array.FindIndex(SprottQuadraticMap.Presets,
+                p => p.Code.Equals(code.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (presetIndex >= 0)
+            {
+                _state.FractalColor = QuadraticPresetColors[presetIndex];
+                UpdateSwatches();
+            }
+            SyncControls();
+            UpdatePreviewTransform();
+            if (_quadraticStatus is not null)
+                _quadraticStatus.Text = $"Оценка λ₁ ≈ {view.Lyapunov:F2} бит/шаг · кадр подобран по орбите";
+            Schedule();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            if (_quadraticStatus is not null) _quadraticStatus.Text = ex.Message;
+        }
+    }
+
+    private void ReadQuadraticCoefficients(bool updateCode = true)
+    {
+        double[] values = new double[SprottQuadraticMap.CoefficientCount];
+        for (int i = 0; i < values.Length; i++)
+        {
+            if (!_quadraticBoxes.TryGetValue(i, out TextBox? box) ||
+                !TryDouble(box.Text, out double value) || !double.IsFinite(value) || Math.Abs(value) > 10)
+                throw new InvalidOperationException($"Коэффициент a{i + 1} должен быть числом от −10 до 10.");
+            values[i] = value;
+        }
+        _state.QuadraticCoefficients = values;
+        if (updateCode && _quadraticCodeBox is not null)
+        {
+            _quadraticCodeBox.Text = SprottQuadraticMap.Encode(values) ?? "";
+            if (_quadraticPresetsBox is not null)
+            {
+                bool wasSyncing = _syncing;
+                _syncing = true;
+                _quadraticPresetsBox.SelectedItem = _quadraticPresetsBox.Items.OfType<ChoiceOption>()
+                    .FirstOrDefault(p => p.Value == _quadraticCodeBox.Text);
+                _syncing = wasSyncing;
+            }
+        }
+        _quadraticCoefficientsDirty = false;
+    }
+
+    private void QuadraticFit_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            ReadQuadraticCoefficients();
+            SprottQuadraticMap.Analysis view = SprottQuadraticMap.Analyze(_state.QuadraticCoefficients, CancellationToken.None)
+                ?? throw new InvalidOperationException("Орбита расходится или сжимается в точку. Измените коэффициенты.");
+            _state.QuadraticSpan = view.Span;
+            _state.CenterX = view.CenterX;
+            _state.CenterY = view.CenterY;
+            _state.Zoom = 1;
+            SyncControls();
+            UpdatePreviewTransform();
+            if (_quadraticStatus is not null) _quadraticStatus.Text = $"Оценка λ₁ ≈ {view.Lyapunov:F2} бит/шаг";
+            Schedule();
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (_quadraticStatus is not null) _quadraticStatus.Text = ex.Message;
+        }
+    }
+
+    private async void QuadraticSearch_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_quadraticSearchCts is not null) { _quadraticSearchCts.Cancel(); return; }
+        using var cts = new CancellationTokenSource();
+        _quadraticSearchCts = cts;
+        if (_quadraticSearchButton is not null) _quadraticSearchButton.Content = "Остановить поиск";
+        if (_quadraticStatus is not null) _quadraticStatus.Text = "Ищу ограниченную орбиту с положительной экспонентой Ляпунова…";
+        try
+        {
+            var progress = new Progress<int>(value =>
+            {
+                if (_quadraticStatus is not null) _quadraticStatus.Text = $"Поиск: {value}% попыток";
+            });
+            SprottQuadraticMap.SearchResult result = await Task.Run(() => SprottQuadraticMap.Search(cts.Token, progress));
+            ApplyQuadraticCode(result.Code);
+            if (_quadraticStatus is not null)
+                _quadraticStatus.Text = $"Найдена новая форма за {result.Attempts:N0} попыток · λ₁ ≈ {result.View.Lyapunov:F2} бит/шаг. Сохраните её через менеджер сохранений.";
+        }
+        catch (OperationCanceledException)
+        {
+            if (_quadraticStatus is not null) _quadraticStatus.Text = "Поиск остановлен";
+        }
+        catch (Exception ex)
+        {
+            if (_quadraticStatus is not null) _quadraticStatus.Text = ex.Message;
+        }
+        finally
+        {
+            _quadraticSearchCts = null;
+            if (_quadraticSearchButton is not null) _quadraticSearchButton.Content = "Найти новую";
+        }
     }
 
     private void LoadPalettes()
@@ -197,6 +392,9 @@ public partial class DynamicSystemWindow : Window
             if (p.PropertyType == typeof(int)) { if (!int.TryParse(box.Text, out int v) || v < 0) throw new InvalidOperationException($"Некорректное значение: {key}"); p.SetValue(_state, v); }
             else { if (!TryDouble(box.Text, out double v) || !double.IsFinite(v)) throw new InvalidOperationException($"Некорректное значение: {key}"); p.SetValue(_state, v); }
         }
+        if (_kind == DynamicSystemKind.Attractors2D &&
+            Attractor2DRenderer.ParseKind(_state.Attractor2DMode) == Attractor2DKind.SprottQuadratic)
+            ReadQuadraticCoefficients(_quadraticCoefficientsDirty);
         if (_state.Zoom <= 0 || _state.Threads < 1 || _state.Threads > Environment.ProcessorCount) throw new InvalidOperationException($"Масштаб должен быть положительным, число потоков — от 1 до {Environment.ProcessorCount}.");
         if (_kind == DynamicSystemKind.Lyapunov && (_state.AMax <= _state.AMin || _state.BMax <= _state.BMin || !_state.Pattern.Any(c => c is 'A' or 'a' or 'B' or 'b'))) throw new InvalidOperationException("Проверьте диапазоны A/B и паттерн.");
         if (_kind == DynamicSystemKind.Attractors2D && (_state.Iterations < 1 || _state.DensityGamma is < .05 or > 8)) throw new InvalidOperationException("Число точек должно быть положительным, гамма плотности — от 0.05 до 8.");
@@ -208,6 +406,17 @@ public partial class DynamicSystemWindow : Window
     {
         _syncing=true;
         foreach ((string key, TextBox box) in _boxes) box.Text = Format(typeof(DynamicSystemState).GetProperty(key)!.GetValue(_state));
+        if (_kind == DynamicSystemKind.Attractors2D && _quadraticCodeBox is not null)
+        {
+            for (int i = 0; i < SprottQuadraticMap.CoefficientCount; i++)
+                if (_quadraticBoxes.TryGetValue(i, out TextBox? box))
+                    box.Text = Format(_state.QuadraticCoefficients is { Length: SprottQuadraticMap.CoefficientCount }
+                        ? _state.QuadraticCoefficients[i] : 0);
+            _quadraticCodeBox.Text = SprottQuadraticMap.Encode(_state.QuadraticCoefficients ?? []) ?? "";
+            if (_quadraticPresetsBox is not null)
+                _quadraticPresetsBox.SelectedItem = _quadraticPresetsBox.Items.OfType<ChoiceOption>()
+                    .FirstOrDefault(p => p.Value == _quadraticCodeBox.Text);
+        }
         foreach ((string key,ComboBox combo) in _choices)
         {
             string value = Format(typeof(DynamicSystemState).GetProperty(key)!.GetValue(_state));
@@ -270,7 +479,18 @@ public partial class DynamicSystemWindow : Window
     private void Reset_OnClick(object sender,RoutedEventArgs e)
     {
         DynamicSystemState defaults=DynamicSystemState.CreateDefault(_kind);
-        if(_kind==DynamicSystemKind.Attractors2D)defaults.ApplyAttractor2DPreset(Attractor2DRenderer.ParseKind(_state.Attractor2DMode));
+        if(_kind==DynamicSystemKind.Attractors2D)
+        {
+            Attractor2DKind selected = Attractor2DRenderer.ParseKind(_state.Attractor2DMode);
+            defaults.ApplyAttractor2DPreset(selected);
+            if (selected == Attractor2DKind.SprottQuadratic)
+            {
+                defaults.QuadraticCoefficients = _state.QuadraticCoefficients.ToArray();
+                defaults.QuadraticSpan = _state.QuadraticSpan;
+                defaults.CenterX = _state.CenterX;
+                defaults.CenterY = _state.CenterY;
+            }
+        }
         _state.CenterX=defaults.CenterX;_state.CenterY=defaults.CenterY;_state.Zoom=1;
         if(_kind==DynamicSystemKind.Lyapunov){_state.AMin=defaults.AMin;_state.AMax=defaults.AMax;_state.BMin=defaults.BMin;_state.BMax=defaults.BMax;}
         SyncControls();UpdatePreviewTransform();Schedule();
@@ -319,13 +539,26 @@ public partial class DynamicSystemWindow : Window
         CreateAttractor2DPoint("Клиффорд — классический", "clifford_classic", Attractor2DKind.Clifford),
         CreateAttractor2DPoint("Питер де Йонг — вихрь", "de_jong_swirl", Attractor2DKind.PeterDeJong),
         CreateAttractor2DPoint("Tinkerbell — классический", "tinkerbell_classic", Attractor2DKind.Tinkerbell),
-        CreateAttractor2DPoint("Gumowski–Mira — организм", "gumowski_mira_organism", Attractor2DKind.GumowskiMira)
+        CreateAttractor2DPoint("Gumowski–Mira — организм", "gumowski_mira_organism", Attractor2DKind.GumowskiMira),
+        .. SprottQuadraticMap.Presets.Select(p => CreateSprottPoint(p.Name, p.Code))
     ];
 
     private static DynamicSystemState CreateAttractor2DPoint(string name, string id, Attractor2DKind kind)
     {
         DynamicSystemState state=DynamicSystemState.CreateDefault(DynamicSystemKind.Attractors2D);
         state.ApplyAttractor2DPreset(kind);state.SaveName=name;state.PointOfInterestId=id;state.Timestamp=DateTime.MinValue;
+        return state;
+    }
+
+    private static DynamicSystemState CreateSprottPoint(string name, string code)
+    {
+        DynamicSystemState state = DynamicSystemState.CreateDefault(DynamicSystemKind.Attractors2D);
+        SprottQuadraticMap.ApplyCode(state, code);
+        int presetIndex = Array.FindIndex(SprottQuadraticMap.Presets, p => p.Code == code);
+        if (presetIndex >= 0) state.FractalColor = QuadraticPresetColors[presetIndex];
+        state.SaveName = $"Спротт — {name}";
+        state.PointOfInterestId = $"sprott_{code}";
+        state.Timestamp = DateTime.MinValue;
         return state;
     }
 
@@ -435,11 +668,11 @@ public partial class DynamicSystemWindow : Window
     }
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,250,Schedule);
     private void Window_OnKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.F11||e.Key==Key.Escape&&_fullscreen){if(!_fullscreen){_oldStyle=WindowStyle;_oldState=WindowState;WindowStyle=WindowStyle.None;WindowState=WindowState.Maximized;}else{WindowStyle=_oldStyle;WindowState=_oldState;}_fullscreen=!_fullscreen;}}
-    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();}
+    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();}
 
     private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",_=>"Динамическая система"};
     private static string Details(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Lyapunov=>$"{s.Pattern} · {s.Iterations} итераций · {s.PaletteName}",DynamicSystemKind.Attractors2D=>$"{Attractor2DDisplayName(Attractor2DRenderer.ParseKind(s.Attractor2DMode))} · {s.Iterations:N0} точек · масштаб {s.Zoom:G5}",_=>$"Масштаб {s.Zoom:G5} · {Math.Max(s.Iterations,s.Steps):N0} итераций"};
-    private static string Attractor2DDisplayName(Attractor2DKind kind)=>kind switch{Attractor2DKind.Clifford=>"Клиффорд",Attractor2DKind.PeterDeJong=>"Питер де Йонг",Attractor2DKind.Tinkerbell=>"Tinkerbell",_=>"Gumowski–Mira"};
+    private static string Attractor2DDisplayName(Attractor2DKind kind)=>kind switch{Attractor2DKind.Clifford=>"Клиффорд",Attractor2DKind.PeterDeJong=>"Питер де Йонг",Attractor2DKind.Tinkerbell=>"Tinkerbell",Attractor2DKind.SprottQuadratic=>"Карта Спротта",_=>"Gumowski–Mira"};
     // Видимая область по X и Y в мировых координатах — так же, как её строят движки:
     // Лоренц, Рёсслер и логистические режимы растягивают квадрат на весь кадр, Хенон
     // и странные аттракторы держат пиксели квадратными, Икэда берёт высоту из RangeY.
@@ -452,7 +685,7 @@ public partial class DynamicSystemWindow : Window
             DynamicSystemKind.Rossler=>Square((double)FractalRosslerEngine.BaseScale/zoom),
             DynamicSystemKind.Henon=>((double)FractalHenonEngine.BaseScale/zoom,(double)FractalHenonEngine.BaseScale/zoom*aspect),
             DynamicSystemKind.Ikeda=>(Math.Max(1e-9,(s.RangeXMax-s.RangeXMin)/zoom),Math.Max(1e-9,(s.RangeYMax-s.RangeYMin)/zoom)),
-            DynamicSystemKind.Attractors2D=>(Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode))/zoom,Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode))/zoom*aspect),
+            DynamicSystemKind.Attractors2D=>(Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode),s)/zoom,Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode),s)/zoom*aspect),
             _=>Square(1/zoom)
         };
         static (double,double) Square(double span)=>(span,span);

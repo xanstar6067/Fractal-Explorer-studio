@@ -41,8 +41,8 @@ internal static partial class Program
             Check(restored.Attractor.System == system && restored.Attractor.TimeStep == state.Attractor.TimeStep,
                 $"{system}: settings did not survive serialization.");
         }
-        Check(signatures.Count == presets.Count && presets.Select(preset => preset.Attractor.System).Distinct().Count() == 6,
-            "The seven shipped views should be distinct and include all six systems.");
+        Check(signatures.Count == presets.Count && presets.Select(preset => preset.Attractor.System).Distinct().Count() == 7,
+            "The shipped views should be distinct and include all seven systems.");
         var themeStyles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
         if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == themeStyles))
             Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = themeStyles });
@@ -57,6 +57,6 @@ internal static partial class Program
                 "Attractor settings should survive a WPF window round trip.");
         }
         finally { window.Close(); }
-        Console.WriteLine("PASS (attractors): six systems render distinctly; settings round-trip through JSON and the WPF window.");
+        Console.WriteLine("PASS (attractors): seven systems render distinctly; settings round-trip through JSON and the WPF window.");
     }
 }
