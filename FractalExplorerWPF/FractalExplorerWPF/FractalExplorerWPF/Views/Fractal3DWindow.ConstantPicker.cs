@@ -17,7 +17,7 @@ public partial class Fractal3DWindow
 
     private void ScheduleJuliabulbMapRender()
     {
-        if (Kind != Fractal3DKind.Juliabulb || !IsLoaded || _isClosing) return;
+        if (Kind is not (Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia) || !IsLoaded || _isClosing) return;
         _juliabulbMapTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(220) };
         _juliabulbMapTimer.Tick -= JuliabulbMapTimer_OnTick;
         _juliabulbMapTimer.Tick += JuliabulbMapTimer_OnTick;
@@ -29,8 +29,9 @@ public partial class Fractal3DWindow
     private async void JuliabulbMapTimer_OnTick(object? sender, EventArgs e)
     {
         _juliabulbMapTimer?.Stop();
-        if (_isClosing || Kind != Fractal3DKind.Juliabulb ||
+        if (_isClosing || Kind is not (Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia) ||
             !TryReadDouble(PowerBox.Text, out double power) || !double.IsFinite(power) || power < -32 || power > 32 ||
+            (Kind == Fractal3DKind.BurningShipJulia && (power < 2 || power > 16 || power != Math.Truncate(power))) ||
             !int.TryParse(IterationsBox.Text, NumberStyles.Integer, CultureInfo.CurrentCulture, out int iterations) ||
             iterations < 1 || iterations > 64 ||
             !TryReadDouble(BailoutBox.Text, out double bailout) || !double.IsFinite(bailout) || bailout <= 1)
@@ -41,8 +42,10 @@ public partial class Fractal3DWindow
         int width = Math.Max(1, (int)Math.Round(JuliabulbMapHost.ActualWidth - 2));
         int height = Math.Max(1, (int)Math.Round(JuliabulbMapHost.ActualHeight - 2));
         if (width < 2 || height < 2) return;
-        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
+        Fractal3DState state = Fractal3DCatalog.CreateDefaultState(
+            Kind == Fractal3DKind.BurningShipJulia ? Fractal3DKind.BurningShip : Fractal3DKind.Mandelbulb);
         state.Power = power;
+        state.BurningShipFormula = SelectedBurningShipFormula;
         state.Iterations = iterations;
         state.Bailout = bailout;
         state.CameraDistance = 4.5;
@@ -94,7 +97,7 @@ public partial class Fractal3DWindow
 
     private void JuliabulbPicker_OnClick(object sender, RoutedEventArgs e)
     {
-        if (Kind != Fractal3DKind.Juliabulb) return;
+        if (Kind is not (Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia)) return;
         Fractal3DState state;
         try { state = CaptureState("Выбор C"); }
         catch (Exception ex)

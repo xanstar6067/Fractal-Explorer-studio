@@ -18,7 +18,7 @@ using Point = System.Windows.Point;
 namespace FractalExplorerWPF.Views;
 
 /// <summary>
-/// Универсальное окно трёхмерных фракталов: Мандельбульб, Горящий корабль 3D, Жюлиабульб, Мандельбокс, губка Менгера,
+/// Универсальное окно трёхмерных фракталов: Мандельбульб, Горящий корабль 3D и их Julia-варианты, Мандельбокс, губка Менгера,
 /// тетраэдр Серпинского, кватернионное Жюлиа и аполлонова упаковка сфер. Вид задаётся при создании окна, разметка показывает
 /// только параметры выбранной формы. Кадр целиком считает GPU (<see cref="Fractal3DRenderer"/>),
 /// поэтому отдельного тайлового прогресса нет: прогресс идёт по горизонтальным полосам кадра.
@@ -137,7 +137,10 @@ public partial class Fractal3DWindow : Window
             Kind == Fractal3DKind.Ifs3D ? 10_000_000 : 64),
         IfsTransforms = CaptureIfsTransforms(),
         Terrain = CaptureTerrain(),
-        Power = ReadDouble(PowerBox, "Степень", -32, 32),
+        Power = Fractal3DCatalog.IsBurningShip(Kind)
+            ? ReadInt(PowerBox, "Степень", 2, 16)
+            : ReadDouble(PowerBox, "Степень", -32, 32),
+        BurningShipFormula = SelectedBurningShipFormula,
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
         JuliaCY = ReadDouble(JuliaCYBox, "Вторая координата C", -8, 8),
@@ -244,6 +247,7 @@ public partial class Fractal3DWindow : Window
         AutoRotateSpeedBox.Text = Format(state.AutoRotateSpeed);
 
         PowerBox.Text = Format(state.Power);
+        BurningShipFormulaBox.SelectedIndex = (int)state.BurningShipFormula;
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
         BailoutBox.Text = Format(state.Bailout);
         JuliaCXBox.Text = Format(state.JuliaCX);
@@ -329,9 +333,13 @@ public partial class Fractal3DWindow : Window
             foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
                 ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
+        BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
+        PowerLabel.Text = Fractal3DCatalog.IsBurningShip(Kind) ? "Степень n (целая, 2–16)" : "Степень n";
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
-        JuliabulbPickerPanel.Visibility = Collapse(Kind == Fractal3DKind.Juliabulb);
+        JuliabulbPickerPanel.Visibility = Collapse(Kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia);
+        if (Kind == Fractal3DKind.BurningShipJulia)
+            JuliaPickerButton.Content = "Выбрать C на Горящем корабле 3D";
         BoxPanel.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
@@ -355,6 +363,10 @@ public partial class Fractal3DWindow : Window
 
     private Fractal3DColorRepeat SelectedColorRepeat =>
         (Fractal3DColorRepeat)Math.Clamp(ColorRepeatBox.SelectedIndex, 0, (int)Fractal3DColorRepeat.Mirror);
+
+    private BurningShip3DFormula SelectedBurningShipFormula =>
+        (BurningShip3DFormula)Math.Clamp(BurningShipFormulaBox.SelectedIndex, 0,
+            (int)BurningShip3DFormula.SphericalFullFold);
 
     private (double Yaw, double Pitch, double Roll) CameraAngles => Fractal3DCamera.Angles(_orientation);
 
@@ -502,7 +514,8 @@ public partial class Fractal3DWindow : Window
         {
             ScheduleRender();
             if (ReferenceEquals(sender, PowerBox) || ReferenceEquals(sender, IterationsBox) ||
-                ReferenceEquals(sender, BailoutBox)) ScheduleJuliabulbMapRender();
+                ReferenceEquals(sender, BailoutBox) || ReferenceEquals(sender, BurningShipFormulaBox))
+                ScheduleJuliabulbMapRender();
             if (ReferenceEquals(sender, JuliaCXBox) || ReferenceEquals(sender, JuliaCYBox) ||
                 ReferenceEquals(sender, JuliaCZBox))
                 ScheduleJuliabulbMapRender();

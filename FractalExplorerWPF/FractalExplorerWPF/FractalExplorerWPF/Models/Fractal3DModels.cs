@@ -18,7 +18,17 @@ public enum Fractal3DKind
     Vicsek,
     CantorDust,
     Terrain,
-    BurningShip
+    BurningShip,
+    BurningShipJulia
+}
+
+/// <summary>Способ продолжить отражённое комплексное возведение в степень до трёх координат.</summary>
+public enum BurningShip3DFormula
+{
+    Quaternion,
+    QuaternionFullFold,
+    Spherical,
+    SphericalFullFold
 }
 
 /// <summary>Чем жертвует черновой кадр, пока камера движется.</summary>
@@ -225,6 +235,7 @@ public sealed class Fractal3DState
     // ---- форма ----
     public int Iterations { get; set; } = 8;
     public double Power { get; set; } = 8;
+    public BurningShip3DFormula BurningShipFormula { get; set; }
     public double Bailout { get; set; } = 4;
     public double JuliaCX { get; set; }
     public double JuliaCY { get; set; }
@@ -411,17 +422,33 @@ public static class Fractal3DCatalog
         HomeDistances.Value.TryGetValue(kind, out double distance) ? distance : 3.0;
 
     public static bool UsesPower(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb;
+        kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb or
+            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia;
 
     public static bool UsesJuliaConstant(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Juliabulb or Fractal3DKind.QuaternionJulia;
+        kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia or Fractal3DKind.QuaternionJulia;
+
+    public static bool IsBurningShip(Fractal3DKind kind) =>
+        kind is Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia;
+
+    public static string BurningShipFormulaName(BurningShip3DFormula formula) => formula switch
+    {
+        BurningShip3DFormula.QuaternionFullFold => "Кватернион · три отражения",
+        BurningShip3DFormula.Spherical => "Сферическая степень · два отражения",
+        BurningShip3DFormula.SphericalFullFold => "Сферическая степень · три отражения",
+        _ => "Кватернион · два отражения"
+    };
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
         Fractal3DKind.BurningShip => new(
             "Горящий корабль 3D", "Горящий корабль 3D",
-            "Квадратичное трёхмерное продолжение «Горящего корабля»: отражение координат перед итерацией создаёт складки и гребни; срез z = 0 совпадает с плоским фракталом.",
+            "Трёхмерный «Горящий корабль»: степень, кватернионная или сферическая формула и отражение двух либо трёх координат меняют форму. Кватернионная степень 2 на срезе z = 0 совпадает с плоским фракталом.",
             "Fractal3DBurningShip", "burning-ship-3d"),
+        Fractal3DKind.BurningShipJulia => new(
+            "Горящий корабль 3D — Жюлиа", "Горящий корабль 3D — Жюлиа",
+            "Julia-вариант трёхмерного «Горящего корабля»: та же выбранная формула и степень, но постоянная C фиксирована. Её можно выбрать на соответствующей 3D-карте.",
+            "Fractal3DBurningShipJulia", "burning-ship-julia-3d"),
         Fractal3DKind.Juliabulb => new(
             "Жюлиабульб", "Жюлиабульб",
             "Julia-вариант Мандельбульба: вместо точки пространства в итерацию подставляется фиксированная константа C.",
@@ -539,6 +566,8 @@ public static class Fractal3DCatalog
         switch (kind)
         {
             case Fractal3DKind.BurningShip:
+            case Fractal3DKind.BurningShipJulia:
+                state.Power = 2;
                 state.Iterations = 16;
                 state.Bailout = 4;
                 state.CameraDistance = 4.2;
@@ -547,6 +576,14 @@ public static class Fractal3DCatalog
                 state.MaxSteps = 220;
                 state.Palette = Fractal3DPalettes.Get("Раскалённый металл");
                 state.ColorScale = 1.4;
+                if (kind == Fractal3DKind.BurningShipJulia)
+                {
+                    state.JuliaCX = -0.35;
+                    state.JuliaCY = -0.05;
+                    state.JuliaCZ = 0.15;
+                    state.CameraDistance = 3.3;
+                    state.Iterations = 20;
+                }
                 break;
             case Fractal3DKind.Juliabulb:
                 state.Power = 8;
@@ -651,21 +688,64 @@ public static class Fractal3DCatalog
         Fractal3DKind.BurningShip =>
         [
             Preset(kind, "Горящий корабль — общий вид", _ => { }),
-            Preset(kind, "Вид вдоль киля", s =>
+            Preset(kind, "Кватернион — степень 3", s =>
             {
-                s.CameraYaw = 0;
-                s.CameraPitch = 8;
-                s.CameraDistance = 3.4;
+                s.Power = 3;
                 s.Iterations = 20;
             }),
-            Preset(kind, "Ледяные гребни", s =>
+            Preset(kind, "Три отражения", s => s.BurningShipFormula = BurningShip3DFormula.QuaternionFullFold),
+            Preset(kind, "Сферический корабль", s =>
             {
+                s.BurningShipFormula = BurningShip3DFormula.Spherical;
+                s.Power = 4;
+                s.Iterations = 12;
+            }),
+            Preset(kind, "Сферические ледяные гребни", s =>
+            {
+                s.BurningShipFormula = BurningShip3DFormula.SphericalFullFold;
                 s.CameraYaw = 105;
                 s.CameraPitch = 32;
-                s.Iterations = 22;
+                s.Power = 5;
+                s.Iterations = 12;
                 s.Palette = Fractal3DPalettes.Get("Лёд");
                 s.ColoringMode = Fractal3DColoringMode.IterationIndex;
                 s.ColorScale = 0.8;
+            })
+        ],
+        Fractal3DKind.BurningShipJulia =>
+        [
+            Preset(kind, "Жюлиа горящего корабля", _ => { }),
+            Preset(kind, "Три отражения", s => s.BurningShipFormula = BurningShip3DFormula.QuaternionFullFold),
+            Preset(kind, "Константа из 2D-галереи", s =>
+            {
+                s.JuliaCX = -1.7551867961883;
+                s.JuliaCY = 0.01068;
+                s.JuliaCZ = 0;
+                s.CameraDistance = 4.2;
+            }),
+            Preset(kind, "Тёмные грани", s =>
+            {
+                s.JuliaCX = 0.25;
+                s.JuliaCY = -0.45;
+                s.JuliaCZ = 0.15;
+                s.CameraYaw = 55;
+            }),
+            Preset(kind, "Сферическая Жюлиа", s =>
+            {
+                s.BurningShipFormula = BurningShip3DFormula.Spherical;
+                s.Power = 3;
+                s.JuliaCX = -0.3;
+                s.JuliaCY = 0.25;
+                s.JuliaCZ = 0.15;
+            }),
+            Preset(kind, "Сферическая Жюлиа — три отражения", s =>
+            {
+                s.BurningShipFormula = BurningShip3DFormula.SphericalFullFold;
+                s.Power = 4;
+                s.JuliaCX = -0.3;
+                s.JuliaCY = 0.25;
+                s.JuliaCZ = 0.15;
+                s.Palette = Fractal3DPalettes.Get("Лёд");
             })
         ],
         Fractal3DKind.Ifs3D => Ifs3DPresets.All.Select(preset =>

@@ -21,7 +21,7 @@
                 <ColumnDefinition Width="105"/>
             </Grid.ColumnDefinitions>
             <StackPanel Margin="0,0,12,0">
-                <TextBlock FontSize="20" FontWeight="SemiBold" Text="Карта Мандельбульба"/>
+                <TextBlock x:Name="MapTitleText" FontSize="20" FontWeight="SemiBold" Text="Карта Мандельбульба"/>
                 <TextBlock Margin="0,3,0,8" TextWrapping="Wrap"
                            Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                            Text="Щелчок по поверхности — выбрать C. Перетаскивание левой кнопкой — вращать вокруг центра. Колесо — масштаб, Ctrl — быстро, Shift — точно."/>

@@ -290,10 +290,17 @@ internal static class Fractal3DShader
                           max(0.0, log2(0.5 / sphereRadius)), sphereRadius);
             return best;
 
-        #elif FRACTAL_KIND == 11
+        #elif FRACTAL_KIND == 11 || FRACTAL_KIND == 12
 
             // x — действительная часть, y и z — две мнимые координаты кватерниона.
-            // При z = 0 это ровно 2D Burning Ship: (|x| - i|y|)^2 + c.
+            // При z = 0 кватернионная формула повторяет комплексный Burning Ship.
+            float power = ShapeA.x;
+            int formula = (int)ShapeA.y;
+        #if FRACTAL_KIND == 12
+            float3 c = ShapeB.xyz;
+        #else
+            float3 c = p;
+        #endif
             float3 z = p;
             float dr = 1.0;
             float r = length(z);
@@ -306,18 +313,43 @@ internal static class Fractal3DShader
                 trapAxis = min(trapAxis, MinAxis(z));
                 if (r > ShapeA.w) break;
 
-                // Отражение не меняет длину и локальную норму производной.
-                // 2r — верхняя граница растяжения квадрата кватерниона.
-                dr = 2.0 * r * dr + 1.0;
-                float3 folded = float3(abs(z.x), -abs(z.y), z.z);
-                z = float3(
-                    folded.x * folded.x - folded.y * folded.y - folded.z * folded.z,
-                    2.0 * folded.x * folded.y,
-                    2.0 * folded.x * folded.z) + p;
+                // Все отражения сохраняют длину; производная степени ограничена n*r^(n-1).
+                dr = power * pow(max(r, 1e-12), power - 1.0) * dr + 1.0;
+                float3 folded = float3(abs(z.x), -abs(z.y),
+                    (formula == 1 || formula == 3) ? abs(z.z) : z.z);
+                float zr = pow(r, power);
+                if (formula < 2)
+                {
+                    // Кватернионная степень: при z=0 это комплексная степень той же формулы.
+                    if (power == 2.0)
+                        z = float3(folded.x * folded.x - dot(folded.yz, folded.yz),
+                            2.0 * folded.x * folded.y, 2.0 * folded.x * folded.z) + c;
+                    else
+                    {
+                        float imaginaryRadius = length(folded.yz);
+                        float angle = atan2(imaginaryRadius, folded.x) * power;
+                        float imaginaryScale = imaginaryRadius > 1e-8
+                            ? zr * sin(angle) / imaginaryRadius : 0.0;
+                        z = float3(zr * cos(angle), folded.yz * imaginaryScale) + c;
+                    }
+                }
+                else
+                {
+                    // Сферическая степень Мандельбульба после тех же отражений.
+                    float theta = acos(clamp(folded.z / max(r, 1e-12), -1.0, 1.0));
+                    float phi = atan2(folded.y, folded.x);
+                    float sinTheta = abs(sin(theta));
+                    float stretch = sinTheta > 1e-4
+                        ? abs(sin(theta * power)) / sinTheta : power;
+                    StepScale /= max(stretch, 1.0);
+                    theta *= power;
+                    phi *= power;
+                    z = zr * float3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) + c;
+                }
             }
             r = length(z);
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
-            StepScale = 0.5;
+            StepScale = formula < 2 ? 0.5 : max(min(StepScale, 0.5), BULB_STEP_FLOOR);
             return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
 
         #elif FRACTAL_KIND == 5
@@ -555,7 +587,7 @@ internal static class Fractal3DShader
             return lerp(low, high, step(0.0031308, color));
         }
 
-        #if FRACTAL_KIND == 0
+        #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
         float MarkerDistance(float3 origin, float3 direction)
         {
             if (PickerMarker.w <= 0.0) return -1.0;
@@ -592,7 +624,7 @@ internal static class Fractal3DShader
                 CameraForward.xyz * CameraPosition.w + CameraRight.xyz * plane.x + CameraUp.xyz * plane.y);
             float3 rayOrigin = CameraPosition.xyz;
 
-        #if FRACTAL_KIND == 0
+        #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
             float markerDistance = Probe.x < 0.5 ? MarkerDistance(rayOrigin, rayDirection) : -1.0;
         #endif
 
@@ -604,7 +636,7 @@ internal static class Fractal3DShader
 
             // Начинаем трассировку у области фрактала: оценка расстояния далеко от него
             // может перескочить переднюю поверхность, а фиксированная дальность — обрезать её.
-        #if FRACTAL_KIND == 0
+        #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
             float radius = ShapeA.w;
         #elif FRACTAL_KIND == 1
             float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
@@ -618,7 +650,9 @@ internal static class Fractal3DShader
         #elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
         #elif FRACTAL_KIND == 11
-            float radius = 2.5; // Для квадратичного отображения |c| > 2 даёт уход орбиты.
+            float radius = 2.5; // Для степеней n >= 2 при |c| > 2 орбита уходит.
+        #elif FRACTAL_KIND == 12
+            float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
         #elif FRACTAL_KIND == 10
             float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
         #elif FRACTAL_KIND == 6
@@ -641,7 +675,7 @@ internal static class Fractal3DShader
             float distanceSquared = dot(closestPoint, closestPoint);
             if (distanceSquared > bound * bound)
             {
-            #if FRACTAL_KIND == 0
+            #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
                 if (markerDistance > 0.0) return ShadeMarker(rayOrigin, rayDirection, markerDistance);
             #endif
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
@@ -650,7 +684,7 @@ internal static class Fractal3DShader
             float halfChord = sqrt(max(bound * bound - distanceSquared, 0.0));
             if (closest + halfChord < 0.0)
             {
-            #if FRACTAL_KIND == 0
+            #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
                 if (markerDistance > 0.0) return ShadeMarker(rayOrigin, rayDirection, markerDistance);
             #endif
                 return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
@@ -744,7 +778,7 @@ internal static class Fractal3DShader
 
             if (Probe.x > 0.5) return PackFloat(hit ? travelled : -1.0);
 
-        #if FRACTAL_KIND == 0
+        #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
             if (markerDistance > 0.0 && (!hit || markerDistance < travelled))
                 return ShadeMarker(rayOrigin, rayDirection, markerDistance);
         #endif

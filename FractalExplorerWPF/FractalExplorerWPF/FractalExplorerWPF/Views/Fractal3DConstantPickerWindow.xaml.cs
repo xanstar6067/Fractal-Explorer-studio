@@ -13,7 +13,7 @@ using Vector = System.Windows.Vector;
 
 namespace FractalExplorerWPF.Views;
 
-/// <summary>Параметрический Мандельбульб для выбора трёхмерной константы Жюлиабульба.</summary>
+/// <summary>Параметрическое 3D-множество для выбора константы соответствующего Julia-режима.</summary>
 public partial class Fractal3DConstantPickerWindow : Window
 {
     private const double DefaultDistance = 4.5;
@@ -49,8 +49,11 @@ public partial class Fractal3DConstantPickerWindow : Window
     {
         ArgumentNullException.ThrowIfNull(source);
         SelectedConstant = (source.JuliaCX, source.JuliaCY, source.JuliaCZ);
-        _state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
+        bool burningShip = source.Kind == Fractal3DKind.BurningShipJulia;
+        _state = Fractal3DCatalog.CreateDefaultState(
+            burningShip ? Fractal3DKind.BurningShip : Fractal3DKind.Mandelbulb);
         _state.Power = source.Power;
+        _state.BurningShipFormula = source.BurningShipFormula;
         _state.Iterations = source.Iterations;
         _state.Bailout = source.Bailout;
         _state.CameraDistance = DefaultDistance;
@@ -60,6 +63,7 @@ public partial class Fractal3DConstantPickerWindow : Window
         _state.Ssaa = 1;
 
         InitializeComponent();
+        if (burningShip) MapTitleText.Text = "Карта Горящего корабля 3D";
         SetConstantText();
         ResetView();
         Loaded += (_, _) => RequestFrame(full: true);

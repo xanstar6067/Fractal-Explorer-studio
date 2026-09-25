@@ -46,9 +46,22 @@
                     <Expander Header="Форма" IsExpanded="True" Margin="0,6,0,4">
                         <StackPanel Margin="10,6,0,2">
                             <StackPanel x:Name="PowerPanel">
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Степень n"/>
+                                <TextBlock x:Name="PowerLabel" Style="{StaticResource FieldCaption}" Text="Степень n"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
                                          TextChanged="Parameter_OnChanged"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="BurningShipFormulaPanel" Margin="0,6,0,0">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Формула 3D"/>
+                                <ComboBox x:Name="BurningShipFormulaBox" SelectionChanged="Parameter_OnChanged">
+                                    <ComboBoxItem Content="Кватернион · два отражения"/>
+                                    <ComboBoxItem Content="Кватернион · три отражения"/>
+                                    <ComboBoxItem Content="Сферическая степень · два отражения"/>
+                                    <ComboBoxItem Content="Сферическая степень · три отражения"/>
+                                </ComboBox>
+                                <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Кватернионная формула сохраняет плоский срез; сферическая даёт форму ближе к Мандельбульбу."/>
                             </StackPanel>
 
                             <StackPanel x:Name="JuliaPanel">
@@ -76,7 +89,7 @@
                                              TextChanged="Parameter_OnChanged"/>
                                 </StackPanel>
                                 <StackPanel x:Name="JuliabulbPickerPanel" Margin="0,7,0,3">
-                                    <Button Content="Выбрать C на Мандельбульбе" Click="JuliabulbPicker_OnClick"/>
+                                    <Button x:Name="JuliaPickerButton" Content="Выбрать C на Мандельбульбе" Click="JuliabulbPicker_OnClick"/>
                                     <TextBlock Margin="0,4,0,4" TextWrapping="Wrap"
                                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                                Text="Щёлкните по миниатюре, чтобы открыть 3D-карту выбора C"/>
