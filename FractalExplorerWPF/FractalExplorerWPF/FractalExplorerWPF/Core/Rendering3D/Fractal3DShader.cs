@@ -132,6 +132,12 @@ internal static class Fractal3DShader
             return float4(a.x * a.x - dot(a.yzw, a.yzw), 2.0 * a.x * a.yzw);
         }
 
+        float4 QuaternionMultiply(float4 a, float4 b)
+        {
+            return float4(a.x * b.x - dot(a.yzw, b.yzw),
+                a.x * b.yzw + b.x * a.yzw + cross(a.yzw, b.yzw));
+        }
+
         // Расстояние орбиты до ближайшей координатной плоскости: вторая ловушка, дающая рисунок
         // вдоль осей там, где сферическая ловушка даёт кольца.
         float MinAxis(float3 v)
@@ -454,6 +460,52 @@ internal static class Fractal3DShader
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
             StepScale = formula < 2 ? 0.5 : max(min(StepScale, 0.5), BULB_STEP_FLOOR);
             return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
+
+        #elif FRACTAL_KIND == 14
+
+            // Кватернионный Phoenix. На плоскости p.z = 0 с вещественными C₁ и C₂
+            // подалгебра (1, i) замкнута и даёт ту же рекурсию, что 2D Phoenix.
+            float4 z = float4(p, 0.0);
+            float4 previous = 0.0;
+            float4 c1 = float4(ShapeB.xyz, 0.0);
+            float4 c2 = float4(BoxInversion.xyz, 0.0);
+            int power = (int)ShapeA.x;
+            bool useLinearTerm = ShapeA.y > 0.5;
+            float derivative = 1.0;
+            float previousDerivative = 0.0;
+            float c1Length = length(c1);
+            float c2Length = length(c2);
+            float r = length(z);
+            [loop]
+            for (int i = 0; i < iterations; i++)
+            {
+                trapIndex = (float)i;
+                trapRadius2 = min(trapRadius2, dot(z, z));
+                trapAxis = min(trapAxis, MinAxis(z.xyz));
+                if (r > ShapeA.w) break;
+
+                float4 zPower = z;
+                [loop]
+                for (int exponent = 1; exponent < power; exponent++)
+                    zPower = QuaternionMultiply(zPower, z);
+
+                float4 next = zPower + (useLinearTerm ? QuaternionMultiply(c1, z) : c1)
+                    + QuaternionMultiply(c2, previous);
+                // Норма производной оператора по начальному q: рекурсия учитывает
+                // зависимость от текущей и предыдущей итераций.
+                float nextDerivative = (power * pow(r, power - 1.0) + (useLinearTerm ? c1Length : 0.0))
+                    * derivative + c2Length * previousDerivative;
+                previous = z;
+                z = next;
+                previousDerivative = derivative;
+                derivative = min(nextDerivative, 1e20);
+                r = length(z);
+            }
+            trapRadius2 = min(trapRadius2, dot(z, z));
+            trapAxis = min(trapAxis, MinAxis(z.xyz));
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
+            StepScale = 0.5;
+            return 0.5 * log(max(r, 1.000001)) * r / max(derivative, 1e-9);
 
         #elif FRACTAL_KIND == 5
 
@@ -784,6 +836,8 @@ internal static class Fractal3DShader
             float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
         #elif FRACTAL_KIND == 11
             float radius = 2.5; // Для степеней n >= 2 при |c| > 2 орбита уходит.
+        #elif FRACTAL_KIND == 14
+            float radius = max(ShapeA.w, length(ShapeB.xyz) + length(BoxInversion.xyz) + 2.0);
         #elif FRACTAL_KIND == 12
             float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
         #elif FRACTAL_KIND == 10

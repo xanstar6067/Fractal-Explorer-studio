@@ -51,6 +51,13 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="PhoenixPowerPanel" Margin="0,6,0,0">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Степень при C₁ (0 или 1)"/>
+                                <TextBox x:Name="PhoenixSecondaryPowerBox" numeric:NumericSpinner.IsEnabled="True"
+                                         numeric:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"
+                                         ToolTip="0: qᵖ + C₁ + C₂qₙ₋₁; 1: qᵖ + C₁q + C₂qₙ₋₁"/>
+                            </StackPanel>
+
                             <StackPanel x:Name="BurningShipFormulaPanel" Margin="0,6,0,0">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Формула 3D"/>
                                 <ComboBox x:Name="BurningShipFormulaBox" SelectionChanged="Parameter_OnChanged">
@@ -105,6 +112,27 @@
                                         </Grid>
                                     </Border>
                                 </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="PhoenixMemoryPanel" Margin="0,6,0,0">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Константа памяти C₂ (вещественная; i; j)"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Margin="0,4,4,4" x:Name="PhoenixMemoryXBox"
+                                             numeric:NumericSpinner.IsEnabled="True" ToolTip="Вещественная часть C₂"
+                                             TextChanged="Parameter_OnChanged"/>
+                                    <TextBox Grid.Column="1" Margin="0,4,4,4" x:Name="PhoenixMemoryYBox"
+                                             numeric:NumericSpinner.IsEnabled="True" ToolTip="Координата i константы C₂"
+                                             TextChanged="Parameter_OnChanged"/>
+                                    <TextBox Grid.Column="2" Margin="0,4,0,4" x:Name="PhoenixMemoryZBox"
+                                             numeric:NumericSpinner.IsEnabled="True" ToolTip="Координата j константы C₂"
+                                             TextChanged="Parameter_OnChanged"/>
+                                </Grid>
+                                <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Начальная предыдущая итерация равна нулю. При нулевых i, j у C₁ и C₂ срез z = 0 повторяет 2D Phoenix."/>
                             </StackPanel>
 
                             <StackPanel x:Name="BoxPanel">

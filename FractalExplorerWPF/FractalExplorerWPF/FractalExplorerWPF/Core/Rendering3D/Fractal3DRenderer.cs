@@ -356,6 +356,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             Fractal3DKind.Vicsek or Fractal3DKind.CantorDust => ((float)state.CubeThickness, 0f, 0f),
             Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia =>
                 ((float)state.Power, (float)state.BurningShipFormula, 0f),
+            Fractal3DKind.Phoenix => ((float)state.Power, state.PhoenixSecondaryPower, 0f),
             _ => ((float)state.Power, 0f, 0f)
         };
 
@@ -382,9 +383,12 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)state.ColorOffset,
                 state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
             BoxInversion = new Vector4(
-                (float)(Enum.IsDefined(state.BoxInversionShape) ? state.BoxInversionShape : BoxInversionShape.Sphere),
-                (float)Math.Clamp(state.BoxInversionStretch, 0.5, 2),
-                (float)Math.Clamp(state.BoxInversionPower, 2, 16), 0),
+                state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryX :
+                    (float)(Enum.IsDefined(state.BoxInversionShape) ? state.BoxInversionShape : BoxInversionShape.Sphere),
+                state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryY :
+                    (float)Math.Clamp(state.BoxInversionStretch, 0.5, 2),
+                state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryZ :
+                    (float)Math.Clamp(state.BoxInversionPower, 2, 16), 0),
             Light = new Vector4(light, (float)Math.Clamp(state.Specular, 0, 4)),
             Surface = ToLinear(state.SurfaceColor, (float)Math.Clamp(state.AoStrength, 0, 1)),
             BackgroundTop = ToLinear(state.BackgroundTop),

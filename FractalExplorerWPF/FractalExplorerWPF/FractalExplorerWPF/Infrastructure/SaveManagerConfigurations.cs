@@ -315,6 +315,9 @@ public static class SaveManagerConfigurations
                 $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}",
             Fractal3DKind.QuaternionJulia =>
                 $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}",
+            Fractal3DKind.Phoenix =>
+                $"p={state.Power:G4}, s={state.PhoenixSecondaryPower} · C₁: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5} · " +
+                $"C₂: {state.PhoenixMemoryX:G5}; {state.PhoenixMemoryY:G5}; {state.PhoenixMemoryZ:G5}",
             Fractal3DKind.Juliabulb =>
                 $"Степень: {state.Power:G6} · C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}",
             _ => $"Степень: {state.Power:G6}"

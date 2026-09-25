@@ -1,11 +1,13 @@
 using System.IO;
 using System.Numerics;
 using System.Text.Json.Nodes;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Views;
 
 // Трёхмерные фракталы: дистанционные оценки семи видов на GPU, их пресеты и сохранения.
 // Окна не показываются, кадры считаются в маленьком разрешении.
@@ -156,6 +158,39 @@ internal static partial class Program
             byte[] thick = await Fractal3DFrameAsync(renderer, cubes);
             Check(!classic.SequenceEqual(thick),
                 $"{kind}: element thickness must change the geometry.");
+        }
+
+        Fractal3DState phoenix = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Phoenix);
+        phoenix.ColoringMode = Fractal3DColoringMode.Material;
+        byte[] phoenixReference = await Fractal3DFrameAsync(renderer, phoenix);
+        Fractal3DState changedMemory = phoenix.Clone();
+        changedMemory.PhoenixMemoryX = -0.25;
+        byte[] changedMemoryFrame = await Fractal3DFrameAsync(renderer, changedMemory);
+        Check(!phoenixReference.SequenceEqual(changedMemoryFrame),
+            "Phoenix: the previous-iteration coefficient must change the rendered form.");
+        Fractal3DState linearPhoenix = phoenix.Clone();
+        linearPhoenix.PhoenixSecondaryPower = 1;
+        byte[] linearPhoenixFrame = await Fractal3DFrameAsync(renderer, linearPhoenix);
+        Check(!phoenixReference.SequenceEqual(linearPhoenixFrame),
+            "Phoenix: switching from C₁ to C₁q must change the rendered form.");
+        var themeStyles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
+        if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == themeStyles))
+            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = themeStyles });
+        var phoenixWindow = new Fractal3DWindow(Fractal3DKind.Phoenix);
+        try
+        {
+            phoenixWindow.LoadState(linearPhoenix);
+            Fractal3DState fromWindow = phoenixWindow.CaptureState("Phoenix UI");
+            Check(fromWindow.Kind == Fractal3DKind.Phoenix &&
+                  fromWindow.PhoenixSecondaryPower == linearPhoenix.PhoenixSecondaryPower &&
+                  fromWindow.PhoenixMemoryX.Equals(linearPhoenix.PhoenixMemoryX) &&
+                  fromWindow.PhoenixMemoryY.Equals(linearPhoenix.PhoenixMemoryY) &&
+                  fromWindow.PhoenixMemoryZ.Equals(linearPhoenix.PhoenixMemoryZ),
+                "Phoenix: its settings must survive loading into and reading from the WPF window.");
+        }
+        finally
+        {
+            phoenixWindow.Close();
         }
 
         // Один и тот же кадр должен считаться одинаково: превью сохранения и экспорт обязаны совпасть.
@@ -926,6 +961,10 @@ internal static partial class Program
                   loaded.ColorRepeat == original.ColorRepeat && loaded.LightColor == original.LightColor &&
                   loaded.SkyLightMix.Equals(original.SkyLightMix) &&
                   loaded.CameraRoll.Equals(original.CameraRoll) &&
+                  loaded.PhoenixSecondaryPower == original.PhoenixSecondaryPower &&
+                  loaded.PhoenixMemoryX.Equals(original.PhoenixMemoryX) &&
+                  loaded.PhoenixMemoryY.Equals(original.PhoenixMemoryY) &&
+                  loaded.PhoenixMemoryZ.Equals(original.PhoenixMemoryZ) &&
                   loaded.Palette is not null && loaded.Palette.Name == original.Palette.Name &&
                   loaded.Palette.Gamma.Equals(original.Palette.Gamma) &&
                   loaded.Palette.Colors.SequenceEqual(original.Palette.Colors),

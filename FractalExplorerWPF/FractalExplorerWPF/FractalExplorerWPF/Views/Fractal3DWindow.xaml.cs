@@ -138,8 +138,8 @@ public partial class Fractal3DWindow : Window
             Kind == Fractal3DKind.Ifs3D ? 10_000_000 : 64),
         IfsTransforms = CaptureIfsTransforms(),
         Terrain = CaptureTerrain(),
-        Power = Fractal3DCatalog.IsBurningShip(Kind)
-            ? ReadInt(PowerBox, "Степень", 2, 16)
+        Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
+            ? ReadInt(PowerBox, "Степень", 2, Kind == Fractal3DKind.Phoenix ? 6 : 16)
             : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
                 Kind == Fractal3DKind.BulbBoxHybrid ? 12 : 32),
         BurningShipFormula = SelectedBurningShipFormula,
@@ -148,6 +148,10 @@ public partial class Fractal3DWindow : Window
         JuliaCY = ReadDouble(JuliaCYBox, "Вторая координата C", -8, 8),
         JuliaCZ = ReadDouble(JuliaCZBox, "Третья координата C", -8, 8),
         JuliaCW = ReadDouble(JuliaCWBox, "Четвёртая координата C", -8, 8),
+        PhoenixSecondaryPower = ReadInt(PhoenixSecondaryPowerBox, "Степень при C₁", 0, 1),
+        PhoenixMemoryX = ReadDouble(PhoenixMemoryXBox, "Вещественная часть C₂", -8, 8),
+        PhoenixMemoryY = ReadDouble(PhoenixMemoryYBox, "Координата i константы C₂", -8, 8),
+        PhoenixMemoryZ = ReadDouble(PhoenixMemoryZBox, "Координата j константы C₂", -8, 8),
         QuaternionSlice = ReadDouble(SliceBox, "Координата среза", -4, 4),
         BoxScale = ReadDouble(BoxScaleBox, "Масштаб свёртки", -8, 8),
         BoxMinRadius = ReadDouble(BoxMinRadiusBox, "Минимальный радиус инверсии", 0.01, 4),
@@ -263,6 +267,10 @@ public partial class Fractal3DWindow : Window
         JuliaCYBox.Text = Format(state.JuliaCY);
         JuliaCZBox.Text = Format(state.JuliaCZ);
         JuliaCWBox.Text = Format(state.JuliaCW);
+        PhoenixSecondaryPowerBox.Text = state.PhoenixSecondaryPower.ToString(CultureInfo.InvariantCulture);
+        PhoenixMemoryXBox.Text = Format(state.PhoenixMemoryX);
+        PhoenixMemoryYBox.Text = Format(state.PhoenixMemoryY);
+        PhoenixMemoryZBox.Text = Format(state.PhoenixMemoryZ);
         SliceBox.Text = Format(state.QuaternionSlice);
         BoxScaleBox.Text = Format(state.BoxScale);
         BoxMinRadiusBox.Text = Format(state.BoxMinRadius);
@@ -353,10 +361,14 @@ public partial class Fractal3DWindow : Window
             foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
                 ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
         PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
+        PhoenixPowerPanel.Visibility = PhoenixMemoryPanel.Visibility = Collapse(Kind == Fractal3DKind.Phoenix);
         BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
-        PowerLabel.Text = Fractal3DCatalog.IsBurningShip(Kind) ? "Степень n (целая, 2–16)" :
+        PowerLabel.Text = Kind == Fractal3DKind.Phoenix ? "Основная степень p (целая, 2–6)" :
+            Fractal3DCatalog.IsBurningShip(Kind) ? "Степень n (целая, 2–16)" :
             Kind == Fractal3DKind.BulbBoxHybrid ? "Степень Мандельбульба (2–12)" : "Степень n";
         JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
+        if (Kind == Fractal3DKind.Phoenix)
+            ((TextBlock)JuliaPanel.Children[0]).Text = "Константа C₁ (вещественная; i; j)";
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
         JuliabulbPickerPanel.Visibility = Collapse(Kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia);
         if (Kind == Fractal3DKind.BurningShipJulia)

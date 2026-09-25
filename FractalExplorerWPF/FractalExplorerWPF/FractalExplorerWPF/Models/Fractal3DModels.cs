@@ -20,7 +20,8 @@ public enum Fractal3DKind
     Terrain,
     BurningShip,
     BurningShipJulia,
-    BulbBoxHybrid
+    BulbBoxHybrid,
+    Phoenix
 }
 
 public enum Hybrid3DOrder
@@ -257,6 +258,12 @@ public sealed class Fractal3DState
     public double JuliaCY { get; set; }
     public double JuliaCZ { get; set; }
     public double JuliaCW { get; set; }
+    /// <summary>Вторая константа 3D Phoenix: множитель предыдущего кватерниона.</summary>
+    public double PhoenixMemoryX { get; set; }
+    public double PhoenixMemoryY { get; set; }
+    public double PhoenixMemoryZ { get; set; }
+    /// <summary>Степень при C₁: 0 даёт классическую формулу, 1 — линейный член.</summary>
+    public int PhoenixSecondaryPower { get; set; }
     /// <summary>Временная минисфера редактора C; в сохранения фрактала не попадает.</summary>
     [JsonIgnore]
     public Vector4 PickerMarker { get; set; }
@@ -435,10 +442,10 @@ public static class Fractal3DCatalog
 
     public static bool UsesPower(Fractal3DKind kind) =>
         kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb or
-            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia or Fractal3DKind.BulbBoxHybrid;
+            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia or Fractal3DKind.BulbBoxHybrid or Fractal3DKind.Phoenix;
 
     public static bool UsesJuliaConstant(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia or Fractal3DKind.QuaternionJulia;
+        kind is Fractal3DKind.Juliabulb or Fractal3DKind.BurningShipJulia or Fractal3DKind.QuaternionJulia or Fractal3DKind.Phoenix;
 
     public static bool IsBurningShip(Fractal3DKind kind) =>
         kind is Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia;
@@ -453,6 +460,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Phoenix => new(
+            "Феникс 3D", "Феникс 3D",
+            "Кватернионное продолжение Phoenix: qₙ₊₁ = qₙᵖ + C₁qₙˢ + C₂qₙ₋₁. Предыдущая итерация хранится отдельно; срез z = 0 при вещественных C₁ и C₂ совпадает с классическим 2D Phoenix.",
+            "Fractal3DPhoenix", "phoenix-3d"),
         Fractal3DKind.BulbBoxHybrid => new(
             "Гибрид Мандельбульб × Мандельбокс", "Гибрид Мандельбульб × Мандельбокс",
             "Бульб и бокс чередуются заданными сериями итераций. Доля смешивания подмешивает вторую операцию к каждой серии; порядок, длины серий и параметры обеих форм меняют геометрию.",
@@ -589,6 +600,18 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.Phoenix:
+                state.Power = 2;
+                state.Iterations = 18;
+                state.Bailout = 4;
+                state.JuliaCX = 0.56667;
+                state.PhoenixMemoryX = -0.5;
+                state.CameraDistance = 3.2;
+                state.CameraYaw = 32;
+                state.CameraPitch = 22;
+                state.MaxSteps = 240;
+                state.Palette = Fractal3DPalettes.Get("Раскалённый металл");
+                break;
             case Fractal3DKind.BulbBoxHybrid:
                 state.Power = 3;
                 state.BoxScale = -1.8;
@@ -722,6 +745,24 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Phoenix =>
+        [
+            Preset(kind, "Классический Феникс · C₂ = −0,5", _ => { }),
+            Preset(kind, "Косая память", s =>
+            {
+                s.JuliaCX = 0.35;
+                s.JuliaCY = -0.01;
+                s.PhoenixMemoryX = -0.62;
+                s.PhoenixMemoryZ = 0.12;
+            }),
+            Preset(kind, "Линейный член C₁q", s =>
+            {
+                s.JuliaCX = 0.24;
+                s.JuliaCY = 0.08;
+                s.PhoenixMemoryX = -0.46;
+                s.PhoenixSecondaryPower = 1;
+            })
+        ],
         Fractal3DKind.BulbBoxHybrid =>
         [
             Preset(kind, "Чередование 1 : 1", _ => { }),
