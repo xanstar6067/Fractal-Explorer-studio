@@ -209,7 +209,7 @@ internal static class Fractal3DShader
             }
             float finalRadius = length(z);
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, finalRadius);
-            StepScale = max(StepScale * 0.35, 0.15);
+            StepScale = max(StepScale * BOX_STEP, 0.15);
             return min(0.5 * log(max(finalRadius, 1.000001)), 1.0) *
                 finalRadius / max(dr, 1e-9);
 
@@ -836,7 +836,13 @@ internal static class Fractal3DShader
             // Касательный луч и луч в узкой щели тратят все шаги у самой поверхности.
             // Фон на их месте выглядел бы чёрной дырой, поэтому, если луч подходил к поверхности
             // ближе нескольких пикселей, считаем попаданием ближайшую точку (Enhanced Sphere Tracing).
-            if (!hit && !pierce && exhausted && bestRatio < 16.0)
+            float exhaustedHitRatio =
+        #if FRACTAL_KIND == 13
+                6.0;
+        #else
+                16.0;
+        #endif
+            if (!hit && !pierce && exhausted && bestRatio < exhaustedHitRatio)
             {
                 hit = true;
                 travelled = bestTravelled;
