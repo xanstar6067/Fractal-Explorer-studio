@@ -295,6 +295,11 @@ public static class SaveManagerConfigurations
                    $"{state.IfsTransforms.Count} преобразований\n" +
                    $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, " +
                    $"крен {state.CameraRoll:F1}°, расстояние {state.CameraDistance:G6}";
+        if (state.Kind == Fractal3DKind.StrangeAttractor)
+            return $"{Prefix(state.Timestamp)} · {Attractor3DSystems.Name(state.Attractor.System)} · " +
+                   $"{state.Iterations:N0} точек · шаг {state.Attractor.TimeStep:G5}\n" +
+                   $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, " +
+                   $"крен {state.CameraRoll:F1}°, расстояние {state.CameraDistance:G6}";
         string shape = state.Kind switch
         {
             Fractal3DKind.Mandelbox =>

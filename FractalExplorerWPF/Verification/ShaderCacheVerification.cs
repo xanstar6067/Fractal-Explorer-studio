@@ -47,10 +47,11 @@ internal static partial class Program
 
         Fractal3DRenderer.RebuildShaderCache();
         Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length ==
-              Enum.GetValues<Fractal3DKind>().Length + 1 &&
+              Enum.GetValues<Fractal3DKind>().Length &&
+              File.Exists(AppPaths.GetShaderCacheFile("ifs3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Vicsek-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-CantorDust-pixel")),
-            "Rebuild must create a shader for every 3D mode and the shared vertex shader.");
+            "Rebuild must create a shader for every 3D mode, sharing the density shader between IFS and attractors.");
         Console.WriteLine("PASS (shadercache): reuse, invalidation, corruption recovery, real rendering and full rebuild.");
     }
 }

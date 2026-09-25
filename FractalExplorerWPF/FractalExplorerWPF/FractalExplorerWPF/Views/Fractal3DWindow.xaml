@@ -238,6 +238,38 @@
                                            Text="Матрицы, веса и случайная генерация — в отдельном редакторе." TextWrapping="Wrap"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="AttractorPanel" Visibility="Collapsed">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Система"/>
+                                <ComboBox x:Name="AttractorSystemBox" SelectionChanged="AttractorSystem_OnChanged">
+                                    <ComboBoxItem Content="Лоренц · двойное крыло"/>
+                                    <ComboBoxItem Content="Рёсслер · спираль и изгиб"/>
+                                    <ComboBoxItem Content="Томас · три переплетения"/>
+                                    <ComboBoxItem Content="Халворсен · тройная симметрия"/>
+                                    <ComboBoxItem Content="Айзава · круговая воронка"/>
+                                    <ComboBoxItem Content="Дадрас · раскрытые крылья"/>
+                                </ComboBox>
+                                <TextBlock x:Name="AttractorDescriptionText" Margin="0,5,0,8" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Text="Параметры потока" FontWeight="SemiBold" Margin="0,0,0,3"/>
+                                <StackPanel x:Name="AttractorAField"><TextBlock x:Name="AttractorALabel" Style="{StaticResource FieldCaption}"/><TextBox x:Name="AttractorABox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel x:Name="AttractorBField"><TextBlock x:Name="AttractorBLabel" Style="{StaticResource FieldCaption}"/><TextBox x:Name="AttractorBBox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel x:Name="AttractorCField"><TextBlock x:Name="AttractorCLabel" Style="{StaticResource FieldCaption}"/><TextBox x:Name="AttractorCBox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel x:Name="AttractorDField"><TextBlock x:Name="AttractorDLabel" Style="{StaticResource FieldCaption}"/><TextBox x:Name="AttractorDBox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel x:Name="AttractorEField"><TextBlock x:Name="AttractorELabel" Style="{StaticResource FieldCaption}"/><TextBox x:Name="AttractorEBox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <StackPanel x:Name="AttractorFField"><TextBlock x:Name="AttractorFLabel" Style="{StaticResource FieldCaption}"/><TextBox x:Name="AttractorFBox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/></StackPanel>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени (0,0001–0,05)"/>
+                                <TextBox x:Name="AttractorStepBox" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Начальная точка X / Y / Z"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="AttractorStartXBox" Grid.Column="0" Margin="0,0,4,0" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                                    <TextBox x:Name="AttractorStartYBox" Grid.Column="1" Margin="0,0,4,0" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                                    <TextBox x:Name="AttractorStartZBox" Grid.Column="2" numeric:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                                </Grid>
+                                <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Пресеты наверху задают готовый вид. Смена системы здесь загружает её классические параметры. Число точек задаётся ниже; камера вращается без повторного расчёта траектории."/>
+                            </StackPanel>
+
                             <TextBlock x:Name="IterationsLabel" Style="{StaticResource FieldCaption}" Text="Итерации"/>
                             <TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"
                                      x:Name="IterationsBox" TextChanged="Parameter_OnChanged"/>

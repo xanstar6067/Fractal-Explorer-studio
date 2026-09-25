@@ -142,14 +142,14 @@ public sealed partial class Fractal3DRenderer : IDisposable
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
             if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
-            if (state.Kind == Fractal3DKind.Ifs3D) EnsureIfsVolume(state, token);
+            if (IsDensityVolume(state.Kind)) EnsureIfsVolume(state, token);
 
             context.OMSetRenderTargets(_probeView!);
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             context.VSSetShader(_vertexShader!);
-            context.PSSetShader(state.Kind == Fractal3DKind.Ifs3D ? GetIfsPixelShader() : GetPixelShader(state.Kind));
-            if (state.Kind == Fractal3DKind.Ifs3D)
+            context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader() : GetPixelShader(state.Kind));
+            if (IsDensityVolume(state.Kind))
             {
                 context.PSSetShaderResource(0, _ifsVolumeView!);
                 context.PSSetSampler(0, GetIfsSampler());
@@ -207,7 +207,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 int offsetY = index * stripRows;
                 RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token);
             }
-            catch (OperationCanceledException) when (state.Kind == Fractal3DKind.Terrain && token.IsCancellationRequested)
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
                 return false;
             }
@@ -228,7 +228,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         if (state.Kind == Fractal3DKind.Terrain)
             return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
-        if (state.Kind == Fractal3DKind.Ifs3D)
+        if (IsDensityVolume(state.Kind))
             return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
         double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0);
         // Поиск ближайшей сферы обходит дерево, а не одну формулу: полосы короче,
@@ -246,14 +246,14 @@ public sealed partial class Fractal3DRenderer : IDisposable
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
         if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
-        if (state.Kind == Fractal3DKind.Ifs3D) EnsureIfsVolume(state, token);
+        if (IsDensityVolume(state.Kind)) EnsureIfsVolume(state, token);
 
         context.OMSetRenderTargets(_renderTargetView!);
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
         context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         context.VSSetShader(_vertexShader!);
-        context.PSSetShader(state.Kind == Fractal3DKind.Ifs3D ? GetIfsPixelShader() : GetPixelShader(state.Kind));
-        if (state.Kind == Fractal3DKind.Ifs3D)
+        context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader() : GetPixelShader(state.Kind));
+        if (IsDensityVolume(state.Kind))
         {
             context.PSSetShaderResource(0, _ifsVolumeView!);
             context.PSSetSampler(0, GetIfsSampler());
@@ -457,6 +457,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
         return shader;
     }
 
+    private static bool IsDensityVolume(Fractal3DKind kind) =>
+        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor;
+
     private static ShaderCacheEntry PixelShaderEntry(Fractal3DKind kind) =>
         new($"fractal3d-{kind}-pixel", Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
 
@@ -474,7 +477,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         var entries = new List<ShaderCacheEntry> { VertexShaderEntry() };
         foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
-            if (kind != Fractal3DKind.Ifs3D) entries.Add(PixelShaderEntry(kind));
+            if (!IsDensityVolume(kind)) entries.Add(PixelShaderEntry(kind));
         entries.Add(IfsPixelShaderEntry());
         ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
     }

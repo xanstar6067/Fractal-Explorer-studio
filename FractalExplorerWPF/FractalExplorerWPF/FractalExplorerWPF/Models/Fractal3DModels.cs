@@ -21,7 +21,8 @@ public enum Fractal3DKind
     BurningShip,
     BurningShipJulia,
     BulbBoxHybrid,
-    Phoenix
+    Phoenix,
+    StrangeAttractor
 }
 
 public enum Hybrid3DOrder
@@ -281,6 +282,7 @@ public sealed class Fractal3DState
     public double SierpinskiScale { get; set; } = 2;
     public double CubeThickness { get; set; } = 1;
     public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
+    public Attractor3DSettings Attractor { get; set; } = Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
 
     public TerrainSettings Terrain { get; set; } = new();
 
@@ -369,6 +371,7 @@ public sealed class Fractal3DState
         var clone = (Fractal3DState)MemberwiseClone();
         clone.Palette = Palette?.Clone();
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
+        clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return clone;
     }
 }
@@ -516,6 +519,10 @@ public static class Fractal3DCatalog
             "Конструктор объёмных IFS", "Конструктор объёмных IFS",
             "Редактируемые аффинные преобразования порождают трёхмерный аттрактор. Кадр строится на Direct3D 11; камера и навигация общие с другими трёхмерными фракталами.",
             "IFS3D", "ifs3d"),
+        Fractal3DKind.StrangeAttractor => new(
+            "Объёмные странные аттракторы", "Объёмные странные аттракторы",
+            "Лоренц, Рёсслер, Томас, Халворсен, Айзава и Дадрас. Траектории интегрируются отдельно, их плотность показывается общей 3D-камерой и объёмным шейдером.",
+            "Fractal3DAttractors", "strange-attractor-3d"),
         _ => new(
             "Мандельбульб", "Мандельбульб",
             "Трёхмерное обобщение множества Мандельброта через сферические координаты: z → zⁿ + c с произвольной степенью n.",
@@ -733,6 +740,19 @@ public static class Fractal3DCatalog
             case Fractal3DKind.Ifs3D:
                 ApplyIfsPreset(state, Ifs3DPresets.All[0]);
                 break;
+            case Fractal3DKind.StrangeAttractor:
+                state.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
+                state.Iterations = 1_000_000;
+                state.CameraDistance = 2.8;
+                state.CameraYaw = 0;
+                state.CameraPitch = 12;
+                state.MaxDistance = 12;
+                state.ColoringMode = Fractal3DColoringMode.Height;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.ShadingStyle = Fractal3DShadingStyle.Glow;
+                state.EffectStrength = 1.3;
+                state.Palette = Fractal3DPalettes.Get("Лёд");
+                break;
             default:
                 state.Power = 8;
                 state.Iterations = 9;
@@ -745,6 +765,16 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.StrangeAttractor =>
+        [
+            Preset(kind, "Лоренц · двойное крыло", _ => { }),
+            Preset(kind, "Лоренц · высокий нагрев", s => { s.Attractor.B = 35; s.CameraYaw = 14; s.Palette = Fractal3DPalettes.Get("Раскалённый металл"); }),
+            Preset(kind, "Рёсслер · складка", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Rossler); s.CameraPitch = 50; s.Palette = Fractal3DPalettes.Get("Медь и патина"); }),
+            Preset(kind, "Томас · тройной узел", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Thomas); s.CameraYaw = 45; s.CameraPitch = 28; s.Palette = Fractal3DPalettes.Get("Неон"); }),
+            Preset(kind, "Халворсен · три рукава", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Halvorsen); s.CameraYaw = 35; s.Palette = Fractal3DPalettes.Get("Аметист"); }),
+            Preset(kind, "Айзава · воронка", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Aizawa); s.CameraPitch = 38; s.Palette = Fractal3DPalettes.Get("Северное сияние"); }),
+            Preset(kind, "Дадрас · раскрытые крылья", s => { s.Attractor = Attractor3DSystems.Default(Attractor3DSystem.Dadras); s.CameraYaw = 22; s.Palette = Fractal3DPalettes.Get("Закат"); })
+        ],
         Fractal3DKind.Phoenix =>
         [
             Preset(kind, "Классический Феникс · C₂ = −0,5", _ => { }),

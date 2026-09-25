@@ -26,8 +26,10 @@ public sealed partial class Fractal3DRenderer
 
     private void EnsureIfsVolume(Fractal3DState state, CancellationToken token)
     {
-        if (_ifsVolumeState is not null && SameIfsGeometry(_ifsVolumeState, state)) return;
-        byte[] voxels = Ifs3DVolume.Build(state, token);
+        if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
+        byte[] voxels = state.Kind == Fractal3DKind.StrangeAttractor
+            ? Attractor3DVolume.Build(state, token)
+            : Ifs3DVolume.Build(state, token);
         token.ThrowIfCancellationRequested();
 
         if (_ifsVolumeTexture is null)
@@ -69,8 +71,16 @@ public sealed partial class Fractal3DRenderer
         _ifsVolumeState = state.Clone();
     }
 
-    private static bool SameIfsGeometry(Fractal3DState first, Fractal3DState second)
+    private static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
+        if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.StrangeAttractor)
+        {
+            Attractor3DSettings a = first.Attractor, b = second.Attractor;
+            return first.Iterations == second.Iterations && a.System == b.System &&
+                a.A == b.A && a.B == b.B && a.C == b.C && a.D == b.D && a.E == b.E && a.F == b.F &&
+                a.TimeStep == b.TimeStep && a.StartX == b.StartX && a.StartY == b.StartY && a.StartZ == b.StartZ;
+        }
         if (first.Iterations != second.Iterations || first.IfsTransforms.Count != second.IfsTransforms.Count)
             return false;
         for (int i = 0; i < first.IfsTransforms.Count; i++)

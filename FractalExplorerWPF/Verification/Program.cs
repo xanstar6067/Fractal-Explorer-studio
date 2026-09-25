@@ -27,8 +27,9 @@ internal static partial class Program
     //   newton   — только глубокий и сверхглубокий зум бассейнов Ньютона;
     //   basins   — все 11 режимов BasinExplorerWindow;
     //   planar   — градиентный спуск, комплексный поток и полиномиальные векторные поля;
-    //   fractal3d — семь видов трёхмерных фракталов: дистанционные оценки на GPU, пресеты,
+    //   fractal3d — все виды трёхмерных фракталов: GPU-рендер, пресеты,
     //              навигация камеры, зонд поверхности под курсором и сохранения;
+    //   attractors [папка PNG] — семь готовых видов шести 3D-аттракторов, JSON и окно;
     //   picker-marker — зелёная 3D минисфера выбора C и неизменность зонда поверхности;
     //   ifs-diagnostic <PNG> [warp] — контрольный кадр IFS на выбранном GPU или WARP;
     //   poi [фильтр] [--out папка] — встроенные точки интереса комплексной динамики не дают
@@ -61,6 +62,7 @@ internal static partial class Program
                 if (group is "newton") await VerifyNewtonDeepZoomAsync();
                 if (group is "all" or "basins") VerifyBasinExplorers();
                 if (group is "all" or "fractal3d") await VerifyFractal3DAsync();
+                if (group == "attractors") await VerifyAttractors3DAsync(args);
                 if (group is "all" or "terrain") await VerifyTerrainAsync();
                 if (group == "picker-marker")
                 {
@@ -94,9 +96,9 @@ internal static partial class Program
                     if (args.Length != 4) throw new ArgumentException("poi-probe <группа> <кандидаты.json> <папка PNG>");
                     await ProbePointsOfInterestAsync(args[1], args[2], args[3]);
                 }
-                if (group is not ("all" or "terrain" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("all" or "terrain" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "attractors" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
                     throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: all, manager, deep, extreme, phoenix, newton, basins, planar, fractal3d, ifs-diagnostic, poi, poi-probe, catalog.");
-                if (group is not ("terrain" or "cloud" or "cloud-live" or "numeric" or "fractal3d" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("terrain" or "cloud" or "cloud-live" or "numeric" or "fractal3d" or "attractors" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)
