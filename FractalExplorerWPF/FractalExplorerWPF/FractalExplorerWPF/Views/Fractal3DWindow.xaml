@@ -471,10 +471,11 @@
                                 <ComboBoxItem Content="Студийный свет"/>
                                 <ComboBoxItem Content="Контурный"/>
                                 <ComboBoxItem Content="Просвечивание"/>
+                                <ComboBoxItem Content="Зеркало"/>
                             </ComboBox>
                             <TextBlock Style="{StaticResource FieldCaption}" Text="Сила эффекта"/>
                             <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="EffectStrengthBox"
-                                     ToolTip="Насколько выражен эффект выбранного шейдера: ореол свечения, отражение металла, число ступеней контура."
+                                     ToolTip="Насколько выражен эффект выбранного шейдера: ореол свечения, отражение металла, число ступеней контура или сила зеркального отражения."
                                      TextChanged="Parameter_OnChanged"/>
                             <TextBlock x:Name="ShadingStyleHint" Margin="0,6,0,0" TextWrapping="Wrap"
                                        Foreground="{DynamicResource Theme.DisabledTextBrush}"/>

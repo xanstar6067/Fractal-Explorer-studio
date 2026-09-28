@@ -171,7 +171,10 @@ public enum Fractal3DShadingStyle
     Toon = 6,
 
     /// <summary>Просвечивание: тонкие места подсвечиваются светом, пришедшим с изнанки.</summary>
-    Translucent = 7
+    Translucent = 7,
+
+    /// <summary>Зеркало: один отражённый луч показывает фон и соседние части фигуры.</summary>
+    Mirror = 8
 }
 
 /// <summary>
@@ -332,7 +335,7 @@ public sealed class Fractal3DState
     public Fractal3DColoringMode ColoringMode { get; set; } = Fractal3DColoringMode.OrbitTrap;
     public Fractal3DShadingStyle ShadingStyle { get; set; } = Fractal3DShadingStyle.Classic;
 
-    /// <summary>Сила выбранного шейдера: ореол свечения, плотность, число ступеней контура.</summary>
+    /// <summary>Сила выбранного шейдера: ореол, плотность, ступени контура или доля отражения.</summary>
     public double EffectStrength { get; set; } = 1;
 
     public Color SurfaceColor { get; set; } = Fractal3DEnvironment.SurfaceColor;
@@ -578,6 +581,7 @@ public static class Fractal3DCatalog
         Fractal3DShadingStyle.Studio => "Студийный свет",
         Fractal3DShadingStyle.Toon => "Контурный",
         Fractal3DShadingStyle.Translucent => "Просвечивание",
+        Fractal3DShadingStyle.Mirror => "Зеркало",
         _ => "Классический"
     };
 

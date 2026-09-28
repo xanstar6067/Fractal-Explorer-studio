@@ -396,7 +396,7 @@ public partial class Fractal3DWindow : Window
         (Fractal3DColoringMode)Math.Clamp(ColoringModeBox.SelectedIndex, 0, (int)Fractal3DColoringMode.Steps);
 
     private Fractal3DShadingStyle SelectedShadingStyle =>
-        (Fractal3DShadingStyle)Math.Clamp(ShadingStyleBox.SelectedIndex, 0, (int)Fractal3DShadingStyle.Translucent);
+        (Fractal3DShadingStyle)Math.Clamp(ShadingStyleBox.SelectedIndex, 0, (int)Fractal3DShadingStyle.Mirror);
 
     private Fractal3DColorRepeat SelectedColorRepeat =>
         (Fractal3DColorRepeat)Math.Clamp(ColorRepeatBox.SelectedIndex, 0, (int)Fractal3DColorRepeat.Mirror);
@@ -486,6 +486,7 @@ public partial class Fractal3DWindow : Window
         Fractal3DShadingStyle.Studio => "Свет берётся от нормали в осях камеры: фигура читается с любой стороны.",
         Fractal3DShadingStyle.Toon => "Свет ступенями и тёмная обводка силуэта; сила эффекта задаёт число ступеней.",
         Fractal3DShadingStyle.Translucent => "Свет, пришедший с изнанки, подсвечивает тонкие места насквозь.",
+        Fractal3DShadingStyle.Mirror => "Поверхность отражает небо и соседние части фигуры одним дополнительным лучом. Сила эффекта задаёт долю отражения (0–1).",
         _ => "Рассеянный свет, блик, мягкая тень и затенение складок — вид по умолчанию."
     };
 

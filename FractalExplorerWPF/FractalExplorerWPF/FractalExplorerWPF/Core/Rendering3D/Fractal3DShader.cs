@@ -766,6 +766,59 @@ internal static class Fractal3DShader
             return lerp(low, high, step(0.0031308, color));
         }
 
+        // Один дополнительный луч: отражение соседней поверхности без рекурсии.
+        float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
+                                float epsilon, float pixelRadius, float depthSpan)
+        {
+            float3 reflected = normalize(reflect(incoming, normal));
+            float offset = max(epsilon * 8.0, 1e-7);
+            float3 origin = surfacePoint + normal * offset;
+            float distance = 0.0;
+            float4 reflectedTrap = 0.0;
+            int steps = 0;
+            bool hit = false;
+        #if FRACTAL_KIND == 10
+            hit = TraceTerrain(origin, reflected, March.z, distance, steps);
+        #else
+            int limit = min((int)March.x, 128);
+            [loop]
+            for (int i = 0; i < limit; i++)
+            {
+                float3 samplePoint = origin + reflected * distance;
+                float4 stepTrap;
+                float separation = Map(samplePoint, stepTrap);
+                float tolerance = max(pixelRadius * (distance + offset), epsilon);
+                steps = i + 1;
+                if (separation < tolerance)
+                {
+                    hit = true;
+                    reflectedTrap = stepTrap;
+                    break;
+                }
+                distance += max(separation * StepScale, tolerance);
+                if (distance > March.z) break;
+            }
+        #endif
+            if (!hit) return SkyAt(reflected);
+
+            float3 hitPoint = origin + reflected * distance;
+        #if FRACTAL_KIND == 10
+            float2 slope;
+            TerrainHeight(hitPoint.xz, slope);
+            float3 reflectedNormal = normalize(float3(-slope.x, 1.0, -slope.y));
+            if (dot(reflectedNormal, reflected) > 0.0) reflectedNormal = -reflectedNormal;
+            float stepsRatio = saturate((float)steps / max(2.0 * (ShapeA.z - 1.0), 1.0));
+        #else
+            float3 reflectedNormal = EstimateNormal(hitPoint, max(epsilon, 1e-6));
+            float stepsRatio = saturate((float)steps / max(March.x, 1.0));
+        #endif
+            float3 albedo = SurfaceAlbedo(reflectedNormal, reflectedTrap,
+                distance, hitPoint, reflected, 1.0, stepsRatio, depthSpan);
+            float diffuse = saturate(dot(reflectedNormal, Light.xyz));
+            float3 lit = albedo * (Flags.w * 0.7 + diffuse * LightColor.rgb);
+            return lerp(lit, SkyAt(reflected), saturate(distance / depthSpan));
+        }
+
         #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
         float MarkerDistance(float3 origin, float3 direction)
         {
@@ -1090,6 +1143,14 @@ internal static class Fractal3DShader
                 float back = pow(saturate(dot(-normal, lightDirection)) * 0.6 + 0.4, 2.0);
                 color = albedo * (ambient + diffuse * shadow * lightTint * 0.6) * occlusion +
                     albedo * back * thickness * strength * lightTint * 2.5 + specular * lightTint;
+            }
+            else if (style == 8)
+            {
+                float3 reflected = MirrorReflection(surfacePoint, normal, rayDirection,
+                    epsilon, pixelRadius, depthSpan);
+                float3 baseColor = albedo * (ambient + diffuse * shadow * lightTint) * occlusion +
+                    specular * lightTint;
+                color = lerp(baseColor, reflected, saturate(strength));
             }
             else
             {

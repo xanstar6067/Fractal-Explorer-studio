@@ -149,6 +149,47 @@ internal static class Ifs3DShader
             return exp(-occupied * cell * 12.0);
         }
 
+        float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming, float cell)
+        {
+            float3 reflected = normalize(reflect(incoming, normal));
+            float3 origin = surfacePoint + normal * cell * 4.0;
+            float3 safe = reflected + (abs(reflected) < 1e-6) * 1e-6;
+            float3 nearPlane = (-1.0 - origin) / safe;
+            float3 farPlane = (1.0 - origin) / safe;
+            float3 lo = min(nearPlane, farPlane);
+            float3 hi = max(nearPlane, farPlane);
+            float entry = max(0.0, max(lo.x, max(lo.y, lo.z)));
+            float exitDistance = min(hi.x, min(hi.y, hi.z));
+            if (entry >= exitDistance) return SkyAt(reflected);
+
+            float stepLength = cell * 0.65;
+            float distance = entry;
+            const float threshold = 0.075;
+            float previousDensity = SampleDensity(origin + reflected * distance);
+            bool outside = previousDensity < threshold;
+            [loop]
+            for (int i = 0; i < 1536 && distance < exitDistance; i++)
+            {
+                float nextDistance = min(distance + stepLength, exitDistance);
+                float density = SampleDensity(origin + reflected * nextDistance);
+                if (outside && density >= threshold)
+                {
+                    float hitDistance = lerp(distance, nextDistance,
+                        saturate((threshold - previousDensity) / max(density - previousDensity, 1e-6)));
+                    float3 hitPoint = origin + reflected * hitDistance;
+                    float3 hitNormal = EstimateNormal(hitPoint, cell, reflected);
+                    float3 albedo = SurfaceAlbedo(hitNormal, hitPoint, reflected,
+                        hitDistance - entry, 1.0, saturate((float)i / 1536.0));
+                    float diffuse = saturate(dot(hitNormal, normalize(Light.xyz)));
+                    return albedo * (Flags.w * 0.7 + diffuse * LightColor.rgb);
+                }
+                if (density < threshold) outside = true;
+                previousDensity = density;
+                distance = nextDistance;
+            }
+            return SkyAt(reflected);
+        }
+
         float4 PSMain(PSInput input) : SV_TARGET
         {
             float2 pixel = input.position.xy + Resolution.zw;
@@ -288,6 +329,13 @@ internal static class Ifs3DShader
                 float back = pow(saturate(dot(-normal, lightDirection)) * 0.6 + 0.4, 2.0);
                 color = albedo * (ambient + diffuse * shadow * lightTint * 0.6) * occlusion +
                     albedo * back * thickness * strength * lightTint * 2.5 + specular * lightTint;
+            }
+            else if (style == 8)
+            {
+                float3 reflected = MirrorReflection(surfacePoint, normal, direction, cell);
+                float3 baseColor = albedo * (ambient + diffuse * shadow * lightTint) * occlusion +
+                    specular * lightTint;
+                color = lerp(baseColor, reflected, saturate(strength));
             }
             else
             {
