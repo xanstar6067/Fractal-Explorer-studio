@@ -105,6 +105,15 @@ internal static partial class Program
         using var sandbox = DataSandbox.Create("fractal3d");
         using var renderer = new Fractal3DRenderer();
 
+        foreach (Fractal3DKind kind in new[] { Fractal3DKind.Mandelbulb, Fractal3DKind.Ifs3D })
+        foreach (int height in new[] { 1, 7 })
+        {
+            Fractal3DPixels smallFrame = await renderer.RenderPixelsAsync(
+                Fractal3DCatalog.CreateDefaultState(kind), 4, height, null, null, CancellationToken.None);
+            Check(smallFrame.Completed && smallFrame.Buffer.Length == 4 * height * 4,
+                $"{kind}: a {height}-pixel-high frame must render completely.");
+        }
+
         var categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
         {

@@ -228,6 +228,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         if (state.Kind == Fractal3DKind.Terrain)
             return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
+        if (height <= 8) return height;
         if (IsDensityVolume(state.Kind))
             return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
         double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0);
