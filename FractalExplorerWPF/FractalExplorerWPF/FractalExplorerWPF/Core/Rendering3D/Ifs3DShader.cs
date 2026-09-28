@@ -25,6 +25,8 @@ internal static class Ifs3DShader
             float4 Style;
             float4 LightColor;
             float4 PaletteInfo;
+            float4 HomeCamera;  // общий буфер кадра: сохраняем смещение Palette
+            float4 BoxInversion; // общий буфер кадра: сохраняем смещение Palette
             float4 Palette[16];
         };
 
@@ -335,7 +337,7 @@ internal static class Ifs3DShader
                 float3 reflected = MirrorReflection(surfacePoint, normal, direction, cell);
                 float3 baseColor = albedo * (ambient + diffuse * shadow * lightTint) * occlusion +
                     specular * lightTint;
-                color = lerp(baseColor, reflected, saturate(strength));
+                color = lerp(baseColor, reflected * albedo, saturate(strength));
             }
             else
             {

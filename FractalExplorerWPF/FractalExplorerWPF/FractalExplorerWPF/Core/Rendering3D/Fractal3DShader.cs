@@ -1150,7 +1150,7 @@ internal static class Fractal3DShader
                     epsilon, pixelRadius, depthSpan);
                 float3 baseColor = albedo * (ambient + diffuse * shadow * lightTint) * occlusion +
                     specular * lightTint;
-                color = lerp(baseColor, reflected, saturate(strength));
+                color = lerp(baseColor, reflected * albedo, saturate(strength));
             }
             else
             {
