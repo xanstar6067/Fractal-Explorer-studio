@@ -152,6 +152,7 @@ internal static partial class Program
         var editor = new Flame3DTransformEditorWindow(state.Flame.Transforms);
         try
         {
+            LayoutEditor(editor);
             var z = (TextBox)editor.FindName("TzBox");
             z.Text = ".123";
             int calls = 0;
@@ -162,12 +163,41 @@ internal static partial class Program
             // Closing must roll back unapplied edits to the .123 translation, not .456.
         }
         finally { editor.Close(); }
+        var randomEditor = new Flame3DTransformEditorWindow(state.Flame.Transforms);
+        try
+        {
+            LayoutEditor(randomEditor);
+            int randomApplied = 0;
+            randomEditor.TransformsApplied += transforms =>
+            {
+                randomApplied++;
+                Check(transforms.Count == 5 && transforms.All(t => t.Variation == Flame3DVariation.Curl),
+                    "The actual randomizer button must apply the configured five spatial variations.");
+            };
+            ((Button)randomEditor.FindName("RandomizeButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            LayoutEditor(randomEditor);
+            Check(randomApplied == 1, "Randomizing must apply the generated transforms once.");
+        }
+        finally { randomEditor.Close(); }
         Console.WriteLine("PASS (flame3d): colored deterministic volume, five GPU presets, tone, camera, probe, IFS switching, randomizer, cancellation, saves and WPF editor.");
 
         static byte[] Pixels(BitmapSource bitmap)
         {
             byte[] pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
             bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0); return pixels;
+        }
+
+        static void LayoutEditor(Flame3DTransformEditorWindow editor)
+        {
+            // Constructor-only tests do not instantiate the ListBox data templates.
+            // Real layout activates Run.Text bindings, including their default binding mode.
+            var root = (FrameworkElement)editor.Content;
+            root.Measure(new Size(1080, 760));
+            root.Arrange(new Rect(0, 0, 1080, 760));
+            root.UpdateLayout();
+            var list = (ListBox)editor.FindName("TransformList");
+            Check(list.ItemContainerGenerator.ContainerFromIndex(0) is ListBoxItem,
+                "The transform cards must be instantiated to verify their display bindings.");
         }
     }
 }

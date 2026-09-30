@@ -9,8 +9,8 @@
                 <ListBox x:Name="TransformList" Grid.Row="1" SelectionChanged="TransformList_OnSelectionChanged" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate><DataTemplate><Border Margin="0,2" Padding="9" CornerRadius="5" Background="{DynamicResource Theme.ControlBackgroundBrush}" BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/></Grid.ColumnDefinitions>
-                            <Border Width="14" Height="14" CornerRadius="7" VerticalAlignment="Top" Background="{Binding ColorBrush}"/>
-                            <StackPanel Grid.Column="1" Margin="7,0"><TextBlock FontWeight="SemiBold" Text="Трансформация"/><TextBlock Foreground="{DynamicResource Theme.SecondaryTextBrush}"><Run Text="{Binding VariationName}"/><Run Text=" · вес "/><Run Text="{Binding Weight, StringFormat=F3}"/></TextBlock><ProgressBar Margin="0,5,0,0" Height="4" Maximum="10" Value="{Binding Weight}"/></StackPanel>
+                            <Border Width="14" Height="14" CornerRadius="7" VerticalAlignment="Top" Background="{Binding ColorBrush, Mode=OneWay}"/>
+                            <StackPanel Grid.Column="1" Margin="7,0"><TextBlock FontWeight="SemiBold" Text="Трансформация"/><TextBlock Foreground="{DynamicResource Theme.SecondaryTextBrush}"><Run Text="{Binding VariationName, Mode=OneWay}"/><Run Text=" · вес "/><Run Text="{Binding Weight, Mode=OneWay, StringFormat=F3}"/></TextBlock><ProgressBar Margin="0,5,0,0" Height="4" Maximum="10" Value="{Binding Weight, Mode=OneWay}"/></StackPanel>
                             <Button Grid.Column="2" Width="26" Height="30" Padding="0" Content="×" ToolTip="Удалить" CommandParameter="{Binding}" Click="Delete_OnClick"/>
                         </Grid></Border></DataTemplate></ListBox.ItemTemplate>
                 </ListBox>
