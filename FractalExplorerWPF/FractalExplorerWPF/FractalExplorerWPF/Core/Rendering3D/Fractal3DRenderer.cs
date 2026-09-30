@@ -338,12 +338,14 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
+        KifsSettings kifs = (state.Kifs ?? new()).Normalized();
         Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
         Vector3 light = Fractal3DCamera.LightDirection(state);
         Fractal3DPalette palette = state.ResolvePalette();
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.Kifs => ((float)kifs.Scale, (float)kifs.Symmetry, kifs.Sectors),
             Fractal3DKind.Flame3D => ((float)state.Flame.Exposure, (float)state.Flame.Gamma, (float)state.Flame.Density),
             Fractal3DKind.Terrain => ((float)state.Terrain.Size, (float)state.Terrain.Height, state.Terrain.Resolution),
             Fractal3DKind.Mandelbox => (
@@ -375,7 +377,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.BulbBoxHybrid
+            ShapeB = state.Kind == Fractal3DKind.Kifs
+                ? new Vector4((float)kifs.OffsetX, (float)kifs.OffsetY, (float)kifs.OffsetZ, (float)kifs.Radius)
+                : state.Kind == Fractal3DKind.BulbBoxHybrid
                 ? new Vector4((float)state.BoxScale, (float)Math.Clamp(state.HybridMix, 0, 1),
                     Math.Clamp(state.HybridBulbSteps, 1, 6), Math.Clamp(state.HybridBoxSteps, 1, 6))
                 : new Vector4((float)state.JuliaCX, (float)state.JuliaCY, (float)state.JuliaCZ, (float)state.JuliaCW),
@@ -385,7 +389,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)state.ColorOffset,
                 state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
                     state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
-            BoxInversion = new Vector4(
+            BoxInversion = state.Kind == Fractal3DKind.Kifs
+                ? new Vector4((float)(kifs.RotationX * Math.PI / 180), (float)(kifs.RotationY * Math.PI / 180),
+                    (float)(kifs.RotationZ * Math.PI / 180), (float)kifs.Seed)
+                : new Vector4(
                 state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryX :
                     (float)(Enum.IsDefined(state.BoxInversionShape) ? state.BoxInversionShape : BoxInversionShape.Sphere),
                 state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryY :

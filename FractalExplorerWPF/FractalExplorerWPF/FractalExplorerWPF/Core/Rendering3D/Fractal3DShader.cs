@@ -350,6 +350,64 @@ internal static class Fractal3DShader
             trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
             return length(z) * pow(max(abs(scale), 1.0001), -float(iterations));
 
+        #elif FRACTAL_KIND == 17
+
+            // Piecewise isometries (plane reflections and rotations) followed by uniform
+            // scaling: the Lipschitz factor is exactly scale^n. The terminal primitive
+            // gives a finite-depth KIFS solid; subtracting its radius retains interiors.
+            float3 z = p;
+            float scale = ShapeA.x;
+            float inverseScale = 1.0;
+            float bound = max(length(ShapeB.xyz), ShapeB.w * 1.732051);
+            float3 sn = sin(BoxInversion.xyz), cs = cos(BoxInversion.xyz);
+            [loop]
+            for (int i = 0; i < iterations; i++)
+            {
+                int symmetry = (int)ShapeA.y;
+                if (symmetry == 0)
+                {
+                    if (z.x + z.y < 0) z.xy = -z.yx;
+                    if (z.x + z.z < 0) z.xz = -z.zx;
+                    if (z.y + z.z < 0) z.yz = -z.zy;
+                }
+                else if (symmetry == 1)
+                {
+                    z = abs(z);
+                    if (z.x < z.y) z.xy = z.yx;
+                    if (z.x < z.z) z.xz = z.zx;
+                    if (z.y < z.z) z.yz = z.zy;
+                }
+                else if (symmetry == 2) z = abs(z);
+                else
+                {
+                    float angle = 3.14159265359 / ShapeA.z;
+                    float phi = atan2(z.y, z.x);
+                    phi = abs(phi - 2 * angle * floor((phi + angle) / (2 * angle)));
+                    z.xy = length(z.xy) * float2(cos(phi), sin(phi));
+                    z.z = abs(z.z);
+                }
+                z.yz = float2(cs.x*z.y - sn.x*z.z, sn.x*z.y + cs.x*z.z);
+                z.xz = float2(cs.y*z.x + sn.y*z.z, -sn.y*z.x + cs.y*z.z);
+                z.xy = float2(cs.z*z.x - sn.z*z.y, sn.z*z.x + cs.z*z.y);
+                z = scale * z - (scale - 1) * ShapeB.xyz;
+                inverseScale /= scale;
+                float r2 = dot(z, z);
+                if (r2 < trapRadius2) { trapRadius2 = r2; trapIndex = (float)i; }
+                trapAxis = min(trapAxis, MinAxis(z));
+                // Outside the invariant bounding sphere the orbit cannot return. A lower
+                // bound prevents overflow at high depth without stepping through detail.
+                if (r2 > 256 * bound * bound)
+                {
+                    trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
+                    return (length(z) - bound) * inverseScale;
+                }
+            }
+            float d = length(z) - ShapeB.w;
+            if (BoxInversion.w == 1) d = BoxDistance(z, ShapeB.www);
+            if (BoxInversion.w == 2) d = (dot(abs(z), float3(1,1,1)) - ShapeB.w) * .577350269;
+            trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
+            return d * inverseScale;
+
         #elif FRACTAL_KIND == 6
 
             // Точная знаковая дистанция до объединения касающихся сфер. Иерархия содержит

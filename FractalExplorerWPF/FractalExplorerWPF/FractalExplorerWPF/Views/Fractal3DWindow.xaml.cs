@@ -139,6 +139,7 @@ public partial class Fractal3DWindow : Window
         IfsTransforms = CaptureIfsTransforms(),
         Attractor = CaptureAttractor(),
         Terrain = CaptureTerrain(),
+        Kifs = CaptureKifs(),
         Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
             ? ReadInt(PowerBox, "Степень", 2, Kind == Fractal3DKind.Phoenix ? 6 : 16)
             : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
@@ -293,6 +294,7 @@ public partial class Fractal3DWindow : Window
         LoadIfsTransforms(state.IfsTransforms);
         LoadAttractor(state.Attractor);
         LoadTerrain(state.Terrain);
+        LoadKifs(state.Kifs);
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -380,6 +382,7 @@ public partial class Fractal3DWindow : Window
             JuliaPickerButton.Content = "Выбрать C на Горящем корабле 3D";
         BoxPanel.Visibility = Collapse(Kind is Fractal3DKind.Mandelbox or Fractal3DKind.BulbBoxHybrid);
         HybridPanel.Visibility = Collapse(Kind == Fractal3DKind.BulbBoxHybrid);
+        KifsPanel.Visibility = Collapse(Kind == Fractal3DKind.Kifs);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
         FlamePanel.Visibility = Collapse(Kind == Fractal3DKind.Flame3D);
@@ -397,7 +400,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D));
+            Kind is not (Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;

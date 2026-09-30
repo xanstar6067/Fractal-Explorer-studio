@@ -188,6 +188,92 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="KifsPanel" Visibility="Collapsed">
+                                <CheckBox x:Name="KifsNearbyBox" Content="Вариации текущей формы" IsChecked="True" ToolTip="Выключите для случайного выбора семейства из готовых форм"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Button Content="Случайная форма" Click="KifsRandom_OnClick" Margin="0,4,5,4"/>
+                                    <Button Grid.Column="1" Content="Отменить" Click="KifsUndo_OnClick" ToolTip="Откат карты смещения, рандомайзера или обнуления поворота"/>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Симметрия отражений"/>
+                                <ComboBox x:Name="KifsSymmetryBox" SelectionChanged="Kifs_OnChanged" SelectedIndex="0">
+                                    <ComboBoxItem Content="Тетраэдр · четыре вершины"/>
+                                    <ComboBoxItem Content="Октаэдр · восемь граней"/>
+                                    <ComboBoxItem Content="Куб · зеркала по осям"/>
+                                    <ComboBoxItem Content="Звезда · радиальные зеркала"/>
+                                </ComboBox>
+                                <StackPanel x:Name="KifsSectorsPanel" Visibility="Collapsed">
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Число лучей звезды (3–16)"/>
+                                    <TextBox x:Name="KifsSectorsBox" Text="6" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" TextChanged="Kifs_OnChanged"/>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб на каждой итерации"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="KifsScaleSlider" Minimum="1.2" Maximum="4" Value="2" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                    <TextBox Grid.Column="1" x:Name="KifsScaleBox" Text="{Binding ElementName=KifsScaleSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                </Grid>
+                                <TextBlock Text="Смещение · перетащите точку на карте" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                <ComboBox x:Name="KifsPlaneBox" SelectedIndex="0" SelectionChanged="Kifs_OnChanged" ToolTip="Третья координата сохраняется при смене плоскости">
+                                    <ComboBoxItem Content="Плоскость XY"/><ComboBoxItem Content="Плоскость XZ"/><ComboBoxItem Content="Плоскость YZ"/>
+                                </ComboBox>
+                                <Border BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" ClipToBounds="True">
+                                    <Canvas x:Name="KifsOffsetMap" Height="170" Background="{DynamicResource Theme.BaseBackgroundBrush}" Cursor="Cross" SizeChanged="KifsMap_OnSizeChanged" MouseLeftButtonDown="KifsMap_OnMouseDown" MouseMove="KifsMap_OnMouseMove" MouseLeftButtonUp="KifsMap_OnMouseUp"/>
+                                </Border>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Смещение X"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="KifsOffsetXSlider" Minimum="-2" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                    <TextBox Grid.Column="1" x:Name="KifsOffsetXBox" Text="{Binding ElementName=KifsOffsetXSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Смещение Y"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="KifsOffsetYSlider" Minimum="-2" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                    <TextBox Grid.Column="1" x:Name="KifsOffsetYBox" Text="{Binding ElementName=KifsOffsetYSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Смещение Z"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="KifsOffsetZSlider" Minimum="-2" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                    <TextBox Grid.Column="1" x:Name="KifsOffsetZBox" Text="{Binding ElementName=KifsOffsetZSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                </Grid>
+                                <Expander Header="Поворот и исходная форма" IsExpanded="False" Margin="0,8,0,0">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Исходная форма на последнем уровне"/>
+                                        <ComboBox x:Name="KifsSeedBox" SelectedIndex="0" SelectionChanged="Kifs_OnChanged">
+                                            <ComboBoxItem Content="Сфера · округлые кристаллы"/>
+                                            <ComboBoxItem Content="Куб · многогранные лабиринты"/>
+                                            <ComboBoxItem Content="Октаэдр · острые грани"/>
+                                        </ComboBox>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Размер исходной формы"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                            <Slider x:Name="KifsRadiusSlider" Minimum="0.1" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                            <TextBox Grid.Column="1" x:Name="KifsRadiusBox" Text="{Binding ElementName=KifsRadiusSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                        </Grid>
+                                        <TextBlock Text="Поворот на каждой итерации" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="X · градусы"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                            <Slider x:Name="KifsRotationXSlider" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="10" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                            <TextBox Grid.Column="1" x:Name="KifsRotationXBox" Text="{Binding ElementName=KifsRotationXSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                        </Grid>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Y · градусы"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                            <Slider x:Name="KifsRotationYSlider" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="10" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                            <TextBox Grid.Column="1" x:Name="KifsRotationYBox" Text="{Binding ElementName=KifsRotationYSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                        </Grid>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Z · градусы"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                                            <Slider x:Name="KifsRotationZSlider" Minimum="-180" Maximum="180" Value="0" SmallChange="1" LargeChange="10" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Kifs_OnChanged"/>
+                                            <TextBox Grid.Column="1" x:Name="KifsRotationZBox" Text="{Binding ElementName=KifsRotationZSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Kifs_OnChanged"/>
+                                        </Grid>
+                                        <Button Content="Обнулить поворот" Click="KifsResetRotation_OnClick"/>
+                                    </StackPanel>
+                                </Expander>
+                                <TextBlock Text="Порядок: отражения → поворот X/Y/Z → масштаб → смещение × (масштаб − 1). Итерации ниже задают глубину деталей." TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6"/>
+                            </StackPanel>
                             <StackPanel x:Name="SierpinskiPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб складывания"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SierpinskiScaleBox"

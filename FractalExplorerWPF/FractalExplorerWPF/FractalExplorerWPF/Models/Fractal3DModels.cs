@@ -23,7 +23,8 @@ public enum Fractal3DKind
     BulbBoxHybrid,
     Phoenix,
     StrangeAttractor,
-    Flame3D
+    Flame3D,
+    Kifs
 }
 
 public enum Hybrid3DOrder
@@ -290,6 +291,8 @@ public sealed class Fractal3DState
 
     public Flame3DSettings Flame { get; set; } = new();
 
+    public KifsSettings Kifs { get; set; } = new();
+
     public TerrainSettings Terrain { get; set; } = new();
 
     // ---- камера ----
@@ -376,6 +379,7 @@ public sealed class Fractal3DState
     {
         var clone = (Fractal3DState)MemberwiseClone();
         clone.Palette = Palette?.Clone();
+        clone.Kifs = Kifs?.Clone() ?? new();
         clone.Flame = Flame?.Clone() ?? new();
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
@@ -470,6 +474,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Kifs => new(
+            "Калейдоскопические фракталы — KIFS", "Калейдоскопические фракталы",
+            "Зеркальные плоскости складывают пространство в кристаллы, звёзды и рекурсивные соборы. Симметрия, поворот и смещение на каждой итерации меняют архитектуру; карта смещения и рандомайзер работают вживую.",
+            "Fractal3DKifs", "kifs"),
         Fractal3DKind.Flame3D => new(
             "Объёмный Fractal Flame", "Объёмный Fractal Flame",
             "Цветные орбиты пространственных преобразований и нелинейных вариаций складываются в светящиеся облака, ленты и скульптуры. Редактор матриц, рандомайзер и тональная коррекция.",
@@ -619,6 +627,12 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.Kifs:
+                state.Iterations = 10;
+                state.CameraDistance = 4.5;
+                state.MaxSteps = 240;
+                state.Palette = Fractal3DPalettes.Get("Лёд");
+                break;
             case Fractal3DKind.Phoenix:
                 state.Power = 2;
                 state.Iterations = 18;
@@ -790,6 +804,15 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Kifs =>
+        [
+            Preset(kind, "Рекурсивный кристалл · тетраэдр", _ => { }),
+            Preset(kind, "Гранёный собор · октаэдр", s => { s.Kifs.Symmetry = KifsSymmetry.Octahedral; s.Kifs.OffsetY = .65; s.Kifs.OffsetZ = .35; s.Kifs.RotationZ = 12; s.Kifs.Scale = 2.4; }),
+            Preset(kind, "Зеркальный лабиринт · куб", s => { s.Kifs.Symmetry = KifsSymmetry.Cubic; s.Kifs.Seed = KifsSeed.Cube; s.Kifs.Scale = 2.6; s.Kifs.RotationY = 18; s.Kifs.Radius = .8; }),
+            Preset(kind, "Шестилучевая звезда", s => { s.Kifs.Symmetry = KifsSymmetry.Dihedral; s.Kifs.OffsetY = 0; s.Kifs.OffsetZ = .35; s.Kifs.Scale = 2.2; s.Kifs.RotationZ = 8; }),
+            Preset(kind, "Спиральный кристалл", s => { s.Kifs.Symmetry = KifsSymmetry.Octahedral; s.Kifs.OffsetY = .65; s.Kifs.OffsetZ = .35; s.Kifs.RotationX = 8; s.Kifs.RotationY = 15; s.Kifs.RotationZ = 5; s.Kifs.Scale = 2.2; }),
+            Preset(kind, "Восьмилучевая корона", s => { s.Kifs.Symmetry = KifsSymmetry.Dihedral; s.Kifs.Sectors = 8; s.Kifs.OffsetY = 0; s.Kifs.OffsetZ = .5; s.Kifs.RotationX = 8; s.Kifs.Scale = 2.5; })
+        ],
         Fractal3DKind.Flame3D =>
         [
             Preset(kind, "Неоновый вихрь · дымчатые ленты", _ => { }),

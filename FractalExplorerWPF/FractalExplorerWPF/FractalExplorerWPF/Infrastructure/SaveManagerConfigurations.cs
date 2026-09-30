@@ -312,6 +312,7 @@ public static class SaveManagerConfigurations
                 $"Бульб n={state.Power:G4} × {state.HybridBulbSteps} · Бокс {state.BoxScale:G4} × {state.HybridBoxSteps} · " +
                 $"смесь {state.HybridMix:G3} · инверсия {Fractal3DCatalog.BoxInversionShapeName(state.BoxInversionShape)} · " +
                 (state.HybridOrder == Hybrid3DOrder.BulbFirst ? "сначала бульб" : "сначала бокс"),
+            Fractal3DKind.Kifs => $"{KifsSettings.SymmetryName(state.Kifs.Symmetry)} · Масштаб: {state.Kifs.Scale:G4} · Поворот: {state.Kifs.RotationX:G4}; {state.Kifs.RotationY:G4}; {state.Kifs.RotationZ:G4}° · Смещение: {state.Kifs.OffsetX:G4}; {state.Kifs.OffsetY:G4}; {state.Kifs.OffsetZ:G4}",
             Fractal3DKind.SierpinskiTetrahedron => $"Масштаб складывания: {state.SierpinskiScale:G6}",
             Fractal3DKind.MengerSponge => "Рекурсивные тоннели куба",
             Fractal3DKind.Vicsek => $"Семь кубиков · Толщина: {state.CubeThickness:G4}",
