@@ -19,7 +19,7 @@ namespace FractalExplorerWPF.Views;
 
 /// <summary>
 /// Универсальное окно 3D-режимов. Вид задаётся при создании окна, разметка показывает
-/// только его параметры. Для IFS и странных аттракторов объём подготавливается на ЦП,
+/// только его параметры. Для IFS, Flame и странных аттракторов объём подготавливается на ЦП,
 /// кадр всех режимов считает GPU (<see cref="Fractal3DRenderer"/>),
 /// поэтому отдельного тайлового прогресса нет: прогресс идёт по горизонтальным полосам кадра.
 /// Превью живое: кадровый цикл считает черновик подобранного размера столько раз, сколько успевает,
@@ -132,9 +132,10 @@ public partial class Fractal3DWindow : Window
         Kind = Kind,
         Iterations = ReadInt(IterationsBox,
             Kind == Fractal3DKind.ApollonianPacking ? "Поколения сфер" : "Итерации",
-            Kind == Fractal3DKind.Ifs3D ? 10_000 : Kind == Fractal3DKind.StrangeAttractor ? 50_000 : 1,
+            Kind == Fractal3DKind.Ifs3D ? 10_000 : Kind is Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D ? 50_000 : 1,
             Kind == Fractal3DKind.ApollonianPacking ? ApollonianSpherePacking.MaxGeneration :
-            Kind == Fractal3DKind.Ifs3D ? 10_000_000 : Kind == Fractal3DKind.StrangeAttractor ? 5_000_000 : 64),
+            Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Flame3D ? 10_000_000 : Kind == Fractal3DKind.StrangeAttractor ? 5_000_000 : 64),
+        Flame = CaptureFlame(),
         IfsTransforms = CaptureIfsTransforms(),
         Attractor = CaptureAttractor(),
         Terrain = CaptureTerrain(),
@@ -288,6 +289,7 @@ public partial class Fractal3DWindow : Window
         HybridOrderBox.SelectedIndex = (int)state.HybridOrder;
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
         CubeThicknessBox.Text = Format(state.CubeThickness);
+        LoadFlame(state.Flame);
         LoadIfsTransforms(state.IfsTransforms);
         LoadAttractor(state.Attractor);
         LoadTerrain(state.Terrain);
@@ -336,6 +338,7 @@ public partial class Fractal3DWindow : Window
     {
         IterationsLabel.Text = Kind == Fractal3DKind.ApollonianPacking
             ? "Поколения сфер (1–5)"
+            : Kind == Fractal3DKind.Flame3D ? "Точки Flame (50 000–10 000 000)"
             : Kind == Fractal3DKind.Ifs3D ? "Точки орбиты (10 000–10 000 000)"
             : Kind == Fractal3DKind.StrangeAttractor ? "Точки траектории (50 000–5 000 000)" : "Итерации";
         if (Kind == Fractal3DKind.ApollonianPacking)
@@ -345,7 +348,7 @@ public partial class Fractal3DWindow : Window
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.IterationIndex]).Content = "По масштабу сферы";
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.Escape]).Content = "По радиусу сферы";
         }
-        if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor)
+        if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D)
         {
             // These four sources require orbit/escape metadata that a density volume does not contain.
             foreach (Fractal3DColoringMode mode in new[]
@@ -379,15 +382,22 @@ public partial class Fractal3DWindow : Window
         HybridPanel.Visibility = Collapse(Kind == Fractal3DKind.BulbBoxHybrid);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
+        FlamePanel.Visibility = Collapse(Kind == Fractal3DKind.Flame3D);
+        if (Kind == Fractal3DKind.Flame3D)
+        {
+            ColoringExpander.Visibility = Visibility.Collapsed;
+            ((ComboBoxItem)ShadingStyleBox.Items[(int)Fractal3DShadingStyle.Glow]).Content = "Светящиеся ленты";
+            ((ComboBoxItem)ShadingStyleBox.Items[(int)Fractal3DShadingStyle.Density]).Content = "Дымчатое облако";
+        }
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
         AttractorPanel.Visibility = Collapse(Kind == Fractal3DKind.StrangeAttractor);
-        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor));
-        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor);
-        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor);
+        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D));
+        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D);
+        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D);
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor));
+            Kind is not (Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -477,7 +487,23 @@ public partial class Fractal3DWindow : Window
         PalettePreview.Background = brush;
     }
 
-    private void UpdateShadingHint() => ShadingStyleHint.Text = SelectedShadingStyle switch
+    private void UpdateShadingHint()
+    {
+        if (Kind == Fractal3DKind.Flame3D)
+        {
+            bool cloud = SelectedShadingStyle is Fractal3DShadingStyle.Glow or Fractal3DShadingStyle.Density;
+            LightExpander.IsEnabled = !cloud;
+            LightExpander.ToolTip = cloud ? "Облако излучает собственный цвет. Свет и тени работают в скульптурных стилях." : null;
+            FlameDensityBox.IsEnabled = cloud;
+            ShadingStyleHint.Text = SelectedShadingStyle switch
+            {
+                Fractal3DShadingStyle.Glow => "Цветные орбиты излучают свет вдоль всего луча. Плотность регулирует поглощение, сила эффекта — свечение.",
+                Fractal3DShadingStyle.Density => "Дымчатое облако: дальние слои видны сквозь ближние. Плотность регулирует прозрачность, сила эффекта — яркость.",
+                _ => "Освещённая скульптура по границе плотности. Цвет берётся из орбит; свет, тени и тональная коррекция меняют её облик."
+            };
+            return;
+        }
+        ShadingStyleHint.Text = SelectedShadingStyle switch
     {
         Fractal3DShadingStyle.Clay => "Мягкий обёрнутый свет без бликов; складки затенены сильнее обычного.",
         Fractal3DShadingStyle.Metal => "В поверхности отражается небо, поэтому цвета фона становятся частью фигуры.",
@@ -488,7 +514,8 @@ public partial class Fractal3DWindow : Window
         Fractal3DShadingStyle.Translucent => "Свет, пришедший с изнанки, подсвечивает тонкие места насквозь.",
         Fractal3DShadingStyle.Mirror => "Поверхность отражает небо и соседние части фигуры. Окраска тонирует отражение; сила 0 — обычный вид, от 1 — полное отражение.",
         _ => "Рассеянный свет, блик, мягкая тень и затенение складок — вид по умолчанию."
-    };
+        };
+    }
 
     /// <summary>
     /// Список палитр окна. Палитра открытого вида может быть не из библиотеки — например,
@@ -973,7 +1000,7 @@ public partial class Fractal3DWindow : Window
         if (quality == Fractal3DMotionQuality.Draft)
         {
             draft.AmbientOcclusion = false;
-            if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor) return draft;
+            if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D) return draft;
             draft.MaxSteps = Math.Max(48, (int)(state.MaxSteps * 0.6));
             draft.Detail = Math.Min(8, state.Detail * 1.5);
         }

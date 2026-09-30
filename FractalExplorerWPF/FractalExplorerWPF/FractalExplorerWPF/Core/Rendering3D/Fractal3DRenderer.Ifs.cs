@@ -8,13 +8,17 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 public sealed partial class Fractal3DRenderer
 {
     private ID3D11PixelShader? _ifsPixelShader;
+    private ID3D11PixelShader? _flamePixelShader;
+    private bool _colorVolume;
     private ID3D11SamplerState? _ifsSampler;
     private ID3D11Texture3D? _ifsVolumeTexture;
     private ID3D11ShaderResourceView? _ifsVolumeView;
     private Fractal3DState? _ifsVolumeState;
 
-    private ID3D11PixelShader GetIfsPixelShader()
+    private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Flame3D)
+            return _flamePixelShader ??= _device!.CreatePixelShader(Compile(FlamePixelShaderEntry()).Span);
         if (_ifsPixelShader is not null) return _ifsPixelShader;
         _ifsPixelShader = _device!.CreatePixelShader(Compile(IfsPixelShaderEntry()).Span);
         return _ifsPixelShader;
@@ -27,20 +31,32 @@ public sealed partial class Fractal3DRenderer
     private void EnsureIfsVolume(Fractal3DState state, CancellationToken token)
     {
         if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
-        byte[] voxels = state.Kind == Fractal3DKind.StrangeAttractor
+        bool colorVolume = state.Kind == Fractal3DKind.Flame3D;
+        int side = colorVolume ? Flame3DVolume.Side : Ifs3DVolume.Side;
+        int bytesPerCell = colorVolume ? 8 : 1;
+        byte[] voxels = colorVolume ? Flame3DVolume.Build(state, token) : state.Kind == Fractal3DKind.StrangeAttractor
             ? Attractor3DVolume.Build(state, token)
             : Ifs3DVolume.Build(state, token);
         token.ThrowIfCancellationRequested();
+        // Once upload starts, an allocation/map failure must not leave a valid-looking
+        // snapshot pointing at a replaced or partially updated texture.
+        _ifsVolumeState = null;
 
+        if (_ifsVolumeTexture is not null && _colorVolume != colorVolume)
+        {
+            _context!.PSSetShaderResource(0, null!);
+            _ifsVolumeView?.Dispose(); _ifsVolumeTexture.Dispose();
+            _ifsVolumeView = null; _ifsVolumeTexture = null;
+        }
         if (_ifsVolumeTexture is null)
         {
             _ifsVolumeTexture = _device!.CreateTexture3D(new Texture3DDescription
             {
-                Width = Ifs3DVolume.Side,
-                Height = Ifs3DVolume.Side,
-                Depth = Ifs3DVolume.Side,
+                Width = (uint)side,
+                Height = (uint)side,
+                Depth = (uint)side,
                 MipLevels = 1,
-                Format = Format.R8_UNorm,
+                Format = colorVolume ? Format.R16G16B16A16_Float : Format.R8_UNorm,
                 Usage = ResourceUsage.Dynamic,
                 BindFlags = BindFlags.ShaderResource,
                 CPUAccessFlags = CpuAccessFlags.Write
@@ -52,8 +68,8 @@ public sealed partial class Fractal3DRenderer
         MappedSubresource mapped = context.Map(_ifsVolumeTexture, 0, MapMode.WriteDiscard);
         try
         {
-            int side = Ifs3DVolume.Side;
-            if (mapped.RowPitch == side && mapped.DepthPitch == side * side)
+            int rowBytes = side * bytesPerCell;
+            if (mapped.RowPitch == rowBytes && mapped.DepthPitch == rowBytes * side)
             {
                 Marshal.Copy(voxels, 0, mapped.DataPointer, voxels.Length);
             }
@@ -63,17 +79,28 @@ public sealed partial class Fractal3DRenderer
                 for (int y = 0; y < side; y++)
                 {
                     nint destination = IntPtr.Add(mapped.DataPointer, checked((int)(z * mapped.DepthPitch + y * mapped.RowPitch)));
-                    Marshal.Copy(voxels, (z * side + y) * side, destination, side);
+                    Marshal.Copy(voxels, (z * side + y) * rowBytes, destination, rowBytes);
                 }
             }
         }
         finally { context.Unmap(_ifsVolumeTexture, 0); }
+        _colorVolume = colorVolume;
         _ifsVolumeState = state.Clone();
     }
 
-    private static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
+    internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.Flame3D)
+        {
+            var a = first.Flame; var b = second.Flame;
+            return first.Iterations == second.Iterations && a.Seed == b.Seed && a.Warmup == b.Warmup &&
+                a.Transforms.Count == b.Transforms.Count && a.Transforms.Zip(b.Transforms).All(pair =>
+                    pair.First.Weight == pair.Second.Weight && pair.First.Variation == pair.Second.Variation &&
+                    pair.First.Amount == pair.Second.Amount && pair.First.ColorSpeed == pair.Second.ColorSpeed &&
+                    pair.First.Color == pair.Second.Color &&
+                    Flame3DSettings.Values(pair.First.Map).SequenceEqual(Flame3DSettings.Values(pair.Second.Map)));
+        }
         if (first.Kind == Fractal3DKind.StrangeAttractor)
         {
             Attractor3DSettings a = first.Attractor, b = second.Attractor;
@@ -100,6 +127,7 @@ public sealed partial class Fractal3DRenderer
         _ifsVolumeView?.Dispose();
         _ifsVolumeTexture?.Dispose();
         _ifsPixelShader?.Dispose();
+        _flamePixelShader?.Dispose();
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;
     }

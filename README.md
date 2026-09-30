@@ -116,6 +116,8 @@ Newton Pools+ поддерживает методы Newton, Halley и Householde
 
 IFS и Fractal Flame включают редакторы аффинных преобразований. Серпинский в режиме «игра хаоса», Аполлонова прокладка с раскраской по глубине/кривизне/родительской ветви и DLA с растущим кластером частиц дополняют раздел.
 
+[Объёмный Fractal Flame](FractalExplorerWPF/FLAME3D.md) создаёт цветные дымчатые ленты, облака и скульптуры: восемь пространственных вариаций, редактор матриц 3×4 с рандомайзером, пять готовых видов, накопление цвета и тональная коррекция. Использует общую 3D-камеру, GPU-рендер, сохранения и экспорт.
+
 <table>
 <tr>
 <td width="25%" align="center"><img src="./Pictures/V2_0_WPF/ifs.png" width="260"><br><sub>IFS Барнсли / Хейуэя</sub></td>
@@ -376,6 +378,8 @@ Newton Pools+ supports the Newton, Halley, and Householder methods with its own 
 #### Iterated, self-similar, geometric, and stochastic fractals
 
 IFS and Fractal Flame include affine-transform editors. Sierpiński in "chaos game" mode, the Apollonian gasket colored by depth/curvature/parent branch, and DLA with a growing particle cluster round out the section.
+
+[Volumetric Fractal Flame](FractalExplorerWPF/FLAME3D.md) creates colored smoke ribbons, clouds, and sculptures with eight spatial variations, a 3×4 transform editor and randomizer, five presets, color accumulation, and tone controls. It shares the 3D camera, GPU rendering, saves, and image export.
 
 <table>
 <tr>

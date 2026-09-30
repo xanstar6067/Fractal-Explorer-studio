@@ -22,7 +22,8 @@ public enum Fractal3DKind
     BurningShipJulia,
     BulbBoxHybrid,
     Phoenix,
-    StrangeAttractor
+    StrangeAttractor,
+    Flame3D
 }
 
 public enum Hybrid3DOrder
@@ -287,6 +288,8 @@ public sealed class Fractal3DState
     public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
     public Attractor3DSettings Attractor { get; set; } = Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
 
+    public Flame3DSettings Flame { get; set; } = new();
+
     public TerrainSettings Terrain { get; set; } = new();
 
     // ---- камера ----
@@ -373,6 +376,7 @@ public sealed class Fractal3DState
     {
         var clone = (Fractal3DState)MemberwiseClone();
         clone.Palette = Palette?.Clone();
+        clone.Flame = Flame?.Clone() ?? new();
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return clone;
@@ -466,6 +470,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Flame3D => new(
+            "Объёмный Fractal Flame", "Объёмный Fractal Flame",
+            "Цветные орбиты пространственных преобразований и нелинейных вариаций складываются в светящиеся облака, ленты и скульптуры. Редактор матриц, рандомайзер и тональная коррекция.",
+            "Fractal3DFlame", "flame-3d"),
         Fractal3DKind.Phoenix => new(
             "Феникс 3D", "Феникс 3D",
             "Кватернионное продолжение Phoenix: qₙ₊₁ = qₙᵖ + C₁qₙˢ + C₂qₙ₋₁. Предыдущая итерация хранится отдельно; срез z = 0 при вещественных C₁ и C₂ совпадает с классическим 2D Phoenix.",
@@ -741,6 +749,19 @@ public static class Fractal3DCatalog
                 state.BackgroundTop = Color.FromRgb(85, 130, 177);
                 state.BackgroundBottom = Color.FromRgb(187, 208, 218);
                 break;
+            case Fractal3DKind.Flame3D:
+                state.Flame.Transforms = Flame3DPresets.Transforms(0);
+                state.Iterations = 2_000_000;
+                state.CameraDistance = 3.1;
+                state.CameraYaw = 25;
+                state.CameraPitch = 16;
+                state.ShadingStyle = Fractal3DShadingStyle.Glow;
+                state.ColoringMode = Fractal3DColoringMode.Material;
+                state.BackgroundTop = Color.FromRgb(5, 7, 16);
+                state.BackgroundBottom = Color.FromRgb(1, 2, 5);
+                state.SoftShadows = false;
+                state.AmbientOcclusion = false;
+                break;
             case Fractal3DKind.Ifs3D:
                 ApplyIfsPreset(state, Ifs3DPresets.All[0]);
                 break;
@@ -769,6 +790,14 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Flame3D =>
+        [
+            Preset(kind, "Неоновый вихрь · дымчатые ленты", _ => { }),
+            Preset(kind, "Солнечный шёлк · волны", s => { s.Flame.Transforms = Flame3DPresets.Transforms(1); s.Flame.Exposure = 1.9; s.CameraYaw = -25; }),
+            Preset(kind, "Космический коралл · ветвление", s => { s.Flame.Transforms = Flame3DPresets.Transforms(2); s.Flame.Density = .75; s.CameraPitch = 25; }),
+            Preset(kind, "Световая скульптура", s => { s.Flame.Transforms = Flame3DPresets.Transforms(2); s.ShadingStyle = Fractal3DShadingStyle.Studio; }),
+            Preset(kind, "Полупрозрачное облако", s => { s.Flame.Transforms = Flame3DPresets.Transforms(1); s.ShadingStyle = Fractal3DShadingStyle.Density; s.Flame.Density = .5; })
+        ],
         Fractal3DKind.StrangeAttractor =>
         [
             Preset(kind, "Лоренц · двойное крыло", _ => { }),

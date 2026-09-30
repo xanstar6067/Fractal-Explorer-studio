@@ -290,6 +290,10 @@ public static class SaveManagerConfigurations
                    $"Масштаб деталей: {terrain.Scale:G4} · Участок: {terrain.Size:G4} × {terrain.Size:G4} · Высота: {terrain.Height:G4}\n" +
                    $"Карта высот: {terrain.Resolution} × {terrain.Resolution} · Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode)}";
         }
+        if (state.Kind == Fractal3DKind.Flame3D)
+            return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · {state.Flame.Transforms.Count} преобразований\n" +
+                   $"Начальное число: {state.Flame.Seed} · Экспозиция: {state.Flame.Exposure:G4} · Гамма: {state.Flame.Gamma:G4}\n" +
+                   $"Плотность: {state.Flame.Density:G4} · Насыщенность: {state.Flame.Vibrancy:G4}";
         if (state.Kind == Fractal3DKind.Ifs3D)
             return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · " +
                    $"{state.IfsTransforms.Count} преобразований\n" +

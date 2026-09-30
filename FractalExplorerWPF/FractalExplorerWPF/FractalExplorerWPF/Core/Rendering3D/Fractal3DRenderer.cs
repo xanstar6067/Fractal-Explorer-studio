@@ -148,7 +148,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             context.VSSetShader(_vertexShader!);
-            context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader() : GetPixelShader(state.Kind));
+            context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
             if (IsDensityVolume(state.Kind))
             {
                 context.PSSetShaderResource(0, _ifsVolumeView!);
@@ -253,7 +253,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
         context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         context.VSSetShader(_vertexShader!);
-        context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader() : GetPixelShader(state.Kind));
+        context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
         if (IsDensityVolume(state.Kind))
         {
             context.PSSetShaderResource(0, _ifsVolumeView!);
@@ -344,6 +344,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.Flame3D => ((float)state.Flame.Exposure, (float)state.Flame.Gamma, (float)state.Flame.Density),
             Fractal3DKind.Terrain => ((float)state.Terrain.Size, (float)state.Terrain.Height, state.Terrain.Resolution),
             Fractal3DKind.Mandelbox => (
                 (float)state.BoxScale,
@@ -382,7 +383,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)state.QuaternionSlice,
                 (float)Math.Clamp(state.ColorScale, 0.01, 100),
                 (float)state.ColorOffset,
-                state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
+                state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
+                    state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
             BoxInversion = new Vector4(
                 state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryX :
                     (float)(Enum.IsDefined(state.BoxInversionShape) ? state.BoxInversionShape : BoxInversionShape.Sphere),
@@ -459,13 +461,16 @@ public sealed partial class Fractal3DRenderer : IDisposable
     }
 
     private static bool IsDensityVolume(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor;
+        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D;
 
     private static ShaderCacheEntry PixelShaderEntry(Fractal3DKind kind) =>
         new($"fractal3d-{kind}-pixel", Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry VertexShaderEntry() =>
         new("fractal3d-vertex", Fractal3DShader.Build(Fractal3DKind.Mandelbulb), "VSMain", "vs_5_0");
+
+    private static ShaderCacheEntry FlamePixelShaderEntry() =>
+        new("flame3d-pixel", Flame3DShader.Source, "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry IfsPixelShaderEntry() =>
         new("ifs3d-pixel", Ifs3DShader.Source, "PSMain", "ps_5_0");
@@ -480,6 +485,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
             if (!IsDensityVolume(kind)) entries.Add(PixelShaderEntry(kind));
         entries.Add(IfsPixelShaderEntry());
+        entries.Add(FlamePixelShaderEntry());
         ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
     }
 

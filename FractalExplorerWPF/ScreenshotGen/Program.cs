@@ -468,6 +468,11 @@ internal static class Program
                     await CaptureChildAsync(w, (Window)Activator.CreateInstance(
                         typeof(Fractal3DPaletteWindow), mgr, palette, null)!, "fractal3d-palette-editor");
                 }
+                if (w != null && fractal3DKind == Fractal3DKind.Flame3D)
+                {
+                    var transforms = (List<Flame3DTransform>)GetMember(w, "_flameTransforms")!;
+                    await CaptureChildAsync(w, new Flame3DTransformEditorWindow(transforms), "flame3d-transform-editor");
+                }
                 if (w != null && fractal3DKind == Fractal3DKind.Ifs3D)
                 {
                     var mgr = (Ifs3DPaletteManager)GetMember(w, "_paletteManager")!;
