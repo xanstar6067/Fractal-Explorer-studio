@@ -140,6 +140,7 @@ public partial class Fractal3DWindow : Window
         Attractor = CaptureAttractor(),
         Terrain = CaptureTerrain(),
         Kifs = CaptureKifs(),
+        Dla = CaptureDla(),
         Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
             ? ReadInt(PowerBox, "Степень", 2, Kind == Fractal3DKind.Phoenix ? 6 : 16)
             : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
@@ -242,6 +243,8 @@ public partial class Fractal3DWindow : Window
     private void ApplyState(Fractal3DState state)
     {
         _updatingUi = true;
+        if (Kind == Fractal3DKind.Dla3D)
+            PresetBox.SelectedIndex = _presets.ToList().FindIndex(preset => preset.SaveName == state.SaveName);
 
         Pose = Fractal3DCamera.Pose(state);
         _fieldOfView = Math.Clamp(state.FieldOfView, 5, 160);
@@ -295,6 +298,7 @@ public partial class Fractal3DWindow : Window
         LoadAttractor(state.Attractor);
         LoadTerrain(state.Terrain);
         LoadKifs(state.Kifs);
+        LoadDla(state.Dla);
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -350,7 +354,7 @@ public partial class Fractal3DWindow : Window
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.IterationIndex]).Content = "По масштабу сферы";
             ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.Escape]).Content = "По радиусу сферы";
         }
-        if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D)
+        if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D)
         {
             // These four sources require orbit/escape metadata that a density volume does not contain.
             foreach (Fractal3DColoringMode mode in new[]
@@ -360,10 +364,17 @@ public partial class Fractal3DWindow : Window
                 Fractal3DColoringMode.IterationIndex,
                 Fractal3DColoringMode.Escape
             })
-                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
+                if (Kind != Fractal3DKind.Dla3D || mode != Fractal3DColoringMode.IterationIndex)
+                    ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
         }
         TerrainPanel.Visibility = Collapse(Kind == Fractal3DKind.Terrain);
-        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind != Fractal3DKind.Terrain);
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Terrain or Fractal3DKind.Dla3D));
+        DlaPanel.Visibility = DlaGrowthPanel.Visibility = DlaGrowthOverlay.Visibility = Collapse(Kind == Fractal3DKind.Dla3D);
+        if (Kind == Fractal3DKind.Dla3D)
+        {
+            ShapeExpander.Header = "Рост и затравка";
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.IterationIndex]).Content = "По возрасту частиц";
+        }
         if (Kind == Fractal3DKind.Terrain)
             foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
                 ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
@@ -394,13 +405,13 @@ public partial class Fractal3DWindow : Window
         }
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
         AttractorPanel.Visibility = Collapse(Kind == Fractal3DKind.StrangeAttractor);
-        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D));
-        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D);
-        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D);
+        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D));
+        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D);
+        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D);
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D));
+            Kind is not (Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -458,6 +469,7 @@ public partial class Fractal3DWindow : Window
         MaterialColorPanel.Visibility = Collapse(mode == Fractal3DColoringMode.Material);
         PalettePanel.Visibility = Collapse(Fractal3DCatalog.UsesPalette(mode) ||
             SelectedShadingStyle is Fractal3DShadingStyle.Glow or Fractal3DShadingStyle.Density);
+        DlaAgeLegend.Visibility = Collapse(Kind == Fractal3DKind.Dla3D && mode == Fractal3DColoringMode.IterationIndex);
         UpdatePalettePreview();
         UpdateShadingHint();
     }
@@ -678,7 +690,11 @@ public partial class Fractal3DWindow : Window
 
     private void RenderButton_OnClick(object sender, RoutedEventArgs e) => ScheduleRender(immediate: true);
 
-    private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
+    private void CancelButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.Dla3D) StopDlaGrowth();
+        else _renderCts?.Cancel();
+    }
 
     private void ResetViewButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -845,6 +861,7 @@ public partial class Fractal3DWindow : Window
         try
         {
             state = CaptureState("preview");
+            if (Kind == Fractal3DKind.Dla3D) state.Dla.ParticleCount = _dlaRequestedCount;
             _lastGoodState = state;
         }
         catch (Exception exception)
@@ -936,6 +953,7 @@ public partial class Fractal3DWindow : Window
                 }
             }
 
+            OnDlaFrameDisplayed(state);
             RequestRefinement(quality, scale, ssaa, simplified);
         }
         catch (OperationCanceledException)
@@ -946,6 +964,12 @@ public partial class Fractal3DWindow : Window
         catch (Exception exception)
         {
             if (_isClosing) return;
+            if (Kind == Fractal3DKind.Dla3D)
+            {
+                _dlaRunning = false;
+                _dlaRequestedCount = _dlaCount;
+                UpdateDlaLabels();
+            }
             StatusText.Text = "Ошибка рендера";
             CrashLogger.Log("Fractal3DWindow.RenderFrameAsync", exception);
             MessageBox.Show(this, exception.Message, _definition.Title,
@@ -965,7 +989,7 @@ public partial class Fractal3DWindow : Window
     /// </summary>
     private void RequestRefinement(FrameQuality quality, double scale, int ssaa, bool simplified)
     {
-        if (IsMoving) return;
+        if (IsMoving || _dlaRunning) return;
         if (quality == FrameQuality.Draft && (scale < 1 || simplified))
             RequestFrame(FrameQuality.Full, RefineDelayMs);
         else if (quality != FrameQuality.Antialiased && ssaa > 1)
@@ -1003,7 +1027,7 @@ public partial class Fractal3DWindow : Window
         if (quality == Fractal3DMotionQuality.Draft)
         {
             draft.AmbientOcclusion = false;
-            if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D) return draft;
+            if (Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D) return draft;
             draft.MaxSteps = Math.Max(48, (int)(state.MaxSteps * 0.6));
             draft.Detail = Math.Min(8, state.Detail * 1.5);
         }
@@ -1081,6 +1105,7 @@ public partial class Fractal3DWindow : Window
     {
         if (_drag != DragMode.None) CanvasHost.ReleaseMouseCapture();
         _isClosing = true;
+        _dlaRunning = false;
         DetachLoop();
         _renderCts?.Cancel();
         DisposeJuliabulbMap();

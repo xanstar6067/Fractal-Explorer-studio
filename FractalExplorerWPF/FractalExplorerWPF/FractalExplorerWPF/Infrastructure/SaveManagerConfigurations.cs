@@ -281,6 +281,13 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Dla3D)
+        {
+            Dla3DSettings dla = (state.Dla ?? new()).Normalized();
+            return $"Частиц: {dla.ParticleCount:N0} / {dla.TargetParticles:N0} · Затравка: {Dla3DSettings.ShapeName(dla.SeedShape)}\n" +
+                $"Прилипание: {dla.Stickiness:P0} · Поток: {dla.FlowStrength:P0} · Случайное число: {dla.Seed}\n" +
+                $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
+        }
         if (state.Kind == Fractal3DKind.Terrain)
         {
             TerrainSettings terrain = state.Terrain;

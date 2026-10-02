@@ -22,6 +22,7 @@
         </Style>
         <Style x:Key="FieldCaption" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
         </Style>
     </Window.Resources>
 
@@ -43,8 +44,69 @@
                     <TextBlock Style="{StaticResource FieldCaption}" Text="Готовый вид"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_OnSelectionChanged"/>
 
-                    <Expander Header="Форма" IsExpanded="True" Margin="0,6,0,4">
+                    <StackPanel x:Name="DlaGrowthPanel" Visibility="Collapsed" Margin="0,8,0,4">
+                        <TextBlock x:Name="DlaCountText" FontWeight="SemiBold" Text="Готовим затравку…"/>
+                        <ProgressBar x:Name="DlaGrowthProgress" Height="6" Margin="0,6,0,6" Maximum="6000"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <Button x:Name="DlaPlayButton" Content="▶ Наблюдать рост" Click="DlaPlay_OnClick" Margin="0,0,4,0"/>
+                            <Button Grid.Column="1" Content="↺ Сначала" Click="DlaRestart_OnClick" Margin="4,0,0,0" ToolTip="Та же затравка и случайное число: воспроизводит тот же кластер"/>
+                        </Grid>
+                        <Button Content="Вписать коралл в кадр" Click="DlaFit_OnClick" ToolTip="Подобрать расстояние камеры по выросшему кластеру"/>
+                        <TextBlock x:Name="DlaSpeedText" Style="{StaticResource FieldCaption}" Text="Темп показа"/>
+                        <Slider x:Name="DlaSpeedSlider" Minimum="1" Maximum="5" Value="3" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="DlaDisplay_OnChanged"/>
+                        <TextBlock Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap" FontSize="11"
+                                   Text="Вращайте мышью и приближайте колесом во время роста. Темп меняет размер порции, сохраняя форму кластера."/>
+                    </StackPanel>
+
+                    <Expander x:Name="ShapeExpander" Header="Форма" IsExpanded="True" Margin="0,6,0,4">
                         <StackPanel Margin="10,6,0,2">
+                            <StackPanel x:Name="DlaPanel" Visibility="Collapsed">
+                                <TextBlock Text="Затравка" Style="{StaticResource FieldCaption}"/>
+                                <ListBox x:Name="DlaSeedShapeBox" SelectionChanged="DlaGrowth_OnChanged" SelectedIndex="0" Margin="0,4,0,6">
+                                    <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+                                    <ListBoxItem HorizontalContentAlignment="Center"><StackPanel><Ellipse Width="8" Height="8" Fill="{DynamicResource Theme.AccentPrimaryBrush}" Margin="0,8,0,10"/><TextBlock Text="Точка" FontSize="11"/></StackPanel></ListBoxItem>
+                                    <ListBoxItem HorizontalContentAlignment="Center"><StackPanel><Rectangle Width="4" Height="26" Fill="{DynamicResource Theme.AccentPrimaryBrush}"/><TextBlock Text="Стержень" FontSize="11"/></StackPanel></ListBoxItem>
+                                    <ListBoxItem HorizontalContentAlignment="Center"><StackPanel><Ellipse Width="26" Height="26" StrokeThickness="3" Stroke="{DynamicResource Theme.AccentPrimaryBrush}"/><TextBlock Text="Кольцо" FontSize="11"/></StackPanel></ListBoxItem>
+                                    <ListBoxItem HorizontalContentAlignment="Center"><StackPanel><Ellipse Width="26" Height="14" Fill="{DynamicResource Theme.AccentPrimaryBrush}" Margin="0,6"/><TextBlock Text="Диск" FontSize="11"/></StackPanel></ListBoxItem>
+                                </ListBox>
+                                <StackPanel x:Name="DlaSeedSizePanel">
+                                    <TextBlock x:Name="DlaSeedSizeText" Style="{StaticResource FieldCaption}" Text="Размер затравки"/>
+                                    <Slider x:Name="DlaSeedSizeSlider" Minimum="2" Maximum="24" Value="12" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="DlaGrowth_OnChanged"/>
+                                </StackPanel>
+                                <TextBlock x:Name="DlaStickText" Style="{StaticResource FieldCaption}" Text="Прилипание · 100 %"/>
+                                <Slider x:Name="DlaStickSlider" Minimum="5" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="DlaGrowth_OnChanged"/>
+                                <TextBlock FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap"
+                                           Text="Реже прилипают → проникают глубже, ветви плотнее. Чаще → тонкие разветвлённые дендриты."/>
+                                <TextBlock x:Name="DlaTargetText" Style="{StaticResource FieldCaption}" Text="Цель · 6 000 частиц"/>
+                                <Slider x:Name="DlaTargetSlider" Minimum="100" Maximum="20000" Value="6000" TickFrequency="100" IsSnapToTickEnabled="True" ValueChanged="DlaDisplay_OnChanged"/>
+                                <Expander Header="Поток частиц" IsExpanded="False" Margin="0,8,0,4">
+                                    <StackPanel>
+                                        <TextBlock x:Name="DlaFlowText" Style="{StaticResource FieldCaption}" Text="Без потока · свободная диффузия"/>
+                                        <Slider x:Name="DlaFlowSlider" Minimum="0" Maximum="65" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="DlaGrowth_OnChanged"/>
+                                        <StackPanel x:Name="DlaDirectionPanel">
+                                            <TextBlock Text="Направление · вид сверху (XZ)" FontSize="11" Margin="0,6,0,0"/>
+                                            <controls:DirectionCompass x:Name="DlaCompass" Width="154" Height="154" HorizontalAlignment="Center"
+                                                Angle="{Binding ElementName=DlaYawSlider, Path=Value, Mode=TwoWay}"/>
+                                            <Slider x:Name="DlaYawSlider" Minimum="-180" Maximum="180" Value="0" Visibility="Collapsed" ValueChanged="DlaGrowth_OnChanged"/>
+                                            <TextBlock x:Name="DlaPitchText" Text="Поток сверху вниз" FontSize="11"/>
+                                            <Slider x:Name="DlaPitchSlider" Minimum="-90" Maximum="90" Value="-90" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="DlaGrowth_OnChanged"/>
+                                            <TextBlock Text="↓ −Y     ·     горизонтально     ·     ↑ +Y" FontSize="11" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Стрелка показывает, куда летят частицы. Кластер растёт навстречу потоку." FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Button Content="Другой коралл" Click="DlaRandom_OnClick" ToolTip="Новое случайное число с теми же параметрами роста"/>
+                                <Expander Header="Воспроизводимость" IsExpanded="False">
+                                    <StackPanel>
+                                        <TextBlock Text="Случайное число" Style="{StaticResource FieldCaption}"/>
+                                        <TextBox x:Name="DlaRandomSeedBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" TextChanged="DlaGrowth_OnChanged"/>
+                                        <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Сохранение запоминает достигнутую стадию. После загрузки её можно продолжить кнопкой «Растить»."/>
+                                    </StackPanel>
+                                </Expander>
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Изменение затравки, прилипания или потока начинает новый рост. Палитра, свет и камера меняют готовый объём."/>
+                            </StackPanel>
                             <StackPanel x:Name="PowerPanel">
                                 <TextBlock x:Name="PowerLabel" Style="{StaticResource FieldCaption}" Text="Степень n"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
@@ -623,6 +685,8 @@
                                 <Border x:Name="PalettePreview" Height="16" Margin="0,2,0,2" CornerRadius="3"
                                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1"
                                         theme:ThemeContract.IgnoreAudit="True"/>
+                                <TextBlock x:Name="DlaAgeLegend" Visibility="Collapsed" FontSize="11"
+                                           Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Старые частицы  ←  цвет  →  молодые"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Повтор палитры"/>
                                 <ComboBox x:Name="ColorRepeatBox" SelectionChanged="Parameter_OnChanged"
                                           ToolTip="Что делать со значениями вне палитры: зажать по краям, повторять по кругу или отражать туда и обратно.">
@@ -696,6 +760,14 @@
                     <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
                 </Grid>
+                <Border x:Name="DlaGrowthOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ElementName=DlaCountText, Path=Text}" FontSize="11"/>
+                        <Button Content="{Binding ElementName=DlaPlayButton, Path=Content}" Click="DlaPlay_OnClick"/>
+                    </StackPanel>
+                </Border>
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->
                 <Canvas x:Name="AxisTriad" Width="64" Height="64" Margin="8"
                         HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"/>

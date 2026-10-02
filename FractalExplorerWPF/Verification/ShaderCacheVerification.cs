@@ -50,6 +50,7 @@ internal static partial class Program
               Enum.GetValues<Fractal3DKind>().Length &&
               File.Exists(AppPaths.GetShaderCacheFile("ifs3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("flame3d-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("dla3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Vicsek-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-CantorDust-pixel")),
             "Rebuild must create a shader for every 3D mode, sharing IFS/attractor density and including colored Flame.");

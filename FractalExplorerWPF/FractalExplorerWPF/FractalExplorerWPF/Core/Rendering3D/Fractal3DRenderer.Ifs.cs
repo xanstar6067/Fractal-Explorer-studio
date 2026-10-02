@@ -9,7 +9,13 @@ public sealed partial class Fractal3DRenderer
 {
     private ID3D11PixelShader? _ifsPixelShader;
     private ID3D11PixelShader? _flamePixelShader;
-    private bool _colorVolume;
+    private ID3D11PixelShader? _dlaPixelShader;
+    private Dla3DCluster? _dlaCluster;
+    private Format _volumeFormat;
+    // Metadata belongs to the uploaded volume, not to an unfinished/canceled growth batch.
+    public int DlaParticleCount { get; private set; }
+    public bool DlaBoundaryReached { get; private set; }
+    public double DlaRadius { get; private set; }
     private ID3D11SamplerState? _ifsSampler;
     private ID3D11Texture3D? _ifsVolumeTexture;
     private ID3D11ShaderResourceView? _ifsVolumeView;
@@ -17,6 +23,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Dla3D)
+            return _dlaPixelShader ??= _device!.CreatePixelShader(Compile(DlaPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Flame3D)
             return _flamePixelShader ??= _device!.CreatePixelShader(Compile(FlamePixelShaderEntry()).Span);
         if (_ifsPixelShader is not null) return _ifsPixelShader;
@@ -32,9 +40,10 @@ public sealed partial class Fractal3DRenderer
     {
         if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
         bool colorVolume = state.Kind == Fractal3DKind.Flame3D;
-        int side = colorVolume ? Flame3DVolume.Side : Ifs3DVolume.Side;
-        int bytesPerCell = colorVolume ? 8 : 1;
-        byte[] voxels = colorVolume ? Flame3DVolume.Build(state, token) : state.Kind == Fractal3DKind.StrangeAttractor
+        int side = colorVolume ? Flame3DVolume.Side : state.Kind == Fractal3DKind.Dla3D ? Dla3DVolume.Side : Ifs3DVolume.Side;
+        int bytesPerCell = colorVolume ? 8 : state.Kind == Fractal3DKind.Dla3D ? 2 : 1;
+        Format format = colorVolume ? Format.R16G16B16A16_Float : state.Kind == Fractal3DKind.Dla3D ? Format.R8G8_UNorm : Format.R8_UNorm;
+        byte[] voxels = state.Kind == Fractal3DKind.Dla3D ? BuildDlaVolume(state, token) : colorVolume ? Flame3DVolume.Build(state, token) : state.Kind == Fractal3DKind.StrangeAttractor
             ? Attractor3DVolume.Build(state, token)
             : Ifs3DVolume.Build(state, token);
         token.ThrowIfCancellationRequested();
@@ -42,7 +51,7 @@ public sealed partial class Fractal3DRenderer
         // snapshot pointing at a replaced or partially updated texture.
         _ifsVolumeState = null;
 
-        if (_ifsVolumeTexture is not null && _colorVolume != colorVolume)
+        if (_ifsVolumeTexture is not null && _volumeFormat != format)
         {
             _context!.PSSetShaderResource(0, null!);
             _ifsVolumeView?.Dispose(); _ifsVolumeTexture.Dispose();
@@ -56,7 +65,7 @@ public sealed partial class Fractal3DRenderer
                 Height = (uint)side,
                 Depth = (uint)side,
                 MipLevels = 1,
-                Format = colorVolume ? Format.R16G16B16A16_Float : Format.R8_UNorm,
+                Format = format,
                 Usage = ResourceUsage.Dynamic,
                 BindFlags = BindFlags.ShaderResource,
                 CPUAccessFlags = CpuAccessFlags.Write
@@ -84,13 +93,33 @@ public sealed partial class Fractal3DRenderer
             }
         }
         finally { context.Unmap(_ifsVolumeTexture, 0); }
-        _colorVolume = colorVolume;
+        _volumeFormat = format;
         _ifsVolumeState = state.Clone();
+        if (state.Kind == Fractal3DKind.Dla3D)
+        {
+            DlaParticleCount = _dlaCluster!.Count;
+            DlaBoundaryReached = _dlaCluster.BoundaryReached;
+            DlaRadius = _dlaCluster.Radius / (Dla3DVolume.Side / 2d);
+        }
+    }
+
+    private byte[] BuildDlaVolume(Fractal3DState state, CancellationToken token)
+    {
+        Dla3DSettings settings = (state.Dla ?? new()).Normalized();
+        if (_dlaCluster is null || !_dlaCluster.Settings.SameGrowth(settings) || _dlaCluster.Count > settings.ParticleCount)
+            _dlaCluster = new(settings);
+        _dlaCluster.GrowTo(settings.ParticleCount, token);
+        return Dla3DVolume.Build(_dlaCluster, token);
     }
 
     internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.Dla3D)
+        {
+            Dla3DSettings a = (first.Dla ?? new()).Normalized(), b = (second.Dla ?? new()).Normalized();
+            return a.SameGrowth(b) && a.ParticleCount == b.ParticleCount;
+        }
         if (first.Kind == Fractal3DKind.Flame3D)
         {
             var a = first.Flame; var b = second.Flame;
@@ -128,6 +157,8 @@ public sealed partial class Fractal3DRenderer
         _ifsVolumeTexture?.Dispose();
         _ifsPixelShader?.Dispose();
         _flamePixelShader?.Dispose();
+        _dlaPixelShader?.Dispose();
+        _dlaCluster = null;
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;
     }

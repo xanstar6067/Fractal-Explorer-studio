@@ -24,7 +24,8 @@ public enum Fractal3DKind
     Phoenix,
     StrangeAttractor,
     Flame3D,
-    Kifs
+    Kifs,
+    Dla3D
 }
 
 public enum Hybrid3DOrder
@@ -293,6 +294,8 @@ public sealed class Fractal3DState
 
     public KifsSettings Kifs { get; set; } = new();
 
+    public Dla3DSettings Dla { get; set; } = new();
+
     public TerrainSettings Terrain { get; set; } = new();
 
     // ---- камера ----
@@ -380,6 +383,7 @@ public sealed class Fractal3DState
         var clone = (Fractal3DState)MemberwiseClone();
         clone.Palette = Palette?.Clone();
         clone.Kifs = Kifs?.Clone() ?? new();
+        clone.Dla = Dla?.Normalized() ?? new();
         clone.Flame = Flame?.Clone() ?? new();
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
@@ -474,6 +478,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Dla3D => new(
+            "DLA в 3D — кораллы и дендриты", "Объёмный DLA",
+            "Частицы блуждают в пространстве и прилипают к затравке. Наблюдайте рождение ветвей, задавайте поток и окрашивайте кластер по времени присоединения частиц.",
+            "Fractal3DDla", "dla-3d"),
         Fractal3DKind.Kifs => new(
             "Калейдоскопические фракталы — KIFS", "Калейдоскопические фракталы",
             "Зеркальные плоскости складывают пространство в кристаллы, звёзды и рекурсивные соборы. Симметрия, поворот и смещение на каждой итерации меняют архитектуру; карта смещения и рандомайзер работают вживую.",
@@ -557,6 +565,8 @@ public static class Fractal3DCatalog
 
     public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
+        if (kind == Fractal3DKind.Dla3D && mode == Fractal3DColoringMode.IterationIndex)
+            return "По возрасту частиц";
         if (kind == Fractal3DKind.ApollonianPacking)
         {
             return mode switch
@@ -627,6 +637,18 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.Dla3D:
+                state.Iterations = 1;
+                state.Dla = new();
+                state.CameraDistance = .9;
+                state.CameraPitch = 20;
+                state.ColoringMode = Fractal3DColoringMode.IterationIndex;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.Palette = Fractal3DPalettes.Get("Спектр");
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.SoftShadows = false;
+                state.Ambient = .3;
+                break;
             case Fractal3DKind.Kifs:
                 state.Iterations = 10;
                 state.CameraDistance = 4.5;
@@ -804,6 +826,14 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Dla3D =>
+        [
+            Preset(kind, "Коралл · свободный рост", _ => { }),
+            Preset(kind, "Плотный коралл · слабое прилипание", s => { s.Dla.Stickiness = .15; s.Dla.Seed = 137; s.Palette = Fractal3DPalettes.Get("Медь и патина"); }),
+            Preset(kind, "Дендриты на стержне", s => { s.Dla.SeedShape = Dla3DSeedShape.Line; s.Dla.Seed = 91; s.Palette = Fractal3DPalettes.Get("Лёд"); }),
+            Preset(kind, "Кольцевая колония", s => { s.Dla.SeedShape = Dla3DSeedShape.Ring; s.Dla.Seed = 256; s.Palette = Fractal3DPalettes.Get("Закат"); }),
+            Preset(kind, "Коралловый сад · поток сверху", s => { s.Dla.SeedShape = Dla3DSeedShape.Plane; s.Dla.SeedSize = 14; s.Dla.FlowStrength = .15; s.Dla.Seed = 73; s.Palette = Fractal3DPalettes.Get("Спектр"); })
+        ],
         Fractal3DKind.Kifs =>
         [
             Preset(kind, "Рекурсивный кристалл · тетраэдр", _ => { }),
