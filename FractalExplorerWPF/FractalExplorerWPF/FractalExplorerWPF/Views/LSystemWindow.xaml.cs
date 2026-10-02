@@ -16,6 +16,7 @@ namespace FractalExplorerWPF.Views;
 
 public partial class LSystemWindow : Window
 {
+    private readonly LSystemSaveStore _saveStore = new();
     private readonly DispatcherTimer _redrawTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private readonly DispatcherTimer _animationTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly Stopwatch _animationClock = new();
@@ -25,9 +26,11 @@ public partial class LSystemWindow : Window
     private CancellationTokenSource? _buildCts;
     private CancellationTokenSource? _frameCts;
     private LSystemDefinition _activeDefinition = new();
+    private readonly Stack<LSystemDefinition> _randomUndo = new();
     private LSystemScene? _scene;
     private bool _initializing;
     private bool _isBuilding;
+    private bool _isClosing;
     private bool _isFrameRendering;
     private bool _isAnimating;
     private bool _isPanning;
@@ -48,6 +51,19 @@ public partial class LSystemWindow : Window
     public LSystemWindow()
     {
         InitializeComponent();
+        Randomizer.CapturePlanar = () => _activeDefinition.Clone();
+        Randomizer.Generated += (_, result) =>
+        {
+            _randomUndo.Push(_activeDefinition.Clone());
+            ApplyRandomDefinition(result.Planar!, result.Description);
+            Randomizer.SetUndoAvailable(true);
+        };
+        Randomizer.UndoRequested += (_, _) =>
+        {
+            if (!_randomUndo.TryPop(out var previous)) return;
+            ApplyRandomDefinition(previous, "Предыдущая форма восстановлена");
+            Randomizer.SetUndoAvailable(_randomUndo.Count > 0);
+        };
         _previewTransform.Children.Add(_previewScale);
         _previewTransform.Children.Add(_previewTranslation);
         CanvasImage.RenderTransformOrigin = new Point(0.5, 0.5);
@@ -74,6 +90,9 @@ public partial class LSystemWindow : Window
         }
 
         ApplyPreset(preset);
+        Randomizer.CancelWork();
+        _randomUndo.Clear();
+        Randomizer.SetUndoAvailable(false);
         if (IsLoaded)
         {
             _ = BuildSceneAsync(false);
@@ -111,8 +130,16 @@ public partial class LSystemWindow : Window
         }
     }
 
+    private void ApplyRandomDefinition(LSystemDefinition definition, string description)
+    {
+        _viewZoom = 1; _panX = _panY = 0;
+        ApplyPreset(new LSystemPreset { Id = "generated", Name = "Случайная форма", Description = description, Definition = definition });
+        _ = BuildSceneAsync(false);
+    }
+
     private void Input_OnChanged(object sender, EventArgs e)
     {
+        if (!_initializing) Randomizer?.CancelWork();
         if (_initializing || !IsLoaded)
         {
             return;
@@ -170,6 +197,7 @@ public partial class LSystemWindow : Window
 
     private async Task BuildSceneAsync(bool animate)
     {
+        if (_isClosing) return;
         if (!TryReadDefinition(out LSystemDefinition definition, out double animationDuration))
         {
             return;
@@ -177,21 +205,24 @@ public partial class LSystemWindow : Window
 
         StopAnimation();
         _buildCts?.Cancel();
-        _buildCts?.Dispose();
         var cts = new CancellationTokenSource();
+        CancellationToken token = cts.Token;
         _buildCts = cts;
         _isBuilding = true;
         UpdateActivityState();
         RenderProgress.Value = 0;
         StatusText.Text = "Развёртка L‑системы…";
         var stopwatch = Stopwatch.StartNew();
-        IProgress<int> buildProgress = new Progress<int>(value => RenderProgress.Value = value * 0.65);
+        IProgress<int> buildProgress = new Progress<int>(value =>
+        {
+            if (!_isClosing && ReferenceEquals(_buildCts, cts)) RenderProgress.Value = value * .65;
+        });
 
         try
         {
             LSystemScene scene = await Task.Run(() =>
-                LSystemEngine.BuildScene(definition, cts.Token, value => buildProgress.Report(value)), cts.Token);
-            cts.Token.ThrowIfCancellationRequested();
+                LSystemEngine.BuildScene(definition, token, value => buildProgress.Report(value)), token);
+            token.ThrowIfCancellationRequested();
             if (!ReferenceEquals(_buildCts, cts))
             {
                 return;
@@ -202,7 +233,7 @@ public partial class LSystemWindow : Window
             _animationDurationSeconds = animationDuration;
             if (animate)
             {
-                bool animationStarted = await StartAnimationAsync(cts.Token);
+                bool animationStarted = await StartAnimationAsync(token);
                 if (!animationStarted && ReferenceEquals(_buildCts, cts))
                 {
                     StatusText.Text = "Построение отменено.";
@@ -212,14 +243,17 @@ public partial class LSystemWindow : Window
             else
             {
                 StatusText.Text = "Отрисовка отрезков…";
-                var drawProgress = new Progress<int>(value => RenderProgress.Value = 65 + value * 0.35);
+                var drawProgress = new Progress<int>(value =>
+                {
+                    if (!_isClosing && ReferenceEquals(_buildCts, cts)) RenderProgress.Value = 65 + value * .35;
+                });
                 double renderZoom = _viewZoom;
                 double renderPanX = _panX;
                 double renderPanY = _panY;
                 BitmapSource? bitmap = await RenderBitmapAsync(
                     scene, definition, scene.Segments.Count, CurrentSurface(),
-                    renderZoom, renderPanX, renderPanY, cts.Token, drawProgress);
-                if (bitmap is null || cts.IsCancellationRequested || !ReferenceEquals(_buildCts, cts))
+                    renderZoom, renderPanX, renderPanY, token, drawProgress);
+                if (bitmap is null || token.IsCancellationRequested || !ReferenceEquals(_buildCts, cts))
                 {
                     if (ReferenceEquals(_buildCts, cts))
                     {
@@ -259,9 +293,9 @@ public partial class LSystemWindow : Window
             {
                 _isBuilding = false;
                 _buildCts = null;
-                cts.Dispose();
                 UpdateActivityState();
             }
+            cts.Dispose();
         }
     }
 
@@ -323,14 +357,15 @@ public partial class LSystemWindow : Window
 
     private async Task RenderAnimationFrameAsync(int visibleSegments)
     {
-        if (_scene is null)
+        if (_isClosing || _scene is null)
         {
             return;
         }
 
         _isFrameRendering = true;
-        _frameCts?.Dispose();
+        _frameCts?.Cancel();
         var cts = new CancellationTokenSource();
+        CancellationToken token = cts.Token;
         _frameCts = cts;
         try
         {
@@ -339,8 +374,8 @@ public partial class LSystemWindow : Window
             double renderPanY = _panY;
             BitmapSource? bitmap = await RenderBitmapAsync(
                 _scene, _activeDefinition, visibleSegments, CurrentSurface(),
-                renderZoom, renderPanX, renderPanY, cts.Token, null);
-            if (bitmap is not null && !cts.IsCancellationRequested && ReferenceEquals(_frameCts, cts))
+                renderZoom, renderPanX, renderPanY, token, null);
+            if (bitmap is not null && !token.IsCancellationRequested && ReferenceEquals(_frameCts, cts))
             {
                 PresentBitmap(bitmap, renderZoom, renderPanX, renderPanY);
             }
@@ -363,8 +398,8 @@ public partial class LSystemWindow : Window
             {
                 _frameCts = null;
                 _isFrameRendering = false;
-                cts.Dispose();
             }
+            cts.Dispose();
         }
     }
 
@@ -401,15 +436,16 @@ public partial class LSystemWindow : Window
 
     private async Task RedrawSceneAsync()
     {
-        if (_scene is null || _isBuilding)
+        if (_isClosing || _scene is null || _isBuilding)
         {
             return;
         }
 
         _frameCts?.Cancel();
-        _frameCts?.Dispose();
         var cts = new CancellationTokenSource();
+        CancellationToken token = cts.Token;
         _frameCts = cts;
+        _isFrameRendering = true;
         try
         {
             double renderZoom = _viewZoom;
@@ -417,8 +453,8 @@ public partial class LSystemWindow : Window
             double renderPanY = _panY;
             BitmapSource? bitmap = await RenderBitmapAsync(
                 _scene, _activeDefinition, _scene.Segments.Count, CurrentSurface(),
-                renderZoom, renderPanX, renderPanY, cts.Token, null);
-            if (bitmap is not null && !cts.IsCancellationRequested && ReferenceEquals(_frameCts, cts))
+                renderZoom, renderPanX, renderPanY, token, null);
+            if (bitmap is not null && !token.IsCancellationRequested && ReferenceEquals(_frameCts, cts))
             {
                 PresentBitmap(bitmap, renderZoom, renderPanX, renderPanY);
             }
@@ -439,8 +475,9 @@ public partial class LSystemWindow : Window
             if (ReferenceEquals(_frameCts, cts))
             {
                 _frameCts = null;
-                cts.Dispose();
+                _isFrameRendering = false;
             }
+            cts.Dispose();
         }
     }
 
@@ -781,13 +818,16 @@ public partial class LSystemWindow : Window
 
     private void Window_OnClosing(object? sender, CancelEventArgs e)
     {
+        _isClosing = true;
+        Randomizer.CancelWork();
         StopPanning(scheduleRedraw: false);
         _redrawTimer.Stop();
         _animationTimer.Stop();
         _buildCts?.Cancel();
         _frameCts?.Cancel();
-        _buildCts?.Dispose();
-        _frameCts?.Dispose();
+        // Each asynchronous operation disposes its own source only after its worker has exited.
+        _buildCts = null;
+        _frameCts = null;
     }
 
     private sealed record StyleModeOption(LSystemStyleMode Mode, string Label)

@@ -46,6 +46,7 @@
                     <TextBlock x:Name="PresetDescription" Margin="0,0,0,10"
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                TextWrapping="Wrap"/>
+                    <controls:LSystemRandomizerPanel x:Name="Randomizer"/>
 
                     <TextBlock FontWeight="SemiBold" Text="Редактор правил"/>
                     <TextBlock Margin="0,7,0,2" Text="Аксиома"/>
@@ -150,6 +151,7 @@
                         <Button x:Name="CancelButton" Grid.Column="2" Content="Отмена"
                                 IsEnabled="False" Click="Cancel_OnClick"/>
                     </Grid>
+                    <Button x:Name="SavesButton" Content="Менеджер сохранений" Click="Saves_OnClick"/>
                     <Button Content="Сохранить изображение" Click="Export_OnClick"/>
 
                     <ProgressBar x:Name="RenderProgress" Height="18" Margin="0,10,0,0"
@@ -176,7 +178,7 @@
                 MouseMove="CanvasHost_OnMouseMove"
                 MouseLeftButtonUp="CanvasHost_OnMouseLeftButtonUp"
                 LostMouseCapture="CanvasHost_OnLostMouseCapture">
-            <Grid>
+            <Grid x:Name="SavePreviewLayer">
                 <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"/>
                 <Border x:Name="AnimationBadge" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="5" Background="#B0000000"

@@ -5,6 +5,21 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public static class SaveManagerConfigurations
 {
+    public static SaveManagerConfiguration<LSystemState> ForLSystem(
+        LSystemWindow window, LSystemSaveStore store) => new()
+    {
+        WindowTitle = "Сохранение/Загрузка: L-системы",
+        Store = store,
+        CaptureState = window.CaptureState,
+        CapturePreview = window.CaptureCurrentPreview,
+        LoadState = state => window.LoadState(state.Clone()),
+        RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName,
+        GetTimestamp = state => state.Timestamp,
+        GetDetails = state => $"{Prefix(state.Timestamp)} · глубина {state.Definition.Depth} · угол {state.Definition.AngleDegrees:G5}°\n" +
+            $"Аксиома: {state.Definition.Axiom} · масштаб: {state.ViewZoom:G5}"
+    };
+
     public static SaveManagerConfiguration<MathematicalLaboratoryState> ForMathematicalLaboratory(
         MathematicalLaboratoryWindow window, MathematicalLaboratorySaveStore store) => new()
     {

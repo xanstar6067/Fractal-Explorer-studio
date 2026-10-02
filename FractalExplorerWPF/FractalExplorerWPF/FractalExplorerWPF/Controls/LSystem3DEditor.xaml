@@ -11,6 +11,7 @@
   </Style>
  </UserControl.Resources>
  <StackPanel>
+  <local:LSystemRandomizerPanel x:Name="Randomizer"/>
   <Border Padding="9" CornerRadius="5" Background="{DynamicResource Theme.BaseBackgroundBrush}">
    <StackPanel>
     <TextBlock Text="Построение" FontWeight="SemiBold"/>

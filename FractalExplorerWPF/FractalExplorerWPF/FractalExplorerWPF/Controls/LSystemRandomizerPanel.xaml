@@ -1,0 +1,44 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.LSystemRandomizerPanel"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:FractalExplorerWPF.Controls">
+ <Expander x:Name="PanelExpander" Header="✦ Генератор форм" IsExpanded="False" Margin="0,7,0,10">
+  <Border Padding="9" CornerRadius="5" Background="{DynamicResource Theme.BaseBackgroundBrush}">
+   <StackPanel>
+    <TextBlock Text="Создавайте формы без написания правил." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,0,0,6"/>
+    <ListBox x:Name="FamilyBox" SelectedIndex="0" HorizontalContentAlignment="Stretch" Margin="0,3">
+     <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+     <ListBoxItem Content="♧ Растения" ToolTip="Деревья, кусты и побеги"/>
+     <ListBoxItem Content="✳ Радиальные" ToolTip="Розетки и формы с лучами вокруг центра"/>
+     <ListBoxItem Content="〰 Кривые" ToolTip="Фрактальные ломаные в 2D, трубчатые спирали в 3D"/>
+     <ListBoxItem Content="⌘ Геометрия" ToolTip="Регулярные угловатые ветвящиеся конструкции"/>
+    </ListBox>
+    <TextBlock Text="{Binding ElementName=BranchSlider, Path=Value, StringFormat=Ветвистость · {0:0}}" Margin="0,6,0,0"/>
+    <Slider x:Name="BranchSlider" Minimum="2" Maximum="5" Value="3" TickFrequency="1" IsSnapToTickEnabled="True"/>
+    <TextBlock Text="{Binding ElementName=DetailSlider, Path=Value, StringFormat=Детализация · {0:0} / 5}" Margin="0,6,0,0"/>
+    <Slider x:Name="DetailSlider" Minimum="1" Maximum="5" Value="3" TickFrequency="1" IsSnapToTickEnabled="True"/>
+    <CheckBox x:Name="RegularBox" IsChecked="True" Content="Регулярное строение" ToolTip="Равномерные повороты и повторяющиеся ветви; выключите для более свободных форм" Margin="0,5"/>
+    <TextBlock Text="{Binding ElementName=VariationSlider, Path=Value, StringFormat=Сила вариации · {0:0} %}" Margin="0,6,0,0"/>
+    <Slider x:Name="VariationSlider" Minimum="0" Maximum="100" Value="40" TickFrequency="5"/>
+    <TextBlock Text="Слабее → узнаваемая форма. Сильнее → смелее меняются правила и повороты." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    <UniformGrid Columns="2" Margin="0,6,0,0">
+     <Button x:Name="NewButton" Content="✦ Новая форма" Click="New_OnClick" Margin="0,3,3,0" MinHeight="34"/>
+     <Button x:Name="NearbyButton" Content="Вариация текущей" Click="Nearby_OnClick" Margin="3,3,0,0" MinHeight="34" ToolTip="Меняет применённые правила и углы. Семейство, ветвистость и детализация задают только новую форму"/>
+    </UniformGrid>
+    <UniformGrid Columns="2">
+     <Button x:Name="UndoButton" Content="↶ Вернуть форму" Click="Undo_OnClick" IsEnabled="False" Margin="0,3,3,0" MinHeight="30"/>
+     <Button x:Name="CancelButton" Content="Отмена поиска" Click="Cancel_OnClick" IsEnabled="False" Margin="3,3,0,0" MinHeight="30"/>
+    </UniformGrid>
+    <TextBlock x:Name="ResultText" Text="Правила будут заполнены автоматически. Цвета и камера сохраняются." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6,0,0"/>
+    <Expander Header="Повторить удачный результат" Margin="0,6,0,0">
+     <StackPanel>
+      <CheckBox x:Name="FreshSeedBox" Content="Каждый раз новое случайное число" IsChecked="True"/>
+      <TextBlock Text="Случайное число" FontSize="11" Margin="0,5,0,0"/>
+      <TextBox x:Name="SeedBox" Text="42" local:NumericSpinner.IsEnabled="True" local:NumericSpinner.IsInteger="True"/>
+      <TextBlock Text="Одинаковые настройки и число дают одинаковую новую форму. Для повторения вариации нужна также та же исходная форма." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,0"/>
+     </StackPanel>
+    </Expander>
+   </StackPanel>
+  </Border>
+ </Expander>
+</UserControl>

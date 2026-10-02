@@ -18,12 +18,28 @@ public partial class LSystem3DEditor : UserControl
     private readonly Stopwatch _playClock = new();
     private double _lastFrameTime;
     private bool _advancingGrowth;
+    private readonly Stack<LSystem3DSettings> _randomUndo = new();
     public bool IsPlaying { get; private set; }
     public event EventHandler? SettingsChanged;
 
     public LSystem3DEditor()
     {
         InitializeComponent();
+        Randomizer.IsSpatial = true;
+        Randomizer.CaptureSpatial = Capture;
+        Randomizer.Generated += (_, result) =>
+        {
+            _randomUndo.Push(Capture());
+            Load(result.Spatial!, keepRandomHistory: true);
+            PresetHint.Text = result.Description;
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
+        };
+        Randomizer.UndoRequested += (_, _) =>
+        {
+            if (!_randomUndo.TryPop(out var previous)) return;
+            Load(previous, keepRandomHistory: true);
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
+        };
         Load(new());
         Unloaded += (_, _) => { Stop(); _validation?.Cancel(); };
     }
@@ -35,8 +51,11 @@ public partial class LSystem3DEditor : UserControl
         StepDecay = StepSlider.Value / 100, Growth = GrowthSlider.Value / 100,
         ColorSource = (LSystem3DColorSource)Math.Max(0, SourceBox.SelectedIndex)
     };
-    public void Load(LSystem3DSettings settings)
+    public void Load(LSystem3DSettings settings, bool keepRandomHistory = false)
     {
+        Randomizer.CancelWork();
+        if (!keepRandomHistory) _randomUndo.Clear();
+        Randomizer.SetUndoAvailable(_randomUndo.Count > 0);
         Stop(); _validation?.Cancel(); _revision++;
         _loading = true;
         _grammar = settings with { };
@@ -120,6 +139,7 @@ public partial class LSystem3DEditor : UserControl
     private void Grammar_OnChanged(object sender, TextChangedEventArgs e)
     {
         if (_loading) return;
+        Randomizer.CancelWork();
         _revision++; _validation?.Cancel();
         RuleStatus.Text = "Есть изменения правил · нажмите «Применить».";
         RuleStatus.SetResourceReference(TextBlock.ForegroundProperty, "Theme.SecondaryTextBrush");
@@ -137,6 +157,7 @@ public partial class LSystem3DEditor : UserControl
     private void Shape_OnChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_loading) return;
+        Randomizer.CancelWork();
         Stop(); _revision++; _validation?.Cancel();
         SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -158,6 +179,6 @@ public partial class LSystem3DEditor : UserControl
     private void Restart_OnClick(object sender, RoutedEventArgs e)
     { Stop(); GrowthSlider.Value = 0; }
     private void Stop() { IsPlaying = false; _playClock.Stop(); if (PlayButton is not null) PlayButton.Content = "▶ Построить"; }
-    public void CancelWork() { Stop(); _validation?.Cancel(); }
+    public void CancelWork() { Stop(); _validation?.Cancel(); Randomizer.CancelWork(); }
     private void UpdateGrowth() => GrowthText.Text = $"Построено · {GrowthSlider.Value:0.#} %";
 }
