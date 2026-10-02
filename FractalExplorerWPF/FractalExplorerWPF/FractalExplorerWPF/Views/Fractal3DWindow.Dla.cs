@@ -42,6 +42,7 @@ public partial class Fractal3DWindow
     private void UpdateDlaLabels()
     {
         if (DlaPitchSlider is null || DlaPlayButton is null) return;
+        UpdateCancelAvailability();
         int target = (int)Math.Round(DlaTargetSlider.Value);
         DlaCountText.Text = $"{_dlaCount:N0} / {target:N0} частиц · " + (_dlaRunning ? "растёт" : _dlaCount >= target ? "готово" : "пауза");
         DlaGrowthProgress.Maximum = target;

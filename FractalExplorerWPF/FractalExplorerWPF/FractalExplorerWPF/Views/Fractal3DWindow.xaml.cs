@@ -1059,9 +1059,15 @@ public partial class Fractal3DWindow : Window
     private void SetRendering(bool value, string? status = null)
     {
         _isRendering = value;
-        if (CancelButton.IsEnabled != value) CancelButton.IsEnabled = value;
+        UpdateCancelAvailability();
         if (!value) RenderProgress.Value = 0;
         if (status is not null) StatusText.Text = status;
+    }
+
+    private void UpdateCancelAvailability()
+    {
+        bool enabled = _isRendering || (Kind == Fractal3DKind.Dla3D && _dlaRunning);
+        if (CancelButton.IsEnabled != enabled) CancelButton.IsEnabled = enabled;
     }
 
     #endregion
