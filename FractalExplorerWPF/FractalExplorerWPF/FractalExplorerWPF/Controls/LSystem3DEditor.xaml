@@ -1,0 +1,74 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.LSystem3DEditor"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:FractalExplorerWPF.Controls">
+ <UserControl.Resources>
+  <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Margin" Value="0,8,0,3"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/></Style>
+  <Style x:Key="Hint" TargetType="TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/></Style>
+  <Style x:Key="Token" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Setter Property="MinWidth" Value="30"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="5,2"/><Setter Property="Margin" Value="1"/>
+   <EventSetter Event="Click" Handler="Insert_OnClick"/>
+  </Style>
+ </UserControl.Resources>
+ <StackPanel>
+  <Border Padding="9" CornerRadius="5" Background="{DynamicResource Theme.BaseBackgroundBrush}">
+   <StackPanel>
+    <TextBlock Text="Построение" FontWeight="SemiBold"/>
+    <TextBlock x:Name="GrowthText" Style="{StaticResource Hint}" Text="Вся форма · 100 %"/>
+    <Slider x:Name="GrowthSlider" Minimum="0" Maximum="100" Value="100" ValueChanged="Display_OnChanged" ToolTip="Показывает путь черепахи по порядку; последняя ветвь удлиняется плавно"/>
+    <UniformGrid Columns="2">
+     <Button x:Name="PlayButton" Content="▶ Построить" Click="Play_OnClick" Margin="0,3,3,0"/>
+     <Button Content="↺ Сначала" Click="Restart_OnClick" Margin="3,3,0,0"/>
+    </UniformGrid>
+    <TextBlock Text="Темп показа" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
+    <Slider x:Name="SpeedSlider" Minimum="1" Maximum="5" Value="3" TickFrequency="1" IsSnapToTickEnabled="True" ToolTip="Полное построение: от 30 до 3 секунд"/>
+   </StackPanel>
+  </Border>
+  <TextBlock x:Name="SceneText" Style="{StaticResource Hint}" Margin="0,7,0,0" Text="Вращайте мышью, приближайте колесом."/>
+  <TextBlock x:Name="PresetHint" Style="{StaticResource Hint}" Margin="0,5,0,0"/>
+  <Expander Header="Аксиома и правила" IsExpanded="True" Margin="0,8,0,0">
+   <StackPanel>
+    <TextBlock Text="Аксиома · начальная строка" Style="{StaticResource Caption}"/>
+    <TextBox x:Name="AxiomBox" Text="A" GotKeyboardFocus="Grammar_OnFocus" TextChanged="Grammar_OnChanged" FontFamily="Consolas" AutomationProperties.Name="Аксиома пространственной L-системы"/>
+    <TextBlock Text="Правила · по одному на строку" Style="{StaticResource Caption}"/>
+    <TextBox x:Name="RulesBox" AcceptsReturn="True" Height="130" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+     TextWrapping="NoWrap" FontFamily="Consolas" FontSize="12" GotKeyboardFocus="Grammar_OnFocus" TextChanged="Grammar_OnChanged"
+     AutomationProperties.Name="Правила пространственной L-системы"/>
+    <TextBlock Text="Пример: A → F[&amp;A]\A    ·    допустимы →, -&gt; и =" Style="{StaticResource Hint}"/>
+    <WrapPanel Margin="0,5">
+     <Button Content="F" Style="{StaticResource Token}" ToolTip="Вперёд с рисованием"/>
+     <Button Content="[ ]" Tag="[]" Style="{StaticResource Token}" ToolTip="Ответвление: сохранить и восстановить черепаху"/>
+     <Button Content="+" Style="{StaticResource Token}" ToolTip="Повернуть влево"/><Button Content="−" Tag="-" Style="{StaticResource Token}" ToolTip="Повернуть вправо"/>
+     <Button Content="&amp;" Style="{StaticResource Token}" ToolTip="Наклонить вниз"/><Button Content="^" Style="{StaticResource Token}" ToolTip="Наклонить вверх"/>
+     <Button Content="\" Style="{StaticResource Token}" ToolTip="Закрутить влево"/><Button Content="/" Style="{StaticResource Token}" ToolTip="Закрутить вправо"/>
+     <Button Content="!" Style="{StaticResource Token}" ToolTip="Сузить ветвь"/><Button Content="&gt;" Style="{StaticResource Token}" ToolTip="Укоротить дальнейшие шаги"/>
+    </WrapPanel>
+    <DockPanel><TextBlock Text="Рисующие буквы" VerticalAlignment="Center"/><TextBox x:Name="DrawBox" Text="F" Width="80" HorizontalAlignment="Right" TextChanged="Grammar_OnChanged" FontFamily="Consolas"/></DockPanel>
+    <TextBlock x:Name="RuleStatus" Style="{StaticResource Hint}" Margin="0,4" Text="Измените правило и нажмите «Применить»."/>
+    <UniformGrid Columns="2"><Button x:Name="ApplyButton" Content="Применить" Click="Apply_OnClick" Margin="0,3,3,0"/><Button x:Name="UndoButton" Content="↶ Отменить правила" Click="Undo_OnClick" Margin="3,3,0,0" IsEnabled="False"/></UniformGrid>
+   </StackPanel>
+  </Expander>
+  <TextBlock Text="{Binding ElementName=GenerationSlider, Path=Value, StringFormat=Поколения · {0:0}}" Style="{StaticResource Caption}"/>
+  <Slider x:Name="GenerationSlider" Minimum="0" Maximum="12" Value="5" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Shape_OnChanged"/>
+  <TextBlock Text="Три поворота черепахи" Style="{StaticResource Caption}"/>
+  <TextBlock Text="Оси поворачиваются вместе с ветвью. Перетаскивайте стрелки или двигайте ползунки." Style="{StaticResource Hint}"/>
+  <UniformGrid Columns="3" Margin="0,5">
+   <StackPanel><TextBlock Text="Поворот + / −" HorizontalAlignment="Center" FontSize="11"/><local:TurtleTurnDial Height="85" Angle="{Binding ElementName=YawSlider, Path=Value, Mode=TwoWay}" AutomationProperties.Name="Угол поворота влево и вправо"/><Slider x:Name="YawSlider" Minimum="-180" Maximum="180" Value="25" ValueChanged="Shape_OnChanged"/></StackPanel>
+   <StackPanel><TextBlock Text="Наклон &amp; / ^" HorizontalAlignment="Center" FontSize="11"/><local:TurtleTurnDial Height="85" Angle="{Binding ElementName=PitchSlider, Path=Value, Mode=TwoWay}" AutomationProperties.Name="Угол наклона вниз и вверх"/><Slider x:Name="PitchSlider" Minimum="-180" Maximum="180" Value="28" ValueChanged="Shape_OnChanged"/></StackPanel>
+   <StackPanel><TextBlock Text="Закрутка \ / /" HorizontalAlignment="Center" FontSize="11"/><local:TurtleTurnDial Height="85" Angle="{Binding ElementName=RollSlider, Path=Value, Mode=TwoWay}" AutomationProperties.Name="Угол закрутки"/><Slider x:Name="RollSlider" Minimum="-180" Maximum="180" Value="120" ValueChanged="Shape_OnChanged"/></StackPanel>
+  </UniformGrid>
+  <TextBlock Text="{Binding ElementName=RadiusSlider, Path=Value, StringFormat=Толщина · {0:0} % длины шага}" Style="{StaticResource Caption}"/>
+  <Slider x:Name="RadiusSlider" Minimum="2" Maximum="100" Value="32" ValueChanged="Shape_OnChanged"/>
+  <TextBlock Text="{Binding ElementName=TaperSlider, Path=Value, StringFormat=Дочерняя ветвь · {0:0} % толщины родителя}" Style="{StaticResource Caption}"/>
+  <Slider x:Name="TaperSlider" Minimum="30" Maximum="100" Value="72" ValueChanged="Shape_OnChanged"/>
+  <TextBlock Text="Толщина уменьшается внутри [ ] и после !. При 100 % получается трубка постоянной толщины." Style="{StaticResource Hint}"/>
+  <TextBlock Text="{Binding ElementName=StepSlider, Path=Value, StringFormat=Длина после &gt; · {0:0} % предыдущего шага}" Style="{StaticResource Caption}"/>
+  <Slider x:Name="StepSlider" Minimum="30" Maximum="100" Value="90" ValueChanged="Shape_OnChanged"/>
+  <TextBlock Text="Цвет вдоль формы" Style="{StaticResource Caption}"/>
+  <ComboBox x:Name="SourceBox" SelectedIndex="0" SelectionChanged="Display_OnChanged">
+   <ComboBoxItem Content="От ствола к тонким ветвям"/><ComboBoxItem Content="По порядку построения"/><ComboBoxItem Content="По поколению символа"/>
+  </ComboBox>
+  <TextBlock Text="Используется при окраске «По L-системе»; палитра — в разделе «Окраска»." Style="{StaticResource Hint}"/>
+  <Expander Header="Памятка команд" Margin="0,8,0,0"><TextBlock Style="{StaticResource Hint}" Text="F (или рисующая буква) — линия; f — шаг без линии.&#10;+ − — вокруг локальной верхней оси; &amp; ^ — вокруг левой; \ / — вокруг направления движения.&#10;[ ] — сохранить / вернуть всю черепаху.&#10;! — сузить ветвь; &gt; / &lt; — уменьшить / увеличить шаг; | — разворот на 180°.&#10;Остальные буквы только разворачиваются по правилам. Пустая правая часть удаляет символ.&#10;До 1 000 000 символов и 100 000 сегментов. Модель центрируется по полной форме; рост сохраняется вместе с видом."/></Expander>
+ </StackPanel>
+</UserControl>

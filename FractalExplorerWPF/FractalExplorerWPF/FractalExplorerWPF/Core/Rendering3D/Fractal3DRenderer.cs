@@ -141,6 +141,12 @@ public sealed partial class Fractal3DRenderer : IDisposable
             constants.Probe = new Vector4(1, 0, 0, 0);
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
+            EnsureLSystem(state, token);
+            if (state.Kind == Fractal3DKind.LSystem3D)
+            {
+                constants.ShapeA.Z = LSystemSegmentCount;
+                WriteConstants(constants, state);
+            }
             if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
             if (IsDensityVolume(state.Kind)) EnsureIfsVolume(state, token);
 
@@ -228,6 +234,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         if (state.Kind == Fractal3DKind.Terrain)
             return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
+        if (state.Kind == Fractal3DKind.LSystem3D)
+            return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
         if (height <= 8) return height;
         if (IsDensityVolume(state.Kind))
             return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
@@ -246,6 +254,13 @@ public sealed partial class Fractal3DRenderer : IDisposable
         ID3D11DeviceContext context = _context!;
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
+        EnsureLSystem(state, token);
+        if (state.Kind == Fractal3DKind.LSystem3D)
+        {
+            var constants = BuildConstants(state, width, height, offsetY);
+            constants.ShapeA.Z = LSystemSegmentCount;
+            WriteConstants(constants, state);
+        }
         if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
         if (IsDensityVolume(state.Kind)) EnsureIfsVolume(state, token);
 
@@ -345,6 +360,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.LSystem3D => ((float)state.LSystem.Growth, (float)state.LSystem.ColorSource, 0),
             Fractal3DKind.Kifs => ((float)kifs.Scale, (float)kifs.Symmetry, kifs.Sectors),
             Fractal3DKind.Flame3D => ((float)state.Flame.Exposure, (float)state.Flame.Gamma, (float)state.Flame.Density),
             Fractal3DKind.Terrain => ((float)state.Terrain.Size, (float)state.Terrain.Height, state.Terrain.Resolution),
@@ -644,6 +660,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         _constantBuffer?.Dispose();
         DisposeIfsResources();
         DisposeTerrainResources();
+        DisposeLSystemResources();
         _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();

@@ -25,7 +25,8 @@ public enum Fractal3DKind
     StrangeAttractor,
     Flame3D,
     Kifs,
-    Dla3D
+    Dla3D,
+    LSystem3D
 }
 
 public enum Hybrid3DOrder
@@ -297,6 +298,7 @@ public sealed class Fractal3DState
     public Dla3DSettings Dla { get; set; } = new();
 
     public TerrainSettings Terrain { get; set; } = new();
+    public LSystem3DSettings LSystem { get; set; } = new();
 
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
@@ -384,6 +386,7 @@ public sealed class Fractal3DState
         clone.Palette = Palette?.Clone();
         clone.Kifs = Kifs?.Clone() ?? new();
         clone.Dla = Dla?.Normalized() ?? new();
+        clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.Flame = Flame?.Clone() ?? new();
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
@@ -478,6 +481,9 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.LSystem3D => new(
+            "Пространственные L-системы", "L-системы · 3D", "Правила превращаются в деревья, растения и трубчатые кривые. Повороты вокруг трёх локальных осей, ветвление и постепенное построение.",
+            "Fractal3DLSystem", "lsystem3d"),
         Fractal3DKind.Dla3D => new(
             "DLA в 3D — кораллы и дендриты", "Объёмный DLA",
             "Частицы блуждают в пространстве и прилипают к затравке. Наблюдайте рождение ветвей, задавайте поток и окрашивайте кластер по времени присоединения частиц.",
@@ -637,6 +643,16 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.LSystem3D:
+                state.CameraDistance = 3.8;
+                state.CameraPitch = 12;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.Palette = Fractal3DPalette.FromPair("Кора и побеги", Color.FromRgb(130, 77, 37), Color.FromRgb(107, 221, 85));
+                state.SoftShadows = false;
+                state.Ambient = .35;
+                state.Ssaa = 2;
+                break;
             case Fractal3DKind.Dla3D:
                 state.Iterations = 1;
                 state.Dla = new();
@@ -826,6 +842,12 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.LSystem3D => LSystem3DPresets.All.Select(p => Preset(kind, p.Name, s =>
+        {
+            s.LSystem = p.Settings with { };
+            if (p.Settings.ColorSource == LSystem3DColorSource.DrawingOrder)
+                s.Palette = Fractal3DPalettes.Get("Спектр");
+        })).ToArray(),
         Fractal3DKind.Dla3D =>
         [
             Preset(kind, "Коралл · свободный рост", _ => { }),

@@ -13,7 +13,9 @@ internal static class Fractal3DShader
 {
     public static string Build(Fractal3DKind kind) =>
         $"#define FRACTAL_KIND {(int)kind}\n" + (kind == Fractal3DKind.Terrain
-            ? Source.Replace("float BoxDistance", TerrainShader.Source + "\nfloat BoxDistance") : Source);
+            ? Source.Replace("float BoxDistance", TerrainShader.Source + "\nfloat BoxDistance")
+            : kind == Fractal3DKind.LSystem3D
+                ? Source.Replace("float BoxDistance", LSystem3DShader.Source + "\nfloat BoxDistance") : Source);
 
     private const string Source = """
         struct PSInput
@@ -177,7 +179,9 @@ internal static class Fractal3DShader
             float trapAxis = 1e20;
             float trapIndex = 0.0;
 
-        #if FRACTAL_KIND == 10
+        #if FRACTAL_KIND == 19
+            return LMap(p, trap);
+        #elif FRACTAL_KIND == 10
             float2 slope;
             float height = TerrainHeight(p.xz, slope);
             trap = 0;
@@ -651,6 +655,19 @@ internal static class Fractal3DShader
 
         float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDistance, float sharpness)
         {
+        #if FRACTAL_KIND == 19
+            float distance; int steps; float4 trap;
+            float3 axis = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
+            float3 other = cross(direction, axis);
+            float visibility = 0;
+            [unroll] for (int i = 0; i < 4; i++)
+            {
+                float angle = i * 1.5707963;
+                float3 ray = normalize(direction + (cos(angle) * axis + sin(angle) * other) / (sharpness * 4));
+                visibility += TraceLSystem(origin + ray * minDistance, ray, maxDistance, distance, steps, trap) ? 0 : .25;
+            }
+            return visibility;
+        #else
         #if FRACTAL_KIND == 10
             float distance;
             int steps;
@@ -678,6 +695,7 @@ internal static class Fractal3DShader
                 if (result < 0.004 || travelled > maxDistance) break;
             }
             return saturate(result);
+        #endif
         #endif
         }
 
@@ -837,6 +855,8 @@ internal static class Fractal3DShader
             bool hit = false;
         #if FRACTAL_KIND == 10
             hit = TraceTerrain(origin, reflected, March.z, distance, steps);
+        #elif FRACTAL_KIND == 19
+            hit = TraceLSystem(origin, reflected, March.z, distance, steps, reflectedTrap);
         #else
             int limit = min((int)March.x, 128);
             [loop]
@@ -955,6 +975,8 @@ internal static class Fractal3DShader
             float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
         #elif FRACTAL_KIND == 6
             float radius = 1.112373;
+        #elif FRACTAL_KIND == 19
+            float radius = 1.732051;
         #else
             float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
         #endif
@@ -1029,6 +1051,16 @@ internal static class Fractal3DShader
             exhausted = false;
             epsilon = max(pixelRadius * travelled * 0.1, 1e-6);
         #else
+        #if FRACTAL_KIND == 19
+            if (!volumetric || Probe.x > .5)
+            {
+                hit = TraceLSystem(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
+                exhausted = false;
+                epsilon = max(pixelRadius * travelled * .05, 1e-7);
+            }
+            else
+            {
+        #endif
             [loop]
             for (int i = 0; i < maxSteps; i++)
             {
@@ -1065,7 +1097,9 @@ internal static class Fractal3DShader
                     break;
                 }
             }
-
+        #if FRACTAL_KIND == 19
+            }
+        #endif
         #endif
 
             // Касательный луч и луч в узкой щели тратят все шаги у самой поверхности.

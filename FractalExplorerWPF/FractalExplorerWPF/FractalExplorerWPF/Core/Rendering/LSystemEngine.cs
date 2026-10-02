@@ -189,14 +189,15 @@ public static class LSystemEngine
         };
     }
 
-    public static Dictionary<char, string> ParseRules(string rulesText)
+    public static Dictionary<char, string> ParseRules(string rulesText, bool spatialCommands = false)
     {
         var result = new Dictionary<char, string>();
         string normalizedText = (rulesText ?? string.Empty).Replace('\r', '\n');
         foreach (string rawLine in normalizedText.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
         {
             string line = rawLine;
-            int commentStart = line.IndexOf("//", StringComparison.Ordinal);
+            // In a spatial grammar // means two rolls, so comments use # instead.
+            int commentStart = spatialCommands ? line.IndexOf('#') : line.IndexOf("//", StringComparison.Ordinal);
             if (commentStart >= 0)
             {
                 line = line[..commentStart];
@@ -210,13 +211,18 @@ public static class LSystemEngine
             int arrowLength = 1;
             if (arrow < 0)
             {
+                arrow = spatialCommands ? line.IndexOf('=') : -1;
+                arrowLength = 1;
+            }
+            if (arrow < 0)
+            {
                 arrow = line.IndexOf("->", StringComparison.Ordinal);
                 arrowLength = 2;
             }
             if (arrow < 0)
             {
                 throw new InvalidOperationException(
-                    $"В правиле «{rawLine}» нет стрелки → или ->.");
+                    $"В правиле «{rawLine}» нет стрелки → или ->" + (spatialCommands ? " или =." : "."));
             }
 
             string source = NormalizeSymbols(line[..arrow]);
@@ -226,7 +232,7 @@ public static class LSystemEngine
                 throw new InvalidOperationException(
                     $"Левая часть правила «{rawLine}» должна состоять из одного символа.");
             }
-            if (replacement.Length == 0)
+            if (replacement.Length == 0 && !spatialCommands)
             {
                 throw new InvalidOperationException(
                     $"Правая часть правила «{rawLine}» не может быть пустой.");

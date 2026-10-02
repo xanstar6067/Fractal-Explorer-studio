@@ -455,7 +455,8 @@ internal static class Program
 
             if (Fractal3DCatalog.TryParseLaunchKey(key, out Fractal3DKind fractal3DKind))
             {
-                // Включая Terrain (fractal3d-terrain): параметры и экспорт встроены в окно.
+                // Включая Terrain и LSystem3D (fractal3d-l-system3-d):
+                // параметры, пространственный редактор и экспорт встроены в окно.
                 // Кадр считает GPU. Общий менеджер палитр снимается
                 // один раз — на Мандельбульбе; предпросмотр фрактала в нём отключён (null), чтобы
                 // снимок не зависел от того, успела ли видеокарта посчитать кадр.

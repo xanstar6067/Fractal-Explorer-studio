@@ -139,6 +139,7 @@ public partial class Fractal3DWindow : Window
         IfsTransforms = CaptureIfsTransforms(),
         Attractor = CaptureAttractor(),
         Terrain = CaptureTerrain(),
+        LSystem = Kind == Fractal3DKind.LSystem3D ? LSystemEditor.Capture() : new(),
         Kifs = CaptureKifs(),
         Dla = CaptureDla(),
         Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
@@ -297,6 +298,7 @@ public partial class Fractal3DWindow : Window
         LoadIfsTransforms(state.IfsTransforms);
         LoadAttractor(state.Attractor);
         LoadTerrain(state.Terrain);
+        if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.Load(state.LSystem ?? new());
         LoadKifs(state.Kifs);
         LoadDla(state.Dla);
 
@@ -368,7 +370,16 @@ public partial class Fractal3DWindow : Window
                     ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
         }
         TerrainPanel.Visibility = Collapse(Kind == Fractal3DKind.Terrain);
-        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Terrain or Fractal3DKind.Dla3D));
+        LSystemEditor.Visibility = Collapse(Kind == Fractal3DKind.LSystem3D);
+        if (Kind == Fractal3DKind.LSystem3D)
+        {
+            ControlsColumn.Width = new GridLength(395);
+            ShapeExpander.Visibility = Visibility.Collapsed;
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.OrbitTrap]).Content = "По L-системе";
+            foreach (var mode in new[] { Fractal3DColoringMode.CrossTrap, Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
+                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
+        }
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.LSystem3D));
         DlaPanel.Visibility = DlaGrowthPanel.Visibility = DlaGrowthOverlay.Visibility = Collapse(Kind == Fractal3DKind.Dla3D);
         if (Kind == Fractal3DKind.Dla3D)
         {
@@ -954,6 +965,8 @@ public partial class Fractal3DWindow : Window
             }
 
             OnDlaFrameDisplayed(state);
+            if (Kind == Fractal3DKind.LSystem3D)
+                LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount);
             RequestRefinement(quality, scale, ssaa, simplified);
         }
         catch (OperationCanceledException)
@@ -972,7 +985,8 @@ public partial class Fractal3DWindow : Window
             }
             StatusText.Text = "Ошибка рендера";
             CrashLogger.Log("Fractal3DWindow.RenderFrameAsync", exception);
-            MessageBox.Show(this, exception.Message, _definition.Title,
+            if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.ShowError(exception.Message);
+            else MessageBox.Show(this, exception.Message, _definition.Title,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -989,7 +1003,7 @@ public partial class Fractal3DWindow : Window
     /// </summary>
     private void RequestRefinement(FrameQuality quality, double scale, int ssaa, bool simplified)
     {
-        if (IsMoving || _dlaRunning) return;
+        if (IsMoving || _dlaRunning || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying)) return;
         if (quality == FrameQuality.Draft && (scale < 1 || simplified))
             RequestFrame(FrameQuality.Full, RefineDelayMs);
         else if (quality != FrameQuality.Antialiased && ssaa > 1)
@@ -1111,6 +1125,7 @@ public partial class Fractal3DWindow : Window
     {
         if (_drag != DragMode.None) CanvasHost.ReleaseMouseCapture();
         _isClosing = true;
+        LSystemEditor.CancelWork();
         _dlaRunning = false;
         DetachLoop();
         _renderCts?.Cancel();
