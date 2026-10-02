@@ -36,6 +36,39 @@ internal static partial class Program
             distinctRules.Add(b.Spatial!.RulesText);
         }
         Check(distinctRules.Count > 12, "The generator must create a variety of actual grammars.");
+        foreach (var kind in Enum.GetValues<LSystemCurveKind>())
+        {
+            var curveRules2 = new HashSet<string>();
+            var curveRules3 = new HashSet<string>();
+            foreach (int seed in Enumerable.Range(0, 12))
+            {
+                var options = new LSystemRandomizationSettings { Family = LSystemShapeFamily.Curves,
+                    CurveKind = kind, Seed = seed, RuleComplexity = seed % 4 + 1, StemLength = 4,
+                    Detail = seed % 5 + 1, Symmetric = seed % 2 == 0 };
+                var a = LSystemRandomizer.Create2D(options, planar, false, CancellationToken.None);
+                var b = LSystemRandomizer.Create3D(options, spatial, false, CancellationToken.None);
+                Check(a.Segments is >= 2 and <= 50_000 && b.Segments is >= 2 and <= 20_000, "Curve budgets.");
+                curveRules2.Add(a.Planar!.RulesText); curveRules3.Add(b.Spatial!.RulesText);
+                Check(a.Planar.AngleDegrees >= options.AngleMinimum && a.Planar.AngleDegrees <= options.AngleMaximum &&
+                    b.Spatial.Yaw >= options.AngleMinimum && b.Spatial.Yaw <= options.AngleMaximum, "Curve angle ranges.");
+            }
+            Check(curveRules2.Count >= 3 && curveRules3.Count >= 3, $"Structural variety within {kind}.");
+        }
+        var constrained = new LSystemRandomizationSettings { AngleMinimum = 36, AngleMaximum = 36,
+            PitchMinimum = 47, PitchMaximum = 47, RollMinimum = 53, RollMaximum = 53,
+            Radius = .23, BranchTaper = .61, StepDecay = .54, RuleComplexity = 4, StemLength = 4 };
+        var constrained3 = LSystemRandomizer.Create3D(constrained, spatial, false, CancellationToken.None).Spatial!;
+        Check(constrained3.Yaw == 36 && constrained3.Pitch == 47 && constrained3.Roll == 53 &&
+            constrained3.Radius == .23 && constrained3.BranchTaper == .61 && constrained3.StepDecay == .54, "Spatial proportions and ranges.");
+        Check(LSystemRandomizer.Create2D(constrained, planar, false, CancellationToken.None).Planar!.AngleDegrees == 36,
+            "Planar angle range.");
+        foreach (var invalid in new[] { constrained with { AngleMinimum = 80, AngleMaximum = 20 },
+            constrained with { PitchMinimum = double.NaN }, constrained with { Radius = 0 } })
+        {
+            bool rejected = false;
+            try { invalid.Validate(); } catch (InvalidOperationException) { rejected = true; }
+            Check(rejected, "Invalid generator ranges are rejected.");
+        }
         foreach (var preset in LSystemPresets.All)
         {
             var result = LSystemRandomizer.Create2D(new() { Seed = 72 }, preset.Definition, true, CancellationToken.None);
@@ -54,6 +87,24 @@ internal static partial class Program
             Check(cancelled, "Generation cancellation.");
         }
         using var renderer = new Fractal3DRenderer();
+        var curveImages = new HashSet<string>();
+        foreach (var kind in Enum.GetValues<LSystemCurveKind>().Where(k => k != LSystemCurveKind.Mixed))
+        {
+            var options = new LSystemRandomizationSettings { Family = LSystemShapeFamily.Curves,
+                CurveKind = kind, Seed = 73, Detail = 3 };
+            var state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.LSystem3D);
+            state.LSystem = LSystemRandomizer.Create3D(options, spatial, false, CancellationToken.None).Spatial!;
+            var image = await renderer.RenderAsync(state, 400, 400, null, CancellationToken.None);
+            Check(HasFractal3DStructure(Pixels(image), 400, 400), $"Blank curve {kind}.");
+            curveImages.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Pixels(image))));
+            WriteLSystemPng(Path.Combine(output, $"curve-3d-{kind}.png"), image);
+            var d = LSystemRandomizer.Create2D(options, planar, false, CancellationToken.None).Planar!;
+            var scene = LSystemEngine.BuildScene(d, CancellationToken.None);
+            var pixels = LSystemRasterizer.Render(scene, d, 400, 400, scene.Segments.Count, 1, 0, 0, CancellationToken.None)!;
+            WriteLSystemPng(Path.Combine(output, $"curve-2d-{kind}.png"),
+                BitmapSource.Create(400, 400, 96, 96, PixelFormats.Bgra32, null, pixels, 1600));
+        }
+        Check(curveImages.Count == 5, "The five curve types must produce different images.");
         foreach (var family in Enum.GetValues<LSystemShapeFamily>())
         {
             var options = new LSystemRandomizationSettings { Family = family, Seed = 314, Detail = 3 };
@@ -76,21 +127,46 @@ internal static partial class Program
         var three = new Fractal3DWindow(Fractal3DKind.LSystem3D);
         try
         {
+            foreach (Window owner in new Window[] { two, three })
+            {
+                owner.WindowStartupLocation = WindowStartupLocation.Manual;
+                owner.Left = -10000; owner.Top = -10000; owner.ShowInTaskbar = false; owner.Show();
+            }
             var editor = (LSystem3DEditor)three.FindName("LSystemEditor");
-            var panel3 = (LSystemRandomizerPanel)editor.FindName("Randomizer");
-            var panel2 = (LSystemRandomizerPanel)two.FindName("Randomizer");
+            LSystemRandomizerPanel Panel(object owner) => (LSystemRandomizerPanel)owner.GetType()
+                .GetField("Randomizer", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(owner)!;
+            var panel3 = Panel(editor);
+            var panel2 = Panel(two);
             var before3 = editor.Capture();
             string before2 = ((TextBox)two.FindName("RulesBox")).Text;
             foreach (var panel in new[] { panel2, panel3 })
             {
                 ((CheckBox)panel.FindName("FreshSeedBox")).IsChecked = false;
                 ((TextBox)panel.FindName("SeedBox")).Text = "314";
-                ((Expander)panel.FindName("PanelExpander")).IsExpanded = true;
                 ((Button)panel.FindName("NewButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var button = (Button)panel.FindName("NewButton");
                 for (int i = 0; i < 500 && !button.IsEnabled; i++) await Task.Delay(10);
                 Check(button.IsEnabled && ((TextBlock)panel.FindName("ResultText")).Text.Contains("314"), "WPF generate action.");
                 Check(((Button)panel.FindName("UndoButton")).IsEnabled, "Generated form must be undoable.");
+            }
+            foreach (var (owner, buttonOwner, panel, windowType, name) in new[]
+            {
+                (two as Window, two as FrameworkElement, panel2, typeof(LSystemRandomizerWindow), "randomizer-window-2d"),
+                (three as Window, editor as FrameworkElement, panel3, typeof(LSystem3DRandomizerWindow), "randomizer-window-3d")
+            })
+            {
+                ((Button)buttonOwner.FindName("RandomizerButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var dialog = owner.OwnedWindows.Cast<Window>().Single(w => w.GetType() == windowType);
+                Check(panel.OpenWindow(owner) == dialog, "Repeated launch must reuse the generator window.");
+                Check(panel.Content != null && dialog.Content == panel, "Generator settings live in the separate window.");
+                var content = (FrameworkElement)dialog.Content;
+                content.Measure(new Size(800, 720)); content.Arrange(new Rect(0, 0, 800, 720)); content.UpdateLayout();
+                var shot = new RenderTargetBitmap(800, 720, 96, 96, PixelFormats.Pbgra32); shot.Render(content);
+                WriteLSystemPng(Path.Combine(output, name + ".png"), shot);
+                dialog.Close();
+                var reopened = panel.OpenWindow(owner);
+                Check(((TextBox)panel.FindName("SeedBox")).Text == "314", "Reopening must preserve generator settings.");
+                reopened.Close();
             }
             Check(editor.Capture() != before3 && ((TextBox)two.FindName("RulesBox")).Text != before2, "Generator must fill both editors.");
             var state = three.CaptureState("generated");
@@ -134,7 +210,7 @@ internal static partial class Program
         }
         finally { two.Close(); three.Close(); }
         await VerifyLSystemCancellationRaceAsync();
-        Console.WriteLine($"PASS (lsystemrandom): 80 seeded 2D/3D shapes, complexity budgets, mutations of all presets, cancellation, rendered families, both WPF generators, undo, overlapping builds and close during build. Images: {output}");
+        Console.WriteLine($"PASS (lsystemrandom): seeded families and five curve types, structural variety, parameter ranges, budgets, preset mutations, cancellation, CPU/GPU images, separate generator windows and reopening, undo, saves, overlapping builds and close during build. Images: {output}");
     }
 
     private static async Task VerifyLSystemCancellationRaceAsync()

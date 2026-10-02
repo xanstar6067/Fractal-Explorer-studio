@@ -1,0 +1,6 @@
+<Window x:Class="FractalExplorerWPF.Views.LSystemRandomizerWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Генератор L-систем · 2D" Width="820" Height="760" MinWidth="720" MinHeight="540"
+ WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+ Background="{DynamicResource Theme.BaseBackgroundBrush}"/>

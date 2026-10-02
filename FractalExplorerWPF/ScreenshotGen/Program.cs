@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using FractalExplorerWPF;
+using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Theming;
@@ -482,6 +483,12 @@ internal static class Program
                     var transforms = (List<Ifs3DTransform>)GetMember(w, "_ifsTransforms")!;
                     await CaptureChildAsync(w, new Ifs3DTransformEditorWindow(transforms), "ifs3d-transform-editor");
                 }
+                if (w != null && fractal3DKind == Fractal3DKind.LSystem3D)
+                {
+                    var editor = (LSystem3DEditor)w.FindName("LSystemEditor");
+                    var panel = (LSystemRandomizerPanel)GetMember(editor, "Randomizer")!;
+                    await CaptureChildAsync(w, new LSystem3DRandomizerWindow(panel), "lsystem-randomizer-3d");
+                }
                 SafeCloseIfAny(w);
                 return;
             }
@@ -517,8 +524,16 @@ internal static class Program
                     return;
                 case "LSystem":
                 case "Serpinsky":
-                    await CaptureAsync(() => new LSystemWindow(), "lsystem", 2200);
+                {
+                    Window? w = await CaptureAsync(() => new LSystemWindow(), "lsystem", 2200);
+                    if (w != null)
+                    {
+                        var panel = (LSystemRandomizerPanel)GetMember(w, "Randomizer")!;
+                        await CaptureChildAsync(w, new LSystemRandomizerWindow(panel), "lsystem-randomizer-2d");
+                    }
+                    SafeCloseIfAny(w);
                     return;
+                }
                 case "SerpinskyChaos":
                 {
                     Window? w = await CaptureAsync(() => new SerpinskyWindow(chaosOnly: true), "serpinsky-chaos", 1800);

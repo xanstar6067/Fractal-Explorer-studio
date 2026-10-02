@@ -46,7 +46,7 @@
                     <TextBlock x:Name="PresetDescription" Margin="0,0,0,10"
                                Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                TextWrapping="Wrap"/>
-                    <controls:LSystemRandomizerPanel x:Name="Randomizer"/>
+                    <Button x:Name="RandomizerButton" Content="✦ Генератор форм…" Click="Randomizer_OnClick" Margin="0,7,0,10" MinHeight="36"/>
 
                     <TextBlock FontWeight="SemiBold" Text="Редактор правил"/>
                     <TextBlock Margin="0,7,0,2" Text="Аксиома"/>

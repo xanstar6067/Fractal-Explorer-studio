@@ -9,6 +9,8 @@ namespace FractalExplorerWPF.Controls;
 
 public partial class LSystem3DEditor : UserControl
 {
+    private readonly LSystemRandomizerPanel Randomizer = new();
+    private void Randomizer_OnClick(object sender, RoutedEventArgs e) => Randomizer.OpenWindow(Window.GetWindow(this));
     private bool _loading = true;
     private LSystem3DSettings _grammar = new();
     private readonly Stack<LSystem3DSettings> _undo = new();

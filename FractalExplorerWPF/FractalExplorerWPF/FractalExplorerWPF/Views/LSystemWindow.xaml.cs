@@ -16,6 +16,8 @@ namespace FractalExplorerWPF.Views;
 
 public partial class LSystemWindow : Window
 {
+    private readonly LSystemRandomizerPanel Randomizer = new();
+    private void Randomizer_OnClick(object sender, RoutedEventArgs e) => Randomizer.OpenWindow(Window.GetWindow(this));
     private readonly LSystemSaveStore _saveStore = new();
     private readonly DispatcherTimer _redrawTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private readonly DispatcherTimer _animationTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
