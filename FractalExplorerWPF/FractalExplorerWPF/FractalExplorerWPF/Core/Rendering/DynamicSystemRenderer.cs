@@ -76,6 +76,7 @@ public static class DynamicSystemRenderer
             DynamicSystemKind.Ikeda => FractalIkedaEngine.RenderBuffer(width, height, (decimal)s.CenterX, (decimal)s.CenterY, (decimal)s.Zoom,
                 new FractalIkedaEngine.RenderSettings { U=(decimal)s.U, X0=(decimal)s.X0, Y0=(decimal)s.Y0, Iterations=s.Iterations, DiscardIterations=s.DiscardIterations, RangeXMin=(decimal)s.RangeXMin, RangeXMax=(decimal)s.RangeXMax, RangeYMin=(decimal)s.RangeYMin, RangeYMax=(decimal)s.RangeYMax, Threads=s.Threads }, token, progress),
             DynamicSystemKind.Attractors2D => Attractor2DRenderer.RenderBuffer(s, width, height, palette, token, progress),
+            DynamicSystemKind.Popcorn => PopcornRenderer.RenderBuffer(s, width, height, palette, token, progress),
             _ => new byte[width * height * 4]
         };
     }

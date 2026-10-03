@@ -470,6 +470,7 @@ public partial class MainWindow : Window
             "GrayScott" => () => new GrayScottWindow(),
             "SprottQuadratic" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SprottQuadratic),
             "SymmetricIcon" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SymmetricIcon),
+            "Popcorn" => () => new DynamicSystemWindow(DynamicSystemKind.Popcorn),
             _ => null
         };
         if (named is not null) return named;

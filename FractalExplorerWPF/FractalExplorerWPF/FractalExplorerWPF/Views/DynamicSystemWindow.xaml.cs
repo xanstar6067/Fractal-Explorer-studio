@@ -73,7 +73,7 @@ public partial class DynamicSystemWindow : Window
             if (selected == Attractor2DKind.SprottQuadratic)
                 SprottQuadraticMap.ApplyCode(_state, SprottQuadraticMap.Presets[0].Code);
         }
-        if (kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.LogisticMap or DynamicSystemKind.Attractors2D) _paletteStore = new(kind);
+        if (kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.LogisticMap or DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn) _paletteStore = new(kind);
         InitializeComponent();
         _previewTransform.Children.Add(_previewScale);
         _previewTransform.Children.Add(_previewTranslation);
@@ -88,6 +88,7 @@ public partial class DynamicSystemWindow : Window
 
     private void BuildParameterPanel()
     {
+        if (_kind == DynamicSystemKind.Popcorn) BuildPopcornPanel();
         if (_kind == DynamicSystemKind.Attractors2D)
         {
             AddChoice("Формула", "Attractor2DMode",
@@ -113,12 +114,12 @@ public partial class DynamicSystemWindow : Window
         foreach ((string label, string key) in Fields(_kind)) AddField(label, key);
         if (_kind is DynamicSystemKind.Lorenz or DynamicSystemKind.Rossler) AddChoice("Проекция", "ProjectionMode", ["XY", "XZ", "YZ"]);
         if (_kind == DynamicSystemKind.LogisticMap) AddChoice("Режим", "VisualizationMode", ["Orbit", "Bifurcation", "Cobweb"]);
-        if (_kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.Attractors2D) AddChoice("Сглаживание", "SsaaFactor", ["1", "2", "4"]);
+        if (_kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn) AddChoice("Сглаживание", "SsaaFactor", ["1", "2", "4"]);
         AddThreadChoice();
         PaletteButton.Visibility = _paletteStore is null ? Visibility.Collapsed : Visibility.Visible;
-        FractalColorPanel.Visibility = _kind is DynamicSystemKind.Bifurcation or DynamicSystemKind.Attractors2D ? Visibility.Visible : Visibility.Collapsed;
+        FractalColorPanel.Visibility = _kind is DynamicSystemKind.Bifurcation or DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn ? Visibility.Visible : Visibility.Collapsed;
         BackgroundColorPanel.Visibility = _kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.Henon or DynamicSystemKind.Ikeda ? Visibility.Collapsed : Visibility.Visible;
-        FractalColorButton.Content = _kind == DynamicSystemKind.Attractors2D ? "Цвет плотности" : "Цвет фрактала";
+        FractalColorButton.Content = _kind is DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn ? "Цвет плотности" : "Цвет фрактала";
         UpdateAttractorPresentation();
     }
 
@@ -181,6 +182,7 @@ public partial class DynamicSystemWindow : Window
 
     private static IEnumerable<(string, string)> Fields(DynamicSystemKind kind) => kind switch
     {
+        DynamicSystemKind.Popcorn => [("Гамма плотности","DensityGamma"),("Центр X","CenterX"),("Центр Y","CenterY"),("Масштаб","Zoom")],
         DynamicSystemKind.Lyapunov => [("Мин. A","AMin"),("Макс. A","AMax"),("Мин. B","BMin"),("Макс. B","BMax"),("Паттерн A/B","Pattern"),("Итерации","Iterations"),("Прогрев","TransientIterations")],
         DynamicSystemKind.Lorenz => [("σ","Sigma"),("ρ","Rho"),("β","Beta"),("dt","Dt"),("Шаги","Steps"),("Старт X","StartX"),("Старт Y","StartY"),("Старт Z","StartZ"),("Центр X","CenterX"),("Центр Y","CenterY"),("Масштаб","Zoom")],
         DynamicSystemKind.Rossler => [("a","A"),("b","B"),("c","C"),("dt","Dt"),("Шаги","Steps"),("Старт X","StartX"),("Старт Y","StartY"),("Старт Z","StartZ"),("Центр X","CenterX"),("Центр Y","CenterY"),("Масштаб","Zoom")],
@@ -391,6 +393,7 @@ public partial class DynamicSystemWindow : Window
     }
     private DynamicPalette? ActivePalette => _kind == DynamicSystemKind.Attractors2D
         ? IsSymmetricIcon ? _palettes.FirstOrDefault(p => p.Name == _state.PaletteName) : null
+        : _kind == DynamicSystemKind.Popcorn ? _palettes.FirstOrDefault(p => p.Name == _state.PaletteName)
         : _palettes.FirstOrDefault(p => p.Name == _state.PaletteName) ?? _palettes.FirstOrDefault();
 
     private DynamicSystemState CaptureState(string name)
@@ -407,6 +410,7 @@ public partial class DynamicSystemWindow : Window
             Attractor2DRenderer.ParseKind(_state.Attractor2DMode) == Attractor2DKind.SprottQuadratic)
             ReadQuadraticCoefficients(_quadraticCoefficientsDirty);
         if (IsSymmetricIcon) ReadIconSettings();
+        if (_kind == DynamicSystemKind.Popcorn) ReadPopcornSettings();
         if (_state.Zoom <= 0 || _state.Threads < 1 || _state.Threads > Environment.ProcessorCount) throw new InvalidOperationException($"Масштаб должен быть положительным, число потоков — от 1 до {Environment.ProcessorCount}.");
         if (_kind == DynamicSystemKind.Lyapunov && (_state.AMax <= _state.AMin || _state.BMax <= _state.BMin || !_state.Pattern.Any(c => c is 'A' or 'a' or 'B' or 'b'))) throw new InvalidOperationException("Проверьте диапазоны A/B и паттерн.");
         if (_kind == DynamicSystemKind.Attractors2D && (_state.Iterations < 1 || _state.DensityGamma is < .05 or > 8)) throw new InvalidOperationException("Число точек должно быть положительным, гамма плотности — от 0.05 до 8.");
@@ -418,6 +422,7 @@ public partial class DynamicSystemWindow : Window
     {
         _syncing=true;
         SyncIconControls();
+        SyncPopcornControls();
         foreach ((string key, TextBox box) in _boxes)
         {
             object? value = typeof(DynamicSystemState).GetProperty(key)!.GetValue(_state);
@@ -495,7 +500,7 @@ public partial class DynamicSystemWindow : Window
     public Task<BitmapSource> RenderStatePreviewAsync(
         DynamicSystemState state, int width, int height, CancellationToken token, IProgress<int>? progress = null) =>
         DynamicSystemRenderer.RenderAsync(state.Clone(), width, height, FindPalette(state.PaletteName), token, progress, null, false);
-    private DynamicPalette? FindPalette(string name)=>_palettes.FirstOrDefault(p=>p.Name==name)??(_kind==DynamicSystemKind.Attractors2D?null:_palettes.FirstOrDefault());
+    private DynamicPalette? FindPalette(string name)=>_palettes.FirstOrDefault(p=>p.Name==name)??(_kind is DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn?null:_palettes.FirstOrDefault());
 
     private void Schedule(){if(!IsLoaded)return;_timer.Stop();_timer.Start();}
     private void Render_OnClick(object sender,RoutedEventArgs e){_timer.Stop();_cts?.Cancel();_=RenderAsync();}
@@ -530,7 +535,8 @@ public partial class DynamicSystemWindow : Window
             dialog.ShowDialog();
             return;
         }
-        var genericDialog = new DynamicPaletteWindow(_paletteStore, _palettes, ActivePalette, densityOnly: IsSymmetricIcon) { Owner = this };
+        var genericDialog = new DynamicPaletteWindow(_paletteStore, _palettes, ActivePalette, densityOnly: IsSymmetricIcon || _kind == DynamicSystemKind.Popcorn) { Owner = this };
+        if (_kind == DynamicSystemKind.Popcorn) genericDialog.Title = "Палитры Popcorn Пиковера";
         if (genericDialog.ShowDialog() == true) ApplyPalette(genericDialog.SelectedPalette?.Name);
     }
 
@@ -539,6 +545,7 @@ public partial class DynamicSystemWindow : Window
         if (!string.IsNullOrWhiteSpace(paletteName)) _state.PaletteName = paletteName;
         LoadPalettes();
         if (IsSymmetricIcon) { SyncControls(); UpdateAttractorPresentation(); }
+        if (_kind == DynamicSystemKind.Popcorn) { SyncControls(); UpdatePopcornPresentation(); }
         Schedule();
     }
     private void FractalColor_OnClick(object sender,RoutedEventArgs e){if(ColorSelectionService.Default.TrySelectColor(this,_state.FractalColor,out Color c)){_state.FractalColor=c;UpdateSwatches();Schedule();}}
@@ -555,6 +562,7 @@ public partial class DynamicSystemWindow : Window
                 new(){Kind=_kind,SaveName="ABBA-структуры",Timestamp=DateTime.MinValue,PointOfInterestId="abba",AMin=3.2,AMax=4,BMin=2.6,BMax=3.6,Pattern="ABBA",Iterations=350,TransientIterations=100,PaletteName="Классическая Ляпунова"}
             ],
             DynamicSystemKind.Attractors2D => Attractor2DPointsOfInterest(),
+            DynamicSystemKind.Popcorn => PopcornPresets.PointsOfInterest(),
             _ => []
         };
         SaveManagerWindow.Open(this,new SaveManagerConfiguration<DynamicSystemState>{WindowTitle=$"Сохранение/Загрузка: {DisplayName(_kind)}",Store=_saves,CaptureState=CaptureState,CapturePreview=CaptureCurrentPreview,LoadState=LoadState,RenderPreviewAsync=RenderStatePreviewAsync,GetName=s=>s.SaveName,GetTimestamp=s=>s.Timestamp,GetDetails=s=>$"{s.Timestamp:g} · {Details(s)}",PointsOfInterest=presets});
@@ -697,8 +705,8 @@ public partial class DynamicSystemWindow : Window
     private void Window_OnKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.F11||e.Key==Key.Escape&&_fullscreen){if(!_fullscreen){_oldStyle=WindowStyle;_oldState=WindowState;WindowStyle=WindowStyle.None;WindowState=WindowState.Maximized;}else{WindowStyle=_oldStyle;WindowState=_oldState;}_fullscreen=!_fullscreen;}}
     private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){CancelIconSearch();_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();}
 
-    private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",_=>"Динамическая система"};
-    private static string Details(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Lyapunov=>$"{s.Pattern} · {s.Iterations} итераций · {s.PaletteName}",DynamicSystemKind.Attractors2D=>$"{Attractor2DDisplayName(Attractor2DRenderer.ParseKind(s.Attractor2DMode))} · {s.Iterations:N0} точек · масштаб {s.Zoom:G5}",_=>$"Масштаб {s.Zoom:G5} · {Math.Max(s.Iterations,s.Steps):N0} итераций"};
+    private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",DynamicSystemKind.Popcorn=>"Фрактал Popcorn Пиковера",_=>"Динамическая система"};
+    private static string Details(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Lyapunov=>$"{s.Pattern} · {s.Iterations} итераций · {s.PaletteName}",DynamicSystemKind.Attractors2D=>$"{Attractor2DDisplayName(Attractor2DRenderer.ParseKind(s.Attractor2DMode))} · {s.Iterations:N0} точек · масштаб {s.Zoom:G5}",DynamicSystemKind.Popcorn=>$"{(s.Popcorn.PlotMode == PopcornPlotMode.GridOrbits ? "Орбиты сетки" : "Кружево Гильберта")} · h={s.Popcorn.H:G5}, k={s.Popcorn.K:G5} · {s.Popcorn.OrbitIterations} шагов · масштаб {s.Zoom:G5}",_=>$"Масштаб {s.Zoom:G5} · {Math.Max(s.Iterations,s.Steps):N0} итераций"};
     private static string Attractor2DDisplayName(Attractor2DKind kind)=>kind switch{Attractor2DKind.Clifford=>"Клиффорд",Attractor2DKind.PeterDeJong=>"Питер де Йонг",Attractor2DKind.Tinkerbell=>"Tinkerbell",Attractor2DKind.SprottQuadratic=>"Карта Спротта",Attractor2DKind.SymmetricIcon=>"Symmetric Icons",_=>"Gumowski–Mira"};
     // Видимая область по X и Y в мировых координатах — так же, как её строят движки:
     // Лоренц, Рёсслер и логистические режимы растягивают квадрат на весь кадр, Хенон
@@ -708,6 +716,7 @@ public partial class DynamicSystemWindow : Window
         double zoom=Math.Max(1e-9,s.Zoom),aspect=Math.Max(1,height)/Math.Max(1,width);
         return s.Kind switch
         {
+            DynamicSystemKind.Popcorn=>PopcornRenderer.ViewSpans(s,width,height),
             DynamicSystemKind.Lorenz=>Square((double)FractalLorenzEngine.BaseScale/zoom),
             DynamicSystemKind.Rossler=>Square((double)FractalRosslerEngine.BaseScale/zoom),
             DynamicSystemKind.Henon=>((double)FractalHenonEngine.BaseScale/zoom,(double)FractalHenonEngine.BaseScale/zoom*aspect),

@@ -33,7 +33,7 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
-        item.LaunchKey is GrayScottLaunchKey or "SprottQuadratic" or "SymmetricIcon";
+        item.LaunchKey is GrayScottLaunchKey or "SprottQuadratic" or "SymmetricIcon" or "Popcorn";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -83,6 +83,12 @@ internal sealed class CatalogPreviewLoader
             state.ApplyAttractor2DPreset(Attractor2DKind.SymmetricIcon);
             state.Iterations = 400_000;
             DynamicPalette? palette = DynamicPaletteStore.IconBuiltIns().FirstOrDefault(p => p.Name == state.PaletteName);
+            return DynamicSystemRenderer.RenderAsync(state, RenderedPixelSize, RenderedPixelSize, palette, token);
+        }
+        if (item.LaunchKey == "Popcorn")
+        {
+            DynamicSystemState state = DynamicSystemState.CreateDefault(DynamicSystemKind.Popcorn);
+            DynamicPalette palette = DynamicPaletteStore.PopcornBuiltIns().First(p => p.Name == state.PaletteName);
             return DynamicSystemRenderer.RenderAsync(state, RenderedPixelSize, RenderedPixelSize, palette, token);
         }
         if (item.LaunchKey == "SprottQuadratic")

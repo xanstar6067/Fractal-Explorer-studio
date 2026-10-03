@@ -22,6 +22,7 @@ public sealed class DynamicPaletteStore
     {
         DynamicSystemKind.Lyapunov => "lyapunov_palettes.json",
         DynamicSystemKind.Attractors2D => "symmetric_icon_palettes.json",
+        DynamicSystemKind.Popcorn => "popcorn_palettes.json",
         _ => "logistic_map_palettes.json"
     });
     public DynamicPaletteStore(DynamicSystemKind kind) => _kind = kind;
@@ -32,6 +33,7 @@ public sealed class DynamicPaletteStore
         {
             DynamicSystemKind.Lyapunov => LyapunovBuiltIns(),
             DynamicSystemKind.Attractors2D => IconBuiltIns(),
+            DynamicSystemKind.Popcorn => PopcornBuiltIns(),
             _ => LogisticBuiltIns()
         };
         if (!File.Exists(FilePath)) return result;
@@ -85,6 +87,14 @@ public sealed class DynamicPaletteStore
         color=default;if(value is null||value.Length!=9||value[0]!='#'||!uint.TryParse(value.AsSpan(1),System.Globalization.NumberStyles.HexNumber,null,out uint argb))return false;
         color=Color.FromArgb((byte)(argb>>24),(byte)(argb>>16),(byte)(argb>>8),(byte)argb);return true;
     }
+
+    public static List<DynamicPalette> PopcornBuiltIns() =>
+    [
+        P("Popcorn — океан", "Gradient", Colors.Black, Color.FromRgb(8, 32, 55), Color.FromRgb(20, 139, 160), Color.FromRgb(150, 243, 221), Colors.White),
+        P("Popcorn — аметист", "Gradient", Colors.Black, Color.FromRgb(40, 15, 70), Color.FromRgb(131, 67, 191), Color.FromRgb(245, 166, 224), Colors.White),
+        P("Popcorn — медь", "Gradient", Colors.Black, Color.FromRgb(58, 22, 12), Color.FromRgb(171, 65, 27), Color.FromRgb(255, 184, 109), Colors.Ivory),
+        P("Popcorn — золото", "Gradient", Colors.Black, Color.FromRgb(48, 33, 10), Color.FromRgb(174, 121, 31), Color.FromRgb(255, 223, 139), Colors.White)
+    ];
 
     public static List<DynamicPalette> IconBuiltIns() =>
     [

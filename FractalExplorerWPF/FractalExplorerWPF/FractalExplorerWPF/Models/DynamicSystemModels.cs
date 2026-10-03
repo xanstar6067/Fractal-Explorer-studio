@@ -13,7 +13,8 @@ public enum DynamicSystemKind
     Bifurcation,
     Henon,
     Ikeda,
-    Attractors2D
+    Attractors2D,
+    Popcorn
 }
 
 public enum Attractor2DKind
@@ -74,6 +75,7 @@ public sealed class DynamicSystemState
     public double[] QuadraticCoefficients { get; set; } = new double[12];
     public double QuadraticSpan { get; set; } = 5;
     public SymmetricIconSettings SymmetricIcon { get; set; } = new();
+    public PopcornSettings Popcorn { get; set; } = new();
     public string VisualizationMode { get; set; } = "Orbit";
     public double BifurcationRMin { get; set; } = 2.8;
     public double BifurcationRMax { get; set; } = 4;
@@ -96,6 +98,7 @@ public sealed class DynamicSystemState
         var clone = (DynamicSystemState)MemberwiseClone();
         clone.QuadraticCoefficients = QuadraticCoefficients?.ToArray() ?? new double[12];
         clone.SymmetricIcon = SymmetricIcon?.Clone() ?? new();
+        clone.Popcorn = Popcorn?.Clone() ?? new();
         if (name is not null) clone.SaveName = name;
         return clone;
     }
@@ -103,6 +106,11 @@ public sealed class DynamicSystemState
     public static DynamicSystemState CreateDefault(DynamicSystemKind kind)
     {
         var state = new DynamicSystemState { Kind = kind };
+        if (kind == DynamicSystemKind.Popcorn)
+        {
+            PopcornPresets.Apply(state, 0);
+            return state;
+        }
         switch (kind)
         {
             case DynamicSystemKind.Lyapunov:
