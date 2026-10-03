@@ -73,7 +73,7 @@ public partial class DynamicSystemWindow : Window
             if (selected == Attractor2DKind.SprottQuadratic)
                 SprottQuadraticMap.ApplyCode(_state, SprottQuadraticMap.Presets[0].Code);
         }
-        if (kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.LogisticMap) _paletteStore = new(kind);
+        if (kind is DynamicSystemKind.Lyapunov or DynamicSystemKind.LogisticMap or DynamicSystemKind.Attractors2D) _paletteStore = new(kind);
         InitializeComponent();
         _previewTransform.Children.Add(_previewScale);
         _previewTransform.Children.Add(_previewTranslation);
@@ -97,7 +97,8 @@ public partial class DynamicSystemWindow : Window
                 new("Питер де Йонг", nameof(Attractor2DKind.PeterDeJong)),
                 new("Tinkerbell", nameof(Attractor2DKind.Tinkerbell)),
                 new("Gumowski–Mira", nameof(Attractor2DKind.GumowskiMira)),
-                new("Спротт · квадратичная карта", nameof(Attractor2DKind.SprottQuadratic))
+                new("Спротт · квадратичная карта", nameof(Attractor2DKind.SprottQuadratic)),
+                new("Symmetric Icons · орнаменты", nameof(Attractor2DKind.SymmetricIcon))
             });
             _attractorFormulaText = new TextBlock
             {
@@ -107,6 +108,7 @@ public partial class DynamicSystemWindow : Window
             _attractorFormulaText.SetResourceReference(TextBlock.ForegroundProperty, "Theme.SecondaryTextBrush");
             ParameterPanel.Children.Add(_attractorFormulaText);
             BuildQuadraticPanel();
+            BuildIconPanel();
         }
         foreach ((string label, string key) in Fields(_kind)) AddField(label, key);
         if (_kind is DynamicSystemKind.Lorenz or DynamicSystemKind.Rossler) AddChoice("Проекция", "ProjectionMode", ["XY", "XZ", "YZ"]);
@@ -202,7 +204,7 @@ public partial class DynamicSystemWindow : Window
         }
         panel.Children.Add(box); _boxes[key] = box;
         _fieldPanels[key] = panel; _fieldLabels[key] = labelBlock;
-        box.TextChanged += (_, _) => { if (!_syncing) Schedule(); };
+        box.TextChanged += (_, _) => { if (!_syncing) { CancelIconSearch(); Schedule(); } };
         ParameterPanel.Children.Add(panel);
     }
 
@@ -238,6 +240,7 @@ public partial class DynamicSystemWindow : Window
         property.SetValue(_state, value);
         if (key == "Attractor2DMode")
         {
+            CancelIconSearch();
             _state.ApplyAttractor2DPreset(Attractor2DRenderer.ParseKind(option.Value));
             if (option.Value == nameof(Attractor2DKind.SprottQuadratic))
                 SprottQuadraticMap.ApplyCode(_state, SprottQuadraticMap.Presets[0].Code);
@@ -252,13 +255,17 @@ public partial class DynamicSystemWindow : Window
         if (_kind != DynamicSystemKind.Attractors2D || _attractorFormulaText is null) return;
         Attractor2DKind kind = Attractor2DRenderer.ParseKind(_state.Attractor2DMode);
         bool quadratic = kind == Attractor2DKind.SprottQuadratic;
-        Title = quadratic ? "Генератор аттракторов Спротта" : DisplayName(_kind);
-        Heading.Text = quadratic ? "Квадратичные карты" : "Параметры";
+        bool icon = kind == Attractor2DKind.SymmetricIcon;
+        Title = icon ? "Симметричные орнаменты — Symmetric Icons" : quadratic ? "Генератор аттракторов Спротта" : DisplayName(_kind);
+        Heading.Text = icon ? "Symmetric Icons" : quadratic ? "Квадратичные карты" : "Параметры";
+        if (_iconPanel is not null) _iconPanel.Visibility = icon ? Visibility.Visible : Visibility.Collapsed;
+        PaletteButton.Visibility = icon ? Visibility.Visible : Visibility.Collapsed;
+        FractalColorPanel.Visibility = icon && ActivePalette is not null ? Visibility.Collapsed : Visibility.Visible;
         if (_quadraticPanel is not null) _quadraticPanel.Visibility = quadratic ? Visibility.Visible : Visibility.Collapsed;
         foreach (string key in new[] { "A", "B", "C" })
-            if (_fieldPanels.TryGetValue(key, out StackPanel? panel)) panel.Visibility = quadratic ? Visibility.Collapsed : Visibility.Visible;
+            if (_fieldPanels.TryGetValue(key, out StackPanel? panel)) panel.Visibility = quadratic || icon ? Visibility.Collapsed : Visibility.Visible;
         if (_fieldPanels.TryGetValue("D", out StackPanel? dPanel))
-            dPanel.Visibility = kind is Attractor2DKind.GumowskiMira or Attractor2DKind.SprottQuadratic ? Visibility.Collapsed : Visibility.Visible;
+            dPanel.Visibility = icon || kind is Attractor2DKind.GumowskiMira or Attractor2DKind.SprottQuadratic ? Visibility.Collapsed : Visibility.Visible;
         if (_fieldLabels.TryGetValue("C", out TextBlock? cLabel))
             cLabel.Text = kind == Attractor2DKind.GumowskiMira ? "μ" : "c";
         _attractorFormulaText.Text = kind switch
@@ -267,6 +274,7 @@ public partial class DynamicSystemWindow : Window
             Attractor2DKind.PeterDeJong => "x′ = sin(a·y) − cos(b·x)\ny′ = sin(c·x) − cos(d·y)",
             Attractor2DKind.Tinkerbell => "x′ = x² − y² + a·x + b·y\ny′ = 2xy + c·x + d·y",
             Attractor2DKind.SprottQuadratic => "x′ и y′ — полные квадратичные многочлены от x и y.\nИщите ограниченные хаотические орбиты; код E + 12 букв хранит все коэффициенты с шагом 0,1.",
+            Attractor2DKind.SymmetricIcon => "Розетки, снежинки и мандалы. Число лучей задаёт вращательную симметрию, зеркальность убирает закручивание.",
             _ => "x′ = y + a(1 − b·y²)y + f(x)\ny′ = −x + f(x′),  f(t) = μt + 2(1−μ)t²/(1+t²)"
         } + "\n\nЦвет показывает плотность посещения точек орбитой.";
     }
@@ -381,12 +389,15 @@ public partial class DynamicSystemWindow : Window
         if (_paletteStore is null) return;
         _palettes = _paletteStore.Load();
     }
-    private DynamicPalette? ActivePalette => _palettes.FirstOrDefault(p => p.Name == _state.PaletteName) ?? _palettes.FirstOrDefault();
+    private DynamicPalette? ActivePalette => _kind == DynamicSystemKind.Attractors2D
+        ? IsSymmetricIcon ? _palettes.FirstOrDefault(p => p.Name == _state.PaletteName) : null
+        : _palettes.FirstOrDefault(p => p.Name == _state.PaletteName) ?? _palettes.FirstOrDefault();
 
     private DynamicSystemState CaptureState(string name)
     {
         foreach ((string key, TextBox box) in _boxes)
         {
+            if (_fieldPanels[key].Visibility == Visibility.Collapsed) continue;
             PropertyInfo p = typeof(DynamicSystemState).GetProperty(key)!;
             if (p.PropertyType == typeof(string)) { p.SetValue(_state, box.Text.Trim()); continue; }
             if (p.PropertyType == typeof(int)) { if (!int.TryParse(box.Text, out int v) || v < 0) throw new InvalidOperationException($"Некорректное значение: {key}"); p.SetValue(_state, v); }
@@ -395,17 +406,23 @@ public partial class DynamicSystemWindow : Window
         if (_kind == DynamicSystemKind.Attractors2D &&
             Attractor2DRenderer.ParseKind(_state.Attractor2DMode) == Attractor2DKind.SprottQuadratic)
             ReadQuadraticCoefficients(_quadraticCoefficientsDirty);
+        if (IsSymmetricIcon) ReadIconSettings();
         if (_state.Zoom <= 0 || _state.Threads < 1 || _state.Threads > Environment.ProcessorCount) throw new InvalidOperationException($"Масштаб должен быть положительным, число потоков — от 1 до {Environment.ProcessorCount}.");
         if (_kind == DynamicSystemKind.Lyapunov && (_state.AMax <= _state.AMin || _state.BMax <= _state.BMin || !_state.Pattern.Any(c => c is 'A' or 'a' or 'B' or 'b'))) throw new InvalidOperationException("Проверьте диапазоны A/B и паттерн.");
         if (_kind == DynamicSystemKind.Attractors2D && (_state.Iterations < 1 || _state.DensityGamma is < .05 or > 8)) throw new InvalidOperationException("Число точек должно быть положительным, гамма плотности — от 0.05 до 8.");
         DynamicSystemState result = _state.Clone(name); result.Timestamp = DateTime.Now; result.PaletteName = ActivePalette?.Name ?? string.Empty; return result;
     }
 
-    private void LoadState(DynamicSystemState state) { _cts?.Cancel(); EndVisualization(); CurrentImage.Source=null; int threads = _state.Threads; _state = state.Clone(); _state.Kind = _kind; _state.Threads = threads; SyncControls(); UpdateAttractorPresentation(); UpdateSwatches(); UpdatePreviewTransform(); Schedule(); }
+    private void LoadState(DynamicSystemState state) { CancelIconSearch(); _cts?.Cancel(); EndVisualization(); CurrentImage.Source=null; int threads = _state.Threads; _state = state.Clone(); _state.Kind = _kind; _state.Threads = threads; SyncControls(); UpdateAttractorPresentation(); UpdateSwatches(); UpdatePreviewTransform(); Schedule(); }
     private void SyncControls()
     {
         _syncing=true;
-        foreach ((string key, TextBox box) in _boxes) box.Text = Format(typeof(DynamicSystemState).GetProperty(key)!.GetValue(_state));
+        SyncIconControls();
+        foreach ((string key, TextBox box) in _boxes)
+        {
+            object? value = typeof(DynamicSystemState).GetProperty(key)!.GetValue(_state);
+            box.Text = IsSymmetricIcon && value is double number ? number.ToString("R", CultureInfo.InvariantCulture) : Format(value);
+        }
         if (_kind == DynamicSystemKind.Attractors2D && _quadraticCodeBox is not null)
         {
             for (int i = 0; i < SprottQuadraticMap.CoefficientCount; i++)
@@ -452,7 +469,14 @@ public partial class DynamicSystemWindow : Window
             if(token.IsCancellationRequested){CurrentImage.Source=null;StatusText.Text="Рендер отменён";return;} StableImage.Source=image; CurrentImage.Source=null; RememberRenderedViewport(state); UpdatePreviewTransform(); ProgressBar.Value=100; ProgressText.Text="Готово"; StatusText.Text=$"Готово за {watch.Elapsed.TotalSeconds:F2} сек.";
         }
         catch(OperationCanceledException){CurrentImage.Source=null;StatusText.Text="Рендер отменён";}
-        catch(Exception ex){CurrentImage.Source=null;MessageBox.Show(this,ex.Message,DisplayName(_kind),MessageBoxButton.OK,MessageBoxImage.Error);}
+        catch(Exception ex)
+        {
+            CurrentImage.Source=null;
+            if (state.Kind == DynamicSystemKind.Attractors2D &&
+                Attractor2DRenderer.ParseKind(state.Attractor2DMode) == Attractor2DKind.SymmetricIcon)
+                StatusText.Text = ex is AggregateException aggregate ? aggregate.Flatten().InnerExceptions[0].Message : ex.Message;
+            else MessageBox.Show(this,ex.Message,DisplayName(_kind),MessageBoxButton.OK,MessageBoxImage.Error);
+        }
         finally
         {
             CurrentImage.Source=null;EndVisualization();overlay=null;image=null;
@@ -471,13 +495,14 @@ public partial class DynamicSystemWindow : Window
     public Task<BitmapSource> RenderStatePreviewAsync(
         DynamicSystemState state, int width, int height, CancellationToken token, IProgress<int>? progress = null) =>
         DynamicSystemRenderer.RenderAsync(state.Clone(), width, height, FindPalette(state.PaletteName), token, progress, null, false);
-    private DynamicPalette? FindPalette(string name)=>_palettes.FirstOrDefault(p=>p.Name==name)??_palettes.FirstOrDefault();
+    private DynamicPalette? FindPalette(string name)=>_palettes.FirstOrDefault(p=>p.Name==name)??(_kind==DynamicSystemKind.Attractors2D?null:_palettes.FirstOrDefault());
 
     private void Schedule(){if(!IsLoaded)return;_timer.Stop();_timer.Start();}
     private void Render_OnClick(object sender,RoutedEventArgs e){_timer.Stop();_cts?.Cancel();_=RenderAsync();}
     private void Cancel_OnClick(object sender,RoutedEventArgs e)=>_cts?.Cancel();
     private void Reset_OnClick(object sender,RoutedEventArgs e)
     {
+        CancelIconSearch();
         DynamicSystemState defaults=DynamicSystemState.CreateDefault(_kind);
         if(_kind==DynamicSystemKind.Attractors2D)
         {
@@ -505,7 +530,7 @@ public partial class DynamicSystemWindow : Window
             dialog.ShowDialog();
             return;
         }
-        var genericDialog = new DynamicPaletteWindow(_paletteStore, _palettes, ActivePalette) { Owner = this };
+        var genericDialog = new DynamicPaletteWindow(_paletteStore, _palettes, ActivePalette, densityOnly: IsSymmetricIcon) { Owner = this };
         if (genericDialog.ShowDialog() == true) ApplyPalette(genericDialog.SelectedPalette?.Name);
     }
 
@@ -513,6 +538,7 @@ public partial class DynamicSystemWindow : Window
     {
         if (!string.IsNullOrWhiteSpace(paletteName)) _state.PaletteName = paletteName;
         LoadPalettes();
+        if (IsSymmetricIcon) { SyncControls(); UpdateAttractorPresentation(); }
         Schedule();
     }
     private void FractalColor_OnClick(object sender,RoutedEventArgs e){if(ColorSelectionService.Default.TrySelectColor(this,_state.FractalColor,out Color c)){_state.FractalColor=c;UpdateSwatches();Schedule();}}
@@ -540,7 +566,8 @@ public partial class DynamicSystemWindow : Window
         CreateAttractor2DPoint("Питер де Йонг — вихрь", "de_jong_swirl", Attractor2DKind.PeterDeJong),
         CreateAttractor2DPoint("Tinkerbell — классический", "tinkerbell_classic", Attractor2DKind.Tinkerbell),
         CreateAttractor2DPoint("Gumowski–Mira — организм", "gumowski_mira_organism", Attractor2DKind.GumowskiMira),
-        .. SprottQuadraticMap.Presets.Select(p => CreateSprottPoint(p.Name, p.Code))
+        .. SprottQuadraticMap.Presets.Select(p => CreateSprottPoint(p.Name, p.Code)),
+        .. Enumerable.Range(0, SymmetricIconPresets.All.Count).Select(CreateIconPoint)
     ];
 
     private static DynamicSystemState CreateAttractor2DPoint(string name, string id, Attractor2DKind kind)
@@ -668,11 +695,11 @@ public partial class DynamicSystemWindow : Window
     }
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,250,Schedule);
     private void Window_OnKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.F11||e.Key==Key.Escape&&_fullscreen){if(!_fullscreen){_oldStyle=WindowStyle;_oldState=WindowState;WindowStyle=WindowStyle.None;WindowState=WindowState.Maximized;}else{WindowStyle=_oldStyle;WindowState=_oldState;}_fullscreen=!_fullscreen;}}
-    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();}
+    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){CancelIconSearch();_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();}
 
     private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",_=>"Динамическая система"};
     private static string Details(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Lyapunov=>$"{s.Pattern} · {s.Iterations} итераций · {s.PaletteName}",DynamicSystemKind.Attractors2D=>$"{Attractor2DDisplayName(Attractor2DRenderer.ParseKind(s.Attractor2DMode))} · {s.Iterations:N0} точек · масштаб {s.Zoom:G5}",_=>$"Масштаб {s.Zoom:G5} · {Math.Max(s.Iterations,s.Steps):N0} итераций"};
-    private static string Attractor2DDisplayName(Attractor2DKind kind)=>kind switch{Attractor2DKind.Clifford=>"Клиффорд",Attractor2DKind.PeterDeJong=>"Питер де Йонг",Attractor2DKind.Tinkerbell=>"Tinkerbell",Attractor2DKind.SprottQuadratic=>"Карта Спротта",_=>"Gumowski–Mira"};
+    private static string Attractor2DDisplayName(Attractor2DKind kind)=>kind switch{Attractor2DKind.Clifford=>"Клиффорд",Attractor2DKind.PeterDeJong=>"Питер де Йонг",Attractor2DKind.Tinkerbell=>"Tinkerbell",Attractor2DKind.SprottQuadratic=>"Карта Спротта",Attractor2DKind.SymmetricIcon=>"Symmetric Icons",_=>"Gumowski–Mira"};
     // Видимая область по X и Y в мировых координатах — так же, как её строят движки:
     // Лоренц, Рёсслер и логистические режимы растягивают квадрат на весь кадр, Хенон
     // и странные аттракторы держат пиксели квадратными, Икэда берёт высоту из RangeY.
@@ -685,6 +712,8 @@ public partial class DynamicSystemWindow : Window
             DynamicSystemKind.Rossler=>Square((double)FractalRosslerEngine.BaseScale/zoom),
             DynamicSystemKind.Henon=>((double)FractalHenonEngine.BaseScale/zoom,(double)FractalHenonEngine.BaseScale/zoom*aspect),
             DynamicSystemKind.Ikeda=>(Math.Max(1e-9,(s.RangeXMax-s.RangeXMin)/zoom),Math.Max(1e-9,(s.RangeYMax-s.RangeYMin)/zoom)),
+            DynamicSystemKind.Attractors2D when Attractor2DRenderer.ParseKind(s.Attractor2DMode)==Attractor2DKind.SymmetricIcon
+                =>(s.SymmetricIcon.Span/zoom*Math.Max(1,1/aspect),s.SymmetricIcon.Span/zoom*Math.Max(1,aspect)),
             DynamicSystemKind.Attractors2D=>(Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode),s)/zoom,Attractor2DRenderer.GetBaseSpan(Attractor2DRenderer.ParseKind(s.Attractor2DMode),s)/zoom*aspect),
             _=>Square(1/zoom)
         };

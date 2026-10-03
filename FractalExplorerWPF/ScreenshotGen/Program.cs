@@ -666,6 +666,20 @@ internal static class Program
                     SafeCloseIfAny(w);
                     return;
                 }
+                case "SymmetricIcon":
+                {
+                    Window? w = await CaptureAsync(() => new DynamicSystemWindow(DynamicSystemKind.Attractors2D,
+                        Attractor2DKind.SymmetricIcon), "symmetric-icons", 1800);
+                    if (w is not null)
+                    {
+                        var store = (DynamicPaletteStore)GetMember(w, "_paletteStore")!;
+                        var palettes = (IEnumerable<DynamicPalette>)GetMember(w, "_palettes")!;
+                        var active = (DynamicPalette?)GetMember(w, "ActivePalette");
+                        await CaptureChildAsync(w, new DynamicPaletteWindow(store, palettes, active, true), "symmetric-icons-palettes");
+                    }
+                    SafeCloseIfAny(w);
+                    return;
+                }
             }
 
             if (Enum.TryParse(key, out DynamicSystemKind dsk))

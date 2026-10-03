@@ -18,12 +18,22 @@ public sealed class DynamicSystemSaveStore(DynamicSystemKind kind) : FractalSave
 public sealed class DynamicPaletteStore
 {
     private readonly DynamicSystemKind _kind;
-    private string FilePath => AppPaths.GetPaletteFile(_kind == DynamicSystemKind.Lyapunov ? "lyapunov_palettes.json" : "logistic_map_palettes.json");
+    private string FilePath => AppPaths.GetPaletteFile(_kind switch
+    {
+        DynamicSystemKind.Lyapunov => "lyapunov_palettes.json",
+        DynamicSystemKind.Attractors2D => "symmetric_icon_palettes.json",
+        _ => "logistic_map_palettes.json"
+    });
     public DynamicPaletteStore(DynamicSystemKind kind) => _kind = kind;
 
     public List<DynamicPalette> Load()
     {
-        List<DynamicPalette> result = _kind == DynamicSystemKind.Lyapunov ? LyapunovBuiltIns() : LogisticBuiltIns();
+        List<DynamicPalette> result = _kind switch
+        {
+            DynamicSystemKind.Lyapunov => LyapunovBuiltIns(),
+            DynamicSystemKind.Attractors2D => IconBuiltIns(),
+            _ => LogisticBuiltIns()
+        };
         if (!File.Exists(FilePath)) return result;
         try
         {
@@ -75,6 +85,14 @@ public sealed class DynamicPaletteStore
         color=default;if(value is null||value.Length!=9||value[0]!='#'||!uint.TryParse(value.AsSpan(1),System.Globalization.NumberStyles.HexNumber,null,out uint argb))return false;
         color=Color.FromArgb((byte)(argb>>24),(byte)(argb>>16),(byte)(argb>>8),(byte)argb);return true;
     }
+
+    public static List<DynamicPalette> IconBuiltIns() =>
+    [
+        P("Иконы — бирюза", "Gradient", Colors.Black, Color.FromRgb(7, 36, 45), Color.FromRgb(17, 146, 157), Color.FromRgb(130, 245, 223), Colors.White),
+        P("Иконы — аметист", "Gradient", Colors.Black, Color.FromRgb(37, 12, 68), Color.FromRgb(131, 61, 199), Color.FromRgb(244, 162, 223), Colors.White),
+        P("Иконы — лёд", "Gradient", Colors.Black, Color.FromRgb(10, 30, 75), Color.FromRgb(48, 129, 207), Color.FromRgb(169, 229, 255), Colors.White),
+        P("Иконы — золото", "Gradient", Colors.Black, Color.FromRgb(67, 28, 15), Color.FromRgb(196, 98, 29), Color.FromRgb(255, 211, 120), Colors.Ivory)
+    ];
 
     private static List<DynamicPalette> LogisticBuiltIns() =>
     [

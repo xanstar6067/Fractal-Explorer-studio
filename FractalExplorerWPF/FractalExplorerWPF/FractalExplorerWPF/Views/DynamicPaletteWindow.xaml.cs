@@ -18,7 +18,10 @@ public partial class DynamicPaletteWindow : Window
     private readonly List<Color> _editingColors = [];
 
     public DynamicPaletteWindow(DynamicPaletteStore store, IEnumerable<DynamicPalette> palettes,
-        DynamicPalette? selected)
+        DynamicPalette? selected) : this(store, palettes, selected, false) { }
+
+    public DynamicPaletteWindow(DynamicPaletteStore store, IEnumerable<DynamicPalette> palettes,
+        DynamicPalette? selected, bool densityOnly)
     {
         _store = store;
         _palettes = palettes.ToList();
@@ -28,6 +31,14 @@ public partial class DynamicPaletteWindow : Window
             "LegacyBuiltIn", "Diverging", "Absolute", "ZeroBandHighlight",
             "HistogramEqualized", "Cycle", "Gradient"
         };
+        if (densityOnly)
+        {
+            Title = "Палитры симметричных орнаментов";
+            ModeBox.ItemsSource = new[] { "Gradient" };
+            ((FrameworkElement)ModeBox.Parent).Visibility = Visibility.Collapsed;
+            ((FrameworkElement)RangeBox.Parent).Visibility = Visibility.Collapsed;
+            ((FrameworkElement)ZeroBox.Parent).Visibility = Visibility.Collapsed;
+        }
         PaletteList.ItemsSource = _palettes;
         PaletteList.SelectedItem = selected ?? _palettes.FirstOrDefault();
     }

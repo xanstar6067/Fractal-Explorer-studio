@@ -22,7 +22,8 @@ public enum Attractor2DKind
     PeterDeJong,
     Tinkerbell,
     GumowskiMira,
-    SprottQuadratic
+    SprottQuadratic,
+    SymmetricIcon
 }
 
 public sealed class DynamicSystemState
@@ -72,6 +73,7 @@ public sealed class DynamicSystemState
     public double DensityGamma { get; set; } = .65;
     public double[] QuadraticCoefficients { get; set; } = new double[12];
     public double QuadraticSpan { get; set; } = 5;
+    public SymmetricIconSettings SymmetricIcon { get; set; } = new();
     public string VisualizationMode { get; set; } = "Orbit";
     public double BifurcationRMin { get; set; } = 2.8;
     public double BifurcationRMax { get; set; } = 4;
@@ -93,6 +95,7 @@ public sealed class DynamicSystemState
     {
         var clone = (DynamicSystemState)MemberwiseClone();
         clone.QuadraticCoefficients = QuadraticCoefficients?.ToArray() ?? new double[12];
+        clone.SymmetricIcon = SymmetricIcon?.Clone() ?? new();
         if (name is not null) clone.SaveName = name;
         return clone;
     }
@@ -161,6 +164,10 @@ public sealed class DynamicSystemState
             case Attractor2DKind.SprottQuadratic:
                 X0 = .05; Y0 = .05; CenterX = 0; CenterY = 0;
                 QuadraticSpan = 5;
+                break;
+            case Attractor2DKind.SymmetricIcon:
+                SymmetricIconPresets.Apply(this, 0);
+                Iterations = 750_000; DiscardIterations = 2_000;
                 break;
         }
     }

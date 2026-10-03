@@ -23,6 +23,8 @@ public static class Attractor2DRenderer
         IProgress<int>? progress = null)
     {
         Attractor2DKind kind = ParseKind(state.Attractor2DMode);
+        if (kind == Attractor2DKind.SymmetricIcon)
+            return SymmetricIconRenderer.RenderBuffer(state, width, height, palette, token, progress);
         if (kind == Attractor2DKind.SprottQuadratic &&
             (state.QuadraticCoefficients is not { Length: SprottQuadraticMap.CoefficientCount } ||
              state.QuadraticCoefficients.Any(v => !double.IsFinite(v))))
@@ -42,6 +44,7 @@ public static class Attractor2DRenderer
         Attractor2DKind.Tinkerbell => 3.2,
         Attractor2DKind.GumowskiMira => 32,
         Attractor2DKind.SprottQuadratic => Math.Max(.01, state?.QuadraticSpan ?? 5),
+        Attractor2DKind.SymmetricIcon => state?.SymmetricIcon.Span ?? 3.2,
         _ => 5
     };
 
