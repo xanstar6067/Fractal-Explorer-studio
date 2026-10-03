@@ -24,7 +24,10 @@ public sealed class SymmetricIconSettings
     }
 }
 
-public sealed record SymmetricIconPreset(string Name, SymmetricIconSettings Settings, string PaletteName);
+public sealed record SymmetricIconPreset(string Name, SymmetricIconSettings Settings, string PaletteName)
+{
+    public override string ToString() => Name;
+}
 
 public static class SymmetricIconPresets
 {
