@@ -140,7 +140,7 @@ public partial class MainWindow : Window
         }
         _scope = scope;
         _scopeBeforeSearch = null;
-        RefreshGallery(scrollToTop: true);
+        RefreshGallery(scrollToTop: true, scrollToSelection: scope.Kind != CatalogScopeKind.Newest);
     }
 
     /// <summary>
@@ -153,7 +153,8 @@ public partial class MainWindow : Window
     {
         List<CatalogTile> shown = _tiles.Where(IsShown).ToList();
         bool recent = _scope.Kind == CatalogScopeKind.Recent;
-        bool grouped = !recent && shown.Select(tile => tile.Group).Distinct().Skip(1).Any();
+        bool newest = _scope.Kind == CatalogScopeKind.Newest;
+        bool grouped = !recent && !newest && shown.Select(tile => tile.Group).Distinct().Skip(1).Any();
 
         CatalogTile? selection;
         _syncingGallery = true;
@@ -167,6 +168,11 @@ public partial class MainWindow : Window
                     _galleryView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(CatalogTile.Group)));
                 if (recent)
                     _galleryView.SortDescriptions.Add(new SortDescription(nameof(CatalogTile.RecentRank), ListSortDirection.Ascending));
+                if (newest)
+                {
+                    _galleryView.SortDescriptions.Add(new SortDescription(nameof(CatalogTile.IntroducedAt), ListSortDirection.Descending));
+                    _galleryView.SortDescriptions.Add(new SortDescription(nameof(CatalogTile.DisplayName), ListSortDirection.Ascending));
+                }
             }
             selection = _selectedTile is not null && shown.Contains(_selectedTile)
                 ? _selectedTile
@@ -223,7 +229,8 @@ public partial class MainWindow : Window
         GalleryTitle.Text = _scope.Title;
         string parent = _scope.Kind == CatalogScopeKind.Category && _scope.Path.Count > 1
             ? string.Join(" › ", _scope.Path.Take(_scope.Path.Count - 1)) + " · "
-            : _scope.Kind == CatalogScopeKind.Recent ? "Последние запущенные · " : string.Empty;
+            : _scope.Kind == CatalogScopeKind.Recent ? "Последние запущенные · "
+            : _scope.Kind == CatalogScopeKind.Newest ? "По дате добавления в WPF, новые сверху · " : string.Empty;
         string found = $"найдено {CatalogSearch.CountModes(shownCount)} по запросу «{SearchBox.Text.Trim()}»";
         GallerySubtitle.Text = IsSearching
             ? parent.Length == 0 ? char.ToUpperInvariant(found[0]) + found[1..] : parent + found

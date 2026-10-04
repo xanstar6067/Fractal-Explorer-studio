@@ -77,6 +77,7 @@ internal static partial class Program
             Check(item.CategoryPath.Count > 0 && item.CategoryPath.All(part => !string.IsNullOrWhiteSpace(part)),
                 $"«{item.DisplayName}» has an empty category path.");
             Check(!string.IsNullOrWhiteSpace(item.Description), $"«{item.DisplayName}» has no description.");
+            Check(item.IntroducedAt is not null, $"«{item.DisplayName}» needs an introduction date in FractalCatalogHistory.");
             Check(MainWindow.GetWindowFactory(item.LaunchKey) is not null,
                 $"«{item.DisplayName}»: launch key «{item.LaunchKey}» opens no window.");
             BitmapSource? preview = CatalogPreviewLoader.DecodeResource(item.PreviewResourcePath, 0);
@@ -100,8 +101,11 @@ internal static partial class Program
             "Unknown launch keys must not open a window.");
 
         IReadOnlyList<CatalogScope> scopes = CatalogScope.Build(catalog);
-        Check(scopes.Take(4).Select(scope => scope.Kind).SequenceEqual([CatalogScopeKind.All, CatalogScopeKind.Favorites, CatalogScopeKind.Recent, CatalogScopeKind.ThreeDimensional]),
-            "The menu must start with all modes, favorites, recents and 3D modes.");
+        Check(scopes.Take(5).Select(scope => scope.Kind).SequenceEqual([CatalogScopeKind.All, CatalogScopeKind.Favorites, CatalogScopeKind.Recent, CatalogScopeKind.ThreeDimensional, CatalogScopeKind.Newest]),
+            "The menu must start with all modes, favorites, recents, 3D modes and new arrivals.");
+        Check(catalog.Single(item => item.LaunchKey == "Mandelbrot").IntroducedAt ==
+              new DateTimeOffset(2026, 7, 10, 15, 28, 37, TimeSpan.FromHours(3)),
+            "Mandelbrot must use its working WPF introduction, not the earlier catalog placeholder.");
         Check(catalog.Where(item => item.IsThreeDimensional).Select(item => item.LaunchKey).OrderBy(key => key)
                   .SequenceEqual(Enum.GetValues<Fractal3DKind>().Select(Fractal3DCatalog.LaunchKey).OrderBy(key => key)),
             "Exactly the 3D window modes must be marked as three-dimensional.");
@@ -336,6 +340,22 @@ internal static partial class Program
             CheckDetails(window, window.SelectedTile!);
             SaveCatalogPng(root, pngDirectory, "02-laboratories");
 
+            // Хронология общая для фракталов и лабораторий, включая порядок внутри одного дня.
+            CatalogScope arrivals = window.Scopes.Single(scope => scope.Kind == CatalogScopeKind.Newest);
+            window.ScopeList.SelectedItem = arrivals;
+            await LayoutCatalogAsync(root);
+            Check(arrivals.Count == catalog.Count && ViewItems(window).Count == catalog.Count && window.GalleryView.Groups is null,
+                "New arrivals must include every mode without category groups.");
+            Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
+                      catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
+                "New arrivals must be sorted by introduction time, newest first.");
+            Check(ViewItems(window).Take(5).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+                      Fractal3DCatalog.LaunchKey(Fractal3DKind.Buddhabrot4D), "TuringPatterns", "Hopalong", "SnowCrystal", "Popcorn"]),
+                "Modes introduced on the same day must keep their actual commit chronology.");
+            Check(GalleryScrollViewer(window).VerticalOffset == 0,
+                "New arrivals must open at the top even when an older mode remains selected.");
+            SaveCatalogPng(root, pngDirectory, "02-new-arrivals");
+
             window.ScopeList.SelectedItem = recents;
             await LayoutCatalogAsync(root);
             Check(ViewItems(window).Select(tile => tile.DisplayName).SequenceEqual([newest, older, oldest]) && window.GalleryView.Groups is null,
@@ -349,6 +369,9 @@ internal static partial class Program
             window.RecordLaunch(mandelbrot);
             Check(recents.Count == 4 && mandelbrot.RecentRank == 0 && Tile(window, oldest).RecentRank == 1,
                 "Recent ranks and the menu count must follow launches.");
+            window.ScopeList.SelectedItem = arrivals;
+            Check(ViewItems(window)[0].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Buddhabrot4D),
+                "Launching an old mode must not change the introduction chronology.");
 
             // ----- Избранное -----
             window.ScopeList.SelectedItem = favorites;

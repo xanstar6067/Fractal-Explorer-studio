@@ -54,6 +54,8 @@ public sealed class CatalogTile : INotifyPropertyChanged
     public string Breadcrumb => Item.CategoryBreadcrumb;
     public bool CanLaunch => Item.LaunchKey is not null;
     public bool IsThreeDimensional => Item.IsThreeDimensional;
+    public DateTimeOffset? IntroducedAt => Item.IntroducedAt;
+    public string IntroductionText => IntroducedAt is { } date ? $"Добавлено в WPF: {date:dd.MM.yyyy}" : string.Empty;
 
     /// <summary>Нормализованный текст для поиска: название, описание и разделы.</summary>
     internal string SearchText { get; }
@@ -128,6 +130,7 @@ public enum CatalogScopeKind
     Favorites,
     Recent,
     ThreeDimensional,
+    Newest,
     Category
 }
 
@@ -197,11 +200,13 @@ public sealed class CatalogScope : INotifyPropertyChanged
     public static CatalogScope Favorites() => new(CatalogScopeKind.Favorites, "Избранное", "\uE734", []);
     public static CatalogScope Recent() => new(CatalogScopeKind.Recent, "Недавние", "\uE823", []);
     public static CatalogScope ThreeDimensional() => new(CatalogScopeKind.ThreeDimensional, "Трёхмерные", "\uF158", []);
+    public static CatalogScope Newest() => new(CatalogScopeKind.Newest, "Новые поступления", "\uE787", []);
     public static CatalogScope Category(IReadOnlyList<string> path) => new(CatalogScopeKind.Category, path[^1], string.Empty, path.ToArray());
 
     public bool Includes(CatalogTile tile) => Kind switch
     {
         CatalogScopeKind.All => true,
+        CatalogScopeKind.Newest => true,
         CatalogScopeKind.Favorites => tile.IsFavorite,
         CatalogScopeKind.Recent => tile.IsRecent,
         CatalogScopeKind.ThreeDimensional => tile.IsThreeDimensional,
@@ -211,11 +216,11 @@ public sealed class CatalogScope : INotifyPropertyChanged
 
     /// <summary>
     /// Меню в порядке каталога: «Все режимы», «Избранное», «Недавние», «Трёхмерные» (сквозная подборка
-    /// 3D-режимов из разных разделов), затем каждый различный префикс пути категорий — раздел, подраздел, группа.
+    /// 3D-режимов из разных разделов), «Новые поступления», затем каждый различный префикс пути категорий.
     /// </summary>
     public static IReadOnlyList<CatalogScope> Build(IEnumerable<FractalCatalogItem> catalog)
     {
-        var scopes = new List<CatalogScope> { All(), Favorites(), Recent(), ThreeDimensional() };
+        var scopes = new List<CatalogScope> { All(), Favorites(), Recent(), ThreeDimensional(), Newest() };
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (FractalCatalogItem item in catalog)
         {

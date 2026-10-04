@@ -481,6 +481,8 @@
 
                             <TextBlock x:Name="DetailsBreadcrumb" Margin="0,14,0,0" FontSize="12" TextWrapping="Wrap"
                                        Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="{Binding Breadcrumb}"/>
+                            <TextBlock Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="{Binding IntroductionText}"/>
                             <TextBlock x:Name="DetailsTitle" Margin="0,3,0,0" FontSize="21" FontWeight="SemiBold"
                                        TextWrapping="Wrap" Text="{Binding DisplayName}"/>
 

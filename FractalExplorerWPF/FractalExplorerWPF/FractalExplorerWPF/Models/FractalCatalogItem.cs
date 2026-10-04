@@ -9,6 +9,9 @@ public sealed record FractalCatalogItem(
 {
     public string CategoryBreadcrumb => string.Join(" › ", CategoryPath);
 
+    /// <summary>Дата первого рабочего запуска режима в WPF, по истории коммитов.</summary>
+    public DateTimeOffset? IntroducedAt => FractalCatalogHistory.GetIntroducedAt(LaunchKey);
+
     /// <summary>Режим окна <c>Fractal3DWindow</c>: плитка получает значок 3D, пункт попадает в меню «Трёхмерные».</summary>
     public bool IsThreeDimensional => Fractal3DCatalog.TryParseLaunchKey(LaunchKey, out _);
 }
