@@ -1,269 +1,130 @@
-# Fractal Explorer WPF
+# Fractal Explorer Studio
 
-[Русский](#русский) · [English](#english)
+**Фракталы, хаос и математические эксперименты — в одном WPF-приложении для Windows.**<br>
+**Fractals, chaos, and mathematical experiments in one Windows WPF application.**
+
+[Русский](#русский) · [English](#english) · [Галерея / Gallery](Pictures/WPF/README.md) · [Лицензия / License](LICENSE)
+
+**86 пунктов каталога · 20 трёхмерных режимов · 19 математических лабораторий**<br>
+**86 catalog entries · 20 3D modes · 19 mathematical laboratories**
+
+<p align="center">
+  <a href="Pictures/WPF/00-main-catalog.png"><img src="Pictures/WPF/00-main-catalog.png" alt="Актуальный каталог: поиск, разделы, избранное и превью / Current catalog with search, categories, favorites, and previews" width="1000"></a>
+</p>
+
+## Витрина / Showcase
+
+Настоящие скриншоты текущей WPF-версии. Нажмите на изображение для полного размера. Все рабочие окна, редакторы и диалоги — в [галерее](Pictures/WPF/README.md).
+
+Actual screenshots of the current WPF application. Click an image to view it at full size. All exploration windows, editors, and dialogs are in the [gallery](Pictures/WPF/README.md).
+
+<table>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/fractal3d-mandelbulb.png"><img src="Pictures/WPF/fractal3d-mandelbulb.png" alt="Мандельбульб / Mandelbulb" width="480"></a><br><sub>Мандельбульб / Mandelbulb</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/fractal3d-kifs.png"><img src="Pictures/WPF/fractal3d-kifs.png" alt="Калейдоскопические фракталы / KIFS" width="480"></a><br><sub>Калейдоскопические фракталы / KIFS</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/fractal3d-flame3-d.png"><img src="Pictures/WPF/fractal3d-flame3-d.png" alt="Объёмный Flame / Volumetric Flame" width="480"></a><br><sub>Объёмный Flame / Volumetric Flame</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/fractal3d-terrain.png"><img src="Pictures/WPF/fractal3d-terrain.png" alt="Фрактальные ландшафты / Fractal terrain" width="480"></a><br><sub>Фрактальные ландшафты / Fractal terrain</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/fractal3d-l-system3-d.png"><img src="Pictures/WPF/fractal3d-l-system3-d.png" alt="Пространственные L-системы / 3D L-systems" width="480"></a><br><sub>Пространственные L-системы / 3D L-systems</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/fractal3d-dla3-d.png"><img src="Pictures/WPF/fractal3d-dla3-d.png" alt="Кораллы и дендриты DLA / DLA corals and dendrites" width="480"></a><br><sub>Кораллы и дендриты DLA / DLA corals and dendrites</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/symmetric-icons.png"><img src="Pictures/WPF/symmetric-icons.png" alt="Симметричные орнаменты / Symmetric Icons" width="480"></a><br><sub>Симметричные орнаменты / Symmetric Icons</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/hopalong.png"><img src="Pictures/WPF/hopalong.png" alt="Hopalong Мартина / Martin's Hopalong" width="480"></a><br><sub>Hopalong Мартина / Martin's Hopalong</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/turing-patterns.png"><img src="Pictures/WPF/turing-patterns.png" alt="Узоры Тьюринга / Turing patterns" width="480"></a><br><sub>Узоры Тьюринга / Turing patterns</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/snow-crystal.png"><img src="Pictures/WPF/snow-crystal.png" alt="Рост снежных кристаллов / Snow crystal growth" width="480"></a><br><sub>Рост снежных кристаллов / Snow crystal growth</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/basins-magnetic-pendulum.png"><img src="Pictures/WPF/basins-magnetic-pendulum.png" alt="Магнитный маятник / Magnetic pendulum" width="480"></a><br><sub>Магнитный маятник / Magnetic pendulum</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/00-cloud-saves.png"><img src="Pictures/WPF/00-cloud-saves.png" alt="Облачные сохранения: демонстрационные данные / Cloud saves: sample data" width="480"></a><br><sub>Облачные сохранения: демонстрационные данные / Cloud saves: sample data</sub></td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="Pictures/WPF/domain-coloring.png"><img src="Pictures/WPF/domain-coloring.png" alt="Раскраска комплексных функций / Domain Coloring" width="480"></a><br><sub>Комплексные функции / Domain Coloring</sub></td>
+<td width="50%" align="center"><a href="Pictures/WPF/lab-phyllotaxis.png"><img src="Pictures/WPF/lab-phyllotaxis.png" alt="Филлотаксис и иррациональные вращения / Phyllotaxis and irrational rotations" width="480"></a><br><sub>Филлотаксис / Phyllotaxis</sub></td>
+</tr>
+</table>
 
 <a id="русский"></a>
 
 ## Русский
 
-Интерактивная лаборатория фракталов, динамических систем и математической геометрии для Windows. Актуальная версия проекта построена на WPF и объединяет исследование комплексных множеств, стохастические визуализации, математические лаборатории, редакторы параметров, палитры, сохранения и экспорт изображений в одном приложении.
+Fractal Explorer Studio — интерактивная лаборатория комплексных множеств, трёхмерной геометрии, динамических систем и самоорганизующихся узоров. Выберите режим в каталоге, меняйте параметры и палитру, приближайте детали, сохраняйте найденные формы и экспортируйте изображения.
 
-<p align="center">
-  <img src="./Pictures/V2_0_WPF/00-main-catalog.png" alt="Каталог фракталов Fractal Explorer WPF" width="900">
-</p>
+Актуальная разработка ведётся в **`FractalExplorerWPF/`**. Предыдущая WinForms-версия в `FractalExplorer/` сохранена как архив.
 
-> WPF — основное направление разработки. Предыдущая реализация на Windows Forms сохранена в каталоге `FractalExplorer` как legacy-версия.
+### Что появилось и изменилось
 
-### Версия 2.0
+- **Трёхмерная лаборатория:** 20 режимов с GPU-рендерингом Direct3D 11 — от Мандельбульба и Мандельбокса до KIFS, объёмных IFS и Flame, DLA, ландшафтов и пространственных L-систем. Общая камера с режимами CAD и свободного движения, девять стилей отображения, палитры, освещение и зонд поверхности.
+- **Бассейны притяжения:** Ньютон, Halley и Householder, а также 11 дополнительных режимов — Мюллер, Лагерр, секущие, рациональные отображения, периодические циклы, комплексная логистическая карта, магнитный маятник, притягивающие центры, градиентный спуск, комплексный поток и полиномиальные векторные поля. Пользовательские формулы, поиск аттракторов и просмотр траекторий.
+- **Новые орбитальные узоры:** генератор квадратичных карт Спротта, Symmetric Icons, Popcorn Пиковера и Hopalong Мартина. Готовые формы, параметры, палитры; поиск и вариации там, где они поддерживаются.
+- **Живые симуляции:** Gray–Scott, многомасштабные узоры Тьюринга и рост снежных кристаллов. У Тьюринга и снежных кристаллов сохранение позволяет точно продолжить эволюцию поля.
+- **Конструкторы форм:** редакторы преобразований IFS и Flame в 2D/3D, правила и анимация L-систем, отдельные генераторы L-систем 2D/3D с воспроизводимыми формами и вариациями.
+- **Обновлённый каталог:** поиск по названиям, описаниям и разделам, избранное, недавние, общая подборка всех 3D-режимов, фоновые превью и быстрый переключатель `Ctrl+K`.
+- **Облачные сохранения FractalCloud:** единый список ПК и облака, массовые и выборочные операции, фильтры и разрешение конфликтов. Подключение требует настроенного сервера и существующего аккаунта; локальные функции доступны без облака.
 
-Каталог визуализаций выріс почти вдвое по сравнению с предыдущей версией — 49 пунктов вместо 33, в первую очередь за счёт нового раздела **«Математические лаборатории»** (18 модулей: теория чисел, геометрия и преобразования, комплексный анализ, генеративная геометрия, стохастические процессы, гармоники и волны). Параллельно проделан большой объём внутренних оптимизаций рендеринга:
+### Исследование и экспорт
 
-- пертурбационный движок с BLA (bilinear approximation) и адаптивной точностью опорной орбиты для всего семейства Мандельброта — глубокий зум до **1e1000** на `FloatExp` и `BigFloat`;
-- аналогичный сверхглубокий зум для фрактала **Phoenix** (до 1e1000, с гибридным ядром `FloatExp`/`double` за экстремальными порогами);
-- глубокий зум до **1e50** для **Коллатца** и **Nova** через `BigFloat`/`ComplexBigFloat`;
-- метод Ньютона для автонаведения на минимандельброты и на ядро Феникса;
-- переработанная `BigMantissa` без лишних аллокаций.
-
-Ниже — скриншот-демонстрация буквально каждого окна приложения: все фракталы и лаборатории, их уникальные редакторы параметров и палитр, а также общие служебные окна.
-
-### Возможности
-
-- **54 пункта каталога:** 52 визуализации (27 фракталов комплексной динамики и стохастики, 9 динамических систем, 18 математических лабораторий) и 2 галереи констант Julia.
-- **Интерактивное исследование:** масштабирование колесом мыши, перемещение холста, сброс вида и полноэкранный режим.
-- **Асинхронный рендеринг на CPU:** настройка числа потоков, отмена вычисления, индикаторы прогресса и одиннадцать схем появления плиток.
-- **Гибкое окрашивание:** встроенные и пользовательские палитры, плавные и дискретные режимы, Histogram, Orbit Trap, Stripe Average и Distance Estimation с псевдо-3D освещением для семейства Mandelbrot.
-- **Сверхглубокий зум:** пертурбационные движки с BLA на `FloatExp`/`BigFloat` для Mandelbrot-семейства и Phoenix (до 1e1000), а также для Nova и Коллатца (до 1e50).
-- **Математические лаборатории:** отдельный раздел из 18 интерактивных модулей — от теории чисел и апериодических мозаик до узлов, эпициклов Фурье и фигур Хладни.
-- **Сохранение исследований:** параметры фрактала, превью и точки интереса хранятся в JSON и восстанавливаются через менеджер сохранений.
-- **Экспорт изображений:** произвольное разрешение, пресеты вплоть до 8K, PNG/JPG/BMP, SSAA, Bicubic и Lanczos 3.
-- **Настраиваемый WPF-интерфейс:** встроенные темы, системная тема Windows, редактор цветов и экранная пипетка.
-
-### Каталог визуализаций
-
-| Раздел | Доступные модули |
+| Возможность | Что доступно |
 | --- | --- |
-| Множество Мандельброта | Mandelbrot, Burning Ship, Tricorn (Mandelbar), Buffalo, Celtic Mandelbrot, Simonobrot, Generalized Mandelbrot |
-| Множество Жюлиа | Julia, Julia Burning Ship и две галереи констант `C` |
-| Итерируемые функции | Newton Pools+, бассейны методов Мюллера, Лагерра и секущих, бассейны рациональных отображений и периодических циклов, комплексное логистическое отображение, магнитный маятник, система притягивающих центров, градиентный спуск, комплексный градиентный поток, полиномиальные векторные поля, Phoenix, Collatz, Nova Mandelbrot, Nova Julia, Buddhabrot / Anti-Buddhabrot |
-| Итерируемые и самоподобные | IFS Барнсли / Хейуэя, Фрактальное пламя, Серпинский — игра хаоса |
-| Геометрические и стохастические фракталы | Аполлонова прокладка, DLA — диффузионно-ограниченная агрегация |
-| Динамические системы и хаос | Lyapunov, Logistic Map, Bifurcation, Lorenz, Rössler, Hénon, Ikeda, странные 2D-аттракторы, Gray–Scott |
-| Математические лаборатории | Арифметика по модулю, Паскаль mod N, рациональные числа, геометрия простых, Рекаман, обратное дерево Коллатца, филлотаксис, инверсия окружностей / Мёбиус, апериодические мозаики, гиперболическая геометрия, Вороной / Ллойд, узлы, Domain Coloring, Kleinian / Schottky, L-системы, Brownian motion / Lévy flights, эпициклы Фурье, фигуры Хладни |
+| Глубокий зум | До `1e1000` у семейства Мандельброта, Phoenix и бассейнов Ньютона; до `1e50` у Nova и комплексного Коллатца. Доступная детализация зависит от формулы и области |
+| Раскраска | Редактируемые палитры и градиенты; у семейства Мандельброта — Histogram, Orbit Trap, Stripe Average и Distance Estimation с освещением |
+| Вычисления | Асинхронный CPU-рендеринг, настройка потоков и порядка плиток, прогресс и отмена; GPU-рендеринг для 3D |
+| Сохранения | Параметры и PNG-превью, встроенные точки интереса, менеджер состояний; удалённые и заменённые сохранения отправляются в Корзину Windows |
+| Экспорт | Произвольные размеры, пресеты до 8K, PNG/JPEG/BMP, SSAA, Bicubic и Lanczos 3; у ландшафтов — карта высот PNG Gray16 |
+| Оформление | Встроенные и пользовательские темы, редактор темы, редакторы палитр и экранная пипетка |
 
-### Интерфейс
+### Каталог
 
-Ниже — скриншот каждого окна приложения: рабочие окна фракталов и лабораторий, их уникальные редакторы параметров и палитр, а также общие служебные диалоги.
+В каталоге **86 пунктов**: 52 в разделе «Фракталы» (включая две галереи Julia), 15 в «Динамических системах и хаосе» и 19 математических лабораторий. Подборка «Трёхмерные» объединяет 20 режимов из разных разделов — они уже входят в эти числа.
 
-#### Семейство Мандельброта
-
-Общий пертурбационный движок с BLA обслуживает классическое множество и все его отражённые/обобщённые варианты, целочисленный и дробный Multibrot, а также интерактивный выбор константы `C` для перехода в Julia.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-mandelbrot.png" width="260"><br><sub>Классический Мандельброт</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-burning-ship.png" width="260"><br><sub>Горящий Корабль</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-tricorn.png" width="260"><br><sub>Трикорн (Mandelbar)</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-buffalo.png" width="260"><br><sub>Буффало</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-celtic.png" width="260"><br><sub>Кельтский Мандельброт</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-simonobrot.png" width="260"><br><sub>Симоноброт</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-generalized.png" width="260"><br><sub>Обобщённый Мандельброт</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-palette-editor.png" width="260"><br><sub>Редактор палитры</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/julia-constant-picker.png" width="260"><br><sub>Выбор константы C для Julia</sub></td>
-</tr>
-</table>
-
-#### Семейство Жюлиа
-
-Классическое Julia и его вариант «Горящий корабль» доступны как самостоятельные окна, так и в виде пакетной галереи констант `C` на сетке.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-julia.png" width="260"><br><sub>Классическое Жюлиа</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-julia-burning-ship.png" width="260"><br><sub>Жюлиа — Горящий Корабль</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/julia-gallery.png" width="260"><br><sub>Галерея констант C (Жюлиа)</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/julia-burning-ship-gallery.png" width="260"><br><sub>Галерея констант C (Горящий Корабль)</sub></td>
-</tr>
-</table>
-
-#### Бассейны притяжения и другие итерационные семейства
-
-Newton Pools+ поддерживает методы Newton, Halley и Householder с собственной палитрой корней. Рядом — ещё одиннадцать исследователей бассейнов в общем окне: методы Мюллера (тройка начальных приближений), Лагерра (с картой расхождения с Ньютоном) и секущих (включая срезы четырёхмерного пространства состояний), а также рациональные отображения и периодические циклы, где точки раскрашиваются по конечному притягивающему циклу. Комплексная логистическая карта добавляет плоскости начальных значений и параметра λ с распознаванием периодов. Магнитный маятник и система притягивающих центров позволяют расставлять центры мышью, задавать силы, трение и скорость, смотреть траектории и время захвата; доступны палитры, сохранения и экспорт. Градиентный спуск сравнивает GD, momentum, Nesterov и Adam на пользовательском потенциале; комплексный поток интегрирует спуск по ½|f(z)|², а полиномиальные векторные поля находят устойчивые точки и предельные циклы. По умолчанию — оттенки серого и скрытая вспомогательная геометрия. Phoenix — двухпанельный исследователь параметрических плоскостей `C1`/`C2` со сверхглубоким зумом. Nova и Коллатца — комплексные обобщения с глубоким зумом до 1e50.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/newton-pools.png" width="260"><br><sub>Бассейны Ньютона+</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/newton-palette-editor.png" width="260"><br><sub>Палитра корней Ньютона</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/phoenix.png" width="260"><br><sub>Фрактал Феникс</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/phoenix-parameter-explorer.png" width="260"><br><sub>Исследователь плоскостей C1/C2 Феникса</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/nova-mandelbrot.png" width="260"><br><sub>Nova Mandelbrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/nova-julia.png" width="260"><br><sub>Nova Julia</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/nova-parameter-selector.png" width="260"><br><sub>Выбор параметра Nova</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/collatz.png" width="260"><br><sub>Фрактал Коллатца</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/buddhabrot.png" width="260"><br><sub>Буддаброт / Анти-Буддаброт</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/buddhabrot-palette-editor.png" width="260"><br><sub>Палитра Буддаброта</sub></td>
-</tr>
-</table>
-
-#### Итерируемые, самоподобные, геометрические и стохастические фракталы
-
-IFS и Fractal Flame включают редакторы аффинных преобразований. Серпинский в режиме «игра хаоса», Аполлонова прокладка с раскраской по глубине/кривизне/родительской ветви и DLA с растущим кластером частиц дополняют раздел.
-
-Добавлен **[DLA в 3D — кораллы и дендриты](FractalExplorerWPF/DLA3D.md)**: наблюдение роста, пауза и продолжение, четыре графические затравки, вероятность прилипания и компас направления потока. Общая 3D-камера, окраска по возрасту частиц, пять готовых видов, сохранения и экспорт.
-
-[Объёмный Fractal Flame](FractalExplorerWPF/FLAME3D.md) создаёт цветные дымчатые ленты, облака и скульптуры: восемь пространственных вариаций, редактор матриц 3×4 с рандомайзером, пять готовых видов, накопление цвета и тональная коррекция. Использует общую 3D-камеру, GPU-рендер, сохранения и экспорт.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/ifs.png" width="260"><br><sub>IFS Барнсли / Хейуэя</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/ifs-transform-editor.png" width="260"><br><sub>Редактор преобразований IFS</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/flame.png" width="260"><br><sub>Фрактальное пламя</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/flame-transform-editor.png" width="260"><br><sub>Редактор трансформаций Flame</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/serpinsky-chaos.png" width="260"><br><sub>Серпинский — игра хаоса</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/serpinsky-palette-editor.png" width="260"><br><sub>Палитра Серпинского</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/apollonian.png" width="260"><br><sub>Аполлонова прокладка</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dla.png" width="260"><br><sub>DLA</sub></td>
-</tr>
-</table>
-
-#### Динамические системы и хаос
-
-Общее окно обслуживает карту Ляпунова, орбиты логистического отображения, диаграмму бифуркации, аттракторы Лоренца и Рёсслера, карты Хенона и Икэды, а также облака странных 2D-аттракторов (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Gray–Scott — отдельная живая реакционно-диффузионная симуляция. [Многомасштабные узоры Тьюринга](FractalExplorerWPF/TURING_PATTERNS.md) создают органические лабиринты и симметричные орнаменты: шесть готовых видов, живое изменение формы, кисть, палитры, рельеф и точное продолжение сохранённого поля.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-lyapunov.png" width="260"><br><sub>Экспонента Ляпунова</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lyapunov-palette-editor.png" width="260"><br><sub>Палитра Ляпунова</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-logistic-map.png" width="260"><br><sub>Логистическое отображение</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-bifurcation.png" width="260"><br><sub>Диаграмма бифуркации</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-lorenz.png" width="260"><br><sub>Аттрактор Лоренца</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynamic-palette-editor.png" width="260"><br><sub>Общая палитра динамических систем</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-rossler.png" width="260"><br><sub>Аттрактор Рёсслера</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-henon.png" width="260"><br><sub>Карта Хенона</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-ikeda.png" width="260"><br><sub>Отображение Икэды</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-attractors2-d.png" width="260"><br><sub>Странные 2D-аттракторы</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/gray-scott.png" width="260"><br><sub>Gray–Scott</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/gray-scott-palette-editor.png" width="260"><br><sub>Палитра Gray–Scott</sub></td>
-</tr>
-</table>
-
-#### Математические лаборатории
-
-Новый в версии 2.0 раздел объединяет 18 интерактивных модулей на общем движке: теория чисел и дискретные структуры, геометрия и преобразования, комплексный анализ, генеративная геометрия, стохастические процессы, гармоники и волны.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-modular-arithmetic.png" width="260"><br><sub>Арифметика по модулю</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-pascal-modulo.png" width="260"><br><sub>Треугольник Паскаля mod N</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-rational-numbers.png" width="260"><br><sub>Лаборатория рациональных чисел</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-prime-geometry.png" width="260"><br><sub>Геометрия простых чисел</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-recaman-sequence.png" width="260"><br><sub>Последовательность Рекамана</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/inverse-collatz-tree.png" width="260"><br><sub>Обратное дерево Коллатца</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/inverse-collatz-palette-editor.png" width="260"><br><sub>Палитра обратного дерева</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-phyllotaxis.png" width="260"><br><sub>Филлотаксис</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-circle-inversion.png" width="260"><br><sub>Инверсия окружностей / Мёбиус</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-aperiodic-tilings.png" width="260"><br><sub>Апериодические мозаики</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-hyperbolic-geometry.png" width="260"><br><sub>Гиперболическая геометрия</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-voronoi-lloyd.png" width="260"><br><sub>Вороной / релаксация Ллойда</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-knot-studio.png" width="260"><br><sub>Студия узлов</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/domain-coloring.png" width="260"><br><sub>Domain Coloring</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-kleinian-schottky.png" width="260"><br><sub>Kleinian / Schottky groups</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lsystem.png" width="260"><br><sub>L-системы</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-stochastic-motion.png" width="260"><br><sub>Brownian motion / Lévy flights</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-fourier-epicycles.png" width="260"><br><sub>Fourier Epicycles</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-chladni-wave-interference.png" width="260"><br><sub>Фигуры Хладни / интерференция</sub></td>
-</tr>
-</table>
-
-#### Общие служебные окна
-
-Каталог, быстрый переключатель, редактор тем со своим выбором цвета, общий выбор цвета, менеджеры сохранений и экспорта изображений, а также диалог восстановления после ошибки — используются одинаково во всех фракталах и лабораториях.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-quick-switcher.png" width="260"><br><sub>Быстрый переключатель (Ctrl+K)</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-theme-editor.png" width="260"><br><sub>Редактор тем</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-theme-color-picker.png" width="260"><br><sub>Выбор цвета темы</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-color-picker.png" width="260"><br><sub>Общий выбор цвета</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/save-manager.png" width="260"><br><sub>Менеджер сохранений</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/image-export-manager.png" width="260"><br><sub>Менеджер экспорта изображений</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-about.png" width="260"><br><sub>О программе</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-crash-dialog.png" width="260"><br><sub>Восстановление после ошибки</sub></td>
-</tr>
-</table>
-
-### Управление
-
-| Действие | Управление |
+| Направление | Режимы |
 | --- | --- |
-| Масштабирование относительно курсора | Колесо мыши над холстом |
-| Перемещение области просмотра | Перетаскивание левой кнопкой мыши |
-| Полноэкранный режим | `F11` |
-| Выход из полноэкранного режима | `Esc` |
-| Скрытие панели параметров | Кнопка в левом верхнем углу холста |
-| Быстрый переключатель каталога | `Ctrl+K` |
-
-Конкретные параметры, доступные режимы окрашивания и дополнительные интерактивные карты зависят от выбранного фрактала или лаборатории.
-
-### Сохранения и экспорт
-
-Менеджеры сохранений запоминают формулу, координаты, масштаб, качество рендера, палитру и точки интереса. Для записей создаются превью, а данные хранятся локально в JSON — по файлу на сохранение, с превью рядом, в папке `%LOCALAPPDATA%\Fractal Explorer Studio` (её открывает кнопка «Открыть папку с данными» в панели «Настройки»). Удалённые и перезаписанные сохранения и превью не стираются, а перемещаются в Корзину Windows. Сохранения из папки `Saves` рядом с программой прежних версий переносятся автоматически при первом запуске.
-
-Менеджер экспорта позволяет задавать размер изображения вручную или выбрать готовый пресет, формат файла и способ финальной обработки:
-
-- нативный рендер или SSAA;
-- бикубическое масштабирование;
-- фильтр Lanczos 3;
-- PNG, JPG с настройкой качества и BMP.
+| Комплексная динамика | Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, Multibrot; Julia и две галереи констант; 12 режимов бассейнов; Phoenix, Nova Mandelbrot/Julia, Collatz, Buddhabrot/Anti-Buddhabrot |
+| Трёхмерные формы | Мандельбульб, Жюлиабульб, Burning Ship 3D и Julia, Phoenix 3D, Мандельбокс, гибрид Bulb × Box, Менгер, Вицек, Кантор, тетраэдр Серпинского, кватернионное Julia, KIFS, ландшафты |
+| Самоподобие и рост | IFS 2D/3D, Flame 2D/3D, Popcorn, Серпинский — игра хаоса, аполлонова упаковка окружностей/сфер, DLA 2D/3D |
+| Динамика и хаос | Ляпунов, логистические орбиты, бифуркации, Лоренц, Рёсслер, Хенон, Икэда, странные 2D-аттракторы, Спротт, Symmetric Icons, Hopalong; семь систем объёмных аттракторов в одном режиме |
+| Пространственные системы | Gray–Scott, многомасштабные узоры Тьюринга, снежные кристаллы |
+| Теория чисел | Арифметика mod N, Паскаль mod N, рациональные числа, геометрия простых, Рекаман, обратное дерево Коллатца |
+| Геометрия и комплексный анализ | Филлотаксис, инверсия/Мёбиус, апериодические мозаики, гиперболическая геометрия, Вороной/Ллойд, узлы, Domain Coloring, Kleinian/Schottky |
+| Генеративная геометрия и волны | L-системы 2D/3D, Brownian motion/Lévy flights, эпициклы Фурье, фигуры Хладни и интерференция |
 
 ### Сборка и запуск
 
-Требуются Windows и [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+Требуются **Windows и [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)**. Для 3D нужен совместимый с Direct3D 11 графический адаптер и драйвер. Двумерные вычислительные режимы работают на CPU.
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/xanstar6067/FractalExplorer.git
 cd FractalExplorer
 dotnet build .\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF.slnx
 dotnet run --project .\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF.csproj
 ```
 
-Для разработки решение также можно открыть в Visual Studio с установленной рабочей нагрузкой .NET Desktop Development.
+Решение можно открыть в Visual Studio с поддержкой .NET 10 и рабочей нагрузкой разработки классических приложений .NET. NuGet-зависимости Vortice используются для Direct3D 11.
 
-### Структура репозитория
+### Первые шаги и данные
 
-```text
-FractalExplorerWPF/   основная WPF-версия
-FractalExplorer/      предыдущая WinForms-версия
-Pictures/             скриншоты; V2_0_WPF — актуальная галерея для этого README
-README.md             описание актуальной WPF-версии
-```
+1. Выберите плитку и нажмите **«Запустить»**, `Enter` или дважды щёлкните по ней.
+2. Используйте `Ctrl+F` для поиска и `Ctrl+K` для быстрого переключения режима.
+3. Меняйте параметры и палитру в окне исследователя; инструкции навигации доступны в самом окне.
+4. Сохраните состояние через менеджер сохранений или готовое изображение через менеджер экспорта.
 
-### Лицензия
+Пользовательские данные находятся в **`%LOCALAPPDATA%\Fractal Explorer Studio`**: сохранения с превью, палитры, темы, настройки, журналы и общий кэш 3D-шейдеров. Папка открывается из **«Настройки» → «Открыть папку с данными»** в главном окне. Превью встроенных точек интереса кэшируются отдельно; старые данные из папки `Saves` рядом с приложением переносятся миграцией.
 
-Проект распространяется по лицензии [Apache License 2.0](./LICENSE).
+Облако настраивается по [инструкции FractalCloud](FractalExplorerWPF/CLOUD.md). В скриншотах облачных окон используются вымышленные записи.
+
+### Подробнее
+
+- [Полная галерея окон и редакторов](Pictures/WPF/README.md) · [Генератор скриншотов](FractalExplorerWPF/ScreenshotGen/README.md)
+- [KIFS](FractalExplorerWPF/KIFS.md) · [Flame 3D](FractalExplorerWPF/FLAME3D.md) · [DLA 3D](FractalExplorerWPF/DLA3D.md) · [Ландшафты](FractalExplorerWPF/TERRAIN.md)
+- [L-системы 3D](FractalExplorerWPF/LSYSTEM3D.md) · [Генераторы L-систем](FractalExplorerWPF/LSYSTEM_RANDOMIZER.md)
+- [Symmetric Icons](FractalExplorerWPF/SYMMETRIC_ICONS.md) · [Popcorn](FractalExplorerWPF/POPCORN.md) · [Hopalong](FractalExplorerWPF/HOPALONG.md)
+- [Снежные кристаллы](FractalExplorerWPF/SNOW_CRYSTALS.md) · [Узоры Тьюринга](FractalExplorerWPF/TURING_PATTERNS.md)
+- [Облако](FractalExplorerWPF/CLOUD.md) · [Темы](FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/Theming/README.md) · [Проверки](FractalExplorerWPF/Verification/README.md)
 
 ---
 
@@ -271,259 +132,82 @@ README.md             описание актуальной WPF-версии
 
 ## English
 
-An interactive laboratory for fractals, dynamical systems, and mathematical geometry on Windows. The current version is built with WPF and brings complex-set exploration, stochastic visualizations, mathematical laboratories, parameter editors, palettes, saved states, and image export together in one application.
+Fractal Explorer Studio is an interactive laboratory for complex sets, 3D geometry, dynamical systems, and self-organizing patterns. Choose a catalog entry, adjust its parameters and palette, explore the details, save interesting forms, and export images.
 
-<p align="center">
-  <img src="./Pictures/V2_0_WPF/00-main-catalog.png" alt="Fractal Explorer WPF catalog" width="900">
-</p>
+Active development takes place in **`FractalExplorerWPF/`**. The earlier WinForms implementation in `FractalExplorer/` is retained as an archive.
 
-> WPF is the primary development direction. The previous Windows Forms implementation remains available in the `FractalExplorer` directory as a legacy version.
+### What's new
 
-### Version 2.0
+- **3D laboratory:** 20 Direct3D 11 GPU-rendered modes, from Mandelbulb and Mandelbox to KIFS, volumetric IFS and Flame, DLA, terrain, and spatial L-systems. Shared CAD/free-movement camera, nine shading styles, palettes, lighting, and a surface probe.
+- **Attraction basins:** Newton, Halley, and Householder, plus 11 additional modes: Müller, Laguerre, secant, rational maps, periodic cycles, complex logistic map, magnetic pendulum, attracting centers, gradient descent, complex gradient flow, and polynomial vector fields. Custom expressions, attractor discovery, and trajectory inspection.
+- **Orbit patterns:** Sprott quadratic-map generator, Symmetric Icons, Pickover's Popcorn, and Martin's Hopalong, with presets, parameters, palettes, and search/variation tools where supported.
+- **Live simulations:** Gray–Scott, multiscale Turing patterns, and snow crystal growth. Turing and snow crystal saves can resume the exact field evolution.
+- **Shape constructors:** 2D/3D IFS and Flame transform editors, L-system rules and growth animation, and separate 2D/3D L-system generators with reproducible forms and variations.
+- **Updated catalog:** search across names, descriptions, and categories, favorites, recent modes, a cross-category 3D collection, background previews, and the `Ctrl+K` quick switcher.
+- **FractalCloud saves:** a unified local/cloud list, batch and selective operations, filters, and conflict resolution. Cloud access requires a configured server and an existing account; local features work independently.
 
-The visualization catalog nearly doubled compared to the previous version — 49 entries instead of 33 — mainly thanks to the new **"Mathematical Laboratories"** section (18 modules: number theory, geometry and transforms, complex analysis, generative geometry, stochastic processes, harmonics and waves). In parallel, a large amount of internal rendering optimization work was done:
+### Exploration and export
 
-- a perturbation engine with BLA (bilinear approximation) and adaptive reference-orbit precision for the entire Mandelbrot family — deep zoom down to **1e1000** on `FloatExp` and `BigFloat`;
-- the same extreme-depth zoom for the **Phoenix** fractal (down to 1e1000, with a hybrid `FloatExp`/`double` core past extreme thresholds);
-- deep zoom down to **1e50** for **Collatz** and **Nova** via `BigFloat`/`ComplexBigFloat`;
-- a Newton's-method auto-centering tool for mini-Mandelbrots and for the Phoenix core;
-- a reworked, allocation-free `BigMantissa`.
-
-Below is a screenshot demonstration of essentially every window in the application: every fractal and laboratory, their unique parameter/palette editors, and the shared utility windows.
-
-### Features
-
-- **54 catalog entries:** 52 visualizations (27 complex-dynamics/stochastic fractals, 9 dynamical systems, 18 mathematical laboratories) and 2 Julia constant galleries.
-- **Interactive exploration:** cursor-centered mouse-wheel zoom, canvas panning, view reset, and full-screen mode.
-- **Asynchronous CPU rendering:** configurable thread count, cancellation, progress indicators, and eight tile scheduling patterns.
-- **Flexible coloring:** built-in and custom palettes, smooth and discrete modes, plus Histogram, Orbit Trap, Stripe Average, and Distance Estimation with pseudo-3D lighting for the Mandelbrot family.
-- **Extreme deep zoom:** perturbation engines with BLA on `FloatExp`/`BigFloat` for the Mandelbrot family and Phoenix (down to 1e1000), plus Nova and Collatz (down to 1e50).
-- **Mathematical laboratories:** a dedicated section of 18 interactive modules — from number theory and aperiodic tilings to knots, Fourier epicycles, and Chladni figures.
-- **Saved explorations:** fractal parameters, previews, and points of interest are stored as JSON and restored through dedicated save managers.
-- **Image export:** custom resolutions, presets up to 8K, PNG/JPG/BMP, SSAA, Bicubic, and Lanczos 3.
-- **Customizable WPF interface:** built-in themes, the Windows system theme, a color editor, and an on-screen eyedropper.
-
-### Visualization catalog
-
-| Section | Available modules |
+| Feature | Capabilities |
 | --- | --- |
-| Mandelbrot set | Mandelbrot, Burning Ship, Tricorn (Mandelbar), Buffalo, Celtic Mandelbrot, Simonobrot, Generalized Mandelbrot |
-| Julia set | Julia, Julia Burning Ship, and two constant-`C` galleries |
-| Iterated functions | Newton Pools+, Müller, Laguerre and secant basins, rational map and periodic cycle basins, complex logistic map, magnetic pendulum, attracting centers, gradient descent, complex gradient flow, polynomial vector fields, Phoenix, Collatz, Nova Mandelbrot, Nova Julia, Buddhabrot / Anti-Buddhabrot |
-| Iterated and self-similar | Barnsley / Heighway IFS, Fractal Flame, Sierpiński chaos game |
-| Geometric and stochastic fractals | Apollonian gasket, DLA (diffusion-limited aggregation) |
-| Dynamical systems and chaos | Lyapunov, Logistic Map, Bifurcation, Lorenz, Rössler, Hénon, Ikeda, strange 2D attractors, Gray–Scott |
-| Mathematical laboratories | Modular arithmetic, Pascal's triangle mod N, rational numbers, prime geometry, Recamán, inverse Collatz tree, phyllotaxis, circle inversion / Möbius, aperiodic tilings, hyperbolic geometry, Voronoi / Lloyd, knots, Domain Coloring, Kleinian / Schottky, L-systems, Brownian motion / Lévy flights, Fourier epicycles, Chladni figures |
+| Deep zoom | Up to `1e1000` for the Mandelbrot family, Phoenix, and Newton basins; up to `1e50` for Nova and complex Collatz. Available detail depends on the formula and region |
+| Coloring | Editable palettes and gradients; Histogram, Orbit Trap, Stripe Average, and lit Distance Estimation for the Mandelbrot family |
+| Rendering | Asynchronous CPU computation, thread/tile-order settings, progress, and cancellation; GPU rendering for 3D |
+| Saved states | Parameters and PNG previews, built-in points of interest, a save manager; deleted and replaced saves go to the Windows Recycle Bin |
+| Image export | Custom dimensions, presets up to 8K, PNG/JPEG/BMP, SSAA, Bicubic, and Lanczos 3; PNG Gray16 height maps for terrain |
+| Appearance | Built-in and custom themes, a theme editor, palette editors, and a screen eyedropper |
 
-### Interface
+### Catalog
 
-Below is a screenshot of every window in the application: the exploration windows for fractals and laboratories, their unique parameter and palette editors, and the shared utility dialogs.
+The catalog has **86 entries**: 52 fractal entries (including two Julia galleries), 15 dynamical-system entries, and 19 mathematical laboratories. The **20 3D modes** span these sections and are already included in their counts.
 
-#### Mandelbrot family
-
-A shared perturbation engine with BLA serves the classic set and all of its reflected/generalized variants, integer and fractional Multibrot, plus an interactive picker for the Julia constant `C`.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-mandelbrot.png" width="260"><br><sub>Classic Mandelbrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-burning-ship.png" width="260"><br><sub>Burning Ship</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-tricorn.png" width="260"><br><sub>Tricorn (Mandelbar)</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-buffalo.png" width="260"><br><sub>Buffalo</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-celtic.png" width="260"><br><sub>Celtic Mandelbrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-simonobrot.png" width="260"><br><sub>Simonobrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-generalized.png" width="260"><br><sub>Generalized Mandelbrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-palette-editor.png" width="260"><br><sub>Palette editor</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/julia-constant-picker.png" width="260"><br><sub>Julia constant picker</sub></td>
-</tr>
-</table>
-
-#### Julia family
-
-The classic Julia set and its "Burning Ship" variant are available both as standalone windows and as a batch gallery of constants `C` over a grid.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-julia.png" width="260"><br><sub>Classic Julia</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/mandelbrot-julia-burning-ship.png" width="260"><br><sub>Julia Burning Ship</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/julia-gallery.png" width="260"><br><sub>Julia constant gallery</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/julia-burning-ship-gallery.png" width="260"><br><sub>Julia Burning Ship gallery</sub></td>
-</tr>
-</table>
-
-#### Attraction basins and other iterated families
-
-Newton Pools+ supports the Newton, Halley, and Householder methods with its own root palette. Eleven more basin explorers share one window: Müller's method (a triple of starting points), Laguerre's method (with a disagreement map against Newton), the secant method (including slices of its four-dimensional state space), rational maps, and periodic cycles, where points are colored by their final attracting cycle. The complex logistic map adds initial-value and λ parameter planes with attracting-period detection. The magnetic pendulum and attracting-center system offer editable centers, strengths, damping, initial velocity, trajectories and capture-time coloring, with shared palettes, saves and export. Gradient descent compares GD, momentum, Nesterov, and Adam on a custom potential; complex gradient flow integrates descent on ½|f(z)|², while polynomial vector fields detect stable equilibria and limit cycles. Grayscale and hidden overlays are the defaults. Phoenix is a two-panel explorer of the `C1`/`C2` parameter planes with extreme deep zoom. Nova and Collatz are complex generalizations with deep zoom down to 1e50.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/newton-pools.png" width="260"><br><sub>Newton Pools+</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/newton-palette-editor.png" width="260"><br><sub>Newton root palette</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/phoenix.png" width="260"><br><sub>Phoenix fractal</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/phoenix-parameter-explorer.png" width="260"><br><sub>Phoenix C1/C2 parameter explorer</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/nova-mandelbrot.png" width="260"><br><sub>Nova Mandelbrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/nova-julia.png" width="260"><br><sub>Nova Julia</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/nova-parameter-selector.png" width="260"><br><sub>Nova parameter selector</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/collatz.png" width="260"><br><sub>Collatz fractal</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/buddhabrot.png" width="260"><br><sub>Buddhabrot / Anti-Buddhabrot</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/buddhabrot-palette-editor.png" width="260"><br><sub>Buddhabrot palette</sub></td>
-</tr>
-</table>
-
-#### Iterated, self-similar, geometric, and stochastic fractals
-
-IFS and Fractal Flame include affine-transform editors. Sierpiński in "chaos game" mode, the Apollonian gasket colored by depth/curvature/parent branch, and DLA with a growing particle cluster round out the section.
-
-[Volumetric Fractal Flame](FractalExplorerWPF/FLAME3D.md) creates colored smoke ribbons, clouds, and sculptures with eight spatial variations, a 3×4 transform editor and randomizer, five presets, color accumulation, and tone controls. It shares the 3D camera, GPU rendering, saves, and image export.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/ifs.png" width="260"><br><sub>Barnsley / Heighway IFS</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/ifs-transform-editor.png" width="260"><br><sub>IFS transform editor</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/flame.png" width="260"><br><sub>Fractal Flame</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/flame-transform-editor.png" width="260"><br><sub>Flame transform editor</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/serpinsky-chaos.png" width="260"><br><sub>Sierpiński chaos game</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/serpinsky-palette-editor.png" width="260"><br><sub>Sierpiński palette</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/apollonian.png" width="260"><br><sub>Apollonian gasket</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dla.png" width="260"><br><sub>DLA</sub></td>
-</tr>
-</table>
-
-#### Dynamical systems and chaos
-
-A shared window serves the Lyapunov map, logistic-map orbits, the bifurcation diagram, the Lorenz and Rössler attractors, the Hénon and Ikeda maps, and density clouds for strange 2D attractors (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Gray–Scott is a separate live reaction–diffusion simulation. [Multiscale Turing patterns](FractalExplorerWPF/TURING_PATTERNS.md) add organic labyrinths and symmetric ornaments with six presets, live shape controls, brushes, palettes, relief shading and exact continuation of saved fields.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-lyapunov.png" width="260"><br><sub>Lyapunov exponent</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lyapunov-palette-editor.png" width="260"><br><sub>Lyapunov palette</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-logistic-map.png" width="260"><br><sub>Logistic map</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-bifurcation.png" width="260"><br><sub>Bifurcation diagram</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-lorenz.png" width="260"><br><sub>Lorenz attractor</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynamic-palette-editor.png" width="260"><br><sub>Generic dynamic-system palette</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-rossler.png" width="260"><br><sub>Rössler attractor</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-henon.png" width="260"><br><sub>Hénon map</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-ikeda.png" width="260"><br><sub>Ikeda map</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/dynsys-attractors2-d.png" width="260"><br><sub>Strange 2D attractors</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/gray-scott.png" width="260"><br><sub>Gray–Scott</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/gray-scott-palette-editor.png" width="260"><br><sub>Gray–Scott palette</sub></td>
-</tr>
-</table>
-
-#### Mathematical laboratories
-
-New in version 2.0, this section brings together 18 interactive modules on a shared engine: number theory and discrete structures, geometry and transforms, complex analysis, generative geometry, stochastic processes, harmonics and waves.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-modular-arithmetic.png" width="260"><br><sub>Modular arithmetic</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-pascal-modulo.png" width="260"><br><sub>Pascal's triangle mod N</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-rational-numbers.png" width="260"><br><sub>Rational numbers lab</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-prime-geometry.png" width="260"><br><sub>Prime geometry</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-recaman-sequence.png" width="260"><br><sub>Recamán sequence</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/inverse-collatz-tree.png" width="260"><br><sub>Inverse Collatz tree</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/inverse-collatz-palette-editor.png" width="260"><br><sub>Inverse Collatz palette</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-phyllotaxis.png" width="260"><br><sub>Phyllotaxis</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-circle-inversion.png" width="260"><br><sub>Circle inversion / Möbius</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-aperiodic-tilings.png" width="260"><br><sub>Aperiodic tilings</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-hyperbolic-geometry.png" width="260"><br><sub>Hyperbolic geometry</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-voronoi-lloyd.png" width="260"><br><sub>Voronoi / Lloyd relaxation</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-knot-studio.png" width="260"><br><sub>Knot studio</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/domain-coloring.png" width="260"><br><sub>Domain Coloring</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-kleinian-schottky.png" width="260"><br><sub>Kleinian / Schottky groups</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lsystem.png" width="260"><br><sub>L-systems</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-stochastic-motion.png" width="260"><br><sub>Brownian motion / Lévy flights</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-fourier-epicycles.png" width="260"><br><sub>Fourier Epicycles</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/lab-chladni-wave-interference.png" width="260"><br><sub>Chladni figures / wave interference</sub></td>
-</tr>
-</table>
-
-#### Shared utility windows
-
-The catalog, the quick switcher, the theme editor with its own color picker, the generic color picker, the save and image-export managers, and the crash recovery dialog are used identically across every fractal and laboratory.
-
-<table>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-quick-switcher.png" width="260"><br><sub>Quick switcher (Ctrl+K)</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-theme-editor.png" width="260"><br><sub>Theme editor</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-theme-color-picker.png" width="260"><br><sub>Theme color picker</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-color-picker.png" width="260"><br><sub>Color picker</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/save-manager.png" width="260"><br><sub>Save manager</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/image-export-manager.png" width="260"><br><sub>Image export manager</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-about.png" width="260"><br><sub>About</sub></td>
-<td width="25%" align="center"><img src="./Pictures/V2_0_WPF/00-crash-dialog.png" width="260"><br><sub>Crash recovery dialog</sub></td>
-</tr>
-</table>
-
-### Controls
-
-| Action | Control |
+| Area | Modes |
 | --- | --- |
-| Zoom around the cursor | Mouse wheel over the canvas |
-| Pan the viewport | Drag with the left mouse button |
-| Enter full-screen mode | `F11` |
-| Leave full-screen mode | `Esc` |
-| Hide the parameter panel | Button in the canvas's upper-left corner |
-| Quick catalog switcher | `Ctrl+K` |
-
-The exact parameters, coloring modes, and additional interactive maps depend on the selected fractal or laboratory.
-
-### Saved states and export
-
-Save managers preserve the formula, coordinates, zoom level, render quality, palette, and points of interest. Each entry includes a preview, while its data is stored locally as JSON.
-
-The export manager supports manual dimensions and ready-made presets, multiple formats, and several final-processing strategies:
-
-- native rendering or SSAA;
-- bicubic scaling;
-- Lanczos 3 filtering;
-- PNG, quality-configurable JPG, and BMP.
+| Complex dynamics | Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, Multibrot; Julia and two constant galleries; 12 basin modes; Phoenix, Nova Mandelbrot/Julia, Collatz, Buddhabrot/Anti-Buddhabrot |
+| 3D forms | Mandelbulb, Juliabulb, Burning Ship 3D and Julia, Phoenix 3D, Mandelbox, Bulb × Box hybrid, Menger, Vicsek, Cantor, Sierpiński tetrahedron, quaternion Julia, KIFS, terrain |
+| Self-similarity and growth | 2D/3D IFS, 2D/3D Flame, Popcorn, Sierpiński chaos game, Apollonian circle/sphere packing, 2D/3D DLA |
+| Dynamics and chaos | Lyapunov, logistic orbits, bifurcation, Lorenz, Rössler, Hénon, Ikeda, strange 2D attractors, Sprott, Symmetric Icons, Hopalong; seven volumetric attractor systems in one mode |
+| Spatial systems | Gray–Scott, multiscale Turing patterns, snow crystals |
+| Number theory | Modular arithmetic, Pascal mod N, rational numbers, prime geometry, Recamán, inverse Collatz tree |
+| Geometry and complex analysis | Phyllotaxis, inversion/Möbius, aperiodic tilings, hyperbolic geometry, Voronoi/Lloyd, knots, Domain Coloring, Kleinian/Schottky |
+| Generative geometry and waves | 2D/3D L-systems, Brownian motion/Lévy flights, Fourier epicycles, Chladni figures and interference |
 
 ### Build and run
 
-Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) are required.
+Requires **Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)**. 3D modes require a Direct3D 11-compatible graphics adapter and driver. The 2D computational modes run on the CPU.
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/xanstar6067/FractalExplorer.git
 cd FractalExplorer
 dotnet build .\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF.slnx
 dotnet run --project .\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF.csproj
 ```
 
-For development, the solution can also be opened in Visual Studio with the .NET Desktop Development workload installed.
+You can also open the solution in Visual Studio with .NET 10 support and the .NET Desktop Development workload. The Vortice NuGet dependencies provide Direct3D 11 bindings.
 
-### Repository structure
+### Getting started and user data
+
+1. Select a tile and click **Launch**, press `Enter`, or double-click it.
+2. Use `Ctrl+F` to search and `Ctrl+K` to switch modes quickly.
+3. Adjust parameters and palettes in the explorer window; navigation hints are available in each window.
+4. Save a state through the save manager or export an image through the export manager.
+
+User data lives in **`%LOCALAPPDATA%\Fractal Explorer Studio`**: saves and previews, palettes, themes, settings, logs, and the shared 3D shader cache. Open it from **Settings → Open data folder** in the main window. Built-in point-of-interest previews are cached separately; older data from the `Saves` folder beside the executable is imported by migration.
+
+See the [FractalCloud guide](FractalExplorerWPF/CLOUD.md) for cloud configuration. Cloud screenshots contain fictional sample records. Detailed mode documentation is linked in the [Russian section](#подробнее); the [full screenshot gallery](Pictures/WPF/README.md) has bilingual captions.
+
+## Структура репозитория / Repository layout
 
 ```text
-FractalExplorerWPF/   primary WPF version
-FractalExplorer/      previous WinForms version
-Pictures/             screenshots; V2_0_WPF is the current gallery used by this README
-README.md             documentation for the current WPF version
+FractalExplorerWPF/
+  FractalExplorerWPF/   актуальное WPF-решение / active WPF solution
+  ScreenshotGen/       генератор снимков / screenshot generator
+  Verification/        автоматические проверки / verification tools
+Pictures/WPF/          актуальная галерея / current screenshot gallery
+Pictures/V2_0_WPF/     предыдущие снимки / previous screenshots
+FractalExplorer/       архив WinForms / WinForms archive
 ```
 
-### License
+## Лицензия / License
 
-This project is distributed under the [Apache License 2.0](./LICENSE).
+[Apache License 2.0](LICENSE).

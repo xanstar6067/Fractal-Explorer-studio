@@ -216,12 +216,14 @@ data-version.json                      # достигнутая версия к�
 
 ```powershell
 dotnet build .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj
-dotnet run --project .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj -- .\Pictures\V2_0_WPF
+dotnet run --project .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj -- .\Pictures\WPF
 ```
 
-Полный набор — около 70 окон и несколько минут; аргумент `smoke` в конце
+Полный набор — 123 снимка (86 пунктов каталога, редакторы и диалоги) и несколько минут; аргумент `smoke` в конце
 команды запускает только 4 быстрых скриншота для проверки, что инструмент
-работает. Устройство инструмента (подмена `Application.ResourceAssembly`,
+работает. Для одного пункта и его редакторов передай `--only=<LaunchKey>`
+(например, `--only=Ikeda`); со `smoke` этот фильтр не совмещается.
+Устройство инструмента (подмена `Application.ResourceAssembly`,
 захват через склейку `PrintWindow`+`RenderTargetBitmap`, ожидание конца
 рендера по приватному `_isRendering`) и порядок поддержки при изменениях в
 приложении — в `FractalExplorerWPF/ScreenshotGen/README.md`. При добавлении,

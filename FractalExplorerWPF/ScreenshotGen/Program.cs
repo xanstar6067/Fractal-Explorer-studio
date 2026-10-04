@@ -29,6 +29,7 @@ internal static class Program
     private static int _fail;
 
     private static bool _smoke;
+    private static string? _onlyLaunchKey;
 
     [STAThread]
     private static int Main(string[] args)
@@ -38,11 +39,18 @@ internal static class Program
             Console.Error.WriteLine("Использование: dotnet run --project FractalExplorerWPF/ScreenshotGen/ScreenshotGen.csproj -- <папка-вывода> [smoke]");
             Console.Error.WriteLine("  <папка-вывода> — куда сохранять PNG (создаётся, если не существует).");
             Console.Error.WriteLine("  smoke          — только 4 быстрых скриншота для проверки, без полного набора.");
+            Console.Error.WriteLine("  --only=<ключ>  — только один пункт каталога и его редакторы (например, --only=Ikeda).");
             return 2;
         }
 
         OutDir = Path.GetFullPath(args[0]);
         _smoke = args.Skip(1).Contains("smoke");
+        _onlyLaunchKey = args.Skip(1).FirstOrDefault(a => a.StartsWith("--only=", StringComparison.Ordinal))?[7..];
+        if (_onlyLaunchKey is not null && (_smoke || !FractalCatalog.Create().Any(i => i.LaunchKey == _onlyLaunchKey)))
+        {
+            Console.Error.WriteLine("--only требует существующий ключ каталога и не совмещается со smoke.");
+            return 2;
+        }
         Directory.CreateDirectory(OutDir);
         int exitCode = 0;
         // pack://application:,,,/ по умолчанию резолвится в сборку .exe (ScreenshotGen),
@@ -70,6 +78,7 @@ internal static class Program
             {
                 await RunAllAsync();
                 Console.WriteLine($"DONE: ok={_ok} fail={_fail}");
+                if (_fail > 0) exitCode = 1;
             }
             catch (Exception ex)
             {
@@ -154,7 +163,7 @@ internal static class Program
     // Окна с живым превью (Fractal3DWindow) считают кадр лесенкой: черновик, затем полный кадр
     // и сглаживание. Между ступенями "_isRendering" ненадолго гаснет, поэтому ожидание учитывает
     // и очередь: пока стоит запрос следующей ступени, окно снимать рано.
-    private static async Task WaitForRenderIdleAsync(Window win, int maxExtraMs = 10000)
+    private static async Task WaitForRenderIdleAsync(Window win, int maxExtraMs = 30000)
     {
         if (win is TuringWindow)
         {
@@ -163,19 +172,25 @@ internal static class Program
                 await Task.Delay(150);
             return;
         }
-        if (GetMember(win, "_isRendering") is not bool) return;
+        string renderFlag = win is DynamicSystemWindow ? "_rendering" : "_isRendering";
+        if (GetMember(win, renderFlag) is not bool) return;
+
+        bool IsBusy() => GetMember(win, renderFlag) is true ||
+            GetMember(win, "_frameRequested") is true ||
+            win is DynamicSystemWindow && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < maxExtraMs)
         {
-            if (GetMember(win, "_isRendering") is false && GetMember(win, "_frameRequested") is not true)
+            if (!IsBusy())
             {
                 await Task.Delay(250);
-                if (GetMember(win, "_isRendering") is false && GetMember(win, "_frameRequested") is not true) return;
+                if (!IsBusy()) return;
                 continue;
             }
             await Task.Delay(150);
         }
+        throw new TimeoutException($"Окно {win.GetType().Name} не завершило рендер за {maxExtraMs / 1000} с.");
     }
 
     [DllImport("user32.dll")]
@@ -305,7 +320,7 @@ internal static class Program
     private static async Task CaptureModalAsync(Action openModal, string slug, int waitMs = 900)
     {
         var before = new HashSet<Window>(Application.Current!.Windows.Cast<Window>());
-        Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
+        _ = Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
             new Action(() => { _ = DetectCaptureCloseAsync(before, slug, waitMs); }));
         try
         {
@@ -394,6 +409,11 @@ internal static class Program
 
     private static async Task RunAllAsync()
     {
+        if (_onlyLaunchKey is not null)
+        {
+            await ProcessCatalogItemAsync(FractalCatalog.Create().Single(i => i.LaunchKey == _onlyLaunchKey));
+            return;
+        }
         Console.WriteLine("== Main catalog ==");
         var main = new MainWindow();
         await ShowAsync(main, 1800);
@@ -660,7 +680,7 @@ internal static class Program
                     await CaptureAsync(() => new ApollonianWindow(), "apollonian", 1800);
                     return;
                 case "DLA":
-                    await CaptureAsync(() => new DlaWindow(), "dla", 3200);
+                    await CaptureAsync(() => new DlaWindow(), "dla", 12000);
                     return;
                 case "GrayScott":
                 {
@@ -685,8 +705,16 @@ internal static class Program
                     return;
                 }
                 case "SnowCrystal":
-                    await CaptureAsync(() => new SnowCrystalWindow(), "snow-crystal", 5000);
+                    await CaptureAsync(() => new SnowCrystalWindow(), "snow-crystal", 15000);
                     return;
+                case "SprottQuadratic":
+                {
+                    Window? w = await CaptureAsync(
+                        () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SprottQuadratic),
+                        "sprott-quadratic", 1800);
+                    SafeCloseIfAny(w);
+                    return;
+                }
                 case "SymmetricIcon":
                 case "Popcorn":
                 case "Hopalong":
@@ -716,7 +744,19 @@ internal static class Program
             if (Enum.TryParse(key, out DynamicSystemKind dsk))
             {
                 string slug = "dynsys-" + Kebab(dsk.ToString());
-                Window? w = await CaptureAsync(() => new DynamicSystemWindow(dsk), slug, 1800);
+                Window? w = await CaptureAsync(() =>
+                {
+                    var window = new DynamicSystemWindow(dsk);
+                    if (dsk == DynamicSystemKind.Ikeda)
+                    {
+                        // При u=.918 исходная затравка попадает в неподвижную точку за кадром.
+                        // Для документации показываем классический хаотический аттрактор u=.9.
+                        var state = DynamicSystemState.CreateDefault(dsk);
+                        state.U = .9; state.CenterX = .65; state.CenterY = -.65;
+                        Invoke(window, "LoadState", state);
+                    }
+                    return window;
+                }, slug, 1800);
                 if (w != null)
                 {
                     if (dsk == DynamicSystemKind.Lyapunov)
