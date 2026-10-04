@@ -25,11 +25,19 @@ public partial class GrayScottWindow : Window
     private readonly ConcurrentQueue<(double X, double Y)> _injections = new();
     private readonly Stopwatch _fpsWatch = Stopwatch.StartNew();
     private readonly Stopwatch _scheduleWatch = Stopwatch.StartNew();
-    private GrayScottSimulation? _simulation;
+    private IGrayScottEngine? _simulation;
+    private GrayScottSnapshot? _presented;
     private GrayScottState? _activeState;
     private WriteableBitmap? _bitmap;
     private CancellationTokenSource? _simulationCts;
     private Task _frameIdleTask = Task.CompletedTask;
+    private Task _resetIdleTask = Task.CompletedTask;
+    private readonly DispatcherTimer _sizeTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
+    private bool _closed, _resetting;
+    private int _generation, _appearanceVersion;
+    private int _executionVersion;
+    private bool _executionPending, _executionResume;
+    private string? _backendNotice;
     private int _presentedFrames;
     private double _measuredFps;
     private double _nextFrameAtMilliseconds;
@@ -48,20 +56,21 @@ public partial class GrayScottWindow : Window
         PresetBox.ItemsSource = GrayScottPresets.All;
         _frameTimer.Tick += FrameTimer_OnTick;
         ApplyState(GrayScottPresets.All[0].State.Clone());
-        PresetBox.SelectedItem = GrayScottPresets.All[0];
-        Loaded += async (_, _) => await ResetSimulationAsync(startAfterReset: true);
+        _sizeTimer.Tick += (_, _) => { _sizeTimer.Stop(); UpdateFrameHint(); RequestRepaint(); };
+        CanvasHost.SizeChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
+        DpiChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
+        Loaded += async (_, _) => { if (_simulation is null && !_resetting) await ResetSimulationAsync(startAfterReset: true); };
     }
 
     public GrayScottState CaptureState(string name)
     {
-        if (TryCaptureState(name, out GrayScottState state, out string error)) return state;
-        throw new InvalidOperationException(error);
+        if (_activeState is null || _presented is null || _resetting) throw new InvalidOperationException("Дождитесь подготовки поля.");
+        var state = _activeState.Clone(name, false); state.Timestamp = DateTime.Now; state.Checkpoint = _presented.Copy(); return state;
     }
 
     public void LoadState(GrayScottState state)
     {
-        ApplyState(state.Clone());
-        _ = ResetSimulationAsync(startAfterReset: true);
+        _ = InstallEngineAsync(state.Clone(), state.Checkpoint is null);
     }
 
     public BitmapSource? CaptureCurrentPreview(int width, int height) =>
@@ -91,9 +100,9 @@ public partial class GrayScottWindow : Window
             error = "Шаг времени должен быть от 0.05 до 1.5.";
             return false;
         }
-        if (!int.TryParse(GridSizeBox.Text, out int gridSize) || gridSize is < 96 or > 768)
+        if (!int.TryParse(GridSizeBox.Text, out int gridSize) || gridSize is < 32 or > GrayScottState.MaxGridSize)
         {
-            error = "Размер сетки должен быть от 96 до 768.";
+            error = "Размер сетки должен быть от 32 до 2048.";
             return false;
         }
         if (!int.TryParse(StepsPerFrameBox.Text, out int stepsPerFrame) || stepsPerFrame is < 1 or > 64)
@@ -128,6 +137,9 @@ public partial class GrayScottWindow : Window
             Kill = kill,
             DeltaTime = deltaTime,
             GridSize = gridSize,
+            Backend = BackendBox.SelectedIndex == 1 ? GrayScottBackend.Cpu : GrayScottBackend.Gpu,
+            AutoFrameSize = _activeState?.AutoFrameSize ?? true,
+            FrameWidth = _activeState?.FrameWidth ?? 1024, FrameHeight = _activeState?.FrameHeight ?? 1024,
             StepsPerFrame = stepsPerFrame,
             TargetFps = targetFps,
             RandomSeed = randomSeed,
@@ -141,6 +153,7 @@ public partial class GrayScottWindow : Window
             ReversePalette = ReversePaletteBox.IsChecked == true,
             Palette = _paletteManager.ActivePalette.Clone()
         };
+        try { state.Validate(); } catch (ArgumentException ex) { error = ex.Message; return false; }
         error = string.Empty;
         return true;
     }
@@ -156,6 +169,9 @@ public partial class GrayScottWindow : Window
             KillBox.Text = Format(state.Kill);
             DeltaTimeBox.Text = Format(state.DeltaTime);
             GridSizeBox.Text = state.GridSize.ToString(CultureInfo.InvariantCulture);
+            BackendBox.SelectedIndex = state.Backend == GrayScottBackend.Gpu ? 0 : 1;
+            AutoFrameBox.IsChecked = state.AutoFrameSize; FrameWidthBox.Text = state.FrameWidth.ToString(CultureInfo.InvariantCulture);
+            FrameHeightBox.Text = state.FrameHeight.ToString(CultureInfo.InvariantCulture); FrameSizeError.Text = GridSizeError.Text = string.Empty;
             StepsPerFrameBox.Text = state.StepsPerFrame.ToString(CultureInfo.InvariantCulture);
             TargetFpsBox.SelectedIndex = state.TargetFps >= 60 ? 1 : 0;
             RandomSeedBox.Text = state.RandomSeed.ToString(CultureInfo.InvariantCulture);
@@ -168,7 +184,7 @@ public partial class GrayScottWindow : Window
             RangeMaximumBox.Text = Format(state.RangeMaximum);
             ReversePaletteBox.IsChecked = state.ReversePalette;
             GrayScottPalette? palette = _paletteManager.Palettes.FirstOrDefault(item =>
-                item.Name.Equals(state.Palette.Name, StringComparison.OrdinalIgnoreCase));
+                item.Name.Equals(state.Palette.Name, StringComparison.OrdinalIgnoreCase) && item.Colors.SequenceEqual(state.Palette.Colors) && item.Gamma == state.Palette.Gamma && item.IsGradient == state.Palette.IsGradient);
             if (palette is null)
             {
                 palette = state.Palette.Clone();
@@ -184,6 +200,7 @@ public partial class GrayScottWindow : Window
         SetTimerInterval(state.TargetFps);
         UpdatePalettePreview();
         PendingText.Visibility = Visibility.Collapsed;
+        UpdateFrameHint(state);
     }
 
     private async void Preset_OnChanged(object sender, SelectionChangedEventArgs e)
@@ -191,9 +208,13 @@ public partial class GrayScottWindow : Window
         if (_syncing || PresetBox.SelectedItem is not GrayScottPreset preset) return;
         try
         {
-            ApplyState(preset.State.Clone());
-            PresetBox.SelectedItem = preset;
-            await ResetSimulationAsync(startAfterReset: true);
+            var state = preset.State.Clone();
+            if (_activeState is { } current)
+            {
+                state.GridSize = current.GridSize; state.Backend = current.Backend;
+                state.AutoFrameSize = current.AutoFrameSize; state.FrameWidth = current.FrameWidth; state.FrameHeight = current.FrameHeight;
+            }
+            await InstallEngineAsync(state, true);
         }
         catch (Exception exception)
         {
@@ -216,57 +237,159 @@ public partial class GrayScottWindow : Window
     private async void PaletteMapping_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_syncing) return;
+        if (_activeState is not null) _activeState.ReversePalette = ReversePaletteBox.IsChecked == true;
         await RenderCurrentFieldAsync();
     }
+
+    private void Appearance_OnChanged(object sender, EventArgs e)
+    {
+        if (_syncing || _activeState is null) return;
+        if (!ReadFiniteDouble(RangeMinimumBox.Text, out double min) || !ReadFiniteDouble(RangeMaximumBox.Text, out double max) || max <= min || !double.IsFinite(max - min)) return;
+        _activeState.RangeMinimum = min; _activeState.RangeMaximum = max;
+        _activeState.FieldMode = (GrayScottFieldMode)Math.Clamp(FieldModeBox.SelectedIndex, 0, 2);
+        RequestRepaint();
+    }
+
+    private async void Backend_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncing || _resetting || _presented is null) return;
+        await ChangeExecutionAsync(_activeState!.GridSize, BackendBox.SelectedIndex == 1 ? GrayScottBackend.Cpu : GrayScottBackend.Gpu);
+    }
+
+    private async void GridSize_OnApply(object sender, RoutedEventArgs e)
+    {
+        if (_resetting || _activeState is null) return;
+        if (!int.TryParse(GridSizeBox.Text, out int size) || size is < 32 or > GrayScottState.MaxGridSize)
+        { GridSizeError.Text = "Введите целое число от 32 до 2048."; return; }
+        GridSizeError.Text = string.Empty;
+        await ChangeExecutionAsync(size, BackendBox.SelectedIndex == 1 ? GrayScottBackend.Cpu : GrayScottBackend.Gpu);
+    }
+
+    private async Task ChangeExecutionAsync(int size, GrayScottBackend backend)
+    {
+        if (_activeState is null || _presented is null || _closed || _resetting) return;
+        if (size == _activeState.GridSize && backend == _activeState.Backend && !_executionPending) return;
+        if (!_executionPending) { _executionPending = true; _executionResume = _running; }
+        int version = ++_executionVersion; SetRunning(false); await _frameIdleTask;
+        if (_closed || _resetting || version != _executionVersion) return;
+        bool resume = _executionResume; _executionPending = false;
+        var state = CaptureState("transferred"); state.GridSize = size; state.Backend = backend;
+        if (state.Checkpoint!.Size != size) state.Checkpoint = state.Checkpoint.Resize(size);
+        await InstallEngineAsync(state, resume, false);
+    }
+
+    private void FrameSize_OnApply(object sender, RoutedEventArgs e)
+    {
+        if (_syncing || _resetting || _activeState is null) return;
+        bool automatic = AutoFrameBox.IsChecked == true;
+        if (!automatic)
+        {
+            if (!int.TryParse(FrameWidthBox.Text, out int width) || !int.TryParse(FrameHeightBox.Text, out int height) ||
+                width is < 32 or > 8192 || height is < 32 or > 8192 || (long)width * height > 16_777_216)
+            { FrameSizeInputs.IsEnabled = true; FrameSizeError.Text = "Введите 32–8192 по стороне, всего до 16 млн пикселей."; return; }
+            _activeState.FrameWidth = width; _activeState.FrameHeight = height;
+        }
+        else
+        {
+            FrameWidthBox.Text = _activeState.FrameWidth.ToString(CultureInfo.InvariantCulture);
+            FrameHeightBox.Text = _activeState.FrameHeight.ToString(CultureInfo.InvariantCulture);
+        }
+        _activeState.AutoFrameSize = automatic; FrameSizeError.Text = string.Empty; UpdateFrameHint(); RequestRepaint();
+    }
+
+    private double DisplayAspect => CanvasHost.ActualWidth > 0 && CanvasHost.ActualHeight > 0 ? CanvasHost.ActualWidth / CanvasHost.ActualHeight : 1;
+    private (int Width, int Height) ResolveFrameSize(GrayScottState state)
+    {
+        if (!state.AutoFrameSize) return (state.FrameWidth, state.FrameHeight);
+        DpiScale dpi = VisualTreeHelper.GetDpi(CanvasHost);
+        int width = Math.Clamp((int)Math.Ceiling(CanvasHost.ActualWidth > 0 ? CanvasHost.ActualWidth * dpi.DpiScaleX : state.FrameWidth), 32, 8192);
+        int height = Math.Clamp((int)Math.Ceiling(CanvasHost.ActualHeight > 0 ? CanvasHost.ActualHeight * dpi.DpiScaleY : state.FrameHeight), 32, 8192);
+        if ((long)width * height > 16_777_216)
+        {
+            double factor = Math.Sqrt(16_777_216d / ((long)width * height));
+            width = (int)Math.Floor(width * factor); height = (int)Math.Floor(height * factor);
+        }
+        return (width, height);
+    }
+    private void UpdateFrameHint(GrayScottState? state = null)
+    {
+        state ??= _activeState; if (state is null) return;
+        var frame = ResolveFrameSize(state); FrameSizeInputs.IsEnabled = !state.AutoFrameSize;
+        FrameSizeHint.Text = state.AutoFrameSize ? $"Авто: {frame.Width} × {frame.Height} пикселей, с учётом DPI." : $"Вручную: {frame.Width} × {frame.Height} пикселей.";
+    }
+    private void RequestRepaint()
+    { _appearanceVersion++; if (!_frameBusy && !_resetting && !_executionPending) _ = ProduceFrameAsync(0); }
 
     private async void Reset_OnClick(object sender, RoutedEventArgs e) =>
         await ResetSimulationAsync(startAfterReset: _running);
 
     private async Task ResetSimulationAsync(bool startAfterReset)
     {
-        _frameTimer.Stop();
-        _running = false;
-        UpdateRunState();
+        if (!TryCaptureState("preview", out GrayScottState state, out string error)) { StatusText.Text = error; return; }
+        await InstallEngineAsync(state, startAfterReset);
+    }
+
+    private async Task InstallEngineAsync(GrayScottState state, bool run, bool applyControls = true)
+    {
+        if (_closed) return;
+        try { state.Validate(); } catch (ArgumentException ex) { StatusText.Text = ex.Message; return; }
+        int generation = ++_generation; _executionVersion++; _executionPending = false;
+        SetRunning(false); _resetting = true; UpdateRunState();
+        var previousCts = _simulationCts; previousCts?.Cancel();
+        Retire(previousCts, _frameIdleTask, _resetIdleTask, _simulation); _simulation = null;
+        var cts = new CancellationTokenSource(); _simulationCts = cts;
+        var idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); _resetIdleTask = idle.Task;
+        ControlsHost.IsEnabled = false; StatusText.Text = "Подготовка движка…";
+        while (_injections.TryDequeue(out _)) { }
+        var frame = ResolveFrameSize(state); double aspect = DisplayAspect; int appearance = _appearanceVersion;
         try
         {
-            CancellationTokenSource? previousCts = _simulationCts;
-            await _frameIdleTask;
-            previousCts?.Cancel();
-            previousCts?.Dispose();
-
-            if (!TryCaptureState("preview", out GrayScottState state, out string error))
+            var result = await Task.Run(() =>
             {
-                StatusText.Text = error;
-                return;
+                IGrayScottEngine engine = GrayScottEngineFactory.Create(state, out string? fallback);
+                try { return (Engine: engine, Snapshot: engine.Snapshot(), Pixels: engine.RenderFrame(state, frame.Width, frame.Height, cts.Token, aspect), Fallback: fallback); }
+                catch { engine.Dispose(); throw; }
+            }, cts.Token);
+            if (_closed || generation != _generation || cts.IsCancellationRequested) { result.Engine.Dispose(); return; }
+            _simulation = result.Engine; _presented = result.Snapshot; state.Backend = _simulation.Backend;
+            _activeState = state.Clone(includeCheckpoint: false); _backendNotice = result.Fallback;
+            if (applyControls) ApplyState(state);
+            else
+            {
+                _syncing = true; BackendBox.SelectedIndex = state.Backend == GrayScottBackend.Gpu ? 0 : 1;
+                GridSizeBox.Text = state.GridSize.ToString(CultureInfo.InvariantCulture); _syncing = false;
             }
-
-            _activeState = state;
-            _simulation = new GrayScottSimulation(state);
-            _simulationCts = new CancellationTokenSource();
-            _bitmap = new WriteableBitmap(state.GridSize, state.GridSize, 96, 96, PixelFormats.Bgra32, null);
-            FrameImage.Source = _bitmap;
-            while (_injections.TryDequeue(out _)) { }
-            await RenderCurrentFieldAsync();
-            PendingText.Visibility = Visibility.Collapsed;
-            StatusText.Text = $"Сетка {state.GridSize}×{state.GridSize} · F={state.Feed:G5} · K={state.Kill:G5}";
-            SetRunning(startAfterReset);
+            BackendHint.Text = _backendNotice ?? (_simulation.Backend == GrayScottBackend.Gpu ? _simulation.DeviceName : "Расчёт на процессоре. ГП можно включить на текущем поле.");
+            PresentFrame(result.Pixels, _presented.StepCount, frame.Width, frame.Height);
+            _resetting = false; SetRunning(run);
         }
         catch (OperationCanceledException)
         {
         }
         catch (Exception exception)
         {
-            SetRunning(false);
-            StatusText.Text = $"Не удалось пересоздать симуляцию: {exception.Message}";
+            if (!_closed && generation == _generation) { SetRunning(false); StatusText.Text = $"Не удалось подготовить симуляцию: {exception.Message}"; }
+        }
+        finally
+        {
+            idle.TrySetResult();
+            if (!_closed && generation == _generation)
+            {
+                _resetting = false; ControlsHost.IsEnabled = true; UpdateRunState(); UpdateFrameHint();
+                if (appearance != _appearanceVersion) RequestRepaint();
+            }
         }
     }
+
+    private static async void Retire(CancellationTokenSource? cts, Task frame, Task reset, IGrayScottEngine? engine)
+    { try { await Task.WhenAll(frame, reset); } finally { engine?.Dispose(); cts?.Dispose(); } }
 
     private void RunPause_OnClick(object sender, RoutedEventArgs e) => SetRunning(!_running);
 
     private void SetRunning(bool running)
     {
-        _running = running;
-        if (running)
+        _running = running && !_closed && !_resetting && _simulation is not null;
+        if (_running)
         {
             _nextFrameAtMilliseconds = _scheduleWatch.Elapsed.TotalMilliseconds;
             _frameTimer.Start();
@@ -276,12 +399,15 @@ public partial class GrayScottWindow : Window
             _frameTimer.Stop();
         }
         UpdateRunState();
+        UpdateBadge();
     }
 
     private void UpdateRunState()
     {
         RunButton.Content = _running ? "Пауза" : "Продолжить";
-        StepButton.IsEnabled = !_running;
+        RunButton.IsEnabled = !_resetting && !_executionPending && _simulation is not null;
+        StepButton.IsEnabled = !_running && !_frameBusy && !_resetting && !_executionPending && _simulation is not null;
+        ResetButton.IsEnabled = !_resetting;
     }
 
     private async void Step_OnClick(object sender, RoutedEventArgs e)
@@ -303,46 +429,62 @@ public partial class GrayScottWindow : Window
 
     private async Task ProduceFrameAsync(int? stepOverride = null)
     {
-        if (_frameBusy || _simulation is null || _activeState is null || _simulationCts is null) return;
+        if (_closed || _resetting || _frameBusy || _simulation is null || _activeState is null || _simulationCts is null) return;
         _frameBusy = true;
         var frameIdle = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _frameIdleTask = frameIdle.Task;
-        GrayScottSimulation simulation = _simulation;
-        GrayScottState state = _activeState;
+        IGrayScottEngine simulation = _simulation;
+        GrayScottState state = _activeState.Clone(includeCheckpoint: false);
         state.Palette = _paletteManager.ActivePalette.Clone();
         state.ReversePalette = ReversePaletteBox.IsChecked == true;
         int steps = stepOverride ?? state.StepsPerFrame;
+        var frame = ResolveFrameSize(state); double aspect = DisplayAspect;
+        int generation = _generation, appearance = _appearanceVersion;
+        GrayScottState? recovery = null; string? failure = null;
         CancellationToken token = _simulationCts.Token;
         var pendingInjections = new List<(double X, double Y)>();
         while (_injections.TryDequeue(out (double X, double Y) point)) pendingInjections.Add(point);
 
         try
         {
-            Task<byte[]> workerTask = Task.Run(() =>
+            var result = await Task.Run(() =>
             {
                 foreach ((double x, double y) in pendingInjections)
                     simulation.Inject(x, y, state.BrushRadius);
                 if (steps > 0) simulation.Advance(steps, token);
-                GrayScottSnapshot snapshot = simulation.CurrentView();
-                return GrayScottRenderer.RenderFrame(snapshot, state, token);
+                GrayScottSnapshot snapshot = simulation.Snapshot();
+                return (Snapshot: snapshot, Pixels: simulation.RenderFrame(state, frame.Width, frame.Height, token, aspect));
             }, token);
-            byte[] pixels = await workerTask;
-            if (!ReferenceEquals(simulation, _simulation) || token.IsCancellationRequested) return;
-            PresentFrame(pixels, simulation.StepCount);
+            if (_closed || generation != _generation || !ReferenceEquals(simulation, _simulation) || token.IsCancellationRequested) return;
+            _presented = result.Snapshot; PresentFrame(result.Pixels, _presented.StepCount, frame.Width, frame.Height);
         }
         catch (OperationCanceledException)
         {
         }
         catch (Exception exception)
         {
-            SetRunning(false);
-            StatusText.Text = exception.Message;
+            if (!_closed && generation == _generation)
+            {
+                SetRunning(false); StatusText.Text = exception.Message;
+                if (simulation.Backend == GrayScottBackend.Gpu && _presented is not null)
+                {
+                    recovery = CaptureState("recovery"); recovery.Backend = GrayScottBackend.Cpu;
+                    failure = $"ГП остановлен. Последнее показанное поле восстановлено на ЦП: {exception.Message}";
+                }
+            }
         }
         finally
         {
             _frameBusy = false;
             frameIdle.TrySetResult(true);
+            if (!_closed)
+            {
+                UpdateRunState();
+                if (recovery is null && generation == _generation && !_running && (appearance != _appearanceVersion || !_injections.IsEmpty)) RequestRepaint();
+            }
         }
+        if (recovery is not null && !_closed && generation == _generation)
+        { await InstallEngineAsync(recovery, false, false); BackendHint.Text = failure; }
     }
 
     private async Task RenderCurrentFieldAsync()
@@ -365,9 +507,11 @@ public partial class GrayScottWindow : Window
         }
     }
 
-    private void PresentFrame(byte[] pixels, long stepCount)
+    private void PresentFrame(byte[] pixels, long stepCount, int width, int height)
     {
-        if (_bitmap is null || _activeState is null) return;
+        if (_activeState is null) return;
+        if (_bitmap is null || _bitmap.PixelWidth != width || _bitmap.PixelHeight != height)
+        { _bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null); FrameImage.Source = _bitmap; }
         _bitmap.WritePixels(new Int32Rect(0, 0, _bitmap.PixelWidth, _bitmap.PixelHeight),
             pixels, _bitmap.PixelWidth * 4, 0);
         _presentedFrames++;
@@ -378,10 +522,12 @@ public partial class GrayScottWindow : Window
             _fpsWatch.Restart();
         }
         double simulatedTime = stepCount * _activeState.DeltaTime;
-        FrameBadgeText.Text = $"{_measuredFps:F1} FPS · шаг {stepCount:N0}";
-        StatusText.Text = $"Время модели: {simulatedTime:N1} · шагов/кадр: {_activeState.StepsPerFrame} · " +
+        UpdateBadge();
+        StatusText.Text = $"{(_simulation?.Backend == GrayScottBackend.Gpu ? "ГП" : "ЦП")} · поле {_activeState.GridSize} × {_activeState.GridSize} · буфер {width} × {height}\nВремя модели: {simulatedTime:N1} · шагов/кадр: {_activeState.StepsPerFrame} · " +
                           $"фактически {_measuredFps:F1} FPS";
     }
+
+    private void UpdateBadge() => FrameBadgeText.Text = (_running ? $"{_measuredFps:F1} FPS" : "Пауза") + $" · шаг {_presented?.StepCount ?? 0:N0}";
 
     private async void Randomize_OnClick(object sender, RoutedEventArgs e)
     {
@@ -419,14 +565,20 @@ public partial class GrayScottWindow : Window
         PalettePreview.Background = brush;
     }
 
-    private void Saves_OnClick(object sender, RoutedEventArgs e) =>
+    private async void Saves_OnClick(object sender, RoutedEventArgs e)
+    {
+        bool resume = _running; int generation = _generation; SetRunning(false); await _frameIdleTask;
+        if (_closed || _resetting || _presented is null) return;
         SaveManagerWindow.Open(this, SaveManagerConfigurations.ForGrayScott(this, _saveStore));
+        if (generation == _generation) SetRunning(resume);
+    }
 
     private async void Export_OnClick(object sender, RoutedEventArgs e)
     {
         bool resume = _running;
         SetRunning(false);
         await _frameIdleTask;
+        if (_closed || _resetting) return;
         if (_simulation is null)
         {
             MessageBox.Show(this, "Симуляция ещё не инициализирована.", "Gray–Scott",
@@ -434,13 +586,9 @@ public partial class GrayScottWindow : Window
             SetRunning(resume);
             return;
         }
-        if (!TryCaptureState("export", out GrayScottState state, out string error))
-        {
-            MessageBox.Show(this, error, "Gray–Scott", MessageBoxButton.OK, MessageBoxImage.Warning);
-            SetRunning(resume);
-            return;
-        }
-        GrayScottSnapshot snapshot = _simulation.Snapshot();
+        if (_closed || _resetting || _presented is null) return;
+        GrayScottState state = CaptureState("export");
+        GrayScottSnapshot snapshot = _presented.Copy();
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         ImageExportManagerWindow.Open(this, new ImageExportConfiguration
         {
@@ -458,6 +606,10 @@ public partial class GrayScottWindow : Window
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_resetting || _simulation is null) return;
+        if (e.OriginalSource is DependencyObject source)
+            for (DependencyObject? parent = source; parent is not null; parent = parent is Visual ? VisualTreeHelper.GetParent(parent) : null)
+                if (parent is Button) return;
         _painting = true;
         CanvasHost.CaptureMouse();
         QueueInjection(e.GetPosition(CanvasHost));
@@ -489,7 +641,9 @@ public partial class GrayScottWindow : Window
         double x = (point.X - left) / side;
         double y = (point.Y - top) / side;
         if (x is < 0 or > 1 || y is < 0 or > 1) return;
+        if (_injections.Count >= 4096) return;
         _injections.Enqueue((x, y));
+        if (!_running) RequestRepaint();
     }
 
     private void SetTimerInterval(int targetFps)
@@ -503,7 +657,8 @@ public partial class GrayScottWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Space)
+        if (e.OriginalSource is TextBox) return;
+        if (e.Key == Key.Space && RunButton.IsEnabled)
         {
             SetRunning(!_running);
             e.Handled = true;
@@ -533,9 +688,8 @@ public partial class GrayScottWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        _frameTimer.Stop();
-        _simulationCts?.Cancel();
-        _simulationCts?.Dispose();
+        _closed = true; _generation++; _frameTimer.Stop(); _sizeTimer.Stop(); _simulationCts?.Cancel();
+        Retire(_simulationCts, _frameIdleTask, _resetIdleTask, _simulation); _simulationCts = null; _simulation = null;
     }
 
     private static bool ReadFiniteDouble(string text, out double value)

@@ -23,6 +23,7 @@ public sealed class GrayScottSimulation
 
     public GrayScottSimulation(GrayScottState state)
     {
+        state.Validate();
         _size = state.GridSize;
         _diffusionU = state.DiffusionU;
         _diffusionV = state.DiffusionV;
@@ -34,6 +35,10 @@ public sealed class GrayScottSimulation
         _v = new float[length];
         _nextU = new float[length];
         _nextV = new float[length];
+        if (state.Checkpoint is { } cp)
+        {
+            _u = [.. cp.U]; _v = [.. cp.V]; StepCount = cp.StepCount; return;
+        }
         Array.Fill(_u, 1f);
         InitializeSeed(state);
     }
@@ -186,8 +191,6 @@ public sealed class GrayScottSimulation
     }
 }
 
-public sealed record GrayScottSnapshot(int Size, float[] U, float[] V, long StepCount);
-
 public static class GrayScottRenderer
 {
     private const int PaletteResolution = 1024;
@@ -200,32 +203,35 @@ public static class GrayScottRenderer
         GrayScottState state,
         int width,
         int height,
-        CancellationToken token)
+        CancellationToken token, double displayAspect = 0)
     {
+        if (width < 1 || height < 1 || (long)width * height > 100_000_000) throw new ArgumentOutOfRangeException(nameof(width));
         int[] palette = BuildPalette(state.Palette);
         byte[] pixels = new byte[width * height * 4];
         double denominator = state.RangeMaximum - state.RangeMinimum;
+        double logicalWidth = displayAspect > 0 ? height * displayAspect : width;
+        double side = Math.Min(logicalWidth, height), left = (logicalWidth - side) / 2, top = (height - side) / 2;
 
         for (int y = 0; y < height; y++)
         {
             if ((y & 31) == 0) token.ThrowIfCancellationRequested();
-            int sourceY = Math.Min(snapshot.Size - 1, y * snapshot.Size / height);
-            int sourceRow = sourceY * snapshot.Size;
+            double ny = (y + .5 - top) / side;
             int targetRow = y * width * 4;
             for (int x = 0; x < width; x++)
             {
-                int sourceX = Math.Min(snapshot.Size - 1, x * snapshot.Size / width);
-                int sourceIndex = sourceRow + sourceX;
+                double nx = ((x + .5) * logicalWidth / width - left) / side;
+                int pixel = targetRow + x * 4;
+                if (nx is < 0 or > 1 || ny is < 0 or > 1) { pixels[pixel + 3] = 255; continue; }
+                double sx = nx * snapshot.Size - .5, sy = ny * snapshot.Size - .5;
                 double value = state.FieldMode switch
                 {
-                    GrayScottFieldMode.U => snapshot.U[sourceIndex],
-                    GrayScottFieldMode.Difference => snapshot.U[sourceIndex] - snapshot.V[sourceIndex],
-                    _ => snapshot.V[sourceIndex]
+                    GrayScottFieldMode.U => GrayScottSnapshot.Sample(snapshot.U, snapshot.Size, sx, sy),
+                    GrayScottFieldMode.Difference => GrayScottSnapshot.Sample(snapshot.U, snapshot.Size, sx, sy) - GrayScottSnapshot.Sample(snapshot.V, snapshot.Size, sx, sy),
+                    _ => GrayScottSnapshot.Sample(snapshot.V, snapshot.Size, sx, sy)
                 };
                 double normalized = Math.Clamp((value - state.RangeMinimum) / denominator, 0, 1);
                 if (state.ReversePalette) normalized = 1 - normalized;
                 int color = palette[Math.Clamp((int)Math.Round(normalized * (PaletteResolution - 1)), 0, PaletteResolution - 1)];
-                int pixel = targetRow + x * 4;
                 pixels[pixel] = (byte)color;
                 pixels[pixel + 1] = (byte)(color >> 8);
                 pixels[pixel + 2] = (byte)(color >> 16);
@@ -235,32 +241,30 @@ public static class GrayScottRenderer
         return pixels;
     }
 
-    public static async Task<BitmapSource> RenderPreviewAsync(
+    public static Task<BitmapSource> RenderPreviewAsync(
         GrayScottState state,
         int width,
         int height,
         CancellationToken token,
-        IProgress<int>? progress = null)
+        IProgress<int>? progress = null) => Task.Run(() =>
     {
         GrayScottState previewState = state.Clone();
-        var simulation = new GrayScottSimulation(previewState);
+        using var simulation = GrayScottEngineFactory.Create(previewState, out _);
         const int totalSteps = 900;
         const int batch = 30;
-        for (int completed = 0; completed < totalSteps; completed += batch)
+        for (int completed = 0; previewState.Checkpoint is null && completed < totalSteps; completed += batch)
         {
             int count = Math.Min(batch, totalSteps - completed);
-            await Task.Run(() => simulation.Advance(count, token), token);
+            simulation.Advance(count, token);
             progress?.Report((completed + count) * 90 / totalSteps);
         }
-        GrayScottSnapshot snapshot = simulation.CurrentView();
-        byte[] pixels = await Task.Run(
-            () => RenderFrame(snapshot, previewState, width, height, token), token);
+        byte[] pixels = simulation.RenderFrame(previewState, width, height, token);
         BitmapSource bitmap = BitmapSource.Create(
             width, height, 96, 96, PixelFormats.Bgra32, null, pixels, width * 4);
         bitmap.Freeze();
         progress?.Report(100);
         return bitmap;
-    }
+    }, token);
 
     public static Task<BitmapSource> RenderSnapshotAsync(
         GrayScottSnapshot snapshot,
@@ -271,7 +275,9 @@ public static class GrayScottRenderer
         IProgress<int>? progress = null) => Task.Run(() =>
     {
         progress?.Report(10);
-        byte[] pixels = RenderFrame(snapshot, state, width, height, token);
+        var renderState = state.Clone(includeCheckpoint: false); renderState.Checkpoint = snapshot;
+        using var engine = GrayScottEngineFactory.Create(renderState, out _);
+        byte[] pixels = engine.RenderFrame(renderState, width, height, token);
         BitmapSource bitmap = BitmapSource.Create(
             width, height, 96, 96, PixelFormats.Bgra32, null, pixels, width * 4);
         bitmap.Freeze();
@@ -279,7 +285,7 @@ public static class GrayScottRenderer
         return bitmap;
     }, token);
 
-    private static int[] BuildPalette(GrayScottPalette palette)
+    internal static int[] BuildPalette(GrayScottPalette palette)
     {
         List<Color> colors = palette.Colors.Count == 0 ? [Colors.Black] : palette.Colors;
         var lookup = new int[PaletteResolution];

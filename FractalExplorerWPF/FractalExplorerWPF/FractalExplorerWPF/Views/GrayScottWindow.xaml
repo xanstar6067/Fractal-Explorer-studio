@@ -8,13 +8,43 @@
         <Grid.ColumnDefinitions><ColumnDefinition x:Name="ControlsColumn" Width="330"/><ColumnDefinition/></Grid.ColumnDefinitions>
         <Border x:Name="ControlsHost" Margin="10" Padding="14" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                 BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer x:Name="SettingsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="Gray–Scott reaction–diffusion"/>
                     <TextBlock Margin="0,3,0,10" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Двухкомпонентная пространственная система"/>
 
                     <TextBlock Margin="0,0,0,3" Text="Готовый режим"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="Preset_OnChanged"/>
+
+                    <GroupBox Header="Вычисления и качество" Margin="0,10,0,0">
+                        <StackPanel Margin="7">
+                            <ComboBox x:Name="BackendBox" SelectionChanged="Backend_OnChanged" AutomationProperties.Name="Движок Gray–Scott">
+                                <ComboBoxItem Content="ГП — рекомендуется"/><ComboBoxItem Content="ЦП — совместимый вариант"/>
+                            </ComboBox>
+                            <TextBlock x:Name="BackendHint" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,8"/>
+                            <TextBlock Text="Сетка симуляции · 32–2048" Margin="0,0,0,3"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Применить" Click="GridSize_OnApply" ToolTip="Перенести концентрации на новую сетку без перезапуска"/>
+                                <TextBox x:Name="GridSizeBox" Margin="0,0,5,0" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" AutomationProperties.Name="Размер сетки"/>
+                            </DockPanel>
+                            <TextBlock x:Name="GridSizeError" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            <TextBlock Text="Сетка задаёт детали узора. При смене размера текущее поле переносится, номер шага сохраняется." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,5,0,8"/>
+                            <Expander Header="Буфер изображения" IsExpanded="True">
+                                <StackPanel Margin="0,7,0,0">
+                                    <CheckBox x:Name="AutoFrameBox" Click="FrameSize_OnApply"><TextBlock Text="Автоматически — по области показа" TextWrapping="Wrap"/></CheckBox>
+                                    <TextBlock x:Name="FrameSizeHint" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,5"/>
+                                    <Grid x:Name="FrameSizeInputs"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="18"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox x:Name="FrameWidthBox" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" AutomationProperties.Name="Ширина буфера"/>
+                                        <TextBlock Grid.Column="1" Text="×" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        <TextBox x:Name="FrameHeightBox" Grid.Column="2" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" AutomationProperties.Name="Высота буфера"/>
+                                        <Button Grid.Column="3" Content="✓" Click="FrameSize_OnApply" Margin="4,0,0,0" ToolTip="Применить размер буфера"/>
+                                    </Grid>
+                                    <TextBlock x:Name="FrameSizeError" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                    <TextBlock Text="Буфер задаёт чёткость показа. Авто учитывает DPI; ручной размер сохраняет пропорции поля." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </GroupBox>
 
                     <GroupBox Margin="0,10,0,0" Header="Уравнение">
                         <StackPanel Margin="7">
@@ -26,9 +56,8 @@
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Margin="0,8,0,0" Header="Сетка и затравка">
+                    <GroupBox Margin="0,8,0,0" Header="Затравка и кисть">
                         <StackPanel Margin="7">
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Размер сетки"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="GridSizeBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                             <TextBlock Margin="0,5,0,3" Text="Начальное состояние"/>
                             <ComboBox x:Name="SeedModeBox" SelectionChanged="Parameter_OnChanged">
                                 <ComboBoxItem Content="Квадрат в центре"/><ComboBoxItem Content="Случайные пятна"/>
@@ -46,9 +75,9 @@
                             <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Шагов на кадр"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="StepsPerFrameBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                             <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Целевая частота"/><ComboBox x:Name="TargetFpsBox" Grid.Column="1" SelectionChanged="TargetFps_OnChanged"><ComboBoxItem Tag="30" Content="30 FPS"/><ComboBoxItem Tag="60" Content="60 FPS"/></ComboBox></Grid>
                             <TextBlock Margin="0,5,0,3" Text="Отображаемое поле"/>
-                            <ComboBox x:Name="FieldModeBox" SelectionChanged="Parameter_OnChanged"><ComboBoxItem Content="Концентрация V"/><ComboBoxItem Content="Концентрация U"/><ComboBoxItem Content="Разность U − V"/></ComboBox>
-                            <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Минимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMinimumBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
-                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Максимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMaximumBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
+                            <ComboBox x:Name="FieldModeBox" SelectionChanged="Appearance_OnChanged"><ComboBoxItem Content="Концентрация V"/><ComboBoxItem Content="Концентрация U"/><ComboBoxItem Content="Разность U − V"/></ComboBox>
+                            <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Минимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMinimumBox" Grid.Column="1" TextChanged="Appearance_OnChanged"/></Grid>
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Максимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMaximumBox" Grid.Column="1" TextChanged="Appearance_OnChanged"/></Grid>
                             <CheckBox x:Name="ReversePaletteBox" Margin="0,5,0,2" Content="Инвертировать палитру" Click="PaletteMapping_OnChanged"/>
                             <Grid Margin="0,5,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
                                 <Button Content="Палитры Gray–Scott…" Click="Palette_OnClick"/>
@@ -58,11 +87,7 @@
                     </GroupBox>
 
                     <TextBlock x:Name="PendingText" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Параметры изменены — примените их" Visibility="Collapsed"/>
-                    <Button Margin="0,6,0,0" Content="Применить и перезапустить" Click="Reset_OnClick"/>
-                    <UniformGrid Columns="2" Margin="0,3,0,0">
-                        <Button x:Name="RunButton" Margin="0,0,3,0" Content="Пауза" Click="RunPause_OnClick"/>
-                        <Button x:Name="StepButton" Margin="3,0,0,0" Content="Один кадр" Click="Step_OnClick"/>
-                    </UniformGrid>
+                    <Button x:Name="ResetButton" Margin="0,6,0,0" Content="Применить и перезапустить" Click="Reset_OnClick"/>
                     <Button Content="Новая случайная затравка" Click="Randomize_OnClick"/>
                     <Button Content="Менеджер сохранений" Click="Saves_OnClick"/>
                     <Button Content="Сохранить текущий кадр" Click="Export_OnClick"/>
@@ -77,7 +102,13 @@
                 BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7" theme:ThemeContract.IgnoreAudit="True"
                 MouseLeftButtonDown="CanvasHost_OnMouseLeftButtonDown" MouseMove="CanvasHost_OnMouseMove" MouseLeftButtonUp="CanvasHost_OnMouseLeftButtonUp">
             <Grid>
-                <Grid x:Name="SavePreviewLayer" ClipToBounds="True"><Image x:Name="FrameImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/></Grid>
+                <Grid x:Name="SavePreviewLayer" ClipToBounds="True"><Image x:Name="FrameImage" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"/></Grid>
+                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="58,12,12,12" Padding="3" CornerRadius="5" Background="#B0000000">
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="RunButton" Content="Пауза" MinWidth="90" Click="RunPause_OnClick" ToolTip="Остановить или продолжить развитие · Пробел"/>
+                        <Button x:Name="StepButton" Content="Один кадр" Click="Step_OnClick" ToolTip="Выполнить выбранное число шагов на паузе"/>
+                    </StackPanel>
+                </Border>
                 <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" Padding="10,6" CornerRadius="5" Background="#B0000000">
                     <TextBlock x:Name="FrameBadgeText" Foreground="White" Text="0 FPS · шаг 0"/>
                 </Border>

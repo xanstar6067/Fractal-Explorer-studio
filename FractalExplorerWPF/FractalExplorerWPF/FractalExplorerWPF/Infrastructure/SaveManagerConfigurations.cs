@@ -300,6 +300,7 @@ public static class SaveManagerConfigurations
         GetName = state => state.SaveName,
         GetTimestamp = state => state.Timestamp,
         GetDetails = state => $"{Prefix(state.Timestamp)} · сетка {state.GridSize}×{state.GridSize} · {state.StepsPerFrame} шагов/кадр\n" +
+                                    $"{(state.Backend == GrayScottBackend.Gpu ? "ГП" : "ЦП")} · {(state.Checkpoint is { } cp ? $"шаг {cp.StepCount:N0}" : "параметры начального поля")}\n" +
                                     $"F={state.Feed:G6} · K={state.Kill:G6} · Du={state.DiffusionU:G5} · Dv={state.DiffusionV:G5} · палитра: {state.Palette.Name}"
     };
 

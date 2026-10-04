@@ -27,6 +27,10 @@ public static class SaveFormat
         new("Сохранять прежний ЦП-движок узоров Тьюринга", (category, save) =>
         {
             if (category == "TuringPatterns" && !save.ContainsKey("Backend")) save["Backend"] = 0;
+        }),
+        new("Сохранять прежний ЦП-движок Gray–Scott", (category, save) =>
+        {
+            if (category == "GrayScott" && !save.ContainsKey("Backend")) save["Backend"] = 0;
         })
     ];
 

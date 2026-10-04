@@ -1,4 +1,6 @@
 using System.Windows.Media;
+using System.Text.Json.Serialization;
+using FractalExplorerWPF.Infrastructure.Serialization;
 using Color = System.Windows.Media.Color;
 using MediaColors = System.Windows.Media.Colors;
 
@@ -17,6 +19,37 @@ public enum GrayScottFieldMode
     V,
     U,
     Difference
+}
+
+public enum GrayScottBackend { Cpu, Gpu }
+
+public sealed record GrayScottSnapshot(int Size,
+    [property: JsonConverter(typeof(CompressedFloatArrayJsonConverter))] float[] U,
+    [property: JsonConverter(typeof(CompressedFloatArrayJsonConverter))] float[] V, long StepCount)
+{
+    public GrayScottSnapshot Copy() => new(Size, [.. U], [.. V], StepCount);
+
+    public GrayScottSnapshot Resize(int size)
+    {
+        if (size is < 32 or > GrayScottState.MaxGridSize) throw new ArgumentOutOfRangeException(nameof(size));
+        var u = new float[size * size]; var v = new float[u.Length];
+        for (int y = 0; y < size; y++) for (int x = 0; x < size; x++)
+        {
+            double sx = (x + .5) * Size / size - .5, sy = (y + .5) * Size / size - .5;
+            u[y * size + x] = Sample(U, Size, sx, sy); v[y * size + x] = Sample(V, Size, sx, sy);
+        }
+        return new(size, u, v, StepCount);
+    }
+
+    internal static float Sample(float[] field, int size, double x, double y)
+    {
+        int ix = (int)Math.Floor(x), iy = (int)Math.Floor(y);
+        double fx = x - ix, fy = y - iy;
+        int x0 = (ix % size + size) % size, y0 = (iy % size + size) % size;
+        int x1 = (x0 + 1) % size, y1 = (y0 + 1) % size;
+        return (float)((field[y0 * size + x0] * (1 - fx) + field[y0 * size + x1] * fx) * (1 - fy)
+            + (field[y1 * size + x0] * (1 - fx) + field[y1 * size + x1] * fx) * fy);
+    }
 }
 
 public sealed class GrayScottPalette
@@ -56,7 +89,13 @@ public sealed class GrayScottState
     public double Feed { get; set; } = 0.0545;
     public double Kill { get; set; } = 0.062;
     public double DeltaTime { get; set; } = 1;
-    public int GridSize { get; set; } = 256;
+    public const int MaxGridSize = 2048;
+    public int GridSize { get; set; } = 512;
+    public GrayScottBackend Backend { get; set; } = GrayScottBackend.Gpu;
+    public bool AutoFrameSize { get; set; } = true;
+    public int FrameWidth { get; set; } = 1024;
+    public int FrameHeight { get; set; } = 1024;
+    public GrayScottSnapshot? Checkpoint { get; set; }
     public int StepsPerFrame { get; set; } = 4;
     public int TargetFps { get; set; } = 30;
     public int RandomSeed { get; set; } = 1729;
@@ -70,7 +109,7 @@ public sealed class GrayScottState
     public bool ReversePalette { get; set; }
     public GrayScottPalette Palette { get; set; } = GrayScottPalettes.Coral.Clone();
 
-    public GrayScottState Clone(string? name = null) => new()
+    public GrayScottState Clone(string? name = null, bool includeCheckpoint = true) => new()
     {
         SaveName = name ?? SaveName,
         Timestamp = Timestamp,
@@ -81,6 +120,8 @@ public sealed class GrayScottState
         Kill = Kill,
         DeltaTime = DeltaTime,
         GridSize = GridSize,
+        Backend = Backend, AutoFrameSize = AutoFrameSize, FrameWidth = FrameWidth, FrameHeight = FrameHeight,
+        Checkpoint = includeCheckpoint ? Checkpoint?.Copy() : null,
         StepsPerFrame = StepsPerFrame,
         TargetFps = TargetFps,
         RandomSeed = RandomSeed,
@@ -94,6 +135,23 @@ public sealed class GrayScottState
         ReversePalette = ReversePalette,
         Palette = Palette.Clone()
     };
+
+    public void Validate()
+    {
+        static bool Range(double v, double min, double max) => double.IsFinite(v) && v >= min && v <= max;
+        if (GridSize is < 32 or > MaxGridSize || !Enum.IsDefined(Backend) || !Enum.IsDefined(SeedMode) || !Enum.IsDefined(FieldMode))
+            throw new ArgumentException("Размер сетки: 32–2048. Проверьте выбор движка и поля.");
+        if (!Range(DiffusionU, double.Epsilon, 1) || !Range(DiffusionV, double.Epsilon, 1) || !Range(Feed, 0, .2) || !Range(Kill, 0, .2) || !Range(DeltaTime, .05, 1.5))
+            throw new ArgumentException("Проверьте параметры уравнения Gray–Scott.");
+        if (StepsPerFrame is < 1 or > 64 || TargetFps is < 1 or > 120 || SeedCount is < 1 or > 500 || SeedRadius is < 1 or > 128 || BrushRadius is < 1 or > 128)
+            throw new ArgumentException("Проверьте скорость, число и радиусы затравок.");
+        if (!double.IsFinite(RangeMinimum) || !double.IsFinite(RangeMaximum) || RangeMaximum <= RangeMinimum || !double.IsFinite(RangeMaximum - RangeMinimum) || Palette is null || Palette.Colors is null || !Range(Palette.Gamma, .1, 5))
+            throw new ArgumentException("Проверьте диапазон цвета и палитру.");
+        if (FrameWidth is < 32 or > 8192 || FrameHeight is < 32 or > 8192 || (long)FrameWidth * FrameHeight > 16_777_216)
+            throw new ArgumentException("Буфер: 32–8192 пикселей по стороне, всего до 16 млн пикселей.");
+        if (Checkpoint is { } cp && (cp.Size != GridSize || cp.StepCount < 0 || cp.U is null || cp.V is null || cp.U.Length != GridSize * GridSize || cp.V.Length != cp.U.Length || cp.U.Any(v => !float.IsFinite(v) || v is < 0 or > 1) || cp.V.Any(v => !float.IsFinite(v) || v is < 0 or > 1)))
+            throw new ArgumentException("Сохранённое поле повреждено или не соответствует сетке.");
+    }
 }
 
 public static class GrayScottPalettes
