@@ -591,7 +591,7 @@ public partial class MainWindow : Window
         {
             await Task.Run(() => Fractal3DRenderer.RebuildShaderCache((completed, total, _) =>
                 progress.Report((completed, total))));
-            ShaderCacheStatus.Text = "Готово: кэш всех 3D-шейдеров обновлён.";
+            ShaderCacheStatus.Text = "Готово: кэш всех GPU-шейдеров обновлён.";
         }
         catch (Exception exception)
         {

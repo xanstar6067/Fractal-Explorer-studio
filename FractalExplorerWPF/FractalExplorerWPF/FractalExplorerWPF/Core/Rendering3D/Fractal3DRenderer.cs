@@ -519,6 +519,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(FlamePixelShaderEntry());
         entries.Add(BuddhabrotPixelShaderEntry());
         entries.Add(DlaPixelShaderEntry());
+        entries.AddRange(TuringComputeShader.CacheEntries);
         ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
     }
 
@@ -531,7 +532,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         catch (Exception exception)
         {
             throw new InvalidOperationException(
-                $"Не удалось скомпилировать шейдер трёхмерного фрактала: {exception.Message}", exception);
+                $"Не удалось скомпилировать GPU-шейдер: {exception.Message}", exception);
         }
     }
 

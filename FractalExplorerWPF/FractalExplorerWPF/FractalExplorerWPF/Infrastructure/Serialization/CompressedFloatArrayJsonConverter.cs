@@ -9,7 +9,7 @@ namespace FractalExplorerWPF.Infrastructure.Serialization;
 /// <summary>Lossless, bounded checkpoint storage; preserves float bits and prevents decompression bombs.</summary>
 public sealed class CompressedFloatArrayJsonConverter : JsonConverter<float[]>
 {
-    private const int MaxValues = 768 * 768;
+    private const int MaxValues = Models.TuringState.MaxGridSize * Models.TuringState.MaxGridSize;
     public override float[] Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.String) throw new JsonException("Ожидалось сжатое поле.");

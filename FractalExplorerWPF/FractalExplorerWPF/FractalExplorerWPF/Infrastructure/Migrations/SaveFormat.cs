@@ -22,7 +22,13 @@ public static class SaveFormat
     public const string VersionProperty = "SaveFormatVersion";
 
     /// <summary>Апгрейд с индексом i переводит формат из версии i + 1 в i + 2.</summary>
-    private static readonly IReadOnlyList<SaveFormatUpgrade> BuiltInUpgrades = [];
+    private static readonly IReadOnlyList<SaveFormatUpgrade> BuiltInUpgrades =
+    [
+        new("Сохранять прежний ЦП-движок узоров Тьюринга", (category, save) =>
+        {
+            if (category == "TuringPatterns" && !save.ContainsKey("Backend")) save["Backend"] = 0;
+        })
+    ];
 
     /// <summary>Шов для проверок: подменяет список апгрейдов.</summary>
     internal static IReadOnlyList<SaveFormatUpgrade>? UpgradesOverrideForTests { get; set; }

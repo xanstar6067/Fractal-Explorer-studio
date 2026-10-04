@@ -28,7 +28,7 @@ internal static partial class Program
         var frames = new List<byte[]>();
         foreach (TuringPreset preset in TuringPresets.All)
         {
-            TuringState state = preset.CreateState(); var simulation = new TuringSimulation(state);
+            TuringState state = preset.CreateState(); state.GridSize = 256; state.Backend = TuringBackend.Cpu; var simulation = new TuringSimulation(state);
             var watch = System.Diagnostics.Stopwatch.StartNew();
             simulation.Advance(state.WarmupSteps, state, CancellationToken.None);
             state.Checkpoint = simulation.Snapshot();
@@ -182,7 +182,7 @@ internal static partial class Program
             await WaitFor(() => !Field<bool>("_resetting") && Field<TuringState>("_state").GridSize == 512);
             Check(window.CaptureState("quality").Checkpoint!.StepCount == grown.Checkpoint.StepCount + 8, "Rapid quality edits must preserve all completed time and choose the latest size.");
             await Reset(grown);
-            Check(((TextBlock)window.FindName("StatusText")).Text.StartsWith("256 × 256"), "Status must immediately show the restored field size.");
+            Check(((TextBlock)window.FindName("StatusText")).Text.Contains("поле 256 × 256"), "Status must immediately show the restored field size.");
             inFlight = (Task)Invoke("ProduceFrameAsync", 8)!;
             ((ComboBox)window.FindName("QualityBox")).SelectedIndex = 2;
             ((ComboBox)window.FindName("QualityBox")).SelectedIndex = 1;

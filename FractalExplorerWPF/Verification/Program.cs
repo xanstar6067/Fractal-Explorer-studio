@@ -76,6 +76,7 @@ internal static partial class Program
                 if (group is "all" or "hopalong") await VerifyHopalongAsync(args);
                 if (group is "all" or "snow-crystal") await VerifySnowCrystalAsync(args);
                 if (group is "all" or "turing") await VerifyTuringAsync(args);
+                if (group is "all" or "turing-gpu") await VerifyTuringGpuAsync(args);
                 if (group is "all" or "terrain") await VerifyTerrainAsync();
                 if (group == "picker-marker")
                 {
@@ -109,9 +110,9 @@ internal static partial class Program
                     if (args.Length != 4) throw new ArgumentException("poi-probe <группа> <кандидаты.json> <папка PNG>");
                     await ProbePointsOfInterestAsync(args[1], args[2], args[3]);
                 }
-                if (group is not ("buddhabrot4d" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "all" or "terrain" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("buddhabrot4d" or "turing-gpu" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "all" or "terrain" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
                     throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: hopalong, all, manager, deep, extreme, phoenix, newton, basins, planar, fractal3d, ifs-diagnostic, poi, poi-probe, catalog.");
-                if (group is not ("buddhabrot4d" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "terrain" or "cloud" or "cloud-live" or "numeric" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("buddhabrot4d" or "turing-gpu" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "terrain" or "cloud" or "cloud-live" or "numeric" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)
@@ -128,6 +129,10 @@ internal static partial class Program
     private static async Task VerifyManagerAsync()
     {
         using var sandbox = DataSandbox.Create("manager");
+        var styles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
+        if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == styles))
+            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = styles });
+        FractalExplorerWPF.Theming.ThemeManager.Initialize(Application.Current);
         var store = new FractalSaveStore<State>("Verification", state => state.Name);
         store.Save(new State("A", new DateTime(2026, 1, 2)));
         store.Save(new State("B", new DateTime(2026, 1, 1)));
@@ -172,10 +177,10 @@ internal static partial class Program
         Click(view, "RenderPreviewButton");
         PendingRender oldJob = jobs[^1];
         oldJob.Progress.Report(60); await DrainAsync();
-        var progressBar = (ProgressBar)view.FindName("PreviewProgress");
-        Check(!progressBar.IsIndeterminate && progressBar.Value == 60, "Renderer progress must reach the UI.");
+        var progressText = (TextBlock)view.FindName("RenderButtonText");
+        Check(progressText.Text.StartsWith("60%"), "Renderer progress must reach the button.");
         oldJob.Progress.Report(30); await DrainAsync();
-        Check(progressBar.Value == 60, "Out-of-order progress must not go backwards.");
+        Check(progressText.Text.StartsWith("60%"), "Out-of-order progress must not go backwards.");
         Select(view, "B");
         Check(oldJob.Token.IsCancellationRequested && jobs.Count == 1, "Switching cancels without starting another render.");
         Click(view, "RenderPreviewButton");
@@ -183,7 +188,7 @@ internal static partial class Program
         oldJob.Progress.Report(95);
         oldJob.Completion.SetResult(Pixel(99));
         await DrainAsync();
-        Check(Image(view) is null && progressBar.IsIndeterminate, "Stale image and progress must be discarded.");
+        Check(Image(view) is null && progressText.Text.StartsWith("Вычисление"), "Stale image and progress must be discarded.");
         Check(File.ReadAllBytes(snapshotPath).SequenceEqual(originalPng), "Stale render must not rewrite the original PNG.");
         newJob.Completion.SetResult(Pixel(42)); await DrainAsync();
         Check(ReadPixel(Image(view)!) == 42 && File.Exists(SavePreviewPath(store, "B")), "Manual render must update its own entry.");
@@ -191,7 +196,7 @@ internal static partial class Program
         byte[] beforeCancel = File.ReadAllBytes(SavePreviewPath(store, "B"));
         Click(view, "RenderPreviewButton");
         PendingRender cancelled = jobs[^1];
-        Click(view, "CancelPreviewButton");
+        Click(view, "RenderPreviewButton");
         Check(cancelled.Token.IsCancellationRequested, "Cancel button must signal cancellation.");
         cancelled.Completion.SetResult(Pixel(70)); await DrainAsync();
         Check(ReadPixel(Image(view)!) == 42, "Cancelled render must preserve the image.");
@@ -231,7 +236,7 @@ internal static partial class Program
         var points = (CheckBox)view.FindName("PointsOfInterestCheckBox");
         points.IsChecked = true;
         Check(jobs.Count == beforeSelection + 1, "Selecting an uncached preset must render automatically.");
-        Check(!((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Automatic rendering must prevent a duplicate render.");
+        Check(((Button)view.FindName("RenderPreviewButton")).IsEnabled && progressText.Text.Contains("отмены"), "Automatic rendering must expose cancellation through the render button.");
         jobs[^1].Completion.SetResult(Pixel(55)); await DrainAsync();
         Check(((Button)view.FindName("RenderPreviewButton")).IsEnabled, "Presets must support manual rerendering.");
         points.IsChecked = false; points.IsChecked = true;

@@ -17,10 +17,10 @@ namespace FractalExplorerWPF.Views;
 
 public partial class TuringWindow : Window
 {
-    private const int FrameSize = 640;
     private static readonly TuringPreset CustomPreset = new("custom", "Свой узор", "Ваш вариант. Меняйте форму на текущем поле или выберите готовый вид для нового старта.", 1, 5, 1, false, 1729);
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer _shapeTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
+    private readonly DispatcherTimer _sizeTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private readonly TuringSaveStore _saveStore = new();
     private readonly DynamicPaletteStore _paletteStore = new("turing_palettes.json", TuringPalettes.All());
     private List<DynamicPalette> _palettes;
@@ -29,7 +29,8 @@ public partial class TuringWindow : Window
     private TuringState _state = new();
     private TuringState? _undo;
     private TuringCheckpoint? _presented;
-    private TuringSimulation? _simulation;
+    private ITuringEngine? _simulation;
+    private string? _backendNotice;
     private WriteableBitmap? _bitmap;
     private CancellationTokenSource? _cts;
     private Task _workerIdle = Task.CompletedTask, _resetIdle = Task.CompletedTask;
@@ -52,7 +53,9 @@ public partial class TuringWindow : Window
         PresetBox.ItemsSource = TuringPresets.All.Append(CustomPreset).ToList();
         _timer.Tick += async (_, _) => { if (_running) await ProduceFrameAsync(_state.StepsPerFrame); };
         _shapeTimer.Tick += (_, _) => { _shapeTimer.Stop(); ApplyShape(); };
-        CanvasHost.SizeChanged += (_, _) => UpdateView();
+        _sizeTimer.Tick += (_, _) => { _sizeTimer.Stop(); UpdateFrameHint(); RequestRepaint(); };
+        CanvasHost.SizeChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
+        DpiChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
         ApplyState(TuringPresets.All[0].CreateState());
         Loaded += async (_, _) => { if (_simulation is null && !_resetting) await ResetAsync(_state, true); };
     }
@@ -76,6 +79,10 @@ public partial class TuringWindow : Window
         DetailSlider.Value = state.DetailSize; DepthSlider.Value = Math.Clamp(state.Layers.Count(l => l.Enabled), 1, 6);
         SpeedSlider.Value = state.StepsPerFrame;
         SelectTag(QualityBox, state.GridSize); SelectTag(SymmetryBox, state.Symmetry);
+        BackendBox.SelectedIndex = state.Backend == TuringBackend.Gpu ? 0 : 1;
+        GridSizeBox.Text = state.GridSize.ToString(CultureInfo.InvariantCulture); GridSizeError.Text = string.Empty;
+        AutoFrameBox.IsChecked = state.AutoFrameSize; FrameWidthBox.Text = state.FrameWidth.ToString(CultureInfo.InvariantCulture);
+        FrameHeightBox.Text = state.FrameHeight.ToString(CultureInfo.InvariantCulture); FrameSizeError.Text = string.Empty;
         MirrorBox.IsChecked = state.Mirror; BoundaryBox.SelectedIndex = (int)state.Boundary;
         ColoringBox.SelectedIndex = (int)state.Coloring; ContrastSlider.Value = state.Contrast; ReliefSlider.Value = state.Relief;
         ReverseBox.IsChecked = state.ReversePalette;
@@ -90,8 +97,9 @@ public partial class TuringWindow : Window
         PaletteBox.SelectedItem = selected;
         PresetBox.SelectedItem = TuringPresets.All.FirstOrDefault(p => p.Id == state.PresetId) ?? CustomPreset;
         PresetDescription.Text = (PresetBox.SelectedItem as TuringPreset)?.Description ?? "Ваш узор. Изменяйте форму на текущем поле или выберите готовый вид для нового старта.";
-        _syncing = false;
         UpdateAppearanceControls(); UpdatePalettePreview(); UpdateView(); UpdateLegend();
+        UpdateFrameHint();
+        _syncing = false;
     }
 
     private async Task ResetAsync(TuringState state, bool run)
@@ -102,7 +110,7 @@ public partial class TuringWindow : Window
         _qualityVersion++; _qualityPending = false;
         _shapeTimer.Stop(); _shapePending = false; SetRunning(false); _resetting = true;
         var priorCts = _cts; priorCts?.Cancel();
-        Retire(priorCts, _workerIdle, _resetIdle);
+        Retire(priorCts, _workerIdle, _resetIdle, _simulation); _simulation = null;
         var cts = new CancellationTokenSource(); _cts = cts; CancellationToken token = cts.Token;
         var idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); _resetIdle = idle.Task;
         _strokes.Clear(); _stopPreparation = false; EndPointerInteraction();
@@ -111,25 +119,31 @@ public partial class TuringWindow : Window
         ControlsHost.IsEnabled = NewButton.IsEnabled = SavesButton.IsEnabled = ExportButton.IsEnabled = UndoButton.IsEnabled = false;
         UpdateRunState();
         var progress = new Progress<int>(value => { if (!_closed && generation == _generation) PreparationProgress.Value = value; });
+        var frame = ResolveFrameSize(state); double aspect = DisplayAspect;
+        int appearanceVersion = _appearanceVersion;
         try
         {
             var result = await Task.Run(() =>
             {
-                var simulation = new TuringSimulation(state);
-                if (state.Checkpoint is null)
-                    for (int i = 0; i < state.WarmupSteps && !_stopPreparation; i++)
-                    {
-                        simulation.Advance(1, state, token);
-                        if (i % 8 == 0) ((IProgress<int>)progress).Report(i * 90 / Math.Max(1, state.WarmupSteps));
-                    }
-                var cp = simulation.Snapshot(); var appearance = state.Clone(includeCheckpoint: false);
-                appearance.Zoom = 1; appearance.PanX = appearance.PanY = 0;
-                return (Simulation: simulation, Checkpoint: cp, Pixels: TuringRenderer.RenderFrame(cp, appearance, FrameSize, FrameSize, token));
+                ITuringEngine simulation = TuringEngineFactory.Create(state, out string? fallback);
+                try
+                {
+                    if (state.Checkpoint is null)
+                        for (int i = 0; i < state.WarmupSteps && !_stopPreparation; i++)
+                        {
+                            simulation.Advance(1, state, token);
+                            if (i % 8 == 0) ((IProgress<int>)progress).Report(i * 90 / Math.Max(1, state.WarmupSteps));
+                        }
+                    var cp = simulation.Snapshot();
+                    return (Simulation: simulation, Checkpoint: cp, Pixels: simulation.RenderFrame(state, frame.Width, frame.Height, token, aspect), Fallback: fallback);
+                }
+                catch { simulation.Dispose(); throw; }
             }, token);
-            if (_closed || generation != _generation || token.IsCancellationRequested) return;
-            _simulation = result.Simulation; _presented = result.Checkpoint; ApplyState(state);
-            _bitmap = new WriteableBitmap(FrameSize, FrameSize, 96, 96, PixelFormats.Bgra32, null); FrameImage.Source = _bitmap;
-            Present(result.Pixels); _resetting = false; SetRunning(run && !_stopPreparation);
+            if (_closed || generation != _generation || token.IsCancellationRequested) { result.Simulation.Dispose(); return; }
+            _simulation = result.Simulation; _presented = result.Checkpoint; state.Backend = _simulation.Backend;
+            _backendNotice = result.Fallback; ApplyState(state);
+            BackendHint.Text = _backendNotice ?? (_simulation.Backend == TuringBackend.Gpu ? _simulation.DeviceName : "Расчёт на процессоре. ГП можно включить на этом же поле.");
+            Present(result.Pixels, frame.Width, frame.Height); _resetting = false; SetRunning(run && !_stopPreparation);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -143,14 +157,14 @@ public partial class TuringWindow : Window
                 ControlsHost.IsEnabled = NewButton.IsEnabled = true;
                 SavesButton.IsEnabled = ExportButton.IsEnabled = _presented is not null;
                 UpdateRunState(); UndoButton.IsEnabled = _undo is not null;
+                if (appearanceVersion != _appearanceVersion) RequestRepaint();
             }
         }
     }
 
-    private static async void Retire(CancellationTokenSource? cts, Task worker, Task reset)
+    private static async void Retire(CancellationTokenSource? cts, Task worker, Task reset, ITuringEngine? engine = null)
     {
-        if (cts is null) return;
-        try { await Task.WhenAll(worker, reset); } finally { cts.Dispose(); }
+        try { await Task.WhenAll(worker, reset); } finally { engine?.Dispose(); cts?.Dispose(); }
     }
 
     private async Task ProduceFrameAsync(int steps)
@@ -159,9 +173,10 @@ public partial class TuringWindow : Window
         _busy = true; UpdateRunState();
         var idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); _workerIdle = idle.Task;
         int generation = _generation, appearanceVersion = _appearanceVersion;
-        TuringSimulation simulation = _simulation; TuringState state = _state.Clone(includeCheckpoint: false);
-        state.Zoom = 1; state.PanX = state.PanY = 0;
+        ITuringEngine simulation = _simulation; TuringState state = _state.Clone(includeCheckpoint: false);
+        var frame = ResolveFrameSize(state); double aspect = DisplayAspect;
         CancellationToken token = _cts.Token; StrokePoint[] strokes = _strokes.ToArray(); _strokes.Clear();
+        TuringState? recovery = null; string? gpuFailure = null;
         try
         {
             var result = await Task.Run(() =>
@@ -169,28 +184,46 @@ public partial class TuringWindow : Window
                 foreach (var stroke in strokes) simulation.Paint(stroke.X, stroke.Y, stroke.Radius, stroke.Strength, stroke.Brush, state);
                 simulation.Advance(steps, state, token);
                 var cp = simulation.Snapshot();
-                return (Checkpoint: cp, Pixels: TuringRenderer.RenderFrame(cp, state, FrameSize, FrameSize, token));
+                return (Checkpoint: cp, Pixels: simulation.RenderFrame(state, frame.Width, frame.Height, token, aspect));
             }, token);
             if (_closed || generation != _generation || token.IsCancellationRequested) return;
-            _presented = result.Checkpoint; Present(result.Pixels);
+            _presented = result.Checkpoint; Present(result.Pixels, frame.Width, frame.Height);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
-        { if (!_closed && generation == _generation) { SetRunning(false); StatusText.Text = ex.Message; } }
+        {
+            if (!_closed && generation == _generation)
+            {
+                SetRunning(false); StatusText.Text = ex.Message;
+                if (simulation.Backend == TuringBackend.Gpu && _presented is not null)
+                {
+                    recovery = _state.Clone(includeCheckpoint: false); recovery.Backend = TuringBackend.Cpu; recovery.Checkpoint = _presented.Clone();
+                    gpuFailure = $"ГП остановлен. Последний показанный узор восстановлен на ЦП: {ex.Message}";
+                }
+            }
+        }
         finally
         {
             _busy = false; idle.TrySetResult();
             if (!_closed)
             {
                 UpdateRunState();
-                if (generation == _generation && !_running && (appearanceVersion != _appearanceVersion || _strokes.Count > 0)) _ = ProduceFrameAsync(0);
+                if (recovery is null && generation == _generation && !_running && (appearanceVersion != _appearanceVersion || _strokes.Count > 0)) _ = ProduceFrameAsync(0);
             }
+        }
+        if (recovery is not null && !_closed && generation == _generation)
+        {
+            await ResetAsync(recovery, false); BackendHint.Text = gpuFailure;
         }
     }
 
-    private void Present(byte[] pixels)
+    private void Present(byte[] pixels, int width, int height)
     {
-        _bitmap?.WritePixels(new Int32Rect(0, 0, FrameSize, FrameSize), pixels, FrameSize * 4, 0);
+        if (_bitmap is null || _bitmap.PixelWidth != width || _bitmap.PixelHeight != height)
+        {
+            _bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null); FrameImage.Source = _bitmap;
+        }
+        _bitmap.WritePixels(new Int32Rect(0, 0, width, height), pixels, width * 4, 0);
         _frameCount++;
         if (_fpsWatch.Elapsed.TotalSeconds >= 1)
         {
@@ -204,7 +237,7 @@ public partial class TuringWindow : Window
     private void UpdateStatus()
     {
         if (_presented is null) return;
-        StatusText.Text = $"{_presented.Size} × {_presented.Size} · {ScaleCountText(_state.Layers.Count(l => l.Enabled))}" +
+        StatusText.Text = $"{(_simulation?.Backend == TuringBackend.Gpu ? "ГП" : "ЦП")} · поле {_presented.Size} × {_presented.Size} · буфер {_bitmap?.PixelWidth} × {_bitmap?.PixelHeight}" +
             (_running ? (_measuredFps > 0 ? $" · {_measuredFps:F1} кадров/с" : " · развитие") : " · поле на паузе");
     }
 
@@ -219,8 +252,8 @@ public partial class TuringWindow : Window
     private void UpdateRunState()
     {
         RunButton.Content = _running ? "Пауза" : "Продолжить";
-        RunButton.IsEnabled = !_resetting && _simulation is not null;
-        StepButton.IsEnabled = !_resetting && !_busy && !_running && _simulation is not null;
+        RunButton.IsEnabled = !_resetting && !_qualityPending && _simulation is not null;
+        StepButton.IsEnabled = !_resetting && !_qualityPending && !_busy && !_running && _simulation is not null;
         RestartButton.IsEnabled = !_resetting;
     }
     private void Run_OnClick(object sender, RoutedEventArgs e) { FlushShape(); SetRunning(!_running); }
@@ -252,6 +285,7 @@ public partial class TuringWindow : Window
         if (_syncing || _resetting || PresetBox.SelectedItem is not TuringPreset preset || preset == CustomPreset) return;
         Remember(); TuringState state = preset.CreateState();
         state.GridSize = _state.GridSize; state.StepsPerFrame = _state.StepsPerFrame;
+        state.Backend = _state.Backend; state.AutoFrameSize = _state.AutoFrameSize; state.FrameWidth = _state.FrameWidth; state.FrameHeight = _state.FrameHeight;
         state.Palette = _state.Palette.Clone(); state.Coloring = _state.Coloring;
         state.Contrast = _state.Contrast; state.Relief = _state.Relief; state.ReversePalette = _state.ReversePalette;
         await ResetAsync(state, true);
@@ -300,15 +334,73 @@ public partial class TuringWindow : Window
     private async void Quality_OnChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_syncing || _resetting || _presented is null) return;
-        int size = TagInt(QualityBox, 256); if (size == _state.GridSize && !_qualityPending) return;
+        await ChangeGridSizeAsync(TagInt(QualityBox, _state.GridSize));
+    }
+    private async Task ChangeGridSizeAsync(int size)
+    {
+        await ChangeExecutionAsync(size, BackendBox.SelectedIndex == 0 ? TuringBackend.Gpu : TuringBackend.Cpu);
+    }
+    private async Task ChangeExecutionAsync(int size, TuringBackend backend)
+    {
+        if (size == _state.GridSize && backend == _state.Backend && !_qualityPending) return;
         if (!_qualityPending) { _qualityPending = true; _qualityResume = _running; }
         int qualityVersion = ++_qualityVersion; SetRunning(false); await WaitForFrameIdleAsync();
         if (_closed || _resetting || qualityVersion != _qualityVersion) return;
         bool run = _qualityResume; _qualityPending = false;
         FlushShape(); Remember();
-        var state = CaptureState("resized"); state.GridSize = size;
-        state.Checkpoint = TuringSimulation.Resize(state.Checkpoint!, size);
+        var state = CaptureState("resized"); state.GridSize = size; state.Backend = backend;
+        if (state.Checkpoint!.Size != size) state.Checkpoint = TuringSimulation.Resize(state.Checkpoint, size);
         await ResetAsync(state, run);
+    }
+    private async void Backend_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncing || _resetting || _presented is null) return;
+        await ChangeExecutionAsync(TagInt(QualityBox, _state.GridSize), BackendBox.SelectedIndex == 0 ? TuringBackend.Gpu : TuringBackend.Cpu);
+    }
+    private async void GridSize_OnApply(object sender, RoutedEventArgs e)
+    {
+        if (_resetting || _presented is null) return;
+        if (!int.TryParse(GridSizeBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int size) || size is < 32 or > TuringState.MaxGridSize)
+        { GridSizeError.Text = "Введите целое число от 32 до 2048."; GridSizeBox.Focus(); return; }
+        GridSizeError.Text = string.Empty;
+        _syncing = true; SelectTag(QualityBox, size); _syncing = false;
+        await ChangeGridSizeAsync(size);
+    }
+    private void FrameSize_OnApply(object sender, RoutedEventArgs e)
+    {
+        if (_syncing || _resetting) return;
+        bool automatic = AutoFrameBox.IsChecked == true;
+        if (!automatic)
+        {
+            if (!int.TryParse(FrameWidthBox.Text, out int width) || !int.TryParse(FrameHeightBox.Text, out int height) ||
+                width is < 32 or > 8192 || height is < 32 or > 8192 || (long)width * height > 16_777_216)
+            { FrameSizeInputs.IsEnabled = true; FrameSizeError.Text = "Введите 32–8192 пикселей по стороне; не более 16 млн пикселей."; return; }
+            _state.FrameWidth = width; _state.FrameHeight = height;
+        }
+        if (automatic)
+        {
+            FrameWidthBox.Text = _state.FrameWidth.ToString(CultureInfo.InvariantCulture); FrameHeightBox.Text = _state.FrameHeight.ToString(CultureInfo.InvariantCulture);
+        }
+        _state.AutoFrameSize = automatic; FrameSizeError.Text = string.Empty; UpdateFrameHint(); RequestRepaint();
+    }
+    private double DisplayAspect => CanvasHost.ActualWidth > 0 && CanvasHost.ActualHeight > 0 ? CanvasHost.ActualWidth / CanvasHost.ActualHeight : 1;
+    private (int Width, int Height) ResolveFrameSize(TuringState state)
+    {
+        if (!state.AutoFrameSize) return (state.FrameWidth, state.FrameHeight);
+        DpiScale dpi = VisualTreeHelper.GetDpi(CanvasHost);
+        int width = Math.Clamp((int)Math.Ceiling(CanvasHost.ActualWidth > 0 ? CanvasHost.ActualWidth * dpi.DpiScaleX : state.FrameWidth), 32, 8192);
+        int height = Math.Clamp((int)Math.Ceiling(CanvasHost.ActualHeight > 0 ? CanvasHost.ActualHeight * dpi.DpiScaleY : state.FrameHeight), 32, 8192);
+        if ((long)width * height > 16_777_216)
+        {
+            double factor = Math.Sqrt(16_777_216d / ((long)width * height));
+            width = (int)Math.Floor(width * factor); height = (int)Math.Floor(height * factor);
+        }
+        return (width, height);
+    }
+    private void UpdateFrameHint()
+    {
+        var frame = ResolveFrameSize(_state); FrameSizeInputs.IsEnabled = !_state.AutoFrameSize;
+        FrameSizeHint.Text = _state.AutoFrameSize ? $"Авто: {frame.Width} × {frame.Height} пикселей, с учётом DPI." : $"Вручную: {frame.Width} × {frame.Height} пикселей. Пропорции узора сохраняются.";
     }
     private void Layers_OnEdited(object sender, RoutedEventArgs e)
     { if (!_syncing && (sender is not TextBox box || box.IsLoaded)) { ApplyLayersButton.IsEnabled = true; LayersError.Text = "Есть неприменённые правки масштабов."; } }
@@ -481,11 +573,8 @@ public partial class TuringWindow : Window
     private void UpdateView()
     {
         if (FrameImage is null) return;
-        double side = Math.Min(CanvasHost.ActualWidth, CanvasHost.ActualHeight);
-        var transforms = new TransformGroup(); transforms.Children.Add(new ScaleTransform(_state.Zoom, _state.Zoom));
-        transforms.Children.Add(new TranslateTransform(-_state.PanX * side * _state.Zoom, -_state.PanY * side * _state.Zoom));
-        FrameImage.RenderTransformOrigin = new Point(.5, .5); FrameImage.RenderTransform = transforms;
         ViewText.Text = $"Масштаб {_state.Zoom:P0}";
+        if (!_syncing) RequestRepaint();
     }
 
     private async void Saves_OnClick(object sender, RoutedEventArgs e)
@@ -525,13 +614,13 @@ public partial class TuringWindow : Window
     }
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        _closed = true; _generation++; _timer.Stop(); _shapeTimer.Stop(); _cts?.Cancel(); Retire(_cts, _workerIdle, _resetIdle); _cts = null;
+        _closed = true; _generation++; _timer.Stop(); _shapeTimer.Stop(); _sizeTimer.Stop(); _cts?.Cancel(); Retire(_cts, _workerIdle, _resetIdle, _simulation); _cts = null; _simulation = null;
     }
     private static int TagInt(ComboBox box, int fallback) => box.SelectedItem is ComboBoxItem { Tag: string text } && int.TryParse(text, out int value) ? value : fallback;
     private static void SelectTag(ComboBox box, int value)
     {
         ComboBoxItem? item = box.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag?.ToString() == value.ToString(CultureInfo.InvariantCulture));
-        if (item is null) { item = new ComboBoxItem { Tag = value.ToString(CultureInfo.InvariantCulture), Content = value == 1 ? "Без симметрии" : $"{value}" }; box.Items.Add(item); }
+        if (item is null) { item = new ComboBoxItem { Tag = value.ToString(CultureInfo.InvariantCulture), Content = box.Name == "QualityBox" ? $"Свой размер · {value} × {value}" : value == 1 ? "Без симметрии" : $"{value}" }; box.Items.Add(item); }
         box.SelectedItem = item;
     }
 }

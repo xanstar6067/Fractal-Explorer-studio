@@ -47,10 +47,11 @@ internal static partial class Program
 
         Fractal3DRenderer.RebuildShaderCache();
         Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length ==
-              Enum.GetValues<Fractal3DKind>().Length &&
+              Enum.GetValues<Fractal3DKind>().Length + TuringComputeShader.EntryPoints.Length &&
               File.Exists(AppPaths.GetShaderCacheFile("ifs3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("flame3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("buddhabrot4d-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("turing-Render")) &&
               File.Exists(AppPaths.GetShaderCacheFile("dla3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-LSystem3D-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Vicsek-pixel")) &&

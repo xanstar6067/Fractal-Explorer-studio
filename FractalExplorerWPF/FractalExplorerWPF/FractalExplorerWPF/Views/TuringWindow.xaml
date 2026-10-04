@@ -53,12 +53,36 @@
                                     <TextBlock Text="Развитие" FontWeight="SemiBold" Margin="0,15,0,4"/>
                                     <DockPanel><TextBlock Text="Скорость просмотра"/><TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" Text="{Binding Value, ElementName=SpeedSlider, StringFormat={}×{0:F0}}"/></DockPanel>
                                     <Slider x:Name="SpeedSlider" Minimum="1" Maximum="8" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Speed_OnChanged" AutomationProperties.Name="Скорость просмотра" ToolTip="Ускоряет наблюдение. Правило формирования узора не меняется."/>
-                                    <TextBlock Text="Качество поля" Margin="0,7,0,3"/>
+                                    <TextBlock Text="Вычисления" Margin="0,7,0,3"/>
+                                    <ComboBox x:Name="BackendBox" SelectionChanged="Backend_OnChanged" AutomationProperties.Name="Движок симуляции">
+                                        <ComboBoxItem Content="ГП — рекомендуется"/><ComboBoxItem Content="ЦП — совместимый вариант"/>
+                                    </ComboBox>
+                                    <TextBlock x:Name="BackendHint" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,8"/>
+                                    <TextBlock Text="Сетка симуляции" Margin="0,7,0,3"/>
                                     <ComboBox x:Name="QualityBox" SelectionChanged="Quality_OnChanged" AutomationProperties.Name="Качество поля">
                                         <ComboBoxItem Tag="128" Content="Быстро · 128 × 128"/><ComboBoxItem Tag="256" Content="Баланс · 256 × 256"/>
-                                        <ComboBoxItem Tag="384" Content="Детально · 384 × 384"/><ComboBoxItem Tag="512" Content="Высокое · 512 × 512"/><ComboBoxItem Tag="768" Content="Максимум · 768 × 768"/>
+                                        <ComboBoxItem Tag="384" Content="Детально · 384 × 384"/><ComboBoxItem Tag="512" Content="Высокое · 512 × 512"/><ComboBoxItem Tag="768" Content="Очень высокое · 768 × 768"/>
                                     </ComboBox>
+                                    <DockPanel Margin="0,5,0,0">
+                                        <Button DockPanel.Dock="Right" Content="Применить" Click="GridSize_OnApply" ToolTip="Перенести текущий узор на новую сетку"/>
+                                        <TextBox x:Name="GridSizeBox" Margin="0,0,5,0" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" AutomationProperties.Name="Размер сетки" ToolTip="Своя сетка: от 32 до 2048 ячеек по стороне"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="GridSizeError" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                                     <TextBlock Text="Больше ячеек — тоньше линии, медленнее развитие. При смене качества текущий рисунок переносится на новую сетку." FontSize="11" TextWrapping="Wrap" Margin="0,5,0,8" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                    <Expander Header="Буфер изображения" IsExpanded="True" Margin="0,7,0,7">
+                                        <StackPanel Margin="0,7,0,0">
+                                            <CheckBox x:Name="AutoFrameBox" Content="Автоматически — по области показа" Click="FrameSize_OnApply"/>
+                                            <TextBlock x:Name="FrameSizeHint" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,5" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                            <Grid x:Name="FrameSizeInputs"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBox x:Name="FrameWidthBox" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" AutomationProperties.Name="Ширина буфера"/>
+                                                <TextBlock Grid.Column="1" Text="×" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                <TextBox x:Name="FrameHeightBox" Grid.Column="2" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" AutomationProperties.Name="Высота буфера"/>
+                                                <Button Grid.Column="3" Content="✓" Click="FrameSize_OnApply" Margin="4,0,0,0" ToolTip="Применить размер буфера"/>
+                                            </Grid>
+                                            <TextBlock x:Name="FrameSizeError" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                            <TextBlock Text="Буфер определяет чёткость показа. Детали узора задаёт сетка симуляции. Колесо приближает поле с повторной отрисовкой." TextWrapping="Wrap" FontSize="11" Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                        </StackPanel>
+                                    </Expander>
                                     <Expander x:Name="LayersExpander" Header="Настроить отдельные масштабы" Margin="0,6,0,0">
                                         <StackPanel Margin="0,8,0,0">
                                             <TextBlock Text="Радиус задаёт размер окружения, отклик — силу изменения. Правки вступят в силу после применения." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
@@ -126,7 +150,7 @@
                     BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" theme:ThemeContract.IgnoreAudit="True"
                     MouseDown="Canvas_OnMouseDown" MouseMove="Canvas_OnMouseMove" MouseUp="Canvas_OnMouseUp" MouseWheel="Canvas_OnMouseWheel" MouseLeave="Canvas_OnMouseLeave" LostMouseCapture="Canvas_OnLostCapture">
                 <Grid>
-                    <Grid x:Name="SavePreviewLayer" ClipToBounds="True"><Image x:Name="FrameImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/></Grid>
+                    <Grid x:Name="SavePreviewLayer" ClipToBounds="True"><Image x:Name="FrameImage" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"/></Grid>
                     <Canvas IsHitTestVisible="False"><Ellipse x:Name="BrushCursor" Visibility="Collapsed" Stroke="White" StrokeThickness="1" Fill="#18FFFFFF"/></Canvas>
                     <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="52,12,12,12" Padding="10,6" CornerRadius="5" Background="#BD0A0F16" IsHitTestVisible="False">
                         <TextBlock x:Name="FrameBadgeText" Foreground="White" Text="Подготовка поля…"/>

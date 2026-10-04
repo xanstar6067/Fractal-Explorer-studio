@@ -123,7 +123,7 @@ internal static partial class Program
         string old = Path.Combine(store.DirectoryPath, "old.json");
         File.WriteAllText(old, """{ "Title": "Old", "Timestamp": "2026-01-01T00:00:00" }""");
 
-        Check(SaveFormat.CurrentVersion == 1, "The shipped save format must start at version 1.");
+        Check(SaveFormat.CurrentVersion == 2, "The shipped save format must include the legacy Turing CPU migration.");
         SaveFormat.UpgradesOverrideForTests =
         [
             new SaveFormatUpgrade("Title → Name", (category, save) =>

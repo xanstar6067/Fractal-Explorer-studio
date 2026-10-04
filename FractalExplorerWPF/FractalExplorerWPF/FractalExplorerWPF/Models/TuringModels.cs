@@ -9,6 +9,7 @@ namespace FractalExplorerWPF.Models;
 public enum TuringBoundary { Wrap, Reflect }
 public enum TuringColoring { Field, Relief, Scales }
 public enum TuringBrush { Light, Dark, Noise }
+public enum TuringBackend { Cpu, Gpu }
 
 public sealed class TuringScale
 {
@@ -34,7 +35,12 @@ public sealed class TuringState
     public string SaveName { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
     public string? PresetId { get; set; } = "coral";
-    public int GridSize { get; set; } = 256;
+    public const int MaxGridSize = 2048;
+    public int GridSize { get; set; } = 512;
+    public TuringBackend Backend { get; set; } = TuringBackend.Gpu;
+    public bool AutoFrameSize { get; set; } = true;
+    public int FrameWidth { get; set; } = 1024;
+    public int FrameHeight { get; set; } = 1024;
     public int RandomSeed { get; set; } = 1729;
     public int WarmupSteps { get; set; } = 160;
     public int StepsPerFrame { get; set; } = 1;
@@ -69,6 +75,7 @@ public sealed class TuringState
     {
         SaveName = name ?? SaveName, Timestamp = Timestamp, PresetId = PresetId,
         GridSize = GridSize, RandomSeed = RandomSeed, WarmupSteps = WarmupSteps, StepsPerFrame = StepsPerFrame,
+        Backend = Backend, AutoFrameSize = AutoFrameSize, FrameWidth = FrameWidth, FrameHeight = FrameHeight,
         DetailSize = DetailSize, EvolutionRate = EvolutionRate, InhibitorRatio = InhibitorRatio,
         Symmetry = Symmetry, Mirror = Mirror, Boundary = Boundary, Layers = Layers.Select(l => l.Clone()).ToList(),
         Palette = Palette.Clone(), Coloring = Coloring, Contrast = Contrast, Relief = Relief, ReversePalette = ReversePalette,
@@ -79,8 +86,10 @@ public sealed class TuringState
     public void Validate()
     {
         static bool Range(double value, double min, double max) => double.IsFinite(value) && value >= min && value <= max;
-        if (GridSize is < 32 or > 768 || StepsPerFrame is < 1 or > 8 || WarmupSteps is < 0 or > 2000)
-            throw new ArgumentException("Сетка: 32–768; шагов на кадр: 1–8; начальное развитие: 0–2000 шагов.");
+        if (GridSize is < 32 or > MaxGridSize || StepsPerFrame is < 1 or > 8 || WarmupSteps is < 0 or > 2000)
+            throw new ArgumentException("Сетка: 32–2048; шагов на кадр: 1–8; начальное развитие: 0–2000 шагов.");
+        if (!Enum.IsDefined(Backend) || FrameWidth is < 32 or > 8192 || FrameHeight is < 32 or > 8192 || (long)FrameWidth * FrameHeight > 16_777_216)
+            throw new ArgumentException("Буфер: 32–8192 пикселей по стороне, не более 16 миллионов пикселей.");
         if (!Range(DetailSize, .25, 3) || !Range(EvolutionRate, .1, 3) || !Range(InhibitorRatio, 1.2, 4) || Symmetry is < 1 or > 16)
             throw new ArgumentException("Проверьте размер деталей, отклик и симметрию (1–16 лучей).");
         if (Layers is null || Layers.Count is < 1 or > 8 || Layers.Any(l => l is null) || !Layers.Any(l => l.Enabled) ||
