@@ -666,6 +666,9 @@ internal static class Program
                     SafeCloseIfAny(w);
                     return;
                 }
+                case "SnowCrystal":
+                    await CaptureAsync(() => new SnowCrystalWindow(), "snow-crystal", 5000);
+                    return;
                 case "SymmetricIcon":
                 case "Popcorn":
                 {

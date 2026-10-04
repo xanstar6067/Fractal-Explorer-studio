@@ -262,6 +262,21 @@ public static class SaveManagerConfigurations
                                     $"Затравка: {state.SeedMode} · прилипание: {state.Stickiness:G4} · seed: {state.RandomSeed}"
     };
 
+    public static SaveManagerConfiguration<SnowCrystalState> ForSnowCrystal(
+        SnowCrystalWindow window, SnowCrystalSaveStore store) => new()
+    {
+        WindowTitle = "Сохранение/Загрузка: снежные кристаллы",
+        Store = store,
+        CaptureState = window.CaptureState,
+        CapturePreview = window.CaptureCurrentPreview,
+        LoadState = window.LoadState,
+        RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName,
+        GetTimestamp = state => state.Timestamp,
+        GetDetails = state => $"{Prefix(state.Timestamp)} · шаг {state.Checkpoint?.StepCount ?? 0:N0} · радиус поля {state.Radius}\n" +
+            $"Диффузия: {state.Diffusion:G4} · пар: {state.Vapor:G4} · осаждение: {state.Deposition:G4}"
+    };
+
     public static SaveManagerConfiguration<GrayScottState> ForGrayScott(
         GrayScottWindow window, GrayScottSaveStore store) => new()
     {

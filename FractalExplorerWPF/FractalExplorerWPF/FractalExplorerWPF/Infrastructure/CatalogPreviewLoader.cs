@@ -10,7 +10,8 @@ namespace FractalExplorerWPF.Infrastructure;
 
 /// <summary>
 /// Превью плиток каталога. Встроенные PNG для сетки декодируются уменьшенными, в полном размере —
-/// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы и Gray–Scott
+/// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы, Gray–Scott,
+/// орбитальные орнаменты и снежные кристаллы
 /// своих картинок не имеют: их превью рендерится по состоянию по умолчанию в фоне, по одному,
 /// и хранится в памяти (все вместе — несколько секунд). Если рендер не удался (например, нет
 /// Direct3D 11 для трёхмерных видов), плитка показывает встроенную картинку-заглушку.
@@ -33,7 +34,7 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
-        item.LaunchKey is GrayScottLaunchKey or "SprottQuadratic" or "SymmetricIcon" or "Popcorn";
+        item.LaunchKey is GrayScottLaunchKey or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -76,6 +77,11 @@ internal sealed class CatalogPreviewLoader
         {
             return GrayScottRenderer.RenderPreviewAsync(
                 GrayScottPresets.All[0].State.Clone(), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (item.LaunchKey == "SnowCrystal")
+        {
+            return SnowCrystalRenderer.RenderStateAsync(
+                SnowCrystalPresets.All[0].CreateState(), RenderedPixelSize, RenderedPixelSize, token);
         }
         if (item.LaunchKey == "SymmetricIcon")
         {
