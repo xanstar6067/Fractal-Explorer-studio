@@ -197,5 +197,6 @@ public sealed class DynamicPalette
     public double ExponentRange { get; set; } = 2;
     public double ZeroBandWidth { get; set; } = .05;
     public bool IsBuiltIn { get; set; }
+    public override string ToString() => Name;
     public DynamicPalette Clone(string? name = null) => new() { Name = name ?? Name, Colors = Colors.ToList(), Mode = Mode, ExponentRange = ExponentRange, ZeroBandWidth = ZeroBandWidth };
 }

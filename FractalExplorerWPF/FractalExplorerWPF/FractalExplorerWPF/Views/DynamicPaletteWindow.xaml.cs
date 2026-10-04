@@ -16,6 +16,7 @@ public partial class DynamicPaletteWindow : Window
     private readonly DynamicPaletteStore _store;
     private readonly List<DynamicPalette> _palettes;
     private readonly List<Color> _editingColors = [];
+    public event EventHandler? PaletteApplied;
 
     public DynamicPaletteWindow(DynamicPaletteStore store, IEnumerable<DynamicPalette> palettes,
         DynamicPalette? selected) : this(store, palettes, selected, false) { }
@@ -122,7 +123,10 @@ public partial class DynamicPaletteWindow : Window
 
     private void ColorList_OnSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateColorButtons();
 
-    private void Apply_OnClick(object sender, RoutedEventArgs e) => SaveEditor();
+    private void Apply_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (SaveEditor()) PaletteApplied?.Invoke(this, EventArgs.Empty);
+    }
 
     private void Done_OnClick(object sender, RoutedEventArgs e)
     {

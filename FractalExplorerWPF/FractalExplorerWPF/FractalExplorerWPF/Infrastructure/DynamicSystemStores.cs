@@ -18,26 +18,34 @@ public sealed class DynamicSystemSaveStore(DynamicSystemKind kind) : FractalSave
 public sealed class DynamicPaletteStore
 {
     private readonly DynamicSystemKind _kind;
-    private string FilePath => AppPaths.GetPaletteFile(_kind switch
+    private readonly string? _customFileName;
+    private readonly List<DynamicPalette>? _customBuiltIns;
+    private string FilePath => AppPaths.GetPaletteFile(_customFileName ?? (_kind switch
     {
         DynamicSystemKind.Lyapunov => "lyapunov_palettes.json",
         DynamicSystemKind.Attractors2D => "symmetric_icon_palettes.json",
         DynamicSystemKind.Popcorn => "popcorn_palettes.json",
         DynamicSystemKind.Hopalong => "hopalong_palettes.json",
         _ => "logistic_map_palettes.json"
-    });
+    }));
     public DynamicPaletteStore(DynamicSystemKind kind) => _kind = kind;
+    public DynamicPaletteStore(string fileName, IEnumerable<DynamicPalette> builtIns)
+    {
+        if (Path.GetFileName(fileName) != fileName) throw new ArgumentException("Имя файла палитр не должно содержать путь.", nameof(fileName));
+        _customFileName = fileName;
+        _customBuiltIns = builtIns.ToList();
+    }
 
     public List<DynamicPalette> Load()
     {
-        List<DynamicPalette> result = _kind switch
+        List<DynamicPalette> result = _customBuiltIns?.Select(p => { var copy = p.Clone(); copy.IsBuiltIn = true; return copy; }).ToList() ?? (_kind switch
         {
             DynamicSystemKind.Lyapunov => LyapunovBuiltIns(),
             DynamicSystemKind.Attractors2D => IconBuiltIns(),
             DynamicSystemKind.Popcorn => PopcornBuiltIns(),
             DynamicSystemKind.Hopalong => HopalongBuiltIns(),
             _ => LogisticBuiltIns()
-        };
+        });
         if (!File.Exists(FilePath)) return result;
         try
         {

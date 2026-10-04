@@ -137,7 +137,7 @@ IFS и Fractal Flame включают редакторы аффинных пре
 
 #### Динамические системы и хаос
 
-Общее окно обслуживает карту Ляпунова, орбиты логистического отображения, диаграмму бифуркации, аттракторы Лоренца и Рёсслера, карты Хенона и Икэды, а также облака странных 2D-аттракторов (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Gray–Scott — отдельная живая реакционно-диффузионная симуляция.
+Общее окно обслуживает карту Ляпунова, орбиты логистического отображения, диаграмму бифуркации, аттракторы Лоренца и Рёсслера, карты Хенона и Икэды, а также облака странных 2D-аттракторов (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Gray–Scott — отдельная живая реакционно-диффузионная симуляция. [Многомасштабные узоры Тьюринга](FractalExplorerWPF/TURING_PATTERNS.md) создают органические лабиринты и симметричные орнаменты: шесть готовых видов, живое изменение формы, кисть, палитры, рельеф и точное продолжение сохранённого поля.
 
 <table>
 <tr>
@@ -400,7 +400,7 @@ IFS and Fractal Flame include affine-transform editors. Sierpiński in "chaos ga
 
 #### Dynamical systems and chaos
 
-A shared window serves the Lyapunov map, logistic-map orbits, the bifurcation diagram, the Lorenz and Rössler attractors, the Hénon and Ikeda maps, and density clouds for strange 2D attractors (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Gray–Scott is a separate live reaction–diffusion simulation.
+A shared window serves the Lyapunov map, logistic-map orbits, the bifurcation diagram, the Lorenz and Rössler attractors, the Hénon and Ikeda maps, and density clouds for strange 2D attractors (Clifford, Peter de Jong, Tinkerbell, Gumowski–Mira). Gray–Scott is a separate live reaction–diffusion simulation. [Multiscale Turing patterns](FractalExplorerWPF/TURING_PATTERNS.md) add organic labyrinths and symmetric ornaments with six presets, live shape controls, brushes, palettes, relief shading and exact continuation of saved fields.
 
 <table>
 <tr>

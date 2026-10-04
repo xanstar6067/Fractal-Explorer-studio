@@ -34,7 +34,7 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
-        item.LaunchKey is GrayScottLaunchKey or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
+        item.LaunchKey is GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -77,6 +77,10 @@ internal sealed class CatalogPreviewLoader
         {
             return GrayScottRenderer.RenderPreviewAsync(
                 GrayScottPresets.All[0].State.Clone(), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (item.LaunchKey == "TuringPatterns")
+        {
+            return TuringRenderer.RenderStateAsync(TuringPresets.All[0].CreateState(), RenderedPixelSize, RenderedPixelSize, token);
         }
         if (item.LaunchKey == "SnowCrystal")
         {

@@ -156,6 +156,13 @@ internal static class Program
     // и очередь: пока стоит запрос следующей ступени, окно снимать рано.
     private static async Task WaitForRenderIdleAsync(Window win, int maxExtraMs = 10000)
     {
+        if (win is TuringWindow)
+        {
+            var preparation = System.Diagnostics.Stopwatch.StartNew();
+            while (GetMember(win, "_resetting") is true && preparation.ElapsedMilliseconds < maxExtraMs)
+                await Task.Delay(150);
+            return;
+        }
         if (GetMember(win, "_isRendering") is not bool) return;
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -662,6 +669,17 @@ internal static class Program
                     {
                         object mgr = GetMember(w, "_paletteManager")!;
                         await CaptureChildAsync(w, (Window)Activator.CreateInstance(typeof(GrayScottPaletteWindow), mgr)!, "gray-scott-palette-editor");
+                    }
+                    SafeCloseIfAny(w);
+                    return;
+                }
+                case "TuringPatterns":
+                {
+                    Window? w = await CaptureAsync(() => new TuringWindow(), "turing-patterns", 5000);
+                    if (w != null)
+                    {
+                        var store = new DynamicPaletteStore("turing_palettes.json", TuringPalettes.All());
+                        await CaptureChildAsync(w, new DynamicPaletteWindow(store, store.Load(), null, true) { Title = "Палитры узоров Тьюринга" }, "turing-palette-editor");
                     }
                     SafeCloseIfAny(w);
                     return;

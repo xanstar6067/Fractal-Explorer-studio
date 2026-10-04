@@ -277,6 +277,16 @@ public static class SaveManagerConfigurations
             $"Диффузия: {state.Diffusion:G4} · пар: {state.Vapor:G4} · осаждение: {state.Deposition:G4}"
     };
 
+    public static SaveManagerConfiguration<TuringState> ForTuring(TuringWindow window, TuringSaveStore store) => new()
+    {
+        WindowTitle = "Сохранение/Загрузка: узоры Тьюринга", Store = store,
+        CaptureState = window.CaptureState, CapturePreview = window.CaptureCurrentPreview,
+        LoadState = window.LoadState, RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName, GetTimestamp = state => state.Timestamp,
+        GetDetails = state => $"{Prefix(state.Timestamp)} · шаг {state.Checkpoint?.StepCount ?? 0:N0} · {state.GridSize} × {state.GridSize}\n" +
+            $"Масштабов: {state.Layers.Count(l => l.Enabled)} · симметрия: {(state.Symmetry == 1 ? "нет" : state.Symmetry)} · палитра: {state.Palette.Name}"
+    };
+
     public static SaveManagerConfiguration<GrayScottState> ForGrayScott(
         GrayScottWindow window, GrayScottSaveStore store) => new()
     {

@@ -468,6 +468,7 @@ public partial class MainWindow : Window
             "ApollonianGasket" => () => new ApollonianWindow(),
             "DLA" => () => new DlaWindow(),
             "GrayScott" => () => new GrayScottWindow(),
+            "TuringPatterns" => () => new TuringWindow(),
             "SnowCrystal" => () => new SnowCrystalWindow(),
             "SprottQuadratic" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SprottQuadratic),
             "SymmetricIcon" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SymmetricIcon),
