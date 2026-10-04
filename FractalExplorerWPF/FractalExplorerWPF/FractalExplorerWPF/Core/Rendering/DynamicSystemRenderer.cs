@@ -16,13 +16,20 @@ public static class DynamicSystemRenderer
         DynamicSystemState state, int width, int height, DynamicPalette? palette,
         CancellationToken token, IProgress<int>? progress = null,
         Action<MandelbrotRenderTile, byte[]>? tileReady = null, bool drawAxes = true,
-        Action<MandelbrotRenderTile>? tileStarted = null, double dpiX = 96, double dpiY = 96)
+        Action<MandelbrotRenderTile>? tileStarted = null, double dpiX = 96, double dpiY = 96,
+        Action<BitmapSource>? frameReady = null)
     {
         int factor = Math.Clamp(state.SsaaFactor, 1, 4);
         int rw = checked(width * factor), rh = checked(height * factor);
         byte[] pixels = state.Kind == DynamicSystemKind.Lyapunov
             ? await RenderLyapunovAsync(state, rw, rh, palette, token, progress, tileReady, tileStarted)
-            : await Task.Run(() => RenderOther(state, rw, rh, palette, token, progress, drawAxes));
+            : await Task.Run(() => RenderOther(state, rw, rh, palette, token, progress, drawAxes,
+                frameReady is null ? null : data =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    BitmapSource frame = BitmapSource.Create(rw, rh, dpiX, dpiY, PixelFormats.Bgra32, null, data, rw * 4);
+                    frame.Freeze(); frameReady(frame);
+                }));
         BitmapSource raw = BitmapSource.Create(rw, rh, dpiX, dpiY, PixelFormats.Bgra32, null, pixels, rw * 4);
         raw.Freeze();
         if (factor == 1 || token.IsCancellationRequested) return raw;
@@ -59,7 +66,7 @@ public static class DynamicSystemRenderer
     }
 
     private static byte[] RenderOther(DynamicSystemState s, int width, int height, DynamicPalette? palette,
-        CancellationToken token, IProgress<int>? progress, bool drawAxes)
+        CancellationToken token, IProgress<int>? progress, bool drawAxes, Action<byte[]>? frameReady)
     {
         DrawingColor bg = ToDrawing(s.BackgroundColor), point = ToDrawing(s.FractalColor);
         return s.Kind switch
@@ -77,6 +84,7 @@ public static class DynamicSystemRenderer
                 new FractalIkedaEngine.RenderSettings { U=(decimal)s.U, X0=(decimal)s.X0, Y0=(decimal)s.Y0, Iterations=s.Iterations, DiscardIterations=s.DiscardIterations, RangeXMin=(decimal)s.RangeXMin, RangeXMax=(decimal)s.RangeXMax, RangeYMin=(decimal)s.RangeYMin, RangeYMax=(decimal)s.RangeYMax, Threads=s.Threads }, token, progress),
             DynamicSystemKind.Attractors2D => Attractor2DRenderer.RenderBuffer(s, width, height, palette, token, progress),
             DynamicSystemKind.Popcorn => PopcornRenderer.RenderBuffer(s, width, height, palette, token, progress),
+            DynamicSystemKind.Hopalong => HopalongRenderer.RenderBuffer(s, width, height, palette, token, progress, frameReady),
             _ => new byte[width * height * 4]
         };
     }

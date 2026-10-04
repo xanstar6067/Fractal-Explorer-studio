@@ -671,11 +671,15 @@ internal static class Program
                     return;
                 case "SymmetricIcon":
                 case "Popcorn":
+                case "Hopalong":
                 {
                     bool popcorn = item.LaunchKey == "Popcorn";
+                    bool hopalong = item.LaunchKey == "Hopalong";
+                    string slug = hopalong ? "hopalong" : popcorn ? "popcorn" : "symmetric-icons";
                     Window? w = await CaptureAsync(() => popcorn ? new DynamicSystemWindow(DynamicSystemKind.Popcorn)
+                        : hopalong ? new DynamicSystemWindow(DynamicSystemKind.Hopalong)
                         : new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SymmetricIcon),
-                        popcorn ? "popcorn" : "symmetric-icons", 1800);
+                        slug, 1800);
                     if (w is not null)
                     {
                         var store = (DynamicPaletteStore)GetMember(w, "_paletteStore")!;
@@ -683,7 +687,8 @@ internal static class Program
                         var active = (DynamicPalette?)GetMember(w, "ActivePalette");
                         var editor = new DynamicPaletteWindow(store, palettes, active, true);
                         if (popcorn) editor.Title = "Палитры Popcorn Пиковера";
-                        await CaptureChildAsync(w, editor, popcorn ? "popcorn-palettes" : "symmetric-icons-palettes");
+                        if (hopalong) editor.Title = "Палитры Hopalong Мартина";
+                        await CaptureChildAsync(w, editor, slug + "-palettes");
                     }
                     SafeCloseIfAny(w);
                     return;

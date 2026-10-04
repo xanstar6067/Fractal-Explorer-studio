@@ -270,8 +270,8 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + 3,
-                "Laboratories, 3D fractals, Gray–Scott, Sprott and Symmetric Icons must be rendered on the fly.");
+                    Enum.GetValues<Fractal3DKind>().Length + 6,
+                "Laboratories, 3D fractals, Gray–Scott, Sprott, Symmetric Icons, Popcorn, snow crystals and Hopalong must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,

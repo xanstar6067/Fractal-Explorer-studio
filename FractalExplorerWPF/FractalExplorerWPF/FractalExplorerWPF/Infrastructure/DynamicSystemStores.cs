@@ -23,6 +23,7 @@ public sealed class DynamicPaletteStore
         DynamicSystemKind.Lyapunov => "lyapunov_palettes.json",
         DynamicSystemKind.Attractors2D => "symmetric_icon_palettes.json",
         DynamicSystemKind.Popcorn => "popcorn_palettes.json",
+        DynamicSystemKind.Hopalong => "hopalong_palettes.json",
         _ => "logistic_map_palettes.json"
     });
     public DynamicPaletteStore(DynamicSystemKind kind) => _kind = kind;
@@ -34,6 +35,7 @@ public sealed class DynamicPaletteStore
             DynamicSystemKind.Lyapunov => LyapunovBuiltIns(),
             DynamicSystemKind.Attractors2D => IconBuiltIns(),
             DynamicSystemKind.Popcorn => PopcornBuiltIns(),
+            DynamicSystemKind.Hopalong => HopalongBuiltIns(),
             _ => LogisticBuiltIns()
         };
         if (!File.Exists(FilePath)) return result;
@@ -87,6 +89,14 @@ public sealed class DynamicPaletteStore
         color=default;if(value is null||value.Length!=9||value[0]!='#'||!uint.TryParse(value.AsSpan(1),System.Globalization.NumberStyles.HexNumber,null,out uint argb))return false;
         color=Color.FromArgb((byte)(argb>>24),(byte)(argb>>16),(byte)(argb>>8),(byte)argb);return true;
     }
+
+    public static List<DynamicPalette> HopalongBuiltIns() =>
+    [
+        P("Hopalong — бирюза", "Gradient", Colors.Black, Color.FromRgb(8, 38, 48), Color.FromRgb(17, 157, 167), Color.FromRgb(150, 250, 225), Colors.White),
+        P("Hopalong — золото", "Gradient", Colors.Black, Color.FromRgb(65, 27, 12), Color.FromRgb(190, 98, 28), Color.FromRgb(255, 220, 138), Colors.Ivory),
+        P("Hopalong — аметист", "Gradient", Colors.Black, Color.FromRgb(36, 14, 66), Color.FromRgb(131, 70, 196), Color.FromRgb(245, 168, 223), Colors.White),
+        P("Hopalong — лёд", "Gradient", Colors.Black, Color.FromRgb(10, 30, 75), Color.FromRgb(47, 128, 210), Color.FromRgb(172, 232, 255), Colors.White)
+    ];
 
     public static List<DynamicPalette> PopcornBuiltIns() =>
     [
