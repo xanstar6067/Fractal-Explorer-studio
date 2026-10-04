@@ -62,6 +62,7 @@
 
                     <Expander x:Name="ShapeExpander" Header="Форма" IsExpanded="True" Margin="0,6,0,4">
                         <StackPanel Margin="10,6,0,2">
+                            <controls:Buddhabrot4DEditor x:Name="BuddhabrotEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
                             <StackPanel x:Name="DlaPanel" Visibility="Collapsed">
                                 <TextBlock Text="Затравка" Style="{StaticResource FieldCaption}"/>
                                 <ListBox x:Name="DlaSeedShapeBox" SelectionChanged="DlaGrowth_OnChanged" SelectedIndex="0" Margin="0,4,0,6">

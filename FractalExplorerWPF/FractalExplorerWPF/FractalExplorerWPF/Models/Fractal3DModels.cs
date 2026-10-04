@@ -26,7 +26,8 @@ public enum Fractal3DKind
     Flame3D,
     Kifs,
     Dla3D,
-    LSystem3D
+    LSystem3D,
+    Buddhabrot4D
 }
 
 public enum Hybrid3DOrder
@@ -292,6 +293,7 @@ public sealed class Fractal3DState
     public Attractor3DSettings Attractor { get; set; } = Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
 
     public Flame3DSettings Flame { get; set; } = new();
+    public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
 
@@ -388,6 +390,7 @@ public sealed class Fractal3DState
         clone.Dla = Dla?.Normalized() ?? new();
         clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.Flame = Flame?.Clone() ?? new();
+        clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return clone;
@@ -481,6 +484,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Buddhabrot4D => new(
+            "Буддаброт 4D · объёмные проекции", "Буддаброт 4D",
+            "Орбиты z² + c образуют облако в четырёх координатах: Re z, Im z, Re c, Im c. Вращения в 4D меняют его трёхмерную проекцию; камера позволяет рассмотреть её со всех сторон.",
+            "Fractal3DBuddhabrot4D", "buddhabrot-4d"),
         Fractal3DKind.LSystem3D => new(
             "Пространственные L-системы", "L-системы · 3D", "Правила превращаются в деревья, растения и трубчатые кривые. Повороты вокруг трёх локальных осей, ветвление и постепенное построение.",
             "Fractal3DLSystem", "lsystem3d"),
@@ -643,6 +650,21 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.Buddhabrot4D:
+                state.CameraDistance = 2.4;
+                state.CameraYaw = 0;
+                state.CameraPitch = 0;
+                state.Buddhabrot.ZrZi = -90;
+                state.Buddhabrot.Gamma = 1.5;
+                state.Buddhabrot.Exposure = 1;
+                state.Buddhabrot.Density = .35;
+                state.ShadingStyle = Fractal3DShadingStyle.Glow;
+                state.ColoringMode = Fractal3DColoringMode.Material;
+                state.BackgroundTop = Color.FromRgb(5, 7, 16);
+                state.BackgroundBottom = Color.FromRgb(1, 2, 5);
+                state.SoftShadows = false;
+                state.AmbientOcclusion = false;
+                break;
             case Fractal3DKind.LSystem3D:
                 state.CameraDistance = 3.8;
                 state.CameraPitch = 12;
@@ -842,6 +864,15 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Buddhabrot4D =>
+        [
+            Preset(kind, "Будда · глубина Re c", _ => { }),
+            Preset(kind, "Крылья · глубина Im c", s => { s.Buddhabrot.Projection = Buddhabrot4DProjection.HideCr; s.CameraYaw = 35; }),
+            Preset(kind, "Карта параметров · Re z", s => { s.Buddhabrot.Projection = Buddhabrot4DProjection.HideZi; s.CameraYaw = 60; s.CameraPitch = 22; }),
+            Preset(kind, "Карта параметров · Im z", s => { s.Buddhabrot.Projection = Buddhabrot4DProjection.HideZr; s.CameraYaw = 55; }),
+            Preset(kind, "Между мирами · поворот 4D", s => { s.Buddhabrot.ZrCr = 40; s.Buddhabrot.ZiCi = 55; s.CameraYaw = -25; }),
+            Preset(kind, "Полупрозрачная туманность", s => { s.Buddhabrot.ZrCi = 35; s.Buddhabrot.ZiCr = -30; s.ShadingStyle = Fractal3DShadingStyle.Density; s.Buddhabrot.Density = .3; })
+        ],
         Fractal3DKind.LSystem3D => LSystem3DPresets.All.Select(p => Preset(kind, p.Name, s =>
         {
             s.LSystem = p.Settings with { };

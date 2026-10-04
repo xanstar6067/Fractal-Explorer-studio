@@ -363,6 +363,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             Fractal3DKind.LSystem3D => ((float)state.LSystem.Growth, (float)state.LSystem.ColorSource, 0),
             Fractal3DKind.Kifs => ((float)kifs.Scale, (float)kifs.Symmetry, kifs.Sectors),
             Fractal3DKind.Flame3D => ((float)state.Flame.Exposure, (float)state.Flame.Gamma, (float)state.Flame.Density),
+            Fractal3DKind.Buddhabrot4D => ((float)state.Buddhabrot.Exposure, (float)state.Buddhabrot.Gamma, (float)state.Buddhabrot.Density),
             Fractal3DKind.Terrain => ((float)state.Terrain.Size, (float)state.Terrain.Height, state.Terrain.Resolution),
             Fractal3DKind.Mandelbox => (
                 (float)state.BoxScale,
@@ -404,6 +405,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.ColorScale, 0.01, 100),
                 (float)state.ColorOffset,
                 state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
+                    state.Kind == Fractal3DKind.Buddhabrot4D ? (float)state.Buddhabrot.Saturation :
                     state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
             BoxInversion = state.Kind == Fractal3DKind.Kifs
                 ? new Vector4((float)(kifs.RotationX * Math.PI / 180), (float)(kifs.RotationY * Math.PI / 180),
@@ -484,7 +486,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     }
 
     private static bool IsDensityVolume(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D;
+        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Buddhabrot4D;
 
     private static ShaderCacheEntry PixelShaderEntry(Fractal3DKind kind) =>
         new($"fractal3d-{kind}-pixel", Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
@@ -494,6 +496,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static ShaderCacheEntry FlamePixelShaderEntry() =>
         new("flame3d-pixel", Flame3DShader.Source, "PSMain", "ps_5_0");
+
+    private static ShaderCacheEntry BuddhabrotPixelShaderEntry() =>
+        new("buddhabrot4d-pixel", Buddhabrot4DShader.Source, "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry IfsPixelShaderEntry() =>
         new("ifs3d-pixel", Ifs3DShader.Source, "PSMain", "ps_5_0");
@@ -512,6 +517,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             if (!IsDensityVolume(kind)) entries.Add(PixelShaderEntry(kind));
         entries.Add(IfsPixelShaderEntry());
         entries.Add(FlamePixelShaderEntry());
+        entries.Add(BuddhabrotPixelShaderEntry());
         entries.Add(DlaPixelShaderEntry());
         ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
     }

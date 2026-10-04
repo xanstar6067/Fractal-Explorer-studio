@@ -101,7 +101,7 @@ internal static class Flame3DVolume
         }
     }
 
-    private static void Smooth(Vector4[] cells, CancellationToken token)
+    internal static void Smooth(Vector4[] cells, CancellationToken token)
     {
         // Separable [1,2,1] footprint suppresses grain and stabilizes sculpture normals.
         // Copy one line before overwriting it: no second full-size HDR volume is needed.

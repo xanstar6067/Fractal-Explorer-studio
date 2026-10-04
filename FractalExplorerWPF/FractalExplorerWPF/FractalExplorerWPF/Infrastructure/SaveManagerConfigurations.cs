@@ -341,6 +341,11 @@ public static class SaveManagerConfigurations
             return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · {state.Flame.Transforms.Count} преобразований\n" +
                    $"Начальное число: {state.Flame.Seed} · Экспозиция: {state.Flame.Exposure:G4} · Гамма: {state.Flame.Gamma:G4}\n" +
                    $"Плотность: {state.Flame.Density:G4} · Насыщенность: {state.Flame.Vibrancy:G4}";
+        if (state.Kind == Fractal3DKind.Buddhabrot4D)
+            return $"{Prefix(state.Timestamp)} · {state.Buddhabrot.SampleCount:N0} затравок · " +
+                   $"выход за {state.Buddhabrot.MinIterations}–{state.Buddhabrot.MaxIterations} итераций\n" +
+                   $"Проекция: {Buddhabrot4DSettings.ProjectionName(state.Buddhabrot.Projection)} · R/G/B: {state.Buddhabrot.RedLimit}/{state.Buddhabrot.GreenLimit}/{state.Buddhabrot.BlueLimit}\n" +
+                   $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, расстояние {state.CameraDistance:G6}";
         if (state.Kind == Fractal3DKind.Ifs3D)
             return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · " +
                    $"{state.IfsTransforms.Count} преобразований\n" +

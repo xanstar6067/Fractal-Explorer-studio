@@ -9,6 +9,9 @@ public sealed partial class Fractal3DRenderer
 {
     private ID3D11PixelShader? _ifsPixelShader;
     private ID3D11PixelShader? _flamePixelShader;
+    private ID3D11PixelShader? _buddhabrotPixelShader;
+    private Buddhabrot4DOrbitCloud? _buddhabrotCloud;
+    internal int BuddhabrotSamplingBuilds { get; private set; }
     private ID3D11PixelShader? _dlaPixelShader;
     private Dla3DCluster? _dlaCluster;
     private Format _volumeFormat;
@@ -23,6 +26,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Buddhabrot4D)
+            return _buddhabrotPixelShader ??= _device!.CreatePixelShader(Compile(BuddhabrotPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Dla3D)
             return _dlaPixelShader ??= _device!.CreatePixelShader(Compile(DlaPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Flame3D)
@@ -39,13 +44,18 @@ public sealed partial class Fractal3DRenderer
     private void EnsureIfsVolume(Fractal3DState state, CancellationToken token)
     {
         if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
-        bool colorVolume = state.Kind == Fractal3DKind.Flame3D;
+        bool colorVolume = state.Kind is Fractal3DKind.Flame3D or Fractal3DKind.Buddhabrot4D;
         int side = colorVolume ? Flame3DVolume.Side : state.Kind == Fractal3DKind.Dla3D ? Dla3DVolume.Side : Ifs3DVolume.Side;
         int bytesPerCell = colorVolume ? 8 : state.Kind == Fractal3DKind.Dla3D ? 2 : 1;
         Format format = colorVolume ? Format.R16G16B16A16_Float : state.Kind == Fractal3DKind.Dla3D ? Format.R8G8_UNorm : Format.R8_UNorm;
-        byte[] voxels = state.Kind == Fractal3DKind.Dla3D ? BuildDlaVolume(state, token) : colorVolume ? Flame3DVolume.Build(state, token) : state.Kind == Fractal3DKind.StrangeAttractor
-            ? Attractor3DVolume.Build(state, token)
-            : Ifs3DVolume.Build(state, token);
+        byte[] voxels = state.Kind switch
+        {
+            Fractal3DKind.Buddhabrot4D => BuildBuddhabrotVolume(state, token),
+            Fractal3DKind.Dla3D => BuildDlaVolume(state, token),
+            Fractal3DKind.Flame3D => Flame3DVolume.Build(state, token),
+            Fractal3DKind.StrangeAttractor => Attractor3DVolume.Build(state, token),
+            _ => Ifs3DVolume.Build(state, token)
+        };
         token.ThrowIfCancellationRequested();
         // Once upload starts, an allocation/map failure must not leave a valid-looking
         // snapshot pointing at a replaced or partially updated texture.
@@ -112,9 +122,25 @@ public sealed partial class Fractal3DRenderer
         return Dla3DVolume.Build(_dlaCluster, token);
     }
 
+    private byte[] BuildBuddhabrotVolume(Fractal3DState state, CancellationToken token)
+    {
+        var settings = state.Buddhabrot ?? new();
+        settings.Validate();
+        if (_buddhabrotCloud is null || !_buddhabrotCloud.Settings.SameSampling(settings))
+        {
+            var cloud = Buddhabrot4DOrbitCloud.Build(settings, token);
+            token.ThrowIfCancellationRequested();
+            _buddhabrotCloud = cloud;
+            BuddhabrotSamplingBuilds++;
+        }
+        return Buddhabrot4DVolume.Build(_buddhabrotCloud, settings, token);
+    }
+
     internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.Buddhabrot4D)
+            return (first.Buddhabrot ?? new()).SameVolume(second.Buddhabrot ?? new());
         if (first.Kind == Fractal3DKind.Dla3D)
         {
             Dla3DSettings a = (first.Dla ?? new()).Normalized(), b = (second.Dla ?? new()).Normalized();
@@ -157,6 +183,8 @@ public sealed partial class Fractal3DRenderer
         _ifsVolumeTexture?.Dispose();
         _ifsPixelShader?.Dispose();
         _flamePixelShader?.Dispose();
+        _buddhabrotPixelShader?.Dispose();
+        _buddhabrotCloud = null;
         _dlaPixelShader?.Dispose();
         _dlaCluster = null;
         _ifsSampler?.Dispose();

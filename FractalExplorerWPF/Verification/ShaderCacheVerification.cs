@@ -50,6 +50,7 @@ internal static partial class Program
               Enum.GetValues<Fractal3DKind>().Length &&
               File.Exists(AppPaths.GetShaderCacheFile("ifs3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("flame3d-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("buddhabrot4d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("dla3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-LSystem3D-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Vicsek-pixel")) &&

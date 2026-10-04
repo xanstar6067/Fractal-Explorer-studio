@@ -1,0 +1,92 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.Buddhabrot4DEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,8,0,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
+        </Style>
+        <Style x:Key="AngleSlider" TargetType="Slider">
+            <Setter Property="Minimum" Value="-180"/><Setter Property="Maximum" Value="180"/>
+            <Setter Property="SmallChange" Value="1"/><Setter Property="LargeChange" Value="15"/>
+            <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="Проекция 4D → 3D" FontWeight="SemiBold"/>
+        <ComboBox x:Name="ProjectionBox" SelectedIndex="0" SelectionChanged="Changed">
+            <ComboBoxItem Content="Re z · Im z · Re c"/><ComboBoxItem Content="Re z · Im z · Im c"/>
+            <ComboBoxItem Content="Re z · Re c · Im c"/><ComboBoxItem Content="Im z · Re c · Im c"/>
+        </ComboBox>
+        <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                   Text="Мышь вращает готовый объём. Эти углы смешивают четыре координаты орбит и меняют саму форму проекции."/>
+        <TextBlock Style="{StaticResource Caption}" Text="Re z ↔ Re c"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="66"/></Grid.ColumnDefinitions>
+            <Slider x:Name="ZrCrSlider" Style="{StaticResource AngleSlider}" ValueChanged="Changed"/>
+            <TextBox x:Name="ZrCrBox" Grid.Column="1" Text="{Binding ElementName=ZrCrSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        </Grid>
+        <TextBlock Style="{StaticResource Caption}" Text="Im z ↔ Im c"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="66"/></Grid.ColumnDefinitions>
+            <Slider x:Name="ZiCiSlider" Style="{StaticResource AngleSlider}" ValueChanged="Changed"/>
+            <TextBox x:Name="ZiCiBox" Grid.Column="1" Text="{Binding ElementName=ZiCiSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        </Grid>
+        <Expander Header="Остальные плоскости вращения" Margin="0,6,0,0">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Caption}" Text="Re z ↔ Im c"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="66"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="ZrCiSlider" Style="{StaticResource AngleSlider}" ValueChanged="Changed"/>
+                    <TextBox x:Name="ZrCiBox" Grid.Column="1" Text="{Binding ElementName=ZrCiSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                </Grid>
+                <TextBlock Style="{StaticResource Caption}" Text="Im z ↔ Re c"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="66"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="ZiCrSlider" Style="{StaticResource AngleSlider}" ValueChanged="Changed"/>
+                    <TextBox x:Name="ZiCrBox" Grid.Column="1" Text="{Binding ElementName=ZiCrSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                </Grid>
+                <TextBlock Style="{StaticResource Caption}" Text="Re z ↔ Im z"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="66"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="ZrZiSlider" Style="{StaticResource AngleSlider}" ValueChanged="Changed"/>
+                    <TextBox x:Name="ZrZiBox" Grid.Column="1" Text="{Binding ElementName=ZrZiSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                </Grid>
+                <TextBlock Style="{StaticResource Caption}" Text="Re c ↔ Im c"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="66"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="CrCiSlider" Style="{StaticResource AngleSlider}" ValueChanged="Changed"/>
+                    <TextBox x:Name="CrCiBox" Grid.Column="1" Text="{Binding ElementName=CrCiSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                </Grid>
+            </StackPanel>
+        </Expander>
+        <Button Content="Сбросить вращения 4D" Click="Reset_OnClick" Margin="0,6,0,6"/>
+        <Expander Header="Орбиты и цветовые каналы" Margin="0,4,0,6">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Caption}" Text="Число затравок (1 000–2 000 000)"/>
+                <TextBox x:Name="SamplesBox" Text="200000" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed"/>
+                <TextBlock Style="{StaticResource Caption}" Text="Минимум итераций до выхода"/>
+                <TextBox x:Name="MinIterationsBox" Text="12" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed"/>
+                <TextBlock Style="{StaticResource Caption}" Text="Максимум итераций (до 10 000)"/>
+                <TextBox x:Name="MaxIterationsBox" Text="2000" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed"/>
+                <TextBlock Style="{StaticResource Caption}" Text="Пределы выхода · R / G / B"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="RedBox" Text="50" ToolTip="Красный: орбиты, вышедшие не позднее этого шага" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed" Margin="0,4,4,4"/>
+                    <TextBox x:Name="GreenBox" Grid.Column="1" Text="300" ToolTip="Зелёный: орбиты, вышедшие не позднее этого шага" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed" Margin="0,4,4,4"/>
+                    <TextBox x:Name="BlueBox" Grid.Column="2" Text="2000" ToolTip="Синий: орбиты, вышедшие не позднее этого шага" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed"/>
+                </Grid>
+                <TextBlock Style="{StaticResource Caption}" Text="Начальное число"/>
+                <TextBox x:Name="SeedBox" Text="42" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Changed"/>
+                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Больше затравок → меньше зерна. Одинаковые настройки и начальное число воспроизводят то же облако."/>
+            </StackPanel>
+        </Expander>
+        <TextBlock Text="Свечение и цвет" FontWeight="SemiBold" Margin="0,8,0,0"/>
+        <TextBlock Style="{StaticResource Caption}" Text="Экспозиция"/>
+        <Slider x:Name="ExposureSlider" Minimum="0.05" Maximum="8" Value="1.6" SmallChange="0.05" ValueChanged="Changed"/>
+        <TextBlock Text="{Binding ElementName=ExposureSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource Caption}" Text="Гамма"/>
+        <Slider x:Name="GammaSlider" Minimum="0.5" Maximum="4" Value="2.2" SmallChange="0.05" ValueChanged="Changed"/>
+        <TextBlock Text="{Binding ElementName=GammaSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource Caption}" Text="Плотность облака"/>
+        <Slider x:Name="DensitySlider" Minimum="0.05" Maximum="10" Value="0.55" SmallChange="0.05" ValueChanged="Changed"/>
+        <TextBlock Text="{Binding ElementName=DensitySlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource Caption}" Text="Насыщенность"/>
+        <Slider x:Name="SaturationSlider" Minimum="0" Maximum="2" Value="1" SmallChange="0.05" ValueChanged="Changed"/>
+        <TextBlock Text="{Binding ElementName=SaturationSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+    </StackPanel>
+</UserControl>
