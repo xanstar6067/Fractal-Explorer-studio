@@ -102,6 +102,7 @@ internal static partial class Program
             Check(fallback.Backend == GrayScottBackend.Cpu && reason!.Contains("Simulated missing GPU") && fallback.Snapshot().U.SequenceEqual(state.Checkpoint!.U), "Missing GPU must preserve the checkpoint on CPU.");
         }
         finally { GrayScottEngineFactory.GpuFactoryOverrideForTests = null; }
+        await VerifyGrayScottPresetsAsync(args, gpu: true);
         await VerifyGrayScottWindowAsync(output);
         Console.WriteLine("PASS (gray-scott-gpu): independent stencil, hardware compute, periodic brush, bilinear display, exact disk continuation, large grids, cache, switching, fallback and DPI/manual buffers.");
     }
@@ -162,6 +163,16 @@ internal static partial class Program
             Check(Field<bool>("_running") && window.CaptureState("resumed CPU").Backend == GrayScottBackend.Cpu, "Engine switching must resume a running simulation.");
             Invoke("SetRunning",false); await Idle();
             ((ComboBox)window.FindName("BackendBox")).SelectedIndex = 0; await Idle();
+            var mitosis = GrayScottPresets.All.Single(p => p.Id == "mitosis");
+            ((ComboBox)window.FindName("PresetBox")).SelectedItem = mitosis; await Idle();
+            Invoke("SetRunning",false); await Idle();
+            var applied = window.CaptureState("preset");
+            Check(applied.DiffusionU == mitosis.State.DiffusionU && applied.DiffusionV == mitosis.State.DiffusionV &&
+                applied.Feed == mitosis.State.Feed && applied.Kill == mitosis.State.Kill &&
+                applied.StepsPerFrame == mitosis.State.StepsPerFrame && applied.SeedRadius == mitosis.State.SeedRadius,
+                "Selecting a preset must install its corrected equation, speed and viable seeds.");
+            Check(((TextBlock)window.FindName("PresetHint")).Text == mitosis.Description,
+                "The selected preset must explain its expected evolution.");
             if (output is not null)
             {
                 var pretty = GrayScottPresets.All[0].State.Clone(); using var engine = new GrayScottGpuEngine(pretty);

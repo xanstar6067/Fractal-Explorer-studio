@@ -38,7 +38,12 @@ internal static class GrayScottComputeShader
             int dx=abs(x-(int)P[2].x), dy=abs(y-(int)P[2].y);
             dx=min(dx,n-dx); dy=min(dy,n-dy);
             int r=(int)P[1].z;
-            if(dx*dx+dy*dy<=r*r) Target[y*n+x]=float2(.22,.72);
+            if(dx*dx+dy*dy<=r*r)
+            {
+                uint hash=(uint)(y*n+x)*747796405u+2891336453u; hash^=hash>>16;
+                float noise=((int)(hash&1023u)-512)*(1.0/32768.0);
+                Target[y*n+x]=float2(.5+noise,.25-noise);
+            }
         }
 
         float2 Sample(float2 position)

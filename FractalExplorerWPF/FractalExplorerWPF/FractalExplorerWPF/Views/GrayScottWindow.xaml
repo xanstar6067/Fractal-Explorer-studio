@@ -15,6 +15,7 @@
 
                     <TextBlock Margin="0,0,0,3" Text="Готовый режим"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="Preset_OnChanged"/>
+                    <TextBlock x:Name="PresetHint" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
 
                     <GroupBox Header="Вычисления и качество" Margin="0,10,0,0">
                         <StackPanel Margin="7">
@@ -74,6 +75,7 @@
                         <StackPanel Margin="7">
                             <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Шагов на кадр"/><TextBox numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" x:Name="StepsPerFrameBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/></Grid>
                             <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Целевая частота"/><ComboBox x:Name="TargetFpsBox" Grid.Column="1" SelectionChanged="TargetFps_OnChanged"><ComboBoxItem Tag="30" Content="30 FPS"/><ComboBoxItem Tag="60" Content="60 FPS"/></ComboBox></Grid>
+                            <TextBlock Text="Скорость развития задают шаги на кадр. FPS задаёт плавность показа. Правки скорости применяются при перезапуске." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,5"/>
                             <TextBlock Margin="0,5,0,3" Text="Отображаемое поле"/>
                             <ComboBox x:Name="FieldModeBox" SelectionChanged="Appearance_OnChanged"><ComboBoxItem Content="Концентрация V"/><ComboBoxItem Content="Концентрация U"/><ComboBoxItem Content="Разность U − V"/></ComboBox>
                             <Grid Margin="0,5,0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="116"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Минимум диапазона"/><TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RangeMinimumBox" Grid.Column="1" TextChanged="Appearance_OnChanged"/></Grid>
@@ -93,7 +95,7 @@
                     <Button Content="Сохранить текущий кадр" Click="Export_OnClick"/>
                     <TextBlock x:Name="StatusText" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Подготовка симуляции…"/>
                     <TextBlock Margin="0,9,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.DisabledTextBrush}"
-                               Text="ЛКМ по полю добавляет реагент V. Сетка замкнута по краям. Частота 30/60 FPS является целевой и автоматически ограничивается скоростью расчёта."/>
+                               Text="ЛКМ по полю добавляет затравку. Сетка замкнута по краям. Частота 30/60 FPS является целевой и автоматически ограничивается скоростью расчёта."/>
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -113,7 +115,7 @@
                     <TextBlock x:Name="FrameBadgeText" Foreground="White" Text="0 FPS · шаг 0"/>
                 </Border>
                 <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12" Padding="10,6" CornerRadius="5" Background="#90000000">
-                    <TextBlock Foreground="White" Text="ЛКМ — добавить реагент V"/>
+                    <TextBlock Foreground="White" Text="ЛКМ — добавить затравку"/>
                 </Border>
             </Grid>
         </Border>

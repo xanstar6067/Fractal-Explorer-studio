@@ -192,6 +192,7 @@ public partial class GrayScottWindow : Window
             }
             _paletteManager.ActivePalette = palette;
             PresetBox.SelectedItem = GrayScottPresets.All.FirstOrDefault(item => item.Id == state.PresetId);
+            PresetHint.Text = (PresetBox.SelectedItem as GrayScottPreset)?.Description ?? string.Empty;
         }
         finally
         {

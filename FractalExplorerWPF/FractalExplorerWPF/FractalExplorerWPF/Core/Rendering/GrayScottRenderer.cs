@@ -59,7 +59,7 @@ public sealed class GrayScottSimulation
     {
         int centerX = Math.Clamp((int)Math.Round(normalizedX * (_size - 1)), 0, _size - 1);
         int centerY = Math.Clamp((int)Math.Round(normalizedY * (_size - 1)), 0, _size - 1);
-        PaintCircle(centerX, centerY, Math.Clamp(radius, 1, _size / 3), 0.22f, 0.72f);
+        PaintCircle(centerX, centerY, Math.Clamp(radius, 1, _size / 3), 0.5f, 0.25f, perturb: true);
     }
 
     public GrayScottSnapshot Snapshot() => new(_size, [.. _u], [.. _v], StepCount);
@@ -125,7 +125,7 @@ public sealed class GrayScottSimulation
                 break;
             case GrayScottSeedMode.RandomSpots:
                 for (int index = 0; index < state.SeedCount; index++)
-                    PaintCircle(random.Next(_size), random.Next(_size), radius, 0.25f, 0.7f);
+                    PaintCircle(random.Next(_size), random.Next(_size), radius, 0.5f, 0.25f);
                 break;
             case GrayScottSeedMode.Ring:
             {
@@ -137,7 +137,7 @@ public sealed class GrayScottSimulation
                 {
                     double distance = Math.Sqrt((x - center) * (x - center) + (y - center) * (y - center));
                     if (Math.Abs(distance - ringRadius) <= thickness)
-                        SetSeedCell(y * _size + x, 0.28f, 0.68f);
+                        SetSeedCell(y * _size + x, 0.5f, 0.25f);
                 }
                 break;
             }
@@ -163,17 +163,23 @@ public sealed class GrayScottSimulation
     {
         for (int y = centerY - radius; y <= centerY + radius; y++)
         for (int x = centerX - radius; x <= centerX + radius; x++)
-            SetSeedCell(WrappedIndex(x, y), 0.25f, 0.7f);
+            SetSeedCell(WrappedIndex(x, y), 0.5f, 0.25f);
     }
 
-    private void PaintCircle(int centerX, int centerY, int radius, float u, float v)
+    private void PaintCircle(int centerX, int centerY, int radius, float u, float v, bool perturb = false)
     {
         int squaredRadius = radius * radius;
         for (int y = -radius; y <= radius; y++)
         for (int x = -radius; x <= radius; x++)
         {
-            if (x * x + y * y <= squaredRadius)
-                SetSeedCell(WrappedIndex(centerX + x, centerY + y), u, v);
+            if (x * x + y * y > squaredRadius) continue;
+            int index = WrappedIndex(centerX + x, centerY + y);
+            // Break perfect radial symmetry, otherwise a clicked mitosis seed can
+            // stay round indefinitely. Binary fractions keep the CPU/GPU brush identical.
+            uint hash = unchecked((uint)index * 747796405u + 2891336453u);
+            hash ^= hash >> 16;
+            float noise = perturb ? ((int)(hash & 1023u) - 512) * (1f / 32768f) : 0;
+            SetSeedCell(index, u + noise, v - noise);
         }
     }
 

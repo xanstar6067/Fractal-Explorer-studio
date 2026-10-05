@@ -75,6 +75,7 @@ public sealed class GrayScottPreset
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
+    public required string Description { get; init; }
     public required GrayScottState State { get; init; }
     public override string ToString() => Name;
 }
@@ -84,8 +85,10 @@ public sealed class GrayScottState
     public string SaveName { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
     public string? PresetId { get; set; }
-    public double DiffusionU { get; set; } = 0.16;
-    public double DiffusionV { get; set; } = 0.08;
+    // These coefficients match the normalized nine-point stencil (-1, .2, .05).
+    // The .16/.08 pair belongs to a different spatial scale and under-resolves spots here.
+    public double DiffusionU { get; set; } = 1;
+    public double DiffusionV { get; set; } = 0.5;
     public double Feed { get; set; } = 0.0545;
     public double Kill { get; set; } = 0.062;
     public double DeltaTime { get; set; } = 1;
@@ -96,13 +99,13 @@ public sealed class GrayScottState
     public int FrameWidth { get; set; } = 1024;
     public int FrameHeight { get; set; } = 1024;
     public GrayScottSnapshot? Checkpoint { get; set; }
-    public int StepsPerFrame { get; set; } = 4;
+    public int StepsPerFrame { get; set; } = 24;
     public int TargetFps { get; set; } = 30;
     public int RandomSeed { get; set; } = 1729;
     public GrayScottSeedMode SeedMode { get; set; } = GrayScottSeedMode.Noise;
     public int SeedCount { get; set; } = 18;
     public int SeedRadius { get; set; } = 6;
-    public int BrushRadius { get; set; } = 8;
+    public int BrushRadius { get; set; } = 6;
     public GrayScottFieldMode FieldMode { get; set; } = GrayScottFieldMode.V;
     public double RangeMinimum { get; set; }
     public double RangeMaximum { get; set; } = 0.5;
@@ -172,12 +175,18 @@ public static class GrayScottPresets
 {
     public static IReadOnlyList<GrayScottPreset> All { get; } =
     [
-        Preset("coral", "Коралл — ветвящиеся лабиринты", 0.060, 0.062, GrayScottSeedMode.Noise, 18, 6, steps: 4),
-        Preset("worms", "Черви — движущиеся нити", 0.078, 0.061, GrayScottSeedMode.RandomSpots, 60, 4, steps: 4),
-        Preset("mitosis", "Митоз — делящиеся пятна", 0.0367, 0.0649, GrayScottSeedMode.RandomSpots, 28, 7, steps: 4),
-        Preset("solitons", "Солитоны — устойчивые импульсы", 0.030, 0.062, GrayScottSeedMode.CenterSquare, 1, 12, steps: 4),
-        Preset("waves", "Волны — кольцевой фронт", 0.014, 0.054, GrayScottSeedMode.Ring, 1, 8, steps: 5),
-        Preset("chaos", "Хаос — взаимодействующие домены", 0.026, 0.051, GrayScottSeedMode.Noise, 1, 5, steps: 3)
+        Preset("coral", "Коралл — ветвящиеся лабиринты", 0.060, 0.062, GrayScottSeedMode.Noise, 18, 6,
+            "Шум собирается в ветвящиеся лабиринты. По мере заполнения поля рост замедляется."),
+        Preset("worms", "Черви — движущиеся нити", 0.026, 0.055, GrayScottSeedMode.RandomSpots, 24, 6,
+            "Пятна растут в нити: они изгибаются, соединяются и перестраиваются. Сначала дайте затравкам вырасти."),
+        Preset("mitosis", "Митоз — делящиеся пятна", 0.0367, 0.0649, GrayScottSeedMode.RandomSpots, 28, 6,
+            "Пятна сначала уменьшаются, затем вытягиваются и делятся. Первые деления — примерно через 1000–2000 шагов; на заполненном поле они прекращаются."),
+        Preset("solitons", "Солитоны — устойчивые импульсы", 0.046, 0.067, GrayScottSeedMode.CenterSquare, 1, 6,
+            "Затравка сжимается в устойчивое отдельное пятно. Оно сохраняет форму и может стоять на месте. Кистью можно добавить другие пятна."),
+        Preset("waves", "Волны — кольцевой фронт", 0.014, 0.045, GrayScottSeedMode.Ring, 1, 3,
+            "Кольцо расходится двумя фронтами. При столкновении волны гасят друг друга, и поле может опустеть. Добавьте затравку кистью или перезапустите режим."),
+        Preset("chaos", "Хаос — взаимодействующие домены", 0.026, 0.051, GrayScottSeedMode.Noise, 1, 5,
+            "Домены появляются и исчезают, волны сталкиваются. Краткое затихание возможно; рисунок не обязан сохранять отдельные пятна.")
     ];
 
     private static GrayScottPreset Preset(
@@ -188,10 +197,11 @@ public static class GrayScottPresets
         GrayScottSeedMode seedMode,
         int seedCount,
         int seedRadius,
-        int steps = 8) => new()
+        string description) => new()
     {
         Id = id,
         Name = name,
+        Description = description,
         State = new GrayScottState
         {
             PresetId = id,
@@ -199,8 +209,7 @@ public static class GrayScottPresets
             Kill = kill,
             SeedMode = seedMode,
             SeedCount = seedCount,
-            SeedRadius = seedRadius,
-            StepsPerFrame = steps
+            SeedRadius = seedRadius
         }
     };
 }
