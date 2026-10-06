@@ -179,6 +179,7 @@ internal static class Program
             GetMember(win, "_frameRequested") is true ||
             GetMember(win, "_grayBusy") is true || GetMember(win, "_grayPending") is not null ||
             GetMember(win, "_turingBusy") is true || GetMember(win, "_turingPending") is not null ||
+            GetMember(win, "_cahnBusy") is true || GetMember(win, "_cahnPending") is not null || GetMember(win, "_cahnPreparing") is true ||
             win is DynamicSystemWindow && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();

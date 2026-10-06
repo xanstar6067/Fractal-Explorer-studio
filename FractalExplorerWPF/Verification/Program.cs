@@ -66,6 +66,7 @@ internal static partial class Program
                 if (group is "all" or "flame3d") await VerifyFlame3DAsync(args);
                 if (group is "all" or "buddhabrot4d") await VerifyBuddhabrot4DAsync(args);
                 if (group is "all" or "gray-scott3d") await VerifyGrayScott3DAsync(args);
+                if (group is "all" or "cahn-hilliard3d" or "cahn-hilliard-perf") await VerifyCahnHilliard3DAsync(args);
                 if (group is "all" or "turing3d") await VerifyTuring3DAsync(args);
                 if (group is "all" or "kifs") await VerifyKifsAsync(args);
                 if (group is "all" or "dla3d") await VerifyDla3DAsync(args);
@@ -118,9 +119,9 @@ internal static partial class Program
                     if (args.Length != 4) throw new ArgumentException("poi-probe <группа> <кандидаты.json> <папка PNG>");
                     await ProbePointsOfInterestAsync(args[1], args[2], args[3]);
                 }
-                if (group is not ("turing-reactions" or "gray-scott3d" or "turing3d" or "gray-scott" or "gray-scott-random" or "gray-scott-gpu" or "gray-scott-perf" or "buddhabrot4d" or "turing-gpu" or "turing-perf" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "all" or "terrain" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("cahn-hilliard3d" or "cahn-hilliard-perf" or "turing-reactions" or "gray-scott3d" or "turing3d" or "gray-scott" or "gray-scott-random" or "gray-scott-gpu" or "gray-scott-perf" or "buddhabrot4d" or "turing-gpu" or "turing-perf" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "all" or "terrain" or "manager" or "deep" or "extreme" or "phoenix" or "newton" or "basins" or "planar" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "cloud" or "cloud-live" or "numeric" or "poi" or "poi-probe" or "catalog"))
                     throw new ArgumentException($"Неизвестная группа проверок «{group}». Допустимы: hopalong, all, manager, deep, extreme, phoenix, newton, basins, planar, fractal3d, ifs-diagnostic, poi, poi-probe, catalog.");
-                if (group is not ("turing-reactions" or "gray-scott3d" or "turing3d" or "gray-scott" or "gray-scott-random" or "gray-scott-gpu" or "gray-scott-perf" or "buddhabrot4d" or "turing-gpu" or "turing-perf" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "terrain" or "cloud" or "cloud-live" or "numeric" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
+                if (group is not ("cahn-hilliard3d" or "cahn-hilliard-perf" or "turing-reactions" or "gray-scott3d" or "turing3d" or "gray-scott" or "gray-scott-random" or "gray-scott-gpu" or "gray-scott-perf" or "buddhabrot4d" or "turing-gpu" or "turing-perf" or "turing" or "hopalong" or "snow-crystal" or "popcorn" or "symmetric-icons" or "lsystemrandom" or "lsystem3d" or "dla3d" or "kifs" or "terrain" or "cloud" or "cloud-live" or "numeric" or "fractal3d" or "flame3d" or "attractors" or "sprott" or "picker-marker" or "shadercache" or "ifs-close" or "ifs-diagnostic" or "poi" or "poi-probe" or "catalog"))
                     Console.WriteLine($"PASS ({group}): preview selection, snapshot persistence, progress, cancellation, stale results, errors, presets, deep zoom and extreme zoom.");
             }
             catch (Exception ex)

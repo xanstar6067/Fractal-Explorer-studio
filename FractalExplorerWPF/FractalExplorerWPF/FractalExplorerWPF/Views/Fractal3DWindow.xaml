@@ -109,6 +109,55 @@
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                            Text="Изменение затравки, прилипания или потока начинает новый рост. Палитра, свет и камера меняют готовый объём."/>
                             </StackPanel>
+                            <StackPanel x:Name="CahnPanel" Visibility="Collapsed">
+                                <TextBlock Text="∂c/∂t = M ∇²(c³ − c − κ ∇²c)" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                <TextBlock x:Name="CahnDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси"/>
+                                <ComboBox x:Name="CahnSizeBox" SelectedIndex="1">
+                                    <ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="64³ · стандарт"/><ComboBoxItem Content="128³ · подробно"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Средний состав c (−0,55…0,55)"/>
+                                <TextBox x:Name="CahnMeanBox" Text="0" numeric:NumericSpinner.IsEnabled="True" ToolTip="0 — смесь 50/50; −0,4 — 30/70. Средний состав сохраняется при развитии."/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шум начальной смеси (0,001–0,2)"/>
+                                <TextBox x:Name="CahnNoiseBox" Text="0.08" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Межфазная энергия κ (0,5–8)"/>
+                                <TextBox x:Name="CahnKappaBox" Text="1" numeric:NumericSpinner.IsEnabled="True" ToolTip="Больше κ — толще границы и крупнее домены. Шаг сетки равен 1."/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,4,0">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Подвижность M"/>
+                                        <TextBox x:Name="CahnMobilityBox" Text="1" numeric:NumericSpinner.IsEnabled="True"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt"/>
+                                        <TextBox x:Name="CahnDtBox" Text="1" numeric:NumericSpinner.IsEnabled="True" ToolTip="0,01–2; M·Δt ≤ 2. Меньше шаг — точнее динамика."/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Начальная смесь"/>
+                                <ComboBox x:Name="CahnSeedBox" SelectedIndex="0">
+                                    <ComboBoxItem Content="Шум · спинодальный распад"/>
+                                    <ComboBoxItem Content="Гироидная затравка"/><ComboBoxItem Content="Слоистая затравка"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
+                                <TextBox x:Name="CahnRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–5000)"/>
+                                <TextBox x:Name="CahnWarmupBox" Text="450" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <Button Content="Применить и начать заново" Click="CahnRestart_OnClick"/>
+                                <TextBlock Text="Границы замкнуты по трём осям. После подготовки смесь на паузе. Пробел — продолжить или остановить укрупнение доменов." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+                                <Slider x:Name="CahnSpeedSlider" Minimum="1" Maximum="64" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Text="{Binding ElementName=CahnSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности c"/>
+                                <Slider x:Name="CahnLevelSlider" Minimum="-0.9" Maximum="0.9" Value="0" ValueChanged="CahnView_OnChanged"/>
+                                <TextBlock Text="{Binding ElementName=CahnLevelSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+                                <CheckBox x:Name="CahnInvertBox" Content="Показать вторую фазу" Checked="CahnView_OnChanged" Unchecked="CahnView_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+                                <ComboBox x:Name="CahnCutBox" SelectionChanged="CahnView_OnChanged">
+                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+                                </ComboBox>
+                                <Slider x:Name="CahnCutSlider" Minimum="-1" Maximum="1" Value="0.55" ValueChanged="CahnView_OnChanged"/>
+                                <TextBlock Text="{Binding ElementName=CahnCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+                            </StackPanel>
                             <StackPanel x:Name="GrayPanel" Visibility="Collapsed">
                                 <TextBlock Text="U + 2V → 3V · реакция внутри объёма" TextWrapping="Wrap" Margin="0,4,0,8"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
@@ -944,6 +993,15 @@
                         <Button x:Name="GrayStepButton" Content="Один кадр" Click="GrayStep_OnClick"/>
                     </StackPanel>
                 </Border>
+                <Border x:Name="CahnOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock x:Name="CahnTimeText" FontSize="11"/>
+                        <Button x:Name="CahnPlayButton" Content="▶ Продолжить" Click="CahnPlay_OnClick"/>
+                        <Button x:Name="CahnStepButton" Content="Один кадр" Click="CahnStep_OnClick"/>
+                    </StackPanel>
+                </Border>
                 <Border x:Name="TuringOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
@@ -956,6 +1014,13 @@
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->
                 <Canvas x:Name="AxisTriad" Width="64" Height="64" Margin="8"
                         HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
+                <Border x:Name="CahnPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="430">
+                        <TextBlock x:Name="CahnPreparationText" Text="Подготовка спинодального распада…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/>
+                        <ProgressBar x:Name="CahnPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
+                        <Button Content="Остановить подготовку" Click="CahnStopPreparation_OnClick" Margin="20,14"/>
+                    </StackPanel>
+                </Border>
                 <Border x:Name="TuringPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="300">
                         <TextBlock x:Name="TuringPreparationText" Foreground="White" FontSize="17"

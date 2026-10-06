@@ -15,6 +15,7 @@ public sealed partial class Fractal3DRenderer
     private ID3D11PixelShader? _dlaPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
     private ID3D11PixelShader? _turingPixelShader;
+    private ID3D11PixelShader? _cahnHilliardPixelShader;
     private int _volumeSide;
     private Dla3DCluster? _dlaCluster;
     private Format _volumeFormat;
@@ -31,6 +32,8 @@ public sealed partial class Fractal3DRenderer
     {
         if (kind == Fractal3DKind.GrayScott3D)
             return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
+        if (kind == Fractal3DKind.CahnHilliard3D)
+            return _cahnHilliardPixelShader ??= _device!.CreatePixelShader(Compile(CahnHilliardPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Turing3D)
             return _turingPixelShader ??= _device!.CreatePixelShader(Compile(TuringPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Buddhabrot4D)
@@ -53,6 +56,7 @@ public sealed partial class Fractal3DRenderer
     {
         if (state.Kind == Fractal3DKind.GrayScott3D) return GrayScottVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Turing3D) return TuringVolumeView(state, token);
+        if (state.Kind == Fractal3DKind.CahnHilliard3D) return CahnHilliardVolumeView(state, token);
         EnsureIfsVolume(state, token);
         return _ifsVolumeView!;
     }
@@ -158,6 +162,8 @@ public sealed partial class Fractal3DRenderer
         if (first.Kind != second.Kind) return false;
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
+        if (first.Kind == Fractal3DKind.CahnHilliard3D)
+            return first.CahnHilliard.Live == second.CahnHilliard.Live && first.CahnHilliard.SameEvolution(second.CahnHilliard);
         if (first.Kind == Fractal3DKind.Turing3D)
             return first.Turing.Live == second.Turing.Live && first.Turing.SameEvolution(second.Turing);
         if (first.Kind == Fractal3DKind.Buddhabrot4D)
@@ -211,6 +217,8 @@ public sealed partial class Fractal3DRenderer
         DisposeGrayScottPreview();
         _turingPixelShader?.Dispose();
         DisposeTuringPreview();
+        _cahnHilliardPixelShader?.Dispose();
+        DisposeCahnHilliardPreview();
         _dlaCluster = null;
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;

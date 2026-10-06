@@ -363,6 +363,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         if (state.Kind == Fractal3DKind.GrayScott3D) state.GrayScott.Validate();
         if (state.Kind == Fractal3DKind.Turing3D) state.Turing.Validate();
+        if (state.Kind == Fractal3DKind.CahnHilliard3D) state.CahnHilliard.Validate();
         KifsSettings kifs = (state.Kifs ?? new()).Normalized();
         Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
         Vector3 light = Fractal3DCamera.LightDirection(state);
@@ -370,6 +371,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.CahnHilliard3D => (state.CahnHilliard.Size, (float)(.5+.5*(state.CahnHilliard.Invert ? -state.CahnHilliard.Level : state.CahnHilliard.Level)), 0),
             Fractal3DKind.GrayScott3D => (state.GrayScott.Size, (float)state.GrayScott.Threshold, 0),
             Fractal3DKind.Turing3D => (state.Turing.Size, (float)state.Turing.Level, (float)state.Turing.SheetThickness),
             Fractal3DKind.LSystem3D => ((float)state.LSystem.Growth, (float)state.LSystem.ColorSource, 0),
@@ -408,6 +410,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
             ShapeB = state.Kind == Fractal3DKind.GrayScott3D
                 ? new Vector4(state.GrayScott.CutAxis, (float)state.GrayScott.CutPosition, 0, 0)
+                : state.Kind == Fractal3DKind.CahnHilliard3D
+                ? new Vector4(state.CahnHilliard.CutAxis, (float)state.CahnHilliard.CutPosition, state.CahnHilliard.Invert ? 1 : 0, 0)
                 : state.Kind == Fractal3DKind.Turing3D
                 ? new Vector4(state.Turing.CutAxis, (float)state.Turing.CutPosition, (int)state.Turing.Region, (float)state.Turing.ShellThickness)
                 : state.Kind == Fractal3DKind.Kifs
@@ -502,10 +506,13 @@ public sealed partial class Fractal3DRenderer : IDisposable
     }
 
     private static bool IsDensityVolume(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D;
+        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D;
 
     private static ShaderCacheEntry GrayScottPixelShaderEntry() =>
         new("gray-scott3d-pixel", GrayScott3DShader.Source, "PSMain", "ps_5_0");
+
+    private static ShaderCacheEntry CahnHilliardPixelShaderEntry() =>
+        new("cahn-hilliard3d-pixel", CahnHilliard3DShader.Source, "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry TuringPixelShaderEntry() =>
         new("turing3d-pixel", Turing3DShader.Source, "PSMain", "ps_5_0");
@@ -543,6 +550,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(DlaPixelShaderEntry());
         entries.Add(GrayScottPixelShaderEntry());
         entries.Add(TuringPixelShaderEntry());
+        entries.Add(CahnHilliardPixelShaderEntry());
+        entries.Add(GpuFft3D.CacheEntry);
+        entries.Add(GpuFft3D.TiledCacheEntry);
+        entries.AddRange(CahnHilliard3DComputeShader.CacheEntries);
         entries.AddRange(GrayScott3DComputeShader.CacheEntries);
         entries.AddRange(Turing3DComputeShader.CacheEntries);
         entries.AddRange(TuringComputeShader.CacheEntries);

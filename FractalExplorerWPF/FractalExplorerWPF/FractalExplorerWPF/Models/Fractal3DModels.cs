@@ -29,7 +29,8 @@ public enum Fractal3DKind
     LSystem3D,
     Buddhabrot4D,
     GrayScott3D,
-    Turing3D
+    Turing3D,
+    CahnHilliard3D
 }
 
 public enum Hybrid3DOrder
@@ -298,6 +299,7 @@ public sealed class Fractal3DState
     public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
     public GrayScott3DSettings GrayScott { get; set; } = new();
     public Turing3DSettings Turing { get; set; } = new();
+    public CahnHilliard3DSettings CahnHilliard { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
 
@@ -397,6 +399,7 @@ public sealed class Fractal3DState
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.Turing = Turing is null ? new() : Turing with { };
+        clone.CahnHilliard = CahnHilliard is null ? new() : CahnHilliard with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return clone;
@@ -490,6 +493,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.CahnHilliard3D => new(
+            "Кан–Хиллиард 3D · спинодальный распад", "Кан–Хиллиард · 3D",
+            "Смесь расслаивается на две фазы, сохраняя средний состав. При равных долях возникают взаимопроникающие губчатые домены, которые постепенно укрупняются. Срез открывает внутренние каналы.",
+            "Fractal3DCahnHilliard", "cahn-hilliard3d"),
         Fractal3DKind.Turing3D => new(
             "Узоры Тьюринга 3D", "Тьюринг · 3D",
             "Маккейб и классические реакции Брюсселятора, Шнакенберга и Гирера–Мейнхардта формируют узор в каждой точке объёма. Симметрии многогранников, шар, оболочка и срез открывают внутреннюю структуру.",
@@ -592,6 +599,8 @@ public static class Fractal3DCatalog
 
     public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
+        if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
+            return "По составу смеси";
         if (kind == Fractal3DKind.Dla3D && mode == Fractal3DColoringMode.IterationIndex)
             return "По возрасту частиц";
         if (kind == Fractal3DKind.Turing3D && mode == Fractal3DColoringMode.OrbitTrap)
@@ -696,6 +705,7 @@ public static class Fractal3DCatalog
                 state.AmbientOcclusion = true;
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
+            case Fractal3DKind.CahnHilliard3D:
             case Fractal3DKind.GrayScott3D:
                 state.ShadingStyle = Fractal3DShadingStyle.Studio;
                 state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
@@ -947,6 +957,14 @@ public static class Fractal3DCatalog
                 s.ColorScale = .5; s.ColorOffset = .5;
                 s.CameraDistance = 3.6;
             })
+        ],
+        Fractal3DKind.CahnHilliard3D =>
+        [
+            Preset(kind, "Спинодальная губка · 50/50", _ => { }),
+            Preset(kind, "Капли в матрице · 30/70", s => { s.CahnHilliard = new() { Mean = -.4, WarmupSteps = 650, Seed = 314 }; s.Palette = Fractal3DPalettes.Get("Лёд"); }),
+            Preset(kind, "Крупные домены", s => { s.CahnHilliard = new() { Kappa = 2, WarmupSteps = 900, Seed = 2718 }; s.Palette = Fractal3DPalettes.Get("Огонь"); }),
+            Preset(kind, "Гироидная затравка", s => { s.CahnHilliard = new() { SeedShape = CahnHilliard3DSeed.Gyroid, WarmupSteps = 180 }; }),
+            Preset(kind, "Слоистая затравка", s => { s.CahnHilliard = new() { SeedShape = CahnHilliard3DSeed.Layers, WarmupSteps = 250, Seed = 808 }; s.Palette = Fractal3DPalettes.Get("Лёд"); })
         ],
         Fractal3DKind.GrayScott3D =>
         [

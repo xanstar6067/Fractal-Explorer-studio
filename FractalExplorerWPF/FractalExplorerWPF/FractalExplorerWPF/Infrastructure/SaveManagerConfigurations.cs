@@ -322,6 +322,14 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.CahnHilliard3D)
+        {
+            var s = state.CahnHilliard;
+            return $"{Prefix(state.Timestamp)} · сетка {s.Size}³ · " +
+                (s.Field is { } field ? $"шаг {field.Step:N0} · t = {field.Time:G6}" : $"новая смесь, {s.WarmupSteps} шагов подготовки") + "\n" +
+                $"Состав: {s.Field?.Mean ?? s.Mean:G4} · κ = {s.Kappa:G4} · M = {s.Mobility:G4} · Δt = {s.TimeStep:G4}\n" +
+                $"Палитра: {state.ResolvePalette().Name} · " + (s.Invert ? "вторая фаза" : "первая фаза");
+        }
         if (state.Kind == Fractal3DKind.Dla3D)
         {
             Dla3DSettings dla = (state.Dla ?? new()).Normalized();
