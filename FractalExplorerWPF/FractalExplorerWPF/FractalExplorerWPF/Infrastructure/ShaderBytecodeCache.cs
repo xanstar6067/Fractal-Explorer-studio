@@ -49,7 +49,8 @@ internal static class ShaderBytecodeCache
     }
 
     /// <summary>
-    /// Сначала компилирует полный новый набор, затем заменяет файлы под общим замком.
+    /// Сначала параллельно компилирует полный новый набор (не более четырёх задач),
+    /// затем заменяет файлы под общим замком.
     /// Если компиляция не удалась, прежний кэш остаётся нетронутым.
     /// </summary>
     public static void Rebuild(
@@ -57,13 +58,20 @@ internal static class ShaderBytecodeCache
         Func<ShaderCacheEntry, ReadOnlyMemory<byte>> compiler,
         Action<int, int, string>? progress = null)
     {
-        var compiled = new List<(ShaderCacheEntry Entry, byte[] Bytecode)>(entries.Count);
-        foreach (ShaderCacheEntry entry in entries)
+        var compiled = new (ShaderCacheEntry Entry, byte[] Bytecode)[entries.Count];
+        var progressSync = new object();
+        int completed = 0;
+        // Ограничиваем нагрузку на ЦП и память: каждый вызов D3DCompile независим.
+        var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount) };
+        Parallel.For(0, entries.Count, options, index =>
         {
+            ShaderCacheEntry entry = entries[index];
             byte[] bytecode = compiler(entry).ToArray();
-            compiled.Add((entry, bytecode));
-            progress?.Invoke(compiled.Count, entries.Count, entry.Key);
-        }
+            compiled[index] = (entry, bytecode);
+            // Отчёты идут последовательно, чтобы интерфейс не получал счётчик в обратном порядке.
+            lock (progressSync)
+                progress?.Invoke(++completed, entries.Count, entry.Key);
+        });
 
         lock (Sync)
         {
