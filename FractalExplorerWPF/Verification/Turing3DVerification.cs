@@ -130,6 +130,20 @@ internal static partial class Program
                 "On closed edges a stroke at the boundary must reach both sides of the cube.");
         }
 
+        // ----- Closing a window: the renderer may be released first, the simulation then holds the last device reference. -----
+        foreach (bool grayScott in new[] { false, true })
+        {
+            var owner = new Fractal3DRenderer();
+            IDisposable simulation = grayScott
+                ? new GrayScott3DGpuSimulation(owner.DeviceHost, new GrayScott3DSettings { Size = 32 })
+                : new Turing3DGpuSimulation(owner.DeviceHost, new Turing3DSettings { Size = 32 });
+            owner.Dispose();
+            simulation.Dispose(); // threw ObjectDisposedException when the gate was released after the device
+            simulation.Dispose();
+            try { owner.DeviceHost.AddRef(); throw new Exception("The device survived its last reference."); }
+            catch (ObjectDisposedException) { }
+        }
+
         // ----- Publication slots, exact checkpoints and continuation. -----
         var settings = new Turing3DSettings { Size = 48, Seed = 11 };
         using var live = new Turing3DGpuSimulation(host, settings);

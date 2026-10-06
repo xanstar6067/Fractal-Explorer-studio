@@ -51,7 +51,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
     {
         settings.Validate();
         _host = host.AddRef();
-        bool entered = false;
+        bool entered = false, created = false;
         try
         {
             if (!gateHeld) { _host.Gate.Wait(); entered = true; }
@@ -65,9 +65,15 @@ public sealed class Turing3DGpuSimulation : IDisposable
                 _fences[i] = device.CreateQuery(new QueryDescription(QueryType.Event, QueryFlags.None));
             _group = new GpuBuffer(device, MaxGroupSize * 4, 16);
             ResetLocked(settings);
+            created = true;
         }
-        catch { DisposeResources(); _host.Release(); throw; }
-        finally { if (entered) _host.Gate.Release(); }
+        finally
+        {
+            if (!created) DisposeResources();
+            if (entered) _host.Gate.Release();
+            // The last reference destroys the device together with its gate: only after the gate is free.
+            if (!created) _host.Release();
+        }
     }
 
     /// <summary>Для рендера, который уже держит очередь устройства.</summary>
@@ -482,15 +488,28 @@ public sealed class Turing3DGpuSimulation : IDisposable
             throw new ArgumentOutOfRangeException(nameof(radius));
     }
 
+    /// <summary>
+    /// Освобождение из окна. Ссылка на устройство отпускается после очереди: если окно уже
+    /// освободило рендер, эта ссылка последняя и уничтожает устройство вместе с его очередью.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
         bool entered = _host.Gate.Wait(TimeSpan.FromSeconds(10));
-        try { DisposeWhileLocked(); }
+        try
+        {
+            if (_disposed) return;
+            _disposed = true;
+            DisposeResources();
+        }
         finally { if (entered) _host.Gate.Release(); }
+        _host.Release();
     }
 
-    /// <summary>Освобождение под уже взятой очередью устройства (из рендера).</summary>
+    /// <summary>
+    /// Освобождение под уже взятой очередью устройства (из рендера). Отпустить ссылку здесь можно:
+    /// рендер держит свою до конца своего освобождения, поэтому устройство и очередь остаются живы.
+    /// </summary>
     internal void DisposeWhileLocked()
     {
         if (_disposed) return;
