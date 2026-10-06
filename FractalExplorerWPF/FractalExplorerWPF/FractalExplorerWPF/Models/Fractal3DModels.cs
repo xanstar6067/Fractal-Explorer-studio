@@ -27,7 +27,8 @@ public enum Fractal3DKind
     Kifs,
     Dla3D,
     LSystem3D,
-    Buddhabrot4D
+    Buddhabrot4D,
+    GrayScott3D
 }
 
 public enum Hybrid3DOrder
@@ -294,6 +295,7 @@ public sealed class Fractal3DState
 
     public Flame3DSettings Flame { get; set; } = new();
     public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
+    public GrayScott3DSettings GrayScott { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
 
@@ -391,6 +393,7 @@ public sealed class Fractal3DState
         clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
+        clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return clone;
@@ -484,6 +487,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.GrayScott3D => new(
+            "Gray–Scott 3D · объёмная реакция–диффузия", "Gray–Scott · 3D",
+            "Два вещества реагируют и распространяются внутри объёма. Наблюдайте развитие пространственных узоров, добавляйте сферические затравки и открывайте внутреннюю структуру срезом.",
+            "Fractal3DGrayScott", "gray-scott3d"),
         Fractal3DKind.Buddhabrot4D => new(
             "Буддаброт 4D · объёмные проекции", "Буддаброт 4D",
             "Орбиты z² + c образуют облако в четырёх координатах: Re z, Im z, Re c, Im c. Вращения в 4D меняют его трёхмерную проекцию; камера позволяет рассмотреть её со всех сторон.",
@@ -664,6 +671,16 @@ public static class Fractal3DCatalog
                 state.BackgroundBottom = Color.FromRgb(1, 2, 5);
                 state.SoftShadows = false;
                 state.AmbientOcclusion = false;
+                break;
+            case Fractal3DKind.GrayScott3D:
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.Palette = Fractal3DPalettes.Get("Медь и патина");
+                state.CameraDistance = 3.6;
+                state.SoftShadows = false;
+                state.AmbientOcclusion = false;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.ColorScale = 2;
                 break;
             case Fractal3DKind.LSystem3D:
                 state.CameraDistance = 3.8;
@@ -864,6 +881,14 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.GrayScott3D =>
+        [
+            Preset(kind, "Пористый объём", _ => { }),
+            Preset(kind, "Островки · восемь затравок", s => { s.GrayScott = new() { SeedShape = GrayScott3DSeed.Spheres, Feed = .03, Kill = .057 }; s.Palette = Fractal3DPalettes.Get("Лёд"); }),
+            Preset(kind, "Кольцевой фронт", s => { s.GrayScott = new() { SeedShape = GrayScott3DSeed.Ring, Feed = .014, Kill = .045 }; s.Palette = Fractal3DPalettes.Get("Огонь"); }),
+            Preset(kind, "Живые домены", s => { s.GrayScott = new() { Feed = .026, Kill = .051 }; s.ShadingStyle = Fractal3DShadingStyle.Density; s.Palette = Fractal3DPalettes.Get("Неон"); }),
+            Preset(kind, "Чистая среда · добавьте затравку", s => s.GrayScott = new() { SeedShape = GrayScott3DSeed.Empty })
+        ],
         Fractal3DKind.Buddhabrot4D =>
         [
             Preset(kind, "Будда · глубина Re c", _ => { }),

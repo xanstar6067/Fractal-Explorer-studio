@@ -13,6 +13,10 @@ public sealed partial class Fractal3DRenderer
     private Buddhabrot4DOrbitCloud? _buddhabrotCloud;
     internal int BuddhabrotSamplingBuilds { get; private set; }
     private ID3D11PixelShader? _dlaPixelShader;
+    private ID3D11PixelShader? _grayScottPixelShader;
+    private int _volumeSide;
+    private GrayScott3DSettings? _graySeedSettings;
+    private GrayScott3DField? _graySeedField;
     private Dla3DCluster? _dlaCluster;
     private Format _volumeFormat;
     // Metadata belongs to the uploaded volume, not to an unfinished/canceled growth batch.
@@ -26,6 +30,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.GrayScott3D)
+            return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Buddhabrot4D)
             return _buddhabrotPixelShader ??= _device!.CreatePixelShader(Compile(BuddhabrotPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Dla3D)
@@ -45,11 +51,13 @@ public sealed partial class Fractal3DRenderer
     {
         if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
         bool colorVolume = state.Kind is Fractal3DKind.Flame3D or Fractal3DKind.Buddhabrot4D;
-        int side = colorVolume ? Flame3DVolume.Side : state.Kind == Fractal3DKind.Dla3D ? Dla3DVolume.Side : Ifs3DVolume.Side;
-        int bytesPerCell = colorVolume ? 8 : state.Kind == Fractal3DKind.Dla3D ? 2 : 1;
-        Format format = colorVolume ? Format.R16G16B16A16_Float : state.Kind == Fractal3DKind.Dla3D ? Format.R8G8_UNorm : Format.R8_UNorm;
+        bool grayScott = state.Kind == Fractal3DKind.GrayScott3D;
+        int side = grayScott ? state.GrayScott.Size : colorVolume ? Flame3DVolume.Side : state.Kind == Fractal3DKind.Dla3D ? Dla3DVolume.Side : Ifs3DVolume.Side;
+        int bytesPerCell = grayScott || colorVolume ? 8 : state.Kind == Fractal3DKind.Dla3D ? 2 : 1;
+        Format format = grayScott ? Format.R32G32_Float : colorVolume ? Format.R16G16B16A16_Float : state.Kind == Fractal3DKind.Dla3D ? Format.R8G8_UNorm : Format.R8_UNorm;
         byte[] voxels = state.Kind switch
         {
+            Fractal3DKind.GrayScott3D => BuildGrayScottVolume(state, token),
             Fractal3DKind.Buddhabrot4D => BuildBuddhabrotVolume(state, token),
             Fractal3DKind.Dla3D => BuildDlaVolume(state, token),
             Fractal3DKind.Flame3D => Flame3DVolume.Build(state, token),
@@ -61,7 +69,7 @@ public sealed partial class Fractal3DRenderer
         // snapshot pointing at a replaced or partially updated texture.
         _ifsVolumeState = null;
 
-        if (_ifsVolumeTexture is not null && _volumeFormat != format)
+        if (_ifsVolumeTexture is not null && (_volumeFormat != format || _volumeSide != side))
         {
             _context!.PSSetShaderResource(0, null!);
             _ifsVolumeView?.Dispose(); _ifsVolumeTexture.Dispose();
@@ -104,6 +112,7 @@ public sealed partial class Fractal3DRenderer
         }
         finally { context.Unmap(_ifsVolumeTexture, 0); }
         _volumeFormat = format;
+        _volumeSide = side;
         _ifsVolumeState = state.Clone();
         if (state.Kind == Fractal3DKind.Dla3D)
         {
@@ -111,6 +120,28 @@ public sealed partial class Fractal3DRenderer
             DlaBoundaryReached = _dlaCluster.BoundaryReached;
             DlaRadius = _dlaCluster.Radius / (Dla3DVolume.Side / 2d);
         }
+    }
+
+    private byte[] BuildGrayScottVolume(Fractal3DState state, CancellationToken token)
+    {
+        state.GrayScott.Validate(); token.ThrowIfCancellationRequested();
+        var field = state.GrayScott.Field;
+        if (field is null)
+        {
+            var seedSettings = state.GrayScott with { CutAxis = 0, CutPosition = 0, Threshold = .18, StepsPerFrame = 16 };
+            if (_graySeedSettings != seedSettings || _graySeedField is null)
+            {
+                using var engine = GrayScott3DEngineFactory.Create(seedSettings, out _);
+                for (int remaining = seedSettings.InitialSteps; remaining > 0; remaining -= Math.Min(remaining, 256))
+                    engine.Advance(Math.Min(remaining, 256), token);
+                var prepared = engine.Snapshot(); token.ThrowIfCancellationRequested();
+                _graySeedSettings = seedSettings; _graySeedField = prepared;
+            }
+            field = _graySeedField;
+        }
+        var values = field.Values;
+        byte[] bytes = new byte[values.Length * 4]; Buffer.BlockCopy(values, 0, bytes, 0, bytes.Length);
+        return bytes;
     }
 
     private byte[] BuildDlaVolume(Fractal3DState state, CancellationToken token)
@@ -139,6 +170,13 @@ public sealed partial class Fractal3DRenderer
     internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.GrayScott3D)
+            return ReferenceEquals(first.GrayScott.Field, second.GrayScott.Field) &&
+                first.GrayScott.Size == second.GrayScott.Size && first.GrayScott.Seed == second.GrayScott.Seed &&
+                first.GrayScott.SeedShape == second.GrayScott.SeedShape && (first.GrayScott.Field is not null ||
+                    first.GrayScott.Feed == second.GrayScott.Feed && first.GrayScott.Kill == second.GrayScott.Kill &&
+                    first.GrayScott.DiffusionU == second.GrayScott.DiffusionU && first.GrayScott.DiffusionV == second.GrayScott.DiffusionV &&
+                    first.GrayScott.Backend == second.GrayScott.Backend);
         if (first.Kind == Fractal3DKind.Buddhabrot4D)
             return (first.Buddhabrot ?? new()).SameVolume(second.Buddhabrot ?? new());
         if (first.Kind == Fractal3DKind.Dla3D)
@@ -186,6 +224,8 @@ public sealed partial class Fractal3DRenderer
         _buddhabrotPixelShader?.Dispose();
         _buddhabrotCloud = null;
         _dlaPixelShader?.Dispose();
+        _grayScottPixelShader?.Dispose();
+        _graySeedSettings = null; _graySeedField = null;
         _dlaCluster = null;
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;

@@ -109,6 +109,57 @@
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                            Text="Изменение затравки, прилипания или потока начинает новый рост. Палитра, свет и камера меняют готовый объём."/>
                             </StackPanel>
+                            <StackPanel x:Name="GrayPanel" Visibility="Collapsed">
+                                <TextBlock Text="U + 2V → 3V · реакция внутри объёма" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления"/>
+                                <ComboBox x:Name="GrayBackendBox" SelectionChanged="GrayBackend_OnChanged">
+                                    <ComboBoxItem Content="ЦП"/><ComboBoxItem Content="ГП · рекомендуется"/>
+                                </ComboBox>
+                                <TextBlock x:Name="GrayDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>
+                                <TextBox x:Name="GraySizeBox" Text="64" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,4,0">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Подача F"/>
+                                        <TextBox x:Name="GrayFeedBox" Text="0.030" numeric:NumericSpinner.IsEnabled="True"/>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Диффузия U"/>
+                                        <TextBox x:Name="GrayDuBox" Text="0.12" numeric:NumericSpinner.IsEnabled="True"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Убыль K"/>
+                                        <TextBox x:Name="GrayKillBox" Text="0.062" numeric:NumericSpinner.IsEnabled="True"/>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Диффузия V"/>
+                                        <TextBox x:Name="GrayDvBox" Text="0.06" numeric:NumericSpinner.IsEnabled="True"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Затравка"/>
+                                <ComboBox x:Name="GraySeedBox">
+                                    <ComboBoxItem Content="Восемь сфер"/><ComboBoxItem Content="Шум внутри куба"/>
+                                    <ComboBoxItem Content="Кольцо"/><ComboBoxItem Content="Чистая среда"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
+                                <TextBox x:Name="GrayRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <Button Content="Применить и начать заново" Click="GrayRestart_OnClick"/>
+                                <TextBlock Text="Границы замкнуты по трём осям. Новый узор сначала развивается до стартовой стадии и встаёт на паузу. Пробел — пауза и продолжение." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+                                <Slider x:Name="GraySpeedSlider" Minimum="1" Maximum="256" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Text="{Binding ElementName=GraySpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности V"/>
+                                <Slider x:Name="GrayThresholdSlider" Minimum="0.01" Maximum="0.9" Value="0.18" ValueChanged="GrayView_OnChanged"/>
+                                <TextBlock Text="{Binding ElementName=GrayThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+                                <ComboBox x:Name="GrayCutBox" SelectionChanged="GrayView_OnChanged">
+                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
+                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+                                </ComboBox>
+                                <Slider x:Name="GrayCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="GrayView_OnChanged"/>
+                                <TextBlock Text="{Binding ElementName=GrayCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус сферической кисти"/>
+                                <Slider x:Name="GrayBrushSlider" Minimum="0.02" Maximum="0.2" Value="0.08"/>
+                                <Button x:Name="GrayBrushButton" Content="Добавить затравку в центре" Click="GrayBrush_OnClick"/>
+                                <TextBlock Text="Shift + щелчок: сферическая затравка на выбранном срезе. Стиль «Плотность» показывает облако V; остальные стили — его поверхность." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
                             <StackPanel x:Name="PowerPanel">
                                 <TextBlock x:Name="PowerLabel" Style="{StaticResource FieldCaption}" Text="Степень n"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
@@ -768,6 +819,15 @@
                     <StackPanel>
                         <TextBlock Text="{Binding ElementName=DlaCountText, Path=Text}" FontSize="11"/>
                         <Button Content="{Binding ElementName=DlaPlayButton, Path=Content}" Click="DlaPlay_OnClick"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="GrayOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock x:Name="GrayTimeText" FontSize="11"/>
+                        <Button x:Name="GrayPlayButton" Content="▶ Продолжить" Click="GrayPlay_OnClick"/>
+                        <Button x:Name="GrayStepButton" Content="Один кадр" Click="GrayStep_OnClick"/>
                     </StackPanel>
                 </Border>
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->

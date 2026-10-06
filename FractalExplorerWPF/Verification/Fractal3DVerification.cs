@@ -137,6 +137,8 @@ internal static partial class Program
             // Точка интереса, которая показывает только фон, бесполезна как превью режима.
             foreach (Fractal3DState preset in presets.Prepend(Fractal3DCatalog.CreateDefaultState(kind)))
             {
+                // The clean chemical medium is an intentional blank canvas for the 3D brush.
+                if (kind == Fractal3DKind.GrayScott3D && preset.GrayScott.SeedShape == GrayScott3DSeed.Empty) continue;
                 byte[] pixels = await Fractal3DFrameAsync(renderer, preset);
                 Check(HasFractal3DStructure(pixels),
                     $"{kind} «{preset.SaveName}»: the frame shows only the background.");

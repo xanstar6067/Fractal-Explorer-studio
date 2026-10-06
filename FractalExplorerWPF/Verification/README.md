@@ -1,5 +1,10 @@
 # Проверка превью сохранений WPF
 
+Gray–Scott 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- gray-scott3d [папка PNG]`.
+Независимое правило в объёме, ЦП/ГП, кисть через границы, точное продолжение U/V,
+пресеты, девять стилей, срезы, зонд, кэш и цикл WPF с восстановлением при отказе ГП.
+Порядок ручной проверки и описание модели — в [GRAY_SCOTT3D.md](../GRAY_SCOTT3D.md).
+
 Из корня репозитория:
 
 ```powershell
