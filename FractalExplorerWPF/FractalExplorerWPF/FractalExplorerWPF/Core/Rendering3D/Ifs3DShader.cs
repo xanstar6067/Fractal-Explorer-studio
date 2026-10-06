@@ -151,6 +151,16 @@ internal static class Ifs3DShader
             return exp(-occupied * cell * 12.0);
         }
 
+        // A reflected ray that escapes the volume also sees the lamp, as in the metal style: the
+        // march itself showed that nothing blocks it. Without the lamp the dark sky, tinted by
+        // the coloring, dimmed the mirrored figure almost down to the background.
+        float3 MirrorSky(float3 reflected)
+        {
+            float sheen = saturate(dot(reflected, normalize(Light.xyz)));
+            return SkyAt(reflected) * 2.0 +
+                LightColor.rgb * (pow(sheen, 128.0) * 5.0 + pow(sheen, 6.0) * 0.45);
+        }
+
         float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming, float cell)
         {
             float3 reflected = normalize(reflect(incoming, normal));
@@ -162,7 +172,7 @@ internal static class Ifs3DShader
             float3 hi = max(nearPlane, farPlane);
             float entry = max(0.0, max(lo.x, max(lo.y, lo.z)));
             float exitDistance = min(hi.x, min(hi.y, hi.z));
-            if (entry >= exitDistance) return SkyAt(reflected);
+            if (entry >= exitDistance) return MirrorSky(reflected);
 
             float stepLength = cell * 0.65;
             float distance = entry;
@@ -189,7 +199,7 @@ internal static class Ifs3DShader
                 previousDensity = density;
                 distance = nextDistance;
             }
-            return SkyAt(reflected);
+            return MirrorSky(reflected);
         }
 
         float4 PSMain(PSInput input) : SV_TARGET
