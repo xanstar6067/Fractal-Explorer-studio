@@ -105,7 +105,10 @@ public sealed class GrayScottGpuEngine : IGrayScottEngine
         while (true)
         {
             token.ThrowIfCancellationRequested();
-            var result = _context.GetData(_completion, IntPtr.Zero, 0, AsyncGetDataFlags.DoNotFlush); result.CheckError();
+            // This offscreen engine has no Present to drive the command queue.
+            // Allow GetData to flush pending work: one initial Flush followed by
+            // DoNotFlush polling can stall short batches for seconds on older drivers.
+            var result = _context.GetData(_completion, IntPtr.Zero, 0, AsyncGetDataFlags.None); result.CheckError();
             if (result.Code == 0) return;
             if (watch.Elapsed.TotalSeconds > 15) throw new TimeoutException("Видеокарта не завершила расчёт. Уменьшите сетку или выберите ЦП.");
             Thread.Sleep(1);

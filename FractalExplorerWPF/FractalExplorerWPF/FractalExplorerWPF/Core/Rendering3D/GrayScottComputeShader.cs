@@ -14,16 +14,21 @@ internal static class GrayScottComputeShader
         RWStructuredBuffer<float2> Target : register(u0);
         RWStructuredBuffer<uint> Pixels : register(u1);
         int Size() { return (int)P[0].x; }
-        int Index(int x, int y) { int n=Size(); return ((y%n+n)%n)*n + (x%n+n)%n; }
+        // All callers sample in [-1,n]. Avoid dynamic integer division for every
+        // neighbour: it is particularly expensive on older DirectCompute GPUs.
+        int Wrap(int p, int n) { return p<0 ? p+n : p>=n ? p-n : p; }
+        int Index(int x, int y) { int n=Size(); return Wrap(y,n)*n + Wrap(x,n); }
         float2 At(int x, int y) { return Field[Index(x,y)]; }
 
         [numthreads(16,16,1)]
         void Evolve(uint3 id : SV_DispatchThreadID)
         {
             int n=Size(), x=id.x, y=id.y; if(x>=n || y>=n) return;
-            precise float2 value=At(x,y);
-            precise float2 cross=At(x-1,y)+At(x+1,y)+At(x,y-1)+At(x,y+1);
-            precise float2 diagonal=At(x-1,y-1)+At(x+1,y-1)+At(x-1,y+1)+At(x+1,y+1);
+            int left=x==0 ? n-1 : x-1, right=x==n-1 ? 0 : x+1;
+            int row=y*n, above=(y==0 ? n-1 : y-1)*n, below=(y==n-1 ? 0 : y+1)*n;
+            precise float2 value=Field[row+x];
+            precise float2 cross=Field[row+left]+Field[row+right]+Field[above+x]+Field[below+x];
+            precise float2 diagonal=Field[above+left]+Field[above+right]+Field[below+left]+Field[below+right];
             precise float2 laplacian=-value+.2*cross+.05*diagonal;
             precise float reaction=value.x*value.y*value.y;
             precise float u=value.x+(P[0].y*laplacian.x-reaction+P[0].w*(1-value.x))*P[1].y;

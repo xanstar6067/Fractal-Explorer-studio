@@ -14,6 +14,70 @@ using FractalExplorerWPF.Views;
 
 internal static partial class Program
 {
+    private static async Task MeasureGrayScottFramesAsync()
+    {
+        using var sandbox = DataSandbox.Create("gray-scott-perf");
+        await Task.Run(() =>
+        {
+            var state = GrayScottPresets.All[0].State.Clone();
+            const int width = 1024, height = 768, frames = 6;
+            foreach (GrayScottBackend backend in new[] { GrayScottBackend.Cpu, GrayScottBackend.Gpu })
+            {
+                state.Backend = backend;
+                using IGrayScottEngine engine = GrayScottEngineFactory.Create(state, out string? fallback);
+                Check(engine.Backend == backend, $"Benchmark requires the requested engine: {fallback}.");
+                Console.WriteLine($"Gray–Scott {backend}: {engine.DeviceName}, {state.GridSize}², {state.StepsPerFrame} steps/frame, {width}×{height} pixels.");
+                engine.Advance(1, CancellationToken.None); engine.Snapshot();
+                engine.RenderFrame(state, width, height, CancellationToken.None);
+                double advance = 0, snapshot = 0, render = 0, slowest = 0;
+                var watch = new Stopwatch();
+                for (int i = 0; i < frames; i++)
+                {
+                    var frameWatch = Stopwatch.StartNew();
+                    watch.Restart(); engine.Advance(state.StepsPerFrame, CancellationToken.None); advance += watch.Elapsed.TotalMilliseconds;
+                    watch.Restart(); engine.Snapshot(); snapshot += watch.Elapsed.TotalMilliseconds;
+                    watch.Restart(); engine.RenderFrame(state, width, height, CancellationToken.None); render += watch.Elapsed.TotalMilliseconds;
+                    slowest = Math.Max(slowest, frameWatch.Elapsed.TotalMilliseconds);
+                }
+                double total = (advance + snapshot + render) / frames;
+                Console.WriteLine($"Gray–Scott {backend}: evolve {advance / frames:F2} ms, snapshot {snapshot / frames:F2} ms, render/readback {render / frames:F2} ms; total {total:F2} ms, slowest {slowest:F2} ms ({1000 / total:F1} frames/s before WPF presentation).");
+            }
+        });
+        await MeasureGrayScottWindowFramesAsync();
+    }
+
+    private static async Task MeasureGrayScottWindowFramesAsync()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var styles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
+        if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == styles))
+            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = styles });
+        FractalExplorerWPF.Theming.ThemeManager.Initialize(Application.Current);
+        foreach (GrayScottBackend backend in new[] { GrayScottBackend.Cpu, GrayScottBackend.Gpu })
+        {
+            var window = new GrayScottWindow();
+            object? Invoke(string name, params object[] p) => typeof(GrayScottWindow).GetMethod(name, flags)!.Invoke(window, p);
+            T Field<T>(string name) => (T)typeof(GrayScottWindow).GetField(name, flags)!.GetValue(window)!;
+            try
+            {
+                var root = (FrameworkElement)window.Content;
+                root.Measure(new System.Windows.Size(1280, 800)); root.Arrange(new Rect(0, 0, 1280, 800)); root.UpdateLayout();
+                var state = GrayScottPresets.All[0].State.Clone(); state.Backend = backend;
+                await (Task)Invoke("InstallEngineAsync", state, false, true)!;
+                Check(Field<IGrayScottEngine>("_simulation").Backend == backend, "Window benchmark requires the requested backend.");
+                await Task.Delay(250); await Field<Task>("_frameIdleTask");
+                var before = window.CaptureState("before");
+                Field<Stopwatch>("_fpsWatch").Restart();
+                typeof(GrayScottWindow).GetField("_presentedFrames", flags)!.SetValue(window, 0);
+                Invoke("SetRunning", true); await Task.Delay(3000); Invoke("SetRunning", false);
+                await Field<Task>("_frameIdleTask");
+                var after = window.CaptureState("after"); var bitmap = Field<WriteableBitmap>("_bitmap");
+                Console.WriteLine($"Gray–Scott WPF {backend}: {Field<double>("_measuredFps"):F1} FPS at target {state.TargetFps}, {state.GridSize}², {state.StepsPerFrame} steps/frame, {bitmap.PixelWidth}×{bitmap.PixelHeight} pixels; advanced {after.Checkpoint!.StepCount - before.Checkpoint!.StepCount} steps (hidden window, including timer and WritePixels).");
+            }
+            finally { window.Close(); }
+        }
+    }
+
     private static async Task VerifyGrayScottGpuAsync(string[] args)
     {
         using var sandbox = DataSandbox.Create("gray-scott-gpu");
@@ -77,6 +141,19 @@ internal static partial class Program
             byte[] previewBytes = new byte[240 * 160 * 4]; preview.CopyPixels(previewBytes, 960, 0);
             using var view = new GrayScottGpuEngine(loaded);
             Check(previewBytes.SequenceEqual(view.RenderFrame(loaded, 240, 160, CancellationToken.None)), "Checkpoint preview must not add simulation steps.");
+        }
+        foreach (int size in new[] { 33, 127, 511 })
+        {
+            var odd = new GrayScottState { GridSize = size, SeedMode = GrayScottSeedMode.Noise };
+            using var gpu = new GrayScottGpuEngine(odd); using var cpu = new GrayScottCpuEngine(odd);
+            gpu.Advance(13, CancellationToken.None); cpu.Advance(13, CancellationToken.None);
+            var actual = gpu.Snapshot(); var expected = cpu.Snapshot();
+            double error = Math.Max(actual.U.Zip(expected.U, (a, b) => Math.Abs(a - b)).Max(),
+                actual.V.Zip(expected.V, (a, b) => Math.Abs(a - b)).Max());
+            Check(error < 3e-6, $"Periodic GPU neighbours must match CPU on a non-power-of-two, partial-group grid {size}: {error:G4}.");
+            byte[] pixels = gpu.RenderFrame(odd, size, size, CancellationToken.None);
+            byte[] reference = GrayScottRenderer.RenderFrame(actual, odd, size, size, CancellationToken.None);
+            Check(pixels.Zip(reference, (a, b) => Math.Abs(a - b)).Average() < 1, "Rendering must preserve periodic bilinear samples at all four edges on odd grids.");
         }
         foreach (int size in new[] { 192, 1024, 2048 })
         {

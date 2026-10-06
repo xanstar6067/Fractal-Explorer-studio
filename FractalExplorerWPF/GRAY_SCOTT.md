@@ -102,6 +102,15 @@
 две сменяемые structured-буферные сетки float2, отдельные проходы кисти и
 отрисовки. Кадры считаются вне WPF-потока; поле остаётся в видеопамяти
 между шагами. При публикации кадра читаются снимок U/V и готовый BGRA-буфер.
+Адреса соседей вычисляются проверками краёв без целочисленного деления;
+это работает и на сетках, размер которых не является степенью двойки.
+Ожидание Event query разрешает `GetData` отправлять оставшиеся команды
+(`AsyncGetDataFlags.None`). Опрос с `DoNotFlush` после единственного `Flush`
+на Quadro 600 задерживал короткие порции расчёта примерно на четыре секунды;
+после исправления кадр 512² с 24 шагами и буфером 1024×768 занимает около
+17 мс вместо 2665 мс в Release (без показа WPF).
+[Документация Direct3D](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_async_getdata_flag)
+описывает риск зависания такого опроса с `DoNotFlush`.
 Отмена оставляет целые шаги, запоздалые результаты отбрасываются по поколению,
 движок освобождается после завершения использующих его задач.
 
@@ -115,6 +124,7 @@
 dotnet build .\FractalExplorerWPF\FractalExplorerWPF\FractalExplorerWPF.slnx
 dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- gray-scott
 dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- gray-scott-gpu
+dotnet run -c Release --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- gray-scott-perf
 dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- manager
 dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- shadercache
 ```
@@ -124,8 +134,16 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 ручной буфер с несовпадающими пропорциями, точное дисковое продолжение,
 превью без продвижения времени, отмену, сетки 192/1024/2048, общий кэш, перенос
 между движками, сохранение черновых правок, ввод размеров, DPI и сбой ГП.
+Сетки 33/127/511 дополнительно проверяют замкнутые края и неполные группы шейдера
+против ЦП, включая билинейную окраску.
 Печатает время шага 512 × 512; это измерение вычислений, а не FPS окна.
 Дополнительная папка сохраняет раскладки скрытого контрола без захвата экрана.
+
+`gray-scott-perf` измеряет повторные полные кадры: 24 шага на сетке 512²,
+чтение U/V и окраску в буфер 1024×768 отдельно для ЦП и ГП. Печатает среднее
+время и самый медленный кадр, чтобы видеть задержки после первых быстрых порций.
+Затем измеряет фактический FPS скрытого WPF-окна с таймером и `WritePixels`.
+Для сравнения скорости используйте Release; настоящие данные пользователя не затрагиваются.
 
 `gray-scott [папка PNG]` проверяет все шесть пресетов на ЦП до 6000 шагов:
 деление пятен по числу связных компонент, рост и дальнейшее изменение нитей,
