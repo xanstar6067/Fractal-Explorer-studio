@@ -142,6 +142,12 @@ public sealed class CloudSyncService(FractalCloudClient client, CloudSyncIndex i
         var work = new List<CloudSyncEntry>();
         foreach (CloudSyncEntry entry in entries)
         {
+            if (entry.UploadBlocked && entry.State is not CloudEntryState.Synced && (mode == CloudTransferMode.Upload ||
+                mode == CloudTransferMode.Sync && !entry.CanDownload))
+            {
+                report.TooLarge++;
+                continue;
+            }
             switch (Plan(entry.State, mode, explicitSelection))
             {
                 case Planned.Work: work.Add(entry); batch.Kinds.Add(PredictKind(entry.State, mode)); break;

@@ -32,8 +32,6 @@ public static class CloudSaveRepository
     public static LocalCloudSave ReadLocal(string path)
     {
         EnsureSavePath(path);
-        if (new FileInfo(path).Length > FractalCloudClient.MaxJsonBytes * 8L)
-            throw new InvalidOperationException("Локальное сохранение слишком велико для облака.");
         JsonObject state = JsonNode.Parse(File.ReadAllText(path)) as JsonObject
             ?? throw new InvalidOperationException("Сохранение должно содержать JSON-объект.");
         string category = Path.GetFileName(Path.GetDirectoryName(path))!;

@@ -18,7 +18,14 @@ internal sealed class CloudCredential
     public string RefreshToken { get; set; } = "";
 }
 
-public sealed record LocalCloudSave(string FilePath, string Category, string Name, string JsonData, string Hash);
+public sealed record LocalCloudSave(string FilePath, string Category, string Name, string JsonData, string Hash)
+{
+    public int JsonBytes { get; } = System.Text.Encoding.UTF8.GetByteCount(JsonData);
+    public bool TooLarge => JsonBytes > Infrastructure.Cloud.FractalCloudClient.MaxJsonBytes;
+    public string? UploadProblem => TooLarge
+        ? $"Объём данных: {JsonBytes / (1024d * 1024):F2} МиБ. Отправка недоступна: лимит облака — 1 МиБ. Сохранение доступно на ПК; превью в размер не входит."
+        : null;
+}
 public sealed record CloudLink(Guid Id, string LocalPath, long Revision, string Hash);
 
 /// <summary>Cached facts about one cloud revision, so listing does not download every record again.</summary>
@@ -49,6 +56,11 @@ public sealed record CloudSyncEntry(CloudEntryState State, LocalCloudSave? Local
     public string CategoryText => Category ?? "—";
     public bool HasLocal => Local is not null;
     public bool HasRemote => Remote is not null;
+    public bool UploadBlocked => Local?.TooLarge == true;
+    public string? SizeWarning => UploadBlocked
+        ? $"{Local!.JsonBytes / (1024d * 1024):F2} МиБ · отправка недоступна (лимит 1 МиБ)"
+        : null;
+    public string? UploadProblem => Local?.UploadProblem;
 
     public string? NameHint => Local is not null && Remote is not null && !string.Equals(Local.Name, Remote.Name, StringComparison.Ordinal)
         ? $"в облаке: «{Remote.Name}»" : null;
@@ -80,7 +92,7 @@ public sealed record CloudSyncEntry(CloudEntryState State, LocalCloudSave? Local
         _ => "Muted"
     };
 
-    public string StatusDescription => State switch
+    public string StatusDescription => UploadProblem ?? State switch
     {
         CloudEntryState.Synced => "Версии на этом ПК и в облаке совпадают.",
         CloudEntryState.LocalOnly => "Сохранения нет в облаке. «Отправить» создаст облачную копию.",
@@ -94,12 +106,11 @@ public sealed record CloudSyncEntry(CloudEntryState State, LocalCloudSave? Local
         _ => Problem ?? "Запись другого формата или более новой версии приложения. Её можно только переименовать или удалить."
     };
 
-    public bool CanUpload => State is CloudEntryState.LocalOnly or CloudEntryState.LocalChanged or CloudEntryState.BothChanged
-        or CloudEntryState.SameName or CloudEntryState.CloudDeleted;
+    public bool CanUpload => !UploadBlocked && (State is CloudEntryState.LocalOnly or CloudEntryState.LocalChanged or CloudEntryState.BothChanged
+        or CloudEntryState.SameName or CloudEntryState.CloudDeleted);
     public bool CanDownload => State is CloudEntryState.CloudOnly or CloudEntryState.CloudChanged or CloudEntryState.BothChanged
         or CloudEntryState.SameName or CloudEntryState.LocalDeleted;
-    public bool NeedsSync => State is CloudEntryState.LocalOnly or CloudEntryState.CloudOnly or CloudEntryState.LocalChanged
-        or CloudEntryState.CloudChanged or CloudEntryState.BothChanged or CloudEntryState.SameName;
+    public bool NeedsSync => (CanUpload || CanDownload) && State is not (CloudEntryState.CloudDeleted or CloudEntryState.LocalDeleted);
     public bool NeedsDecision => State is CloudEntryState.BothChanged or CloudEntryState.SameName;
 }
 
@@ -140,6 +151,7 @@ public sealed class CloudTransferReport
     /// <summary>Deletions are neither propagated nor undone by synchronization.</summary>
     public int DeletedElsewhere { get; set; }
     public int Unsupported { get; set; }
+    public int TooLarge { get; set; }
     public List<string> Failures { get; } = [];
     public bool Cancelled { get; set; }
 
@@ -155,6 +167,7 @@ public sealed class CloudTransferReport
         if (NewerElsewhere > 0) parts.Add($"новее на другой стороне: {NewerElsewhere}");
         if (DeletedElsewhere > 0) parts.Add($"удалены с одной стороны: {DeletedElsewhere}");
         if (Unsupported > 0) parts.Add($"другой формат: {Unsupported}");
+        if (TooLarge > 0) parts.Add($"не отправлены из-за лимита облака 1 МиБ: {TooLarge}");
         if (Failures.Count > 0) parts.Add($"ошибок: {Failures.Count}");
         string head = Cancelled ? "Операция остановлена" : "Готово";
         string body = parts.Count == 0 ? "изменений не потребовалось" : string.Join(", ", parts);

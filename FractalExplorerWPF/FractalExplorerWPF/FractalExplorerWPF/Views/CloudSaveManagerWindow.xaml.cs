@@ -533,15 +533,22 @@ public partial class CloudSaveManagerWindow : Window
             option.Label = $"{option.Title} ({count})";
         }
 
-        int up = visible.Count(e => e.State is CloudEntryState.LocalOnly or CloudEntryState.LocalChanged);
+        int up = visible.Count(e => !e.UploadBlocked && (e.State is CloudEntryState.LocalOnly or CloudEntryState.LocalChanged));
         int down = visible.Count(e => e.State is CloudEntryState.CloudOnly or CloudEntryState.CloudChanged);
         int decide = visible.Count(e => e.NeedsDecision);
+        int uploadDecide = visible.Count(e => e.NeedsDecision && !e.UploadBlocked);
+        int tooLarge = visible.Count(e => e.UploadBlocked);
         string decideText = decide > 0 ? $" · выбрать: {decide}" : "";
-        SyncAllHint.Text = up + down + decide == 0 ? "Всё синхронизировано" : $"Отправить {up} · получить {down}{decideText}";
-        UploadAllHint.Text = up + decide == 0 ? "Нечего отправлять" : $"К отправке: {up}{decideText}";
+        string sizeText = tooLarge > 0 ? $" · больше 1 МиБ: {tooLarge}" : "";
+        SyncAllHint.Text = up + down + decide == 0
+            ? tooLarge > 0 ? $"Больше лимита облака: {tooLarge}" : "Всё синхронизировано"
+            : $"Отправить {up} · получить {down}{decideText}{sizeText}";
+        UploadAllHint.Text = up + uploadDecide == 0
+            ? tooLarge > 0 ? $"Больше лимита облака: {tooLarge}" : "Нечего отправлять"
+            : $"К отправке: {up}" + (uploadDecide > 0 ? $" · выбрать: {uploadDecide}" : "") + sizeText;
         DownloadAllHint.Text = down + decide == 0 ? "Нечего получать" : $"К получению: {down}{decideText}";
         SyncAllButton.Tag = up + down + decide;
-        UploadAllButton.Tag = up + decide;
+        UploadAllButton.Tag = up + uploadDecide;
         DownloadAllButton.Tag = down + decide;
 
         ShownText.Text = visible.Count == _entries.Count ? $"Записей: {_entries.Count}" : $"Показано {visible.Count} из {_entries.Count}";
@@ -567,7 +574,7 @@ public partial class CloudSaveManagerWindow : Window
         int checkedVisible = visible.Count(r => r.IsChecked);
         SelectAllBox.IsChecked = visible.Count == 0 || checkedVisible == 0 ? false : checkedVisible >= visible.Count ? true : null;
         bool idle = _operation is null;
-        int up = selected.Count(e => e.HasLocal && e.State is not CloudEntryState.Synced);
+        int up = selected.Count(e => e.HasLocal && !e.UploadBlocked && e.State is not CloudEntryState.Synced);
         int down = selected.Count(e => e.HasRemote && e.State is not (CloudEntryState.Synced or CloudEntryState.Unsupported));
         int remote = selected.Count(e => e.HasRemote);
         int local = selected.Count(e => e.HasLocal);
@@ -676,6 +683,8 @@ public partial class CloudSaveManagerWindow : Window
         public string Key => Entry.Key;
         public string Name => Entry.Name;
         public string? NameHint => Entry.NameHint;
+        public string? SizeWarning => Entry.SizeWarning;
+        public string? UploadProblem => Entry.UploadProblem;
         public string CategoryText => Entry.CategoryText;
         public bool HasLocal => Entry.HasLocal;
         public bool HasRemote => Entry.HasRemote;

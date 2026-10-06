@@ -57,6 +57,38 @@ internal static partial class Program
         await ExpectCloudAsync<InvalidOperationException>(() => client.CreateAsync("big", "{\"x\":\"" + new string('я', 524288) + "\"}", default));
         await ExpectCloudAsync<JsonException>(() => client.CreateAsync("bad", "not-json", default));
 
+        // Listing has no cloud size limit: even files above the former 8 MiB read guard stay visible.
+        using (var sizeSandbox = DataSandbox.Create("cloud-large-local"))
+        {
+            var sizeServer = new FakeCloudServer();
+            using var sizeClient = new FractalCloudClient(new HttpClient(sizeServer) { BaseAddress = new("https://cloud.invalid") },
+                new MemoryCloudVault());
+            await sizeClient.LoginAsync("size@example.invalid", "test-password", default);
+            string directory = AppPaths.GetSavesDirectory("Fractal3DGrayScott");
+            Directory.CreateDirectory(directory);
+            foreach ((string name, int length) in new[] { ("Small", 32), ("Large", 2 * 1024 * 1024), ("Very large", 9 * 1024 * 1024) })
+                File.WriteAllText(Path.Combine(directory, name + ".json"),
+                    new JsonObject { ["SaveName"] = name, ["Data"] = new string('a', length) }.ToJsonString());
+            var sizeSync = new CloudSyncService(sizeClient, new CloudSyncIndex(sizeClient.Server, sizeClient.Email!),
+                new CloudRemoteCache(sizeClient.Server, sizeClient.Email!));
+            CloudSnapshot sizes = await sizeSync.LoadAsync(null, default);
+            Check(sizes.Entries.Count == 3 && sizes.UnreadableLocal == 0, "Large valid saves must stay visible, not unreadable.");
+            Check(sizes.Entries.Count(e => e.UploadBlocked) == 2 && sizes.Entries.Count(e => e.CanUpload) == 1,
+                "Only saves within the payload limit can be uploaded.");
+            Check(sizes.Entries.Where(e => e.UploadBlocked).All(e => e.SizeWarning!.Contains("1 МиБ") && e.UploadProblem!.Contains("Отправка недоступна")),
+                "Each oversized row must explain its size and cloud limit.");
+            CloudCollisionDecision NoCollision(CloudCollision _) => throw new InvalidOperationException("Unexpected size collision.");
+            CloudTransferReport sizeReport = await sizeSync.TransferAsync(sizes.Entries, CloudTransferMode.Sync, false, NoCollision, null, default);
+            Check(sizeReport.Uploaded == 1 && sizeReport.TooLarge == 2 && sizeReport.Failures.Count == 0 && sizeServer.Creates == 1,
+                "Mixed synchronization must upload the small save and skip oversized saves without requests or read errors.");
+            sizeReport = await sizeSync.TransferAsync(sizes.Entries.Where(e => e.UploadBlocked).ToList(), CloudTransferMode.Upload,
+                true, NoCollision, null, default);
+            Check(sizeReport.TooLarge == 2 && sizeServer.Creates == 1, "Explicit selection must not bypass the size limit.");
+            LocalCloudSave boundary = new("unused", "Mandelbrot", "Boundary", new string('a', FractalCloudClient.MaxJsonBytes), "unused");
+            Check(!boundary.TooLarge && new LocalCloudSave("unused", "Mandelbrot", "Boundary", boundary.JsonData + "a", "unused").TooLarge,
+                "The size boundary is exactly 1 MiB of UTF-8 payload, inclusive.");
+        }
+
         var store = new FractalSaveStore<CloudTestState>("Mandelbrot", s => s.SaveName);
         SaveSlot<CloudTestState> slot = store.Save(new("Test", 10));
         File.WriteAllText(slot.PreviewPath, "LOCAL PREVIEW MUST NOT BE SENT");
