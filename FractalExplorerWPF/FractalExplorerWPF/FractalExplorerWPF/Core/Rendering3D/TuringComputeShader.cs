@@ -1,10 +1,11 @@
 using FractalExplorerWPF.Infrastructure;
+using FractalExplorerWPF.Core.Rendering;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
 internal static class TuringComputeShader
 {
-    public static readonly string[] EntryPoints = ["Blur", "Blur256", "Blur512", "Blur1024", "Difference", "Choose", "Compose", "Symmetry", "Reduce", "Normalize", "Paint", "Render"];
+    public static readonly string[] EntryPoints = ["Blur", "Blur256", "Blur512", "Blur1024", "Difference", "Choose", "Compose", "Symmetry", "Reduce", "Normalize", "Paint", "Render", "ReactionStep", "ReactionSymmetry"];
     public static IEnumerable<ShaderCacheEntry> CacheEntries => EntryPoints.Select(name =>
         new ShaderCacheEntry("turing-" + name, BlurSource(name), name, "cs_5_0"));
 
@@ -21,7 +22,7 @@ internal static class TuringComputeShader
     // Float4 buffers share a pool. Only the committed field owns value and scale together.
     // Prefix sums perform every blur in O(N²), independent of the selected radius.
     public const string Source = """
-        cbuffer Parameters : register(b0) { float4 P[8]; }
+        cbuffer Parameters : register(b0) { float4 P[12]; }
         StructuredBuffer<float4> A : register(t0);
         StructuredBuffer<float4> B : register(t1);
         StructuredBuffer<float4> C : register(t2);
@@ -33,6 +34,7 @@ internal static class TuringComputeShader
         groupshared float Prefix[4096];
         static const uint ScanCapacity = 2048;
         groupshared float2 Ranges[256];
+        """ + TuringReactionKinetics.Shader + """
         uint Size() { return (uint)P[0].x; }
         int Edge(int p) {
             int n = (int)Size();
@@ -128,16 +130,46 @@ internal static class TuringComputeShader
             uint i = id.y * n + id.x; float4 value = Out[i]; float2 d = P[3].xy - .5;
             uint hash = (i * 374761393u + asuint(P[3].z)) ^ asuint(P[3].w); hash = (hash ^ (hash >> 13)) * 1274126177u;
             float target = P[2].w == 1 ? -1 : P[2].w == 2 ? (hash >> 8) / 16777215.0 * 2 - 1 : 1;
+            if(P[8].x!=0) target=(target+1)*P[9].z;
             for (uint arm = 0; arm < (uint)P[1].z; arm++) {
                 float s,c; sincos(arm * 6.28318530718 / P[1].z,s,c);
                 for (uint reflection = 0; reflection < (P[1].w != 0 ? 2u : 1u); reflection++) {
                     float yy = reflection == 0 ? d.y : -d.y;
                     float2 center = (.5 + float2(d.x*c-yy*s,d.x*s+yy*c)) * (n-1);
                     float weight = saturate(1-distance((float2)id.xy,center)/(P[2].z*n));
-                    value.x = lerp(value.x,target,P[2].y*weight);
+                    if(P[8].x!=0) value.z=lerp(value.z,target,P[2].y*weight);
+                    else value.x = lerp(value.x,target,P[2].y*weight);
                 }
             }
+            if(P[8].x!=0) value.x=ReactionDisplayValue(value.z);
             Out[i] = value;
+        }
+        [numthreads(16,16,1)]
+        void ReactionStep(uint3 id : SV_DispatchThreadID) {
+            uint n=Size(); if (id.x>=n || id.y>=n) return;
+            uint i=id.y*n+id.x; float2 uv=A[i].zw;
+            float2 lap=A[id.y*n+Edge((int)id.x-1)].zw + A[id.y*n+Edge((int)id.x+1)].zw
+                + A[Edge((int)id.y-1)*n+id.x].zw + A[Edge((int)id.y+1)*n+id.x].zw - 4*uv;
+            uv=max(float2(1e-6,1e-6),uv+P[8].w*(P[9].xy*lap+Reaction(uv)));
+            Out[i]=float4(ReactionDisplayValue(uv.x),0,uv);
+        }
+        float2 SampleReaction(float2 p) {
+            int2 q=(int2)floor(p); float2 t=p-q; uint n=Size();
+            return lerp(lerp(A[Edge(q.y)*n+Edge(q.x)].zw,A[Edge(q.y)*n+Edge(q.x+1)].zw,t.x),
+                lerp(A[Edge(q.y+1)*n+Edge(q.x)].zw,A[Edge(q.y+1)*n+Edge(q.x+1)].zw,t.x),t.y);
+        }
+        [numthreads(16,16,1)]
+        void ReactionSymmetry(uint3 id : SV_DispatchThreadID) {
+            uint n=Size(); if (id.x>=n || id.y>=n) return;
+            float center=(n-1)*.5; float2 d=(float2)id.xy-center,uv=0;
+            uint arms=(uint)P[1].z;
+            for(uint arm=0;arm<arms;arm++) {
+                float s,c; sincos(arm*6.28318530718/arms,s,c);
+                uv+=SampleReaction(center+float2(d.x*c-d.y*s,d.x*s+d.y*c));
+                if(P[1].w!=0) uv+=SampleReaction(center+float2(d.x*c+d.y*s,d.x*s-d.y*c));
+            }
+            uv/=arms*(P[1].w!=0?2:1);
+            Out[id.y*n+id.x]=float4(ReactionDisplayValue(uv.x),0,uv);
         }
         [numthreads(16,16,1)]
         void Render(uint3 id : SV_DispatchThreadID) {

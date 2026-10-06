@@ -27,7 +27,12 @@ public sealed class TuringCheckpoint
     [JsonConverter(typeof(CompressedFloatArrayJsonConverter))]
     public float[] Field { get; set; } = [];
     public byte[] Scales { get; set; } = [];
-    public TuringCheckpoint Clone() => new() { Size = Size, StepCount = StepCount, Field = [.. Field], Scales = [.. Scales] };
+    public TuringReactionModel Model { get; set; }
+    [JsonConverter(typeof(CompressedFloatArrayJsonConverter))]
+    public float[] U { get; set; } = [];
+    [JsonConverter(typeof(CompressedFloatArrayJsonConverter))]
+    public float[] V { get; set; } = [];
+    public TuringCheckpoint Clone() => new() { Size = Size, StepCount = StepCount, Field = [.. Field], Scales = [.. Scales], Model = Model, U = [.. U], V = [.. V] };
 }
 
 public sealed class TuringState
@@ -44,6 +49,7 @@ public sealed class TuringState
     public int RandomSeed { get; set; } = 1729;
     public int WarmupSteps { get; set; } = 160;
     public int StepsPerFrame { get; set; } = 1;
+    public TuringReactionSettings Reaction { get; set; } = new();
     public double DetailSize { get; set; } = 1;
     public double EvolutionRate { get; set; } = 1;
     public double InhibitorRatio { get; set; } = 2;
@@ -76,7 +82,7 @@ public sealed class TuringState
         SaveName = name ?? SaveName, Timestamp = Timestamp, PresetId = PresetId,
         GridSize = GridSize, RandomSeed = RandomSeed, WarmupSteps = WarmupSteps, StepsPerFrame = StepsPerFrame,
         Backend = Backend, AutoFrameSize = AutoFrameSize, FrameWidth = FrameWidth, FrameHeight = FrameHeight,
-        DetailSize = DetailSize, EvolutionRate = EvolutionRate, InhibitorRatio = InhibitorRatio,
+        Reaction = Reaction with { }, DetailSize = DetailSize, EvolutionRate = EvolutionRate, InhibitorRatio = InhibitorRatio,
         Symmetry = Symmetry, Mirror = Mirror, Boundary = Boundary, Layers = Layers.Select(l => l.Clone()).ToList(),
         Palette = Palette.Clone(), Coloring = Coloring, Contrast = Contrast, Relief = Relief, ReversePalette = ReversePalette,
         Brush = Brush, BrushRadius = BrushRadius, BrushStrength = BrushStrength,
@@ -85,6 +91,8 @@ public sealed class TuringState
 
     public void Validate()
     {
+        if (Reaction is null) throw new ArgumentException("Не задана модель реакции.");
+        Reaction.Validate();
         static bool Range(double value, double min, double max) => double.IsFinite(value) && value >= min && value <= max;
         if (GridSize is < 32 or > MaxGridSize || StepsPerFrame is < 1 or > 8 || WarmupSteps is < 0 or > 2000)
             throw new ArgumentException("Сетка: 32–2048; шагов на кадр: 1–8; начальное развитие: 0–2000 шагов.");
@@ -104,6 +112,12 @@ public sealed class TuringState
             cp.Field is null || cp.Scales is null || cp.Field.Length != GridSize * GridSize || cp.Scales.Length != cp.Field.Length ||
             cp.Field.Any(v => !float.IsFinite(v) || v is < -1.001f or > 1.001f) || cp.Scales.Any(v => v >= 8)))
             throw new ArgumentException("Сохранённое поле повреждено или не соответствует размеру сетки.");
+        if (Checkpoint is { } reactionCp && (reactionCp.Model != Reaction.Model ||
+            reactionCp.U is null || reactionCp.V is null ||
+            (Reaction.IsClassical && (reactionCp.U.Length != GridSize * GridSize || reactionCp.V.Length != reactionCp.U.Length)) ||
+            (!Reaction.IsClassical && (reactionCp.U.Length != 0 || reactionCp.V.Length != 0)) ||
+            reactionCp.U.Concat(reactionCp.V).Any(v => !float.IsFinite(v) || v is < 0 or > 1000)))
+            throw new ArgumentException("Концентрации не соответствуют модели реакции или повреждены.");
     }
 }
 

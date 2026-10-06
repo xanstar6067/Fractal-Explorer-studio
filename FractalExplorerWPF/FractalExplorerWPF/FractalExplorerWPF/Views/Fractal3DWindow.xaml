@@ -170,7 +170,7 @@
                                 <TextBlock Text="Shift + щелчок: сферическая затравка на выбранном срезе. Стиль «Плотность» показывает облако V; остальные стили — его поверхность." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                             </StackPanel>
                             <StackPanel x:Name="TuringPanel" Visibility="Collapsed">
-                                <TextBlock Text="В каждой клетке куба побеждает масштаб с наименьшей вариацией и сдвигает поле к своей фазе." TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                <numeric:TuringReactionEditor x:Name="TuringReactionEditor" Changed="TuringReaction_OnChanged"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
                                 <TextBlock x:Name="TuringDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
 
@@ -184,12 +184,16 @@
                                 </StackPanel>
                                 <TextBlock x:Name="TuringDetailText" Style="{StaticResource FieldCaption}" Text="Размер деталей"/>
                                 <Slider x:Name="TuringDetailSlider" Minimum="0.25" Maximum="3" Value="1" ValueChanged="TuringRule_OnChanged"/>
+                                <StackPanel x:Name="TuringMcCabePanel">
                                 <TextBlock x:Name="TuringDepthText" Style="{StaticResource FieldCaption}" Text="Глубина структуры"/>
                                 <Slider x:Name="TuringDepthSlider" Minimum="1" Maximum="6" Value="4" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringDepth_OnChanged"/>
+                                </StackPanel>
                                 <TextBlock x:Name="TuringRateText" Style="{StaticResource FieldCaption}" Text="Отклик"/>
                                 <Slider x:Name="TuringRateSlider" Minimum="0.1" Maximum="3" Value="1" ValueChanged="TuringRule_OnChanged"/>
+                                <StackPanel x:Name="TuringMcCabeRatioPanel">
                                 <TextBlock x:Name="TuringRatioText" Style="{StaticResource FieldCaption}" Text="Радиус подавления"/>
                                 <Slider x:Name="TuringRatioSlider" Minimum="1.2" Maximum="4" Value="2" ValueChanged="TuringRule_OnChanged"/>
+                                </StackPanel>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Симметрия"/>
                                 <ComboBox x:Name="TuringSymmetryBox" SelectionChanged="TuringRule_OnChanged">
                                     <ComboBoxItem Content="Без симметрии"/><ComboBoxItem Content="Лучи вокруг оси Y"/>
@@ -205,7 +209,7 @@
                                 <ComboBox x:Name="TuringBoundaryBox" SelectionChanged="TuringRule_OnChanged">
                                     <ComboBoxItem Content="Замкнуты (узор продолжается)"/><ComboBoxItem Content="Зеркальные"/>
                                 </ComboBox>
-                                <Expander Header="Масштабы" IsExpanded="False" Margin="0,8,0,4">
+                                <Expander x:Name="TuringScalesExpander" Header="Масштабы" IsExpanded="False" Margin="0,8,0,4">
                                     <StackPanel>
                                         <Grid Margin="0,2,0,2">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>

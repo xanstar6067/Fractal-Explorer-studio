@@ -1,4 +1,5 @@
 using FractalExplorerWPF.Infrastructure;
+using FractalExplorerWPF.Core.Rendering;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
@@ -12,7 +13,7 @@ internal static class Turing3DComputeShader
 {
     public const uint CellGroup = 256, VolumeX = 8, VolumeY = 8, VolumeZ = 4;
 
-    public static readonly string[] EntryPoints = ["Blur", "Difference", "Choose", "Compose", "Symmetry", "Reduce", "Normalize", "Paint", "Publish"];
+    public static readonly string[] EntryPoints = ["Blur", "Difference", "Choose", "Compose", "Symmetry", "Reduce", "Normalize", "Paint", "Publish", "ReactionStep", "ReactionDisplay"];
 
     public static IReadOnlyList<ShaderCacheEntry> CacheEntries { get; } = EntryPoints
         .Select(entry => new ShaderCacheEntry("turing3d-" + entry, Source, entry, "cs_5_0")).ToArray();
@@ -25,7 +26,7 @@ internal static class Turing3DComputeShader
         // P[4]: reduce count, reduce stage (0 field, 1 ranges)
         // P[5], P[6]: display value of the scale map for scales 0..7
         // P[7]: radii of the three successive box windows (0 skips a window)
-        cbuffer Parameters : register(b0) { float4 P[8]; }
+        cbuffer Parameters : register(b0) { float4 P[12]; }
         StructuredBuffer<float> A : register(t0);
         StructuredBuffer<float> B : register(t1);
         StructuredBuffer<float> C : register(t2);
@@ -40,6 +41,7 @@ internal static class Turing3DComputeShader
         groupshared float Line[256];
         groupshared float Prefix[512];
 
+        """ + TuringReactionKinetics.Shader + """
         uint Edge() { return (uint)P[0].x; }
         uint Count() { uint n = Edge(); return n * n * n; }
         uint Index(uint3 p) { uint n = Edge(); return (p.z * n + p.y) * n + p.x; }
@@ -199,6 +201,7 @@ internal static class Turing3DComputeShader
             float c = (n - 1) * .5; float3 centre = (P[2].xyz - .5) * n; float radius = P[2].w * n;
             uint hash = (i * 374761393u + asuint(P[3].z)) ^ asuint(P[3].w); hash = (hash ^ (hash >> 13)) * 1274126177u;
             float target = P[3].y == 1 ? -1 : P[3].y == 2 ? (hash >> 8) / 16777215.0 * 2 - 1 : 1;
+            if(P[8].x!=0) target=(target+1)*P[9].z;
             for (uint g = 0; g < (uint)P[1].w; g++)
             {
                 float3 image = float3(dot(Group[g * 4].xyz, centre), dot(Group[g * 4 + 1].xyz, centre), dot(Group[g * 4 + 2].xyz, centre));
@@ -209,6 +212,24 @@ internal static class Turing3DComputeShader
             OutA[i] = value;
         }
 
+        [numthreads(8,8,4)]
+        void ReactionStep(uint3 id : SV_DispatchThreadID) {
+            uint n=Edge(); if(any(id>=n)) return;
+            uint i=Index(id); float2 uv=float2(A[i],B[i]),lap=0;
+            for(uint axis=0;axis<3;axis++) {
+                int3 lo=(int3)id,hi=(int3)id; lo[axis]=Fold(lo[axis]-1,n); hi[axis]=Fold(hi[axis]+1,n);
+                uint l=Index((uint3)lo),h=Index((uint3)hi);
+                lap+=float2(A[l]+A[h],B[l]+B[h])-2*uv;
+            }
+            uv=max(float2(1e-6,1e-6),uv+P[8].w*(P[9].xy*lap+Reaction(uv)));
+            OutA[i]=uv.x; OutB[i]=uv.y;
+        }
+        [numthreads(256,1,1)]
+        void ReactionDisplay(uint3 id : SV_DispatchThreadID) {
+            if(id.x>=Count()) return;
+            OutA[id.x]=ReactionDisplayValue(A[id.x]); OutB[id.x]=0;
+        }
+
         // The renderer samples the field (0..1) and the display value of the winning scale.
         [numthreads(8,8,4)]
         void Publish(uint3 id : SV_DispatchThreadID)
@@ -216,6 +237,7 @@ internal static class Turing3DComputeShader
             uint n = Edge(); if (any(id >= n)) return;
             uint i = Index(id), scale = min((uint)B[i], 7u);
             float shown = scale < 4 ? P[5][scale] : P[6][scale - 4];
+            if (P[8].x != 0) shown = A[i] * .5 + .5;
             Display[id] = float2(A[i] * .5 + .5, shown);
         }
         """;

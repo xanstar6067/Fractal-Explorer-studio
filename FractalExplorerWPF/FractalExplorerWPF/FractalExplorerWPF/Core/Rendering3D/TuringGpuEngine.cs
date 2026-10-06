@@ -20,17 +20,18 @@ public sealed class TuringGpuEngine : ITuringEngine
     private readonly List<GpuBuffer> _buffers = [];
     private GpuBuffer _field = null!, _next = null!, _work = null!, _temporary = null!, _activator = null!, _inhibitor = null!, _blur = null!, _best = null!, _stats0 = null!, _stats1 = null!, _palette = null!;
     private GpuBuffer? _pixels;
-    private readonly float[] _parameters = new float[32];
+    private readonly float[] _parameters = new float[48];
     private readonly string _blurShader;
     private bool _disposed;
     private long _step;
+    private readonly TuringReactionModel _reactionModel;
     public int Size { get; }
     public TuringBackend Backend => TuringBackend.Gpu;
     public string DeviceName { get; private set; } = "Direct3D 11";
 
     public TuringGpuEngine(TuringState state, bool softwareForVerification = false)
     {
-        state.Validate(); Size = state.GridSize;
+        state.Validate(); Size = state.GridSize; _reactionModel = state.Reaction.Model;
         _blurShader = Size <= 256 ? "Blur256" : Size <= 512 ? "Blur512" : Size <= 1024 ? "Blur1024" : "Blur";
         try
         {
@@ -39,14 +40,14 @@ public sealed class TuringGpuEngine : ITuringEngine
             foreach (ShaderCacheEntry entry in TuringComputeShader.CacheEntries)
                 _shaders[entry.EntryPoint] = _device.CreateComputeShader(ShaderBytecodeCache.GetOrCompile(entry,
                     e => Compiler.Compile(e.Source, e.EntryPoint, "Turing", e.Profile)).Span);
-            _constants = _device.CreateBuffer(new BufferDescription { ByteWidth = 128, Usage = ResourceUsage.Dynamic, BindFlags = BindFlags.ConstantBuffer, CPUAccessFlags = CpuAccessFlags.Write });
+            _constants = _device.CreateBuffer(new BufferDescription { ByteWidth = 192, Usage = ResourceUsage.Dynamic, BindFlags = BindFlags.ConstantBuffer, CPUAccessFlags = CpuAccessFlags.Write });
             int count = Size * Size;
             _field = Allocate(count); _next = Allocate(count); _work = Allocate(count); _temporary = Allocate(count);
             _activator = Allocate(count); _inhibitor = Allocate(count); _blur = Allocate(count); _best = Allocate(count);
             _stats0 = Allocate((count + 255) / 256); _stats1 = Allocate((count + 255) / 256); _palette = Allocate(1024);
             var initial = new TuringSimulation(state).Snapshot(); _step = initial.StepCount;
             float[] values = new float[count * 4];
-            for (int i = 0; i < count; i++) { values[i * 4] = initial.Field[i]; values[i * 4 + 1] = initial.Scales[i]; }
+            for (int i = 0; i < count; i++) { values[i * 4] = initial.Field[i]; values[i * 4 + 1] = initial.Scales[i]; if (state.Reaction.IsClassical) { values[i * 4 + 2] = initial.U[i]; values[i * 4 + 3] = initial.V[i]; } }
             _context.UpdateSubresource(values, _field.Buffer);
         }
         catch { Dispose(); throw; }
@@ -83,11 +84,14 @@ public sealed class TuringGpuEngine : ITuringEngine
     {
         Array.Clear(_parameters); _parameters[0] = Size; _parameters[2] = (int)state.Boundary;
         _parameters[6] = state.Symmetry; _parameters[7] = state.Mirror ? 1 : 0;
+        var r = state.Reaction; var equilibrium = r.Equilibrium;
+        _parameters[32] = (int)r.Model; _parameters[33] = (float)r.A; _parameters[34] = (float)r.B;
+        _parameters[38] = (float)equilibrium.U; _parameters[39] = (float)equilibrium.V;
     }
     private void Dispatch(string shader, GpuBuffer? a, GpuBuffer? b, GpuBuffer? c, GpuBuffer? output, int x, int y = 1, GpuBuffer? pixels = null)
     {
         var mapped = _context.Map(_constants, MapMode.WriteDiscard);
-        try { Marshal.Copy(_parameters, 0, mapped.DataPointer, 32); } finally { _context.Unmap(_constants, 0); }
+        try { Marshal.Copy(_parameters, 0, mapped.DataPointer, _parameters.Length); } finally { _context.Unmap(_constants, 0); }
         _context.CSSetConstantBuffer(0, _constants); _context.CSSetShader(_shaders[shader]);
         _context.CSSetShaderResource(0, a?.View); _context.CSSetShaderResource(1, b?.View); _context.CSSetShaderResource(2, c?.View);
         _context.CSSetShaderResource(3, shader == "Render" ? _palette.View : null);
@@ -113,6 +117,8 @@ public sealed class TuringGpuEngine : ITuringEngine
     {
         ObjectDisposedException.ThrowIf(_disposed, this); state.Validate();
         if (steps is < 0 or > 2000 || state.GridSize != Size) throw new ArgumentOutOfRangeException(nameof(steps));
+        if (state.Reaction.Model != _reactionModel) throw new ArgumentException("Смена модели требует нового поля.");
+        if (state.Reaction.IsClassical) { AdvanceReaction(steps, state, token); return; }
         int count = Size * Size, groups = (count + 255) / 256;
         for (int step = 0; step < steps; step++)
         {
@@ -155,6 +161,35 @@ public sealed class TuringGpuEngine : ITuringEngine
         if (steps > 0) Synchronize(token);
     }
 
+    private void AdvanceReaction(int steps, TuringState state, CancellationToken token)
+    {
+        var integration = state.Reaction.Integration(Size, 256, state.DetailSize, state.EvolutionRate, 2);
+        for (int step = 0; step < steps; step++)
+        {
+            Parameters(state); _parameters[35] = (float)integration.Dt;
+            _parameters[36] = (float)(state.Reaction.DiffusionU * integration.DiffusionScale);
+            _parameters[37] = (float)(state.Reaction.DiffusionV * integration.DiffusionScale);
+            GpuBuffer source = _field, target = _work;
+            for (int sub = 0; sub < integration.Count; sub++)
+            {
+                token.ThrowIfCancellationRequested();
+                Dispatch("ReactionStep", source, null, null, target, (Size + 15) / 16, (Size + 15) / 16);
+                source = target; target = ReferenceEquals(target, _work) ? _next : _work;
+            }
+            if (state.Symmetry != 1 || state.Mirror)
+            {
+                _parameters[2] = (int)TuringBoundary.Reflect;
+                Dispatch("ReactionSymmetry", source, null, null, target, (Size + 15) / 16, (Size + 15) / 16);
+                source = target;
+            }
+            token.ThrowIfCancellationRequested();
+            if (ReferenceEquals(source, _work)) (_field, _work) = (_work, _field);
+            else (_field, _next) = (_next, _field);
+            _step++;
+        }
+        if (steps > 0) Synchronize(token);
+    }
+
     private void Synchronize(CancellationToken token)
     {
         // Keep preparation progress and stopping tied to completed work, rather than queued dispatches.
@@ -183,8 +218,11 @@ public sealed class TuringGpuEngine : ITuringEngine
     public TuringCheckpoint Snapshot()
     {
         float[] values = _field.ReadFloats(_context);
-        var cp = new TuringCheckpoint { Size = Size, StepCount = _step, Field = new float[Size * Size], Scales = new byte[Size * Size] };
-        for (int i = 0; i < cp.Field.Length; i++) { cp.Field[i] = values[i * 4]; cp.Scales[i] = (byte)values[i * 4 + 1]; }
+        var cp = new TuringCheckpoint { Size = Size, StepCount = _step, Field = new float[Size * Size], Scales = new byte[Size * Size], Model = _reactionModel, U = _reactionModel == TuringReactionModel.McCabe ? [] : new float[Size * Size], V = _reactionModel == TuringReactionModel.McCabe ? [] : new float[Size * Size] };
+        for (int i = 0; i < cp.Field.Length; i++) { cp.Field[i] = values[i * 4]; cp.Scales[i] = (byte)values[i * 4 + 1];
+            if (cp.U.Length > 0) { cp.U[i] = values[i * 4 + 2]; cp.V[i] = values[i * 4 + 3];
+                if (!float.IsFinite(cp.U[i] + cp.V[i]) || cp.U[i] > 1000 || cp.V[i] > 1000)
+                    throw new InvalidOperationException("Реакция расходится. Измените A/B или диффузию и начните заново."); } }
         return cp;
     }
 

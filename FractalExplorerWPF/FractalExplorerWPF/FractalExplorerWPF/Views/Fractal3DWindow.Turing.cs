@@ -71,6 +71,7 @@ public partial class Fractal3DWindow
         _turingShown = _turingPending = null;
         _turingSettings = s; _turingResetTo = s;
         _turingDevice = _turingSimulation?.DeviceName ?? "ГП · подготовка устройства";
+        TuringReactionEditor.Load(s.Reaction);
         TuringRegionBox.SelectedIndex = (int)s.Region; TuringShellSlider.Value = s.ShellThickness;
         TuringDetailSlider.Value = s.DetailSize; TuringDepthSlider.Value = s.Layers.Count;
         TuringRateSlider.Value = s.EvolutionRate; TuringRatioSlider.Value = s.InhibitorRatio;
@@ -114,6 +115,8 @@ public partial class Fractal3DWindow
     {
         if (TuringPlayButton is null || Kind != Fractal3DKind.Turing3D) return;
         var culture = CultureInfo.CurrentCulture;
+        TuringMcCabePanel.Visibility = TuringMcCabeRatioPanel.Visibility = TuringScalesExpander.Visibility = _turingSettings.Reaction.IsClassical ? Visibility.Collapsed : Visibility.Visible;
+        ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.OrbitTrap]).Content = _turingSettings.Reaction.IsClassical ? "По концентрации U" : "По масштабу узора";
         TuringPlayButton.Content = _turingRunning ? "Ⅱ Пауза" : "▶ Продолжить";
         TuringTimeText.Text = $"Шаг {_turingShown?.Step ?? _turingSettings.Field?.Step ?? 0:N0} · {_turingSettings.Size}³ · " +
             (_turingRunning ? "развивается" : _turingBusy ? "расчёт…" : "пауза");
@@ -139,6 +142,20 @@ public partial class Fractal3DWindow
         TuringStepButton.IsEnabled = ready && !_turingRunning;
         TuringBrushButton.IsEnabled = ready;
         UpdateCancelAvailability();
+    }
+
+    private void TuringReaction_OnChanged(object? sender, EventArgs e)
+    {
+        if (_updatingUi || Kind != Fractal3DKind.Turing3D) return;
+        var reaction = TuringReactionEditor.Settings;
+        if (reaction.Model != _turingSettings.Reaction.Model)
+        {
+            var settings = CaptureTuring() with { Reaction = reaction, Field = null, Live = null, WarmupSteps = reaction.IsClassical ? 400 : 120 };
+            _updatingUi = true;
+            try { LoadTuring(settings); } finally { _updatingUi = false; }
+            _renderCts?.Cancel(); ScheduleRender(immediate: true);
+        }
+        else { _turingSettings = _turingSettings with { Reaction = reaction }; _turingConfigure = true; UpdateTuringLabels(); }
     }
 
     private void TuringPlay_OnClick(object sender, RoutedEventArgs e)

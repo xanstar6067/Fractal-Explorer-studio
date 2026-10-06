@@ -35,10 +35,11 @@ public sealed class Turing3DGpuSimulation : IDisposable
     private readonly bool[] _fencePending = new bool[2];
     private readonly Slot?[] _slots = new Slot?[2];
     private readonly long[] _slotVersions = new long[2];
-    private readonly float[] _parameters = new float[32];
+    private readonly float[] _parameters = new float[48];
     private ID3D11Buffer _constants = null!;
     private ID3D11Buffer? _staging;
     private GpuBuffer? _value, _scale, _nextValue, _nextScale, _activator, _inhibitor, _work, _temporary;
+    private GpuBuffer? _u, _v, _nextU, _nextV;
     private GpuBuffer? _best, _range0, _range1, _group;
     private IReadOnlyList<(int Layer, int Radius, int Inhibitor, double Amount)> _layers = [];
     private int _groupSize = 1, _fenceIndex, _lastSlot = 1;
@@ -59,7 +60,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
             foreach (var entry in Turing3DComputeShader.CacheEntries)
                 _shaders[entry.EntryPoint] = device.CreateComputeShader(ShaderBytecodeCache.GetOrCompile(entry,
                     e => Compiler.Compile(e.Source, e.EntryPoint, "Turing3D", e.Profile)).Span);
-            _constants = device.CreateBuffer(new BufferDescription { ByteWidth = 128, Usage = ResourceUsage.Dynamic,
+            _constants = device.CreateBuffer(new BufferDescription { ByteWidth = 192, Usage = ResourceUsage.Dynamic,
                 BindFlags = BindFlags.ConstantBuffer, CPUAccessFlags = CpuAccessFlags.Write });
             for (int i = 0; i < _fences.Length; i++)
                 _fences[i] = device.CreateQuery(new QueryDescription(QueryType.Event, QueryFlags.None));
@@ -112,7 +113,21 @@ public sealed class Turing3DGpuSimulation : IDisposable
         {
             context.UpdateSubresource(field.Values, _value!.Buffer);
             context.UpdateSubresource(field.Scales.Select(scale => (float)scale).ToArray(), _scale!.Buffer);
+            if (settings.Reaction.IsClassical) {
+                context.UpdateSubresource(field.UValues, _u!.Buffer); context.UpdateSubresource(field.VValues, _v!.Buffer);
+            }
             _step = field.Step;
+        }
+        else if (settings.Reaction.IsClassical)
+        {
+            int count = size * size * size; var u = new float[count]; var v = new float[count];
+            var random = new Random(settings.Seed); var equilibrium = settings.Reaction.Equilibrium;
+            for (int i = 0; i < count; i++) {
+                u[i] = (float)(equilibrium.U * (1 + .05 * (random.NextDouble() * 2 - 1)));
+                v[i] = (float)(equilibrium.V * (1 + .05 * (random.NextDouble() * 2 - 1)));
+            }
+            context.UpdateSubresource(u, _u!.Buffer); context.UpdateSubresource(v, _v!.Buffer);
+            SymmetrizeReactionLocked(); ReactionDisplayLocked(); _step = 0;
         }
         else
         {
@@ -135,6 +150,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (settings.Reaction.Model != Settings.Reaction.Model) throw new ArgumentException("Смена модели требует нового поля.");
             if (settings.Size != Settings.Size) throw new ArgumentException("Смена сетки требует переноса поля.");
             ConfigureLocked(settings);
         }
@@ -205,7 +221,9 @@ public sealed class Turing3DGpuSimulation : IDisposable
             Set(1, 0, 0, 0, _groupSize);
             Set(2, (float)x, (float)y, (float)z, (float)radius);
             Set(3, (float)strength, (int)brush, BitConverter.Int32BitsToSingle(Settings.Seed), BitConverter.Int32BitsToSingle(unchecked((int)_step)));
-            DispatchVolume("Paint", outA: _value);
+            SetReactionParameters();
+            DispatchVolume("Paint", outA: Settings.Reaction.IsClassical ? _u : _value);
+            if (Settings.Reaction.IsClassical) ReactionDisplayLocked();
         }
         finally { _host.Gate.Release(); }
     }
@@ -226,6 +244,11 @@ public sealed class Turing3DGpuSimulation : IDisposable
         ID3D11DeviceContext context = _host.Context;
         context.CopyResource(slot.Value.Buffer, _value!.Buffer);
         context.CopyResource(slot.Scale.Buffer, _scale!.Buffer);
+        if (Settings.Reaction.IsClassical) {
+            context.CopyResource(slot.U.Buffer, _u!.Buffer); context.CopyResource(slot.V.Buffer, _v!.Buffer);
+        }
+        slot.Model = Settings.Reaction.Model;
+        SetReactionParameters();
         Set(0, Size, 0, 0, 0);
         DispatchVolume("Publish", a: slot.Value, b: slot.Scale, display: slot.DisplayWrite);
         _version++;
@@ -256,7 +279,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!IsCurrent(volume)) throw new InvalidOperationException("Кадр узора Тьюринга 3D уже заменён более новым.");
             Slot slot = _slots[volume.Slot]!;
-            return ReadLocked(slot.Value, slot.Scale, volume.Step);
+            return ReadLocked(slot.Value, slot.Scale, volume.Step, slot.Model, slot.U, slot.V);
         }
         finally { _host.Gate.Release(); }
     }
@@ -265,17 +288,17 @@ public sealed class Turing3DGpuSimulation : IDisposable
     public Turing3DField ReadCurrent()
     {
         _host.Gate.Wait();
-        try { ObjectDisposedException.ThrowIf(_disposed, this); return ReadLocked(_value!, _scale!, _step); }
+        try { ObjectDisposedException.ThrowIf(_disposed, this); return ReadLocked(_value!, _scale!, _step, Settings.Reaction.Model, _u!, _v!); }
         finally { _host.Gate.Release(); }
     }
 
-    private Turing3DField ReadLocked(GpuBuffer value, GpuBuffer scale, long step)
+    private Turing3DField ReadLocked(GpuBuffer value, GpuBuffer scale, long step, TuringReactionModel model, GpuBuffer u, GpuBuffer v)
     {
         float[] values = ReadFloats(value);
         float[] scales = ReadFloats(scale);
         var map = new byte[scales.Length];
         for (int i = 0; i < map.Length; i++) map[i] = (byte)scales[i];
-        return new(Size, step, values, map, true);
+        return new(Size, step, values, map, true, model, model == TuringReactionModel.McCabe ? [] : ReadFloats(u), model == TuringReactionModel.McCabe ? [] : ReadFloats(v));
     }
 
     private float[] ReadFloats(GpuBuffer source)
@@ -319,6 +342,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
     /// <summary>Один целый шаг: масштабы по очереди, затем сложение, симметрия и нормировка.</summary>
     private void EvolveLocked()
     {
+        if (Settings.Reaction.IsClassical) { EvolveReactionLocked(); return; }
         bool first = true;
         foreach (var layer in _layers)
         {
@@ -393,6 +417,47 @@ public sealed class Turing3DGpuSimulation : IDisposable
             current = next;
         }
         if (ReferenceEquals(current, _temporary)) (target, _temporary) = (_temporary, target);
+    }
+
+    private void SetReactionParameters()
+    {
+        var r = Settings.Reaction; var equilibrium = r.Equilibrium;
+        Set(8, (int)r.Model, (float)r.A, (float)r.B, 0);
+        Set(9, 0, 0, (float)equilibrium.U, (float)equilibrium.V);
+    }
+
+    private void SymmetrizeReactionLocked()
+    {
+        if (_groupSize == 1 && Settings.Region == Turing3DRegion.Cube) return;
+        Set(0, Size, 0, (int)TuringBoundary.Reflect, 0); Set(1, 0, 0, 0, _groupSize);
+        Set(4, 0, 0, (int)Settings.Region, (float)Settings.ShellThickness);
+        // Both channels use the same representative and trilinear interpolation.
+        DispatchVolume("Symmetry", a: _u, b: _v, outA: _nextU, outB: _work);
+        DispatchVolume("Symmetry", a: _v, b: _u, outA: _nextV, outB: _work);
+        (_u, _nextU) = (_nextU, _u); (_v, _nextV) = (_nextV, _v);
+    }
+
+    private void ReactionDisplayLocked()
+    {
+        SetReactionParameters(); Set(0, Size, 0, 0, 0);
+        DispatchCells("ReactionDisplay", a: _u, outA: _value, outB: _scale);
+    }
+
+    private void EvolveReactionLocked()
+    {
+        var integration = Settings.Reaction.Integration(Size, Turing3DSettings.ReferenceSize, Settings.DetailSize, Settings.EvolutionRate, 3);
+        for (int sub = 0; sub < integration.Count; sub++)
+        {
+            SetReactionParameters();
+            _parameters[35] = (float)integration.Dt;
+            _parameters[36] = (float)(Settings.Reaction.DiffusionU * integration.DiffusionScale);
+            _parameters[37] = (float)(Settings.Reaction.DiffusionV * integration.DiffusionScale);
+            Set(0, Size, 0, (int)Settings.Boundary, 0);
+            DispatchVolume("ReactionStep", a: _u, b: _v, outA: _nextU, outB: _nextV);
+            (_u, _nextU) = (_nextU, _u); (_v, _nextV) = (_nextV, _v);
+            SymmetrizeReactionLocked();
+        }
+        ReactionDisplayLocked();
     }
 
     private void Set(int index, float x, float y, float z, float w)
@@ -472,6 +537,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
         DisposeFields();
         ID3D11Device device = _host.Device;
         int cells = size * size * size, groups = (cells + 255) / 256;
+        _u = new(device, cells, 4); _v = new(device, cells, 4); _nextU = new(device, cells, 4); _nextV = new(device, cells, 4);
         _value = new(device, cells, 4); _scale = new(device, cells, 4);
         _nextValue = new(device, cells, 4); _nextScale = new(device, cells, 4);
         _activator = new(device, cells, 4); _inhibitor = new(device, cells, 4);
@@ -531,8 +597,9 @@ public sealed class Turing3DGpuSimulation : IDisposable
 
     private void DisposeFields()
     {
-        foreach (var buffer in new[] { _value, _scale, _nextValue, _nextScale, _activator, _inhibitor, _work, _temporary, _best, _range0, _range1 })
+        foreach (var buffer in new[] { _u, _v, _nextU, _nextV, _value, _scale, _nextValue, _nextScale, _activator, _inhibitor, _work, _temporary, _best, _range0, _range1 })
             buffer?.Dispose();
+        _u = _v = _nextU = _nextV = null;
         _value = _scale = _nextValue = _nextScale = _activator = _inhibitor = _work = _temporary = _best = _range0 = _range1 = null;
         for (int i = 0; i < _slots.Length; i++) { _slots[i]?.Dispose(); _slots[i] = null; }
     }
@@ -558,6 +625,9 @@ public sealed class Turing3DGpuSimulation : IDisposable
     /// <summary>Опубликованный кадр: точные поле и карта масштабов и объём R32G32_Float для рендера.</summary>
     private sealed class Slot : IDisposable
     {
+        public TuringReactionModel Model { get; set; }
+        public GpuBuffer U { get; }
+        public GpuBuffer V { get; }
         public GpuBuffer Value { get; }
         public GpuBuffer Scale { get; }
         public ID3D11Texture3D Display { get; }
@@ -566,6 +636,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
         public Slot(ID3D11Device device, int side)
         {
             int cells = side * side * side;
+            U = new(device, cells, 4); V = new(device, cells, 4);
             Value = new(device, cells, 4); Scale = new(device, cells, 4);
             Display = device.CreateTexture3D(new Texture3DDescription
             {
@@ -575,6 +646,6 @@ public sealed class Turing3DGpuSimulation : IDisposable
             DisplayView = device.CreateShaderResourceView(Display);
             DisplayWrite = device.CreateUnorderedAccessView(Display);
         }
-        public void Dispose() { DisplayWrite.Dispose(); DisplayView.Dispose(); Display.Dispose(); Scale.Dispose(); Value.Dispose(); }
+        public void Dispose() { DisplayWrite.Dispose(); DisplayView.Dispose(); Display.Dispose(); Scale.Dispose(); Value.Dispose(); U.Dispose(); V.Dispose(); }
     }
 }

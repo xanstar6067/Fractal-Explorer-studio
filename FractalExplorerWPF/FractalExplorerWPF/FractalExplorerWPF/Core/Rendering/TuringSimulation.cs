@@ -3,7 +3,7 @@ using FractalExplorerWPF.Models;
 namespace FractalExplorerWPF.Core.Rendering;
 
 /// <summary>McCabe-style multiscale competition with separable square neighbourhood means.</summary>
-public sealed class TuringSimulation
+public sealed partial class TuringSimulation
 {
     private float[] _field, _next, _symmetric;
     private byte[] _scales, _nextScales;
@@ -22,6 +22,12 @@ public sealed class TuringSimulation
         if (state.Checkpoint is { } cp)
         {
             cp.Field.CopyTo(_field, 0); cp.Scales.CopyTo(_scales, 0); StepCount = cp.StepCount;
+            _reactionModel = state.Reaction.Model;
+            _u = [.. cp.U]; _v = [.. cp.V];
+        }
+        else if (state.Reaction.IsClassical)
+        {
+            InitializeReaction(state);
         }
         else
         {
@@ -33,12 +39,14 @@ public sealed class TuringSimulation
         }
     }
 
-    public TuringCheckpoint Snapshot() => new() { Size = Size, StepCount = StepCount, Field = [.. _field], Scales = [.. _scales] };
+    public TuringCheckpoint Snapshot() => new() { Size = Size, StepCount = StepCount, Field = [.. _field], Scales = [.. _scales], Model = _reactionModel, U = [.. _u], V = [.. _v] };
 
     public void Advance(int steps, TuringState state, CancellationToken token)
     {
         if (steps is < 0 or > 2000) throw new ArgumentOutOfRangeException(nameof(steps));
         state.Validate();
+        if (state.GridSize != Size || state.Reaction.Model != _reactionModel) throw new ArgumentException("Смена модели требует нового поля.");
+        if (state.Reaction.IsClassical) { AdvanceReaction(steps, state, token); return; }
         for (int step = 0; step < steps; step++)
         {
             token.ThrowIfCancellationRequested();
@@ -95,19 +103,30 @@ public sealed class TuringSimulation
                 uint hash = unchecked((uint)(i * 374761393 + state.RandomSeed) ^ (uint)StepCount);
                 hash = (hash ^ (hash >> 13)) * 1274126177u;
                 double target = brush switch { TuringBrush.Dark => -1, TuringBrush.Noise => (hash >> 8) / (double)0xFFFFFF * 2 - 1, _ => 1 };
-                _field[i] = (float)(_field[i] + (target - _field[i]) * strength * (1 - distance / r));
+                if (state.Reaction.IsClassical)
+                {
+                    double equilibrium = state.Reaction.Equilibrium.U;
+                    _u[i] = (float)(_u[i] + ((target + 1) * equilibrium - _u[i]) * strength * (1 - distance / r));
+                    _field[i] = TuringReactionKinetics.Display(_u[i], equilibrium);
+                }
+                else _field[i] = (float)(_field[i] + (target - _field[i]) * strength * (1 - distance / r));
             }
         }
     }
 
     public static TuringCheckpoint Resize(TuringCheckpoint source, int size)
     {
-        var cp = new TuringCheckpoint { Size = size, StepCount = source.StepCount, Field = new float[size * size], Scales = new byte[size * size] };
+        var cp = new TuringCheckpoint { Size = size, StepCount = source.StepCount, Field = new float[size * size], Scales = new byte[size * size], Model = source.Model, U = source.U.Length == 0 ? [] : new float[size * size], V = source.V.Length == 0 ? [] : new float[size * size] };
         for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++)
         {
             double sx = x * (source.Size - 1d) / (size - 1), sy = y * (source.Size - 1d) / (size - 1);
             cp.Field[y * size + x] = Sample(source.Field, source.Size, sx, sy, TuringBoundary.Reflect);
+            if (source.U.Length > 0)
+            {
+                cp.U[y * size + x] = Sample(source.U, source.Size, sx, sy, TuringBoundary.Reflect);
+                cp.V[y * size + x] = Sample(source.V, source.Size, sx, sy, TuringBoundary.Reflect);
+            }
             cp.Scales[y * size + x] = source.Scales[(int)Math.Round(sy) * source.Size + (int)Math.Round(sx)];
         }
         return cp;

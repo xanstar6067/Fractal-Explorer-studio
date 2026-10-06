@@ -49,7 +49,8 @@ internal static class ShaderBytecodeCache
     }
 
     /// <summary>
-    /// Сначала параллельно компилирует полный новый набор (не более четырёх задач),
+    /// Сначала параллельно компилирует полный новый набор, оставляя один логический
+    /// процессор для интерфейса и других задач (на одном процессоре — последовательно),
     /// затем заменяет файлы под общим замком.
     /// Если компиляция не удалась, прежний кэш остаётся нетронутым.
     /// </summary>
@@ -61,8 +62,12 @@ internal static class ShaderBytecodeCache
         var compiled = new (ShaderCacheEntry Entry, byte[] Bytecode)[entries.Count];
         var progressSync = new object();
         int completed = 0;
-        // Ограничиваем нагрузку на ЦП и память: каждый вызов D3DCompile независим.
-        var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount) };
+        // Каждый вызов D3DCompile независим. Масштабируемся по доступным процессорам,
+        // оставляя запас для интерфейса; больше задач, чем шейдеров, не требуется.
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Max(1, Math.Min(entries.Count, Environment.ProcessorCount - 1))
+        };
         Parallel.For(0, entries.Count, options, index =>
         {
             ShaderCacheEntry entry = entries[index];

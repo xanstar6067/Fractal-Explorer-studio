@@ -85,6 +85,7 @@ public partial class TuringWindow : Window
     {
         _syncing = true;
         _state = state.Clone(includeCheckpoint: false);
+        ReactionEditor.Load(state.Reaction); UpdateReactionControls();
         DetailSlider.Value = state.DetailSize; DepthSlider.Value = Math.Clamp(state.Layers.Count(l => l.Enabled), 1, 6);
         SpeedSlider.Value = state.StepsPerFrame;
         SelectTag(QualityBox, state.GridSize); SelectTag(SymmetryBox, state.Symmetry);
@@ -107,7 +108,7 @@ public partial class TuringWindow : Window
         PresetBox.SelectedItem = TuringPresets.All.FirstOrDefault(p => p.Id == state.PresetId) ?? CustomPreset;
         PresetDescription.Text = (PresetBox.SelectedItem as TuringPreset)?.Description ?? "Ваш узор. Изменяйте форму на текущем поле или выберите готовый вид для нового старта.";
         UpdateAppearanceControls(); UpdatePalettePreview(); UpdateView(); UpdateLegend();
-        UpdateFrameHint();
+        UpdateFrameHint(); UpdateReactionControls();
         _syncing = false;
     }
 
@@ -319,6 +320,31 @@ public partial class TuringWindow : Window
         state.RandomSeed = seed; state.Zoom = 1; state.PanX = state.PanY = 0;
         await ResetAsync(state, true);
     }
+    private async void Reaction_OnChanged(object? sender, EventArgs e)
+    {
+        if (_syncing || _resetting) return;
+        FlushShape(); Remember();
+        var reaction = ReactionEditor.Settings;
+        if (reaction.Model != _state.Reaction.Model)
+        {
+            var state = _state.Clone(includeCheckpoint: false); state.Reaction = reaction; state.PresetId = "custom";
+            state.WarmupSteps = reaction.IsClassical ? 400 : 160;
+            if (state.Coloring == TuringColoring.Scales) state.Coloring = TuringColoring.Relief;
+            await ResetAsync(state, true);
+        }
+        else { _state.Reaction = reaction; SetCustomPreset(); UpdateReactionControls(); RequestRepaint(); }
+    }
+
+    private void UpdateReactionControls()
+    {
+        var visibility = _state.Reaction.IsClassical ? Visibility.Collapsed : Visibility.Visible;
+        McCabeDepthPanel.Visibility = McCabeLayersPanel.Visibility = visibility;
+        LayersExpander.Header = _state.Reaction.IsClassical ? "Поведение на краях" : "Масштабы и края";
+        ((ComboBoxItem)ColoringBox.Items[2]).IsEnabled = !_state.Reaction.IsClassical;
+        PresetBox.IsEnabled = !_state.Reaction.IsClassical;
+        if (_state.Reaction.IsClassical) PresetDescription.Text = _state.Reaction.Name + " · изменяйте параметры или начните новый рисунок.";
+    }
+
     private void Shape_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_syncing || _resetting) return;

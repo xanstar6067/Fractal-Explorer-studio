@@ -31,6 +31,11 @@ public static class SaveFormat
         new("Сохранять прежний ЦП-движок Gray–Scott", (category, save) =>
         {
             if (category == "GrayScott" && !save.ContainsKey("Backend")) save["Backend"] = 0;
+        }),
+        new("Модель реакции узоров Тьюринга и две концентрации", (category, save) =>
+        {
+            JsonObject? settings = category == "TuringPatterns" ? save : category == "Fractal3DTuring" ? save["Turing"] as JsonObject : null;
+            if (settings is not null && !settings.ContainsKey("Reaction")) settings["Reaction"] = new JsonObject { ["Model"] = 0 };
         })
     ];
 

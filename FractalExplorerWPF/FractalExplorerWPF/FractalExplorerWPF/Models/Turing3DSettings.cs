@@ -23,6 +23,11 @@ public sealed class Turing3DField
 {
     public const int MinSize = 32, MaxSize = 160;
 
+    public TuringReactionModel Model { get; }
+    internal float[] UValues { get; }
+    internal float[] VValues { get; }
+    public ReadOnlySpan<float> ConcentrationU => UValues;
+    public ReadOnlySpan<float> ConcentrationV => VValues;
     public int Size { get; }
     public long Step { get; }
     internal float[] Values { get; }
@@ -33,7 +38,12 @@ public sealed class Turing3DField
     public Turing3DField(int size, long step, ReadOnlySpan<float> values, ReadOnlySpan<byte> scales)
         : this(size, step, values.ToArray(), scales.ToArray(), true) { }
 
-    internal Turing3DField(int size, long step, float[] values, byte[] scales, bool takeOwnership)
+    public Turing3DField(int size, long step, ReadOnlySpan<float> values, ReadOnlySpan<byte> scales,
+        TuringReactionModel model, ReadOnlySpan<float> u, ReadOnlySpan<float> v)
+        : this(size, step, values.ToArray(), scales.ToArray(), true, model, u.ToArray(), v.ToArray()) { }
+
+    internal Turing3DField(int size, long step, float[] values, byte[] scales, bool takeOwnership,
+        TuringReactionModel model = TuringReactionModel.McCabe, float[]? u = null, float[]? v = null)
     {
         long count = (long)size * size * size;
         if (size is < MinSize or > MaxSize || step is < 0 or > 1_000_000_000 || values.Length != count || scales.Length != count)
@@ -41,6 +51,13 @@ public sealed class Turing3DField
         // NaN fails both comparisons, so the plain loop rejects non-finite values too.
         foreach (float value in values) if (!(value >= -1.001f && value <= 1.001f)) throw new ArgumentException("Значения поля Тьюринга 3D вне [-1, 1].");
         foreach (byte scale in scales) if (scale >= Turing3DSettings.MaxLayers) throw new ArgumentException("Некорректная карта масштабов Тьюринга 3D.");
+        u ??= []; v ??= [];
+        if (!Enum.IsDefined(model) || (model == TuringReactionModel.McCabe ? u.Length != 0 || v.Length != 0 : u.Length != count || v.Length != count))
+            throw new ArgumentException("Концентрации не соответствуют модели Тьюринга 3D.");
+        foreach (float value in u.Concat(v)) if (!float.IsFinite(value) || value is < 0 or > 1000)
+            throw new ArgumentException("Повреждены концентрации Тьюринга 3D или реакция расходится.");
+        Model = model;
+        UValues = takeOwnership ? u : (float[])u.Clone(); VValues = takeOwnership ? v : (float[])v.Clone();
         Size = size; Step = step;
         Values = takeOwnership ? values : (float[])values.Clone();
         Scales = takeOwnership ? scales : (byte[])scales.Clone();
@@ -56,6 +73,7 @@ public sealed class Turing3DField
         if (size is < MinSize or > MaxSize) throw new ArgumentOutOfRangeException(nameof(size));
         int n = source.Size; long count = (long)size * size * size;
         var values = new float[count]; var scales = new byte[count];
+        float[] u = source.UValues.Length == 0 ? [] : new float[count], v = source.VValues.Length == 0 ? [] : new float[count];
         double ratio = (double)n / size;
         Parallel.For(0, size, z =>
         {
@@ -68,11 +86,12 @@ public sealed class Turing3DField
                     double sx = Math.Clamp((x + .5) * ratio - .5, 0, n - 1);
                     long i = ((long)z * size + y) * size + x;
                     values[i] = (float)Math.Clamp(Trilinear(source.Values, n, sx, sy, sz), -1, 1);
+                    if (u.Length > 0) { u[i] = (float)Trilinear(source.UValues, n, sx, sy, sz); v[i] = (float)Trilinear(source.VValues, n, sx, sy, sz); }
                     scales[i] = source.Scales[((int)Math.Round(sz) * n + (int)Math.Round(sy)) * n + (int)Math.Round(sx)];
                 }
             }
         });
-        return new Turing3DField(size, source.Step, values, scales, true);
+        return new Turing3DField(size, source.Step, values, scales, true, source.Model, u, v);
     }
 
     private static double Trilinear(float[] field, int n, double x, double y, double z)
@@ -109,6 +128,7 @@ public sealed record Turing3DSettings
     public int Seed { get; init; } = 1729;
     public int WarmupSteps { get; init; } = 120;
     public int StepsPerFrame { get; init; } = 2;
+    public TuringReactionSettings Reaction { get; init; } = new();
     public double DetailSize { get; init; } = 1;
     public double EvolutionRate { get; init; } = 1;
     public double InhibitorRatio { get; init; } = 2;
@@ -158,6 +178,8 @@ public sealed record Turing3DSettings
 
     public void Validate()
     {
+        if (Reaction is null) throw new ArgumentException("Не задана модель реакции.");
+        Reaction.Validate();
         static bool Range(double value, double min, double max) => double.IsFinite(value) && value >= min && value <= max;
         if (Size is < Turing3DField.MinSize or > Turing3DField.MaxSize || StepsPerFrame is < 1 or > 16 || WarmupSteps is < 0 or > 2000)
             throw new InvalidOperationException("Сетка: 32–160 по каждой оси; шагов на кадр: 1–16; начальное развитие: 0–2000 шагов.");
@@ -171,13 +193,13 @@ public sealed record Turing3DSettings
             SheetThickness != 0 && !Range(SheetThickness, .02, .3) || CutAxis is < 0 or > 3 || !Range(CutPosition, -1, 1) ||
             !Enum.IsDefined(Brush) || !Range(BrushRadius, .02, .3) || !Range(BrushStrength, .05, 1))
             throw new InvalidOperationException("Некорректная форма объёма, уровень поверхности, мембрана, срез или кисть.");
-        if (Field is not null && Field.Size != Size || Live is not null && Live.Size != Size)
+        if (Field is not null && (Field.Size != Size || Field.Model != Reaction.Model) || Live is not null && Live.Size != Size)
             throw new InvalidOperationException("Сохранённое поле не соответствует размеру сетки.");
     }
 
     /// <summary>Одинаковое правило эволюции: вид, кисть и скорость показа не учитываются.</summary>
     public bool SameRule(Turing3DSettings other) =>
-        Size == other.Size && DetailSize == other.DetailSize && EvolutionRate == other.EvolutionRate &&
+        Reaction == other.Reaction && Size == other.Size && DetailSize == other.DetailSize && EvolutionRate == other.EvolutionRate &&
         InhibitorRatio == other.InhibitorRatio && Symmetry == other.Symmetry && Arms == other.Arms &&
         Mirror == other.Mirror && Boundary == other.Boundary && Layers.SequenceEqual(other.Layers) &&
         Region == other.Region && (Region != Turing3DRegion.Shell || ShellThickness == other.ShellThickness);

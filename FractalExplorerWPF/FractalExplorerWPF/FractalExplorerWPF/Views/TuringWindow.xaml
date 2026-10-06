@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls"
         xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
-        Title="Многомасштабные узоры Тьюринга" Width="1280" Height="850" MinWidth="1040" MinHeight="650"
+        Title="Узоры Тьюринга" Width="1280" Height="850" MinWidth="1040" MinHeight="650"
         WindowStartupLocation="CenterOwner" KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
     <Window.Resources><numeric:FlexibleDoubleConverter x:Key="FlexibleNumber"/></Window.Resources>
     <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
@@ -12,7 +12,7 @@
             <DockPanel LastChildFill="False">
                 <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,18,0">
                     <TextBlock Text="Узоры Тьюринга" FontSize="19" FontWeight="SemiBold"/>
-                    <TextBlock Text="Живая структура из нескольких масштабов" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock Text="Живые узоры реакции и диффузии" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                 </StackPanel>
                 <Button x:Name="RunButton" Content="Пауза" MinWidth="88" Click="Run_OnClick" ToolTip="Остановить или продолжить развитие · Пробел"/>
                 <Button x:Name="StepButton" Content="Один шаг" Click="Step_OnClick" ToolTip="Один шаг модели на паузе · →"/>
@@ -37,12 +37,15 @@
                         <TabControl x:Name="SettingsTabs">
                             <TabItem Header="Форма">
                                 <StackPanel Margin="8">
+                                    <numeric:TuringReactionEditor x:Name="ReactionEditor" Changed="Reaction_OnChanged"/>
                                     <TextBlock Text="Меняется на текущем поле" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,0,0,10"/>
                                     <DockPanel><TextBlock Text="Размер деталей"/><TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" Text="{Binding Value, ElementName=DetailSlider, StringFormat={}{0:F2}×}"/></DockPanel>
                                     <Slider x:Name="DetailSlider" Minimum="0.25" Maximum="3" ValueChanged="Shape_OnChanged" AutomationProperties.Name="Размер деталей" ToolTip="Меньше — тонкие нити; больше — широкие каналы. Размер поля не меняется."/>
                                     <DockPanel Margin="0,0,0,10"><TextBlock Text="Тоньше" FontSize="11"/><TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" Text="Крупнее" FontSize="11"/></DockPanel>
+                                    <StackPanel x:Name="McCabeDepthPanel">
                                     <DockPanel><TextBlock Text="Глубина структуры"/><TextBlock x:Name="DepthValueText" DockPanel.Dock="Right" HorizontalAlignment="Right"/></DockPanel>
                                     <Slider x:Name="DepthSlider" Minimum="1" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Depth_OnChanged" AutomationProperties.Name="Число масштабов" ToolTip="Каждый масштаб добавляет свой размер деталей. Больше масштабов — богаче структура и дольше расчёт. Этот ползунок восстанавливает стандартные радиусы и отклики."/>
+                                    </StackPanel>
                                     <TextBlock Text="Симметрия" Margin="0,10,0,3"/>
                                     <ComboBox x:Name="SymmetryBox" SelectionChanged="Shape_OnChanged" AutomationProperties.Name="Симметрия">
                                         <ComboBoxItem Tag="1" Content="Без симметрии — всё поле"/><ComboBoxItem Tag="2" Content="2 луча"/><ComboBoxItem Tag="4" Content="4 луча"/>
@@ -85,6 +88,7 @@
                                     </Expander>
                                     <Expander x:Name="LayersExpander" Header="Настроить отдельные масштабы" Margin="0,6,0,0">
                                         <StackPanel Margin="0,8,0,0">
+                                            <StackPanel x:Name="McCabeLayersPanel">
                                             <TextBlock Text="Радиус задаёт размер окружения, отклик — силу изменения. Правки вступят в силу после применения." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                                             <Grid Margin="0,7,0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="35"/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><TextBlock Grid.Column="1" Text="Радиус"/><TextBlock Grid.Column="2" Text="Отклик"/></Grid>
                                             <ItemsControl x:Name="LayersItems">
@@ -100,6 +104,7 @@
                                             <Slider x:Name="InhibitorSlider" Minimum="1.2" Maximum="4" ValueChanged="Layers_OnEdited" ToolTip="Во сколько раз окружение подавления шире окружения активации"/>
                                             <Button x:Name="ApplyLayersButton" Content="Применить масштабы" Click="ApplyLayers_OnClick" IsEnabled="False"/>
                                             <TextBlock x:Name="LayersError" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                            </StackPanel>
                                             <TextBlock Text="Поведение на краях" Margin="0,8,0,3"/>
                                             <ComboBox x:Name="BoundaryBox" SelectionChanged="Shape_OnChanged"><ComboBoxItem Content="Замкнутое поле — противоположные края связаны"/><ComboBoxItem Content="Отражение — процессы остаются в поле"/></ComboBox>
                                         </StackPanel>

@@ -123,7 +123,15 @@ internal static partial class Program
         string old = Path.Combine(store.DirectoryPath, "old.json");
         File.WriteAllText(old, """{ "Title": "Old", "Timestamp": "2026-01-01T00:00:00" }""");
 
-        Check(SaveFormat.CurrentVersion == 3, "The shipped save format must include the legacy Turing and Gray–Scott CPU migrations.");
+        Check(SaveFormat.CurrentVersion == 4, "The shipped save format includes legacy CPU migrations and Turing reaction metadata.");
+        var oldTuring = JsonNode.Parse("{\"SaveFormatVersion\":3,\"Checkpoint\":{\"Field\":\"unchanged\"}}")!.AsObject();
+        SaveFormat.UpgradeInPlace("TuringPatterns", oldTuring);
+        Check(oldTuring["Reaction"]!["Model"]!.GetValue<int>() == 0 && oldTuring["Checkpoint"]!["Field"]!.GetValue<string>() == "unchanged",
+            "Old 2D saves keep their exact McCabe field while gaining explicit reaction metadata.");
+        var oldVolume = JsonNode.Parse("{\"SaveFormatVersion\":3,\"Turing\":{\"Field\":{\"Data\":\"unchanged\"}}}")!.AsObject();
+        SaveFormat.UpgradeInPlace("Fractal3DTuring", oldVolume);
+        Check(oldVolume["Turing"]!["Reaction"]!["Model"]!.GetValue<int>() == 0 && oldVolume["Turing"]!["Field"]!["Data"]!.GetValue<string>() == "unchanged",
+            "Old 3D saves keep their compressed McCabe bytes unchanged.");
         SaveFormat.UpgradesOverrideForTests =
         [
             new SaveFormatUpgrade("Title → Name", (category, save) =>

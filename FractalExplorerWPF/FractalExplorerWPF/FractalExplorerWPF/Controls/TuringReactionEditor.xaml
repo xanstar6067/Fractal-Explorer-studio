@@ -1,0 +1,31 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.TuringReactionEditor"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls">
+ <StackPanel>
+  <TextBlock Text="Модель реакции" FontWeight="SemiBold" Margin="0,8,0,4"/>
+  <ComboBox x:Name="ModelBox" SelectionChanged="Model_OnChanged" AutomationProperties.Name="Модель реакции Тьюринга">
+   <ComboBoxItem Content="Маккейб — многомасштабная"/>
+   <ComboBoxItem Content="Брюсселятор"/>
+   <ComboBoxItem Content="Шнакенберг"/>
+   <ComboBoxItem Content="Гирер–Мейнхардт"/>
+  </ComboBox>
+  <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" FontSize="11" Margin="0,5,0,7" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+  <StackPanel x:Name="ReactionPanel">
+   <TextBlock x:Name="FormulaText" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,6"/>
+   <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TextBlock x:Name="AText" Text="A"/><TextBlock x:Name="BText" Grid.Column="1" Text="B"/>
+    <TextBox x:Name="ABox" Grid.Row="1" Margin="0,3,5,6" numeric:NumericSpinner.IsEnabled="True" AutomationProperties.Name="Параметр A реакции"/>
+    <TextBox x:Name="BBox" Grid.Row="1" Grid.Column="1" Margin="0,3,0,6" numeric:NumericSpinner.IsEnabled="True" AutomationProperties.Name="Параметр B реакции"/>
+    <TextBlock Grid.Row="2" Text="Диффузия U"/><TextBlock Grid.Row="2" Grid.Column="1" Text="Диффузия V"/>
+    <TextBox x:Name="DuBox" Grid.Row="3" Margin="0,3,5,6" numeric:NumericSpinner.IsEnabled="True" AutomationProperties.Name="Диффузия активатора U"/>
+    <TextBox x:Name="DvBox" Grid.Row="3" Grid.Column="1" Margin="0,3,0,6" numeric:NumericSpinner.IsEnabled="True" AutomationProperties.Name="Диффузия ингибитора V"/>
+   </Grid>
+   <Button Content="Применить реакцию" Click="Apply_OnClick" ToolTip="Изменить параметры на текущих концентрациях без сброса времени"/>
+   <TextBlock x:Name="ErrorText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+   <TextBlock Text="Цвет и поверхность показывают U. Смена модели начинает новое поле; параметры применяются на текущем. Размер деталей задаёт пространственный масштаб диффузии." TextWrapping="Wrap" FontSize="11" Margin="0,5,0,10" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+  </StackPanel>
+ </StackPanel>
+</UserControl>

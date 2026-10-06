@@ -76,7 +76,10 @@ internal static partial class Program
             .ToArray();
         var original = Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso")
             .ToDictionary(path => path, File.ReadAllBytes);
-        int requiredOverlap = Math.Min(2, Environment.ProcessorCount);
+        int parallelism = Math.Max(1, Math.Min(entries.Length, Environment.ProcessorCount - 1));
+        // На многоядерном ЦП требуем больше четырёх одновременных компиляций,
+        // чтобы прежний фиксированный лимит не прошёл эту проверку.
+        int requiredOverlap = Math.Min(5, parallelism);
         using var overlap = new CountdownEvent(requiredOverlap);
         int started = 0, active = 0, peak = 0;
         var compilerSync = new object();
@@ -91,7 +94,7 @@ internal static partial class Program
                 if (Interlocked.Increment(ref started) <= requiredOverlap)
                 {
                     overlap.Signal();
-                    Check(overlap.Wait(TimeSpan.FromSeconds(10)), "Independent shaders must compile concurrently.");
+                    Check(overlap.Wait(TimeSpan.FromSeconds(30)), "Independent shaders must compile concurrently and scale beyond four workers on larger CPUs.");
                 }
                 return new byte[] { (byte)entry.Source[0], 42 };
             }
@@ -108,8 +111,9 @@ internal static partial class Program
                   Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length == original.Count,
                 "Compilation must leave the old cache untouched until every shader succeeds.");
         });
-        Check(peak >= requiredOverlap && peak <= Math.Min(4, Environment.ProcessorCount),
-            "Rebuild must overlap independent compilations while limiting CPU and memory usage.");
+        Check(peak >= requiredOverlap && peak <= parallelism,
+            "Rebuild must scale independent compilations to the available CPUs while leaving one logical processor free.");
+        Console.WriteLine($"Shader rebuild concurrency: peak {peak}, limit {parallelism}, logical processors {Environment.ProcessorCount}.");
         Check(started == entries.Length && reports.Select(r => r.Completed).SequenceEqual(Enumerable.Range(1, entries.Length)) &&
               reports.All(r => r.Total == entries.Length) && reports.Select(r => r.Key).ToHashSet().SetEquals(entries.Select(e => e.Key)),
             "Each shader must compile once and report ordered progress exactly once.");
