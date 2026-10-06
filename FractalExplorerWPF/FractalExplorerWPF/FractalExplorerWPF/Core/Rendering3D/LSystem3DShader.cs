@@ -65,8 +65,13 @@ internal static class LSystem3DShader
         }
 
         // Cylinder plus two hemispheres, including exit intersections when the camera is inside.
+        // The quadratics are solved from the ray point closest to the capsule centre: from a
+        // distant camera r² vanishes in the float rounding of |o - a|², and whether the ray hits
+        // would depend on how a particular GPU rounds. d must be normalized.
         float LRayCapsule(float3 o, float3 d, float3 a, float3 b, float r)
         {
+            float shift = dot((a + b) * .5 - o, d);
+            o += d * shift;
             float3 ba = b - a, oa = o - a;
             float baba = dot(ba, ba), bard = dot(ba, d), baoa = dot(ba, oa);
             float best = 1e20;
@@ -81,7 +86,7 @@ internal static class LSystem3DShader
                 {
                     float t = (-bb + (i == 0 ? -root : root)) / aa;
                     float y = baoa + t * bard;
-                    if (t > 1e-7 && y >= 0 && y <= baba) best = min(best, t);
+                    if (t + shift > 1e-7 && y >= 0 && y <= baba) best = min(best, t + shift);
                 }
             }
             [unroll] for (int cap = 0; cap < 2; cap++)
@@ -94,7 +99,7 @@ internal static class LSystem3DShader
                     {
                         float t = -q + (i == 0 ? -sqrt(h) : sqrt(h));
                         float y = baoa + t * bard;
-                        if (t > 1e-7 && (cap == 0 ? y <= 0 : y >= baba)) best = min(best, t);
+                        if (t + shift > 1e-7 && (cap == 0 ? y <= 0 : y >= baba)) best = min(best, t + shift);
                     }
                 }
             }

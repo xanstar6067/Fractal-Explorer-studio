@@ -877,7 +877,15 @@ internal static class Fractal3DShader
                 if (distance > March.z) break;
             }
         #endif
-            if (!hit) return SkyAt(reflected);
+            if (!hit)
+            {
+                // Ушедший в небо луч видит и лампу, как у металла: сам луч уже проверил, что
+                // фигура её не заслоняет. Без неё тёмное небо, тонированное окраской, гасило
+                // зеркальную фигуру почти до фона.
+                float sheen = saturate(dot(reflected, Light.xyz));
+                return SkyAt(reflected) * 2.0 +
+                    LightColor.rgb * (pow(sheen, 128.0) * 5.0 + pow(sheen, 6.0) * 0.45);
+            }
 
             float3 hitPoint = origin + reflected * distance;
         #if FRACTAL_KIND == 10
