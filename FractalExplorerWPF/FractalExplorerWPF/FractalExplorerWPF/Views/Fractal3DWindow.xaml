@@ -956,6 +956,17 @@
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->
                 <Canvas x:Name="AxisTriad" Width="64" Height="64" Margin="8"
                         HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
+                <Border x:Name="TuringPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="300">
+                        <TextBlock x:Name="TuringPreparationText" Foreground="White" FontSize="17"
+                                   TextAlignment="Center" TextWrapping="Wrap" Text="Выращиваем начальный узор…"/>
+                        <ProgressBar x:Name="TuringPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
+                        <TextBlock Foreground="#C2CDD6" FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
+                                   Text="После подготовки можно продолжить развитие или поставить его на паузу."/>
+                        <Button x:Name="TuringStopPreparationButton" Content="Остановить подготовку"
+                                Click="TuringStopPreparation_OnClick" Margin="20,14"/>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 

@@ -27,6 +27,8 @@ public partial class Fractal3DWindow
     private Turing3DVolume? _turingShown, _turingPending;
     private CancellationTokenSource? _turingCts;
     private bool _turingRunning, _turingBusy;
+    private bool _turingPreparing, _turingPreparationStopped;
+    private Turing3DVolume? _turingPreparationFrame;
     private int _turingEpoch, _turingQueuedSteps;
     private (double X, double Y, double Z)? _turingBrush;
     private string _turingDevice = "";
@@ -88,6 +90,7 @@ public partial class Fractal3DWindow
         TuringBrushRadiusSlider.Value = s.BrushRadius; TuringBrushStrengthSlider.Value = s.BrushStrength;
         BuildTuringLayerRows(s.Layers);
         _turingQueuedSteps = s.InitialSteps;
+        BeginTuringPreparation(s.Field is null ? "Выращиваем начальный узор…" : "Восстанавливаем поле…");
         UpdateTuringLabels();
         _ = RunTuringWorkAsync();
     }
@@ -139,6 +142,7 @@ public partial class Fractal3DWindow
         TuringBrushRadiusText.Text = string.Format(culture, "Радиус · {0:F2} ребра", TuringBrushRadiusSlider.Value);
         TuringBrushStrengthText.Text = string.Format(culture, "Сила · {0:P0}", TuringBrushStrengthSlider.Value);
         bool ready = !_turingBusy && _turingPending is null && _turingShown is not null;
+        TuringPlayButton.IsEnabled = !_turingPreparing;
         TuringStepButton.IsEnabled = ready && !_turingRunning;
         TuringBrushButton.IsEnabled = ready;
         UpdateCancelAvailability();
@@ -160,6 +164,7 @@ public partial class Fractal3DWindow
 
     private void TuringPlay_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_turingPreparing) return;
         if (_turingRunning) { PauseTuring(); return; }
         _turingRunning = true; UpdateTuringLabels();
         if (_turingPending is null && !_turingBusy)
@@ -169,13 +174,46 @@ public partial class Fractal3DWindow
     /// <summary>Отмена не теряет шагов: уже поданные целиком публикуются и показываются.</summary>
     private void PauseTuring()
     {
+        if (_turingPreparing) { StopTuringPreparation(); return; }
         _turingRunning = false; _turingQueuedSteps = 0; _turingCts?.Cancel();
         UpdateTuringLabels(); RequestFrame(FrameQuality.Draft);
     }
 
+    private void BeginTuringPreparation(string message)
+    {
+        _turingPreparing = true; _turingPreparationStopped = false; _turingPreparationFrame = null;
+        TuringPreparationText.Text = message;
+        TuringPreparationProgress.Value = 0;
+        TuringPreparationProgress.IsIndeterminate = true;
+        TuringStopPreparationButton.IsEnabled = true;
+        TuringPreparationOverlay.Visibility = Visibility.Visible;
+        ControlsHost.IsEnabled = false;
+    }
+
+    private void EndTuringPreparation()
+    {
+        _turingPreparing = false; _turingPreparationFrame = null;
+        TuringPreparationProgress.IsIndeterminate = false;
+        TuringPreparationOverlay.Visibility = Visibility.Collapsed;
+        ControlsHost.IsEnabled = true;
+    }
+
+    private void TuringStopPreparation_OnClick(object sender, RoutedEventArgs e) => StopTuringPreparation();
+
+    // Stop at a complete simulation step and publish the partial field, just as in 2D.
+    private void StopTuringPreparation()
+    {
+        if (!_turingPreparing) return;
+        _turingPreparationStopped = true; _turingRunning = false; _turingQueuedSteps = 0;
+        _turingCts?.Cancel();
+        TuringPreparationText.Text = "Завершаем текущий шаг…";
+        TuringStopPreparationButton.IsEnabled = false;
+        UpdateTuringLabels();
+    }
+
     private void TuringStep_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_turingBusy || _turingPending is not null) return;
+        if (_turingPreparing || _turingBusy || _turingPending is not null) return;
         _turingRunning = false; _turingQueuedSteps = (int)TuringSpeedSlider.Value; _ = RunTuringWorkAsync();
     }
 
@@ -305,12 +343,21 @@ public partial class Fractal3DWindow
         var rule = _turingSettings;
         bool configure = _turingConfigure && reset is null;
         int? resize = _turingResizeTo;
+        if (resize is not null) BeginTuringPreparation("Переносим поле…");
+        bool preparing = _turingPreparing;
         var stroke = (Radius: TuringBrushRadiusSlider.Value, Strength: TuringBrushStrengthSlider.Value,
             Kind: (TuringBrush)Math.Max(0, TuringBrushBox.SelectedIndex));
         var keep = _turingShown;
         _turingQueuedSteps = 0; _turingBrush = null; _turingResetTo = null; _turingConfigure = false; _turingResizeTo = null;
         _turingBusy = true;
         var cts = new CancellationTokenSource(); _turingCts = cts;
+        if (preparing && _turingPreparationStopped) cts.Cancel();
+        IProgress<int>? progress = preparing ? new Progress<int>(done =>
+        {
+            if (_isClosing || epoch != _turingEpoch || !_turingPreparing || _turingPreparationFrame is not null) return;
+            TuringPreparationProgress.IsIndeterminate = false;
+            TuringPreparationProgress.Value = steps == 0 ? 90 : 90.0 * done / steps;
+        }) : null;
         var host = _renderer.DeviceHost;
         var simulation = _turingSimulation;
         Turing3DField? resized = null;
@@ -333,13 +380,21 @@ public partial class Fractal3DWindow
                     keep = null;
                 }
                 if (brush is { } b) simulation!.Paint(b.X, b.Y, b.Z, stroke.Radius, stroke.Strength, stroke.Kind);
-                simulation!.Advance(steps, cts.Token);
+                progress?.Report(0);
+                simulation!.Advance(steps, cts.Token, progress);
                 return simulation.Publish(keep);
             });
             _turingDevice = simulation!.DeviceName;
             if (_isClosing || epoch != _turingEpoch) return;
             if (resized is not null) _turingSettings = _turingSettings with { Size = resized.Size, Field = resized };
             _turingPending = volume;
+            if (preparing)
+            {
+                _turingPreparationFrame = volume;
+                TuringPreparationProgress.IsIndeterminate = false;
+                TuringPreparationProgress.Value = 90;
+                if (!_turingPreparationStopped) TuringPreparationText.Text = "Отрисовываем начальный узор…";
+            }
             RequestFrame(FrameQuality.Draft);
         }
         catch (Exception exception)
@@ -349,6 +404,7 @@ public partial class Fractal3DWindow
                 _turingRunning = false;
                 _turingDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
                 StatusText.Text = "Ошибка узоров Тьюринга 3D: " + exception.Message;
+                EndTuringPreparation();
             }
         }
         finally
@@ -381,7 +437,10 @@ public partial class Fractal3DWindow
     {
         if (Kind != Fractal3DKind.Turing3D || _isClosing || _suspended) return;
         if (_turingPending is not null && Equals(state.Turing.Live, _turingPending))
-        { _turingShown = _turingPending; _turingPending = null; }
+        {
+            _turingShown = _turingPending; _turingPending = null;
+            if (_turingPreparing && Equals(state.Turing.Live, _turingPreparationFrame)) EndTuringPreparation();
+        }
         UpdateTuringLabels();
         if (_turingBusy || _turingPending is not null) return;
         if (_turingRunning) { _turingQueuedSteps = (int)TuringSpeedSlider.Value; _ = RunTuringWorkAsync(); }

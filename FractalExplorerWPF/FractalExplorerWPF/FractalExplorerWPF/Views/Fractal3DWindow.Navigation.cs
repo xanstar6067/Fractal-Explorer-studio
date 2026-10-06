@@ -292,6 +292,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_turingPreparing) { e.Handled = true; return; }
         if (TryGrayBrush(e) || TryTuringBrush(e)) return;
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
@@ -327,6 +328,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_turingPreparing) { e.Handled = true; return; }
         if (IsInteracting) return;
         CanvasHost.Focus();
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
@@ -357,6 +359,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (_turingPreparing) { e.Handled = true; return; }
         if (e.ChangedButton != MouseButton.Middle) return;
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
@@ -575,6 +578,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        if (_turingPreparing) { e.Handled = true; return; }
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
             e.Handled = true;

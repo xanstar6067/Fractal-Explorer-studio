@@ -960,6 +960,14 @@ public partial class Fractal3DWindow : Window
         var watch = Stopwatch.StartNew();
         SetRendering(true, quality == FrameQuality.Draft ? null : "Рендеринг...");
 
+        void ReportProgress(int value)
+        {
+            if (!ReferenceEquals(_renderCts, cts)) return;
+            RenderProgress.Value = value;
+            if (_turingPreparing && Equals(state.Turing.Live, _turingPreparationFrame))
+                TuringPreparationProgress.Value = 90 + value * .1;
+        }
+
         try
         {
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
@@ -971,7 +979,7 @@ public partial class Fractal3DWindow : Window
 
             if (quality == FrameQuality.Antialiased)
             {
-                var progress = new Progress<int>(value => RenderProgress.Value = value);
+                var progress = new Progress<int>(ReportProgress);
                 BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
                 cts.Token.ThrowIfCancellationRequested();
                 if (!IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state)) return;
@@ -985,9 +993,9 @@ public partial class Fractal3DWindow : Window
                 bool draft = quality == FrameQuality.Draft;
                 Fractal3DState frameState = draft && moving ? ApplyMotionQuality(state) : state;
                 simplified = !ReferenceEquals(frameState, state);
-                IProgress<int>? progress = draft
+                IProgress<int>? progress = draft && !_turingPreparing
                     ? null
-                    : new Progress<int>(value => RenderProgress.Value = value);
+                    : new Progress<int>(ReportProgress);
 
                 Fractal3DPixels frame = await _renderer.RenderPixelsAsync(
                     frameState, width, height, draft ? _draftBuffer : _fullBuffer, progress, cts.Token);
@@ -1046,6 +1054,11 @@ public partial class Fractal3DWindow : Window
         catch (Exception exception)
         {
             if (_isClosing) return;
+            if (_turingPreparing && IsCurrentTuringFrame(state))
+            {
+                EndTuringPreparation();
+                UpdateTuringLabels();
+            }
             if (Kind == Fractal3DKind.Dla3D)
             {
                 _dlaRunning = false;
@@ -1058,6 +1071,7 @@ public partial class Fractal3DWindow : Window
             else MessageBox.Show(this, exception.Message, _definition.Title,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+
         finally
         {
             if (ReferenceEquals(_renderCts, cts)) _renderCts = null;

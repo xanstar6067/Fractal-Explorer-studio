@@ -179,7 +179,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
     /// вперемежку. Ждёт не конца работы, а предпоследней порции. Отмена прекращает подачу новых
     /// порций; уже поданные шаги — целые шаги. Возвращает число поданных шагов.
     /// </summary>
-    public int Advance(int steps, CancellationToken token)
+    public int Advance(int steps, CancellationToken token, IProgress<int>? progress = null)
     {
         if (steps < 0) throw new ArgumentOutOfRangeException(nameof(steps));
         int done = 0;
@@ -191,6 +191,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
             finally { _host.Gate.Release(); }
             done += count;
             WaitForFence(_fenceIndex ^ 1, token, holdingGate: false);
+            progress?.Report(done);
         }
         return done;
     }

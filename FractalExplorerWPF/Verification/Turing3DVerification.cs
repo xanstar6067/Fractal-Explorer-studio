@@ -275,7 +275,7 @@ internal static partial class Program
             "Both computation and display must participate in the shared shader cache.");
 
         await VerifyTuring3DWindowAsync(renderer, state, store, output);
-        Console.WriteLine("PASS (turing3d): groups, independent multiscale rule, exact symmetry, repeated brush, publication slots, exact continuation, rule changes, grid transfer, presets, live frames, styles, regions, probe, cache, saves, cloud and WPF.");
+        Console.WriteLine("PASS (turing3d): groups, independent multiscale rule, exact symmetry, repeated brush, publication slots, exact continuation, rule changes, grid transfer, presets, live frames, styles, regions, probe, cache, saves, cloud, preparation progress/cancellation and WPF.");
     }
 
     /// <summary>Quick visual and timing pass over the presets: <c>turing3d &lt;folder&gt; --probe</c>.</summary>
@@ -386,10 +386,48 @@ internal static partial class Program
         async Task Settle() { await Idle(); await Display(); if (Pending() is not null) { await Idle(); await Display(); } }
         try
         {
-            await Settle();
+            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                !Control<Border>("ControlsHost").IsEnabled && !Control<Button>("TuringPlayButton").IsEnabled,
+                "Opening must immediately show preparation and block conflicting actions.");
+            await Idle();
+            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<ProgressBar>("TuringPreparationProgress").Value == 90,
+                "Preparation must remain visible until the first frame is displayed.");
+            await Display();
             Check(Shown() is { Step: > 0 } && Pending() is null, "Opening the window must prepare and show the first preset on the GPU.");
+            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Collapsed &&
+                Control<Border>("ControlsHost").IsEnabled && Control<Button>("TuringPlayButton").IsEnabled,
+                "Displaying the prepared frame must restore controls.");
+
+            var interrupted = state.Clone();
+            interrupted.Turing = interrupted.Turing with { Size = 32, WarmupSteps = 2000, Field = null, Live = null };
+            window.LoadState(interrupted);
+            var preparationWatch = Stopwatch.StartNew();
+            while (Control<ProgressBar>("TuringPreparationProgress").Value == 0 && Field<bool>("_turingBusy") &&
+                preparationWatch.ElapsedMilliseconds < 10000) await Task.Delay(1);
+            Check(Control<ProgressBar>("TuringPreparationProgress").Value is > 0 and < 90,
+                "Warmup must report actual step progress while computation continues.");
+            Click("TuringStopPreparationButton");
+            Check(Control<TextBlock>("TuringPreparationText").Text == "Завершаем текущий шаг…" &&
+                !Control<Button>("TuringStopPreparationButton").IsEnabled,
+                "Stopping preparation must explain that the current step is finishing.");
+            await Settle();
+            var partial = window.CaptureState("partial").Turing.Field!;
+            Check(partial.Step is > 0 and < 2000 && !Field<bool>("_turingRunning") &&
+                Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
+                "Stopping must display the partial field on pause and close preparation.");
+            Click("TuringStepButton"); await Settle();
+            Check(window.CaptureState("continued").Turing.Field!.Step == partial.Step + (int)Control<Slider>("TuringSpeedSlider").Value &&
+                Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
+                "A stopped preparation must remain usable; ordinary steps must not open the overlay.");
+
+            window.LoadState(interrupted);
+            Click("TuringStopPreparationButton");
             window.LoadState(state);
-            Check(Shown() is null, "Loading must drop the previous live frame.");
+            Check(Shown() is null && Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<TextBlock>("TuringPreparationText").Text == "Восстанавливаем поле…" &&
+                Control<Button>("TuringStopPreparationButton").IsEnabled,
+                "A new load during cancellation must replace the old preparation and discard its live frame.");
             await Settle();
             var loaded = window.CaptureState("ui").Turing;
             Check(Shown() is not null && loaded.Live is null && MaxFieldDifference(loaded.Field!, state.Turing.Field!) == 0 &&
@@ -452,6 +490,9 @@ internal static partial class Program
             // Grid transfer keeps the time.
             Control<TextBox>("TuringSizeBox").Text = "64";
             typeof(Fractal3DWindow).GetMethod("TuringResize_OnClick", flags)!.Invoke(window, [window, new RoutedEventArgs()]);
+            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<TextBlock>("TuringPreparationText").Text == "Переносим поле…",
+                "Grid transfer must show preparation too.");
             await Settle();
             var moved = window.CaptureState("resized").Turing;
             Check(moved.Size == 64 && moved.Field!.Size == 64 && moved.Field.Step == afterBrush.Step, "Grid transfer must keep the time.");
@@ -472,6 +513,14 @@ internal static partial class Program
                     var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
                     SaveTuring3DPng(bitmap, Path.Combine(output, $"window-{size.Width}.png"));
                 }
+                window.LoadState(interrupted);
+                foreach (var size in new[] { new Size(1180, 800), new Size(960, 600) })
+                {
+                    root.Measure(size); root.Arrange(new Rect(new Point(), size)); root.UpdateLayout();
+                    var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
+                    SaveTuring3DPng(bitmap, Path.Combine(output, $"preparation-{size.Width}.png"));
+                }
+                Click("TuringStopPreparationButton"); await Settle();
             }
         }
         finally { window.Close(); }
