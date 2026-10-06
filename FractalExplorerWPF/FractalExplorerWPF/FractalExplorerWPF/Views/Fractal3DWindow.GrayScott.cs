@@ -41,6 +41,7 @@ public partial class Fractal3DWindow
     private void LoadGrayScott(GrayScott3DSettings? settings)
     {
         if (Kind != Fractal3DKind.GrayScott3D) return;
+        CancelGraySearch();
         var s = (settings ?? new()) with { Live = null }; s.Validate();
         _grayEpoch++; _grayCts?.Cancel(); _grayRunning = false; _grayBrush = null;
         _grayShown = _grayPending = null;
@@ -229,7 +230,7 @@ public partial class Fractal3DWindow
 
     private void CloseGrayScott()
     {
-        _grayRunning = false; _grayEpoch++; _grayCts?.Cancel();
+        _grayRunning = false; _grayEpoch++; _grayCts?.Cancel(); CancelGraySearch();
         if (!_grayBusy) DisposeGraySimulation();
     }
 

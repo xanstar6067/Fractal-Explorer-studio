@@ -139,6 +139,18 @@
                                 <TextBox x:Name="GrayRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
                                 <Button Content="Применить и начать заново" Click="GrayRestart_OnClick"/>
                                 <TextBlock Text="Границы замкнуты по трём осям. Новый узор сначала развивается до стартовой стадии и встаёт на паузу. Пробел — пауза и продолжение." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Поиск узоров"/>
+                                <ComboBox x:Name="GraySearchTargetBox" SelectedIndex="0" AutomationProperties.Name="Что искать">
+                                    <ComboBoxItem Content="Любой узор"/><ComboBoxItem Content="Капли"/><ComboBoxItem Content="Каналы и мембраны"/>
+                                    <ComboBoxItem Content="Пористый объём"/><ComboBoxItem Content="Подвижный узор"/>
+                                </ComboBox>
+                                <UniformGrid Columns="2" Margin="0,5,0,0">
+                                    <Button x:Name="GraySearchButton" Margin="0,0,3,0" Content="Случайный узор" Click="GraySearchRandom_OnClick" ToolTip="Новые F/K, диффузия и затравка; каждый вариант проверяется пробным прогоном на ГП"/>
+                                    <Button x:Name="GrayVariationButton" Margin="3,0,0,0" Content="Вариация" Click="GraySearchVariation_OnClick" ToolTip="Немного сдвинуть F/K текущего узора, затравку оставить"/>
+                                </UniformGrid>
+                                <Button x:Name="GraySearchUndoButton" Margin="0,5,0,0" Content="Вернуть предыдущий" Click="GraySearchUndo_OnClick" IsEnabled="False" ToolTip="Вернуть поле и параметры до последнего найденного узора"/>
+                                <TextBlock x:Name="GraySearchStatus" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="F и K выбираются в полосе, где живут узоры. Каждый вариант сначала проходит пробный прогон на видеокарте: угасшие и однородные объёмы отбрасываются, уровень поверхности подбирается сам."/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
                                 <Slider x:Name="GraySpeedSlider" Minimum="1" Maximum="256" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
                                 <TextBlock Text="{Binding ElementName=GraySpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>

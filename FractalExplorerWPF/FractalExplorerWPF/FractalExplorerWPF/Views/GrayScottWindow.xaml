@@ -17,6 +17,26 @@
                     <ComboBox x:Name="PresetBox" SelectionChanged="Preset_OnChanged"/>
                     <TextBlock x:Name="PresetHint" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
 
+                    <GroupBox Header="Поиск узоров" Margin="0,10,0,0">
+                        <StackPanel Margin="7">
+                            <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="170"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Что искать"/>
+                                <ComboBox x:Name="SearchTargetBox" Grid.Column="1" SelectedIndex="0" AutomationProperties.Name="Что искать">
+                                    <ComboBoxItem Content="Любой узор"/><ComboBoxItem Content="Пятна"/><ComboBoxItem Content="Нити и лабиринты"/>
+                                    <ComboBoxItem Content="Сетка с отверстиями"/><ComboBoxItem Content="Подвижный узор"/>
+                                </ComboBox>
+                            </Grid>
+                            <CheckBox x:Name="SearchPaletteBox" Margin="0,5,0,0" Content="Подбирать палитру"/>
+                            <UniformGrid Columns="2" Margin="0,6,0,0">
+                                <Button x:Name="SearchButton" Margin="0,0,3,0" Content="Случайный узор" Click="SearchRandom_OnClick" ToolTip="Новые F/K и затравка; каждый вариант проверяется пробным прогоном"/>
+                                <Button x:Name="VariationButton" Margin="3,0,0,0" Content="Вариация" Click="SearchVariation_OnClick" ToolTip="Немного сдвинуть F/K текущего узора, затравку оставить"/>
+                            </UniformGrid>
+                            <Button x:Name="SearchUndoButton" Margin="0,5,0,0" Content="Вернуть предыдущий" Click="SearchUndo_OnClick" IsEnabled="False" ToolTip="Вернуть поле и параметры до последнего найденного узора"/>
+                            <TextBlock x:Name="SearchStatus" Margin="0,5,0,0" FontSize="11" TextWrapping="Wrap"
+                                       Text="F и K выбираются в полосе карты Пирсона, где живут узоры. Каждый вариант сначала проходит короткий пробный прогон: пустые и однородные поля отбрасываются."
+                                       Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                        </StackPanel>
+                    </GroupBox>
+
                     <GroupBox Header="Вычисления и качество" Margin="0,10,0,0">
                         <StackPanel Margin="7">
                             <ComboBox x:Name="BackendBox" SelectionChanged="Backend_OnChanged" AutomationProperties.Name="Движок Gray–Scott">

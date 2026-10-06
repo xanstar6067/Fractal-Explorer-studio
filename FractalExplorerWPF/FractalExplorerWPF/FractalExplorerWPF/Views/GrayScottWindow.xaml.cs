@@ -70,6 +70,7 @@ public partial class GrayScottWindow : Window
 
     public void LoadState(GrayScottState state)
     {
+        CancelSearch();
         _ = InstallEngineAsync(state.Clone(), state.Checkpoint is null);
     }
 
@@ -207,6 +208,7 @@ public partial class GrayScottWindow : Window
     private async void Preset_OnChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_syncing || PresetBox.SelectedItem is not GrayScottPreset preset) return;
+        CancelSearch();
         try
         {
             var state = preset.State.Clone();
@@ -321,8 +323,11 @@ public partial class GrayScottWindow : Window
     private void RequestRepaint()
     { _appearanceVersion++; if (!_frameBusy && !_resetting && !_executionPending) _ = ProduceFrameAsync(0); }
 
-    private async void Reset_OnClick(object sender, RoutedEventArgs e) =>
+    private async void Reset_OnClick(object sender, RoutedEventArgs e)
+    {
+        CancelSearch();
         await ResetSimulationAsync(startAfterReset: _running);
+    }
 
     private async Task ResetSimulationAsync(bool startAfterReset)
     {
@@ -532,6 +537,7 @@ public partial class GrayScottWindow : Window
 
     private async void Randomize_OnClick(object sender, RoutedEventArgs e)
     {
+        CancelSearch();
         RandomSeedBox.Text = Random.Shared.Next().ToString(CultureInfo.InvariantCulture);
         await ResetSimulationAsync(startAfterReset: true);
     }
@@ -689,7 +695,7 @@ public partial class GrayScottWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        _closed = true; _generation++; _frameTimer.Stop(); _sizeTimer.Stop(); _simulationCts?.Cancel();
+        _closed = true; _generation++; _frameTimer.Stop(); CancelSearch(); _sizeTimer.Stop(); _simulationCts?.Cancel();
         Retire(_simulationCts, _frameIdleTask, _resetIdleTask, _simulation); _simulationCts = null; _simulation = null;
     }
 
