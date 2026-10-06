@@ -28,7 +28,8 @@ public enum Fractal3DKind
     Dla3D,
     LSystem3D,
     Buddhabrot4D,
-    GrayScott3D
+    GrayScott3D,
+    Turing3D
 }
 
 public enum Hybrid3DOrder
@@ -296,6 +297,7 @@ public sealed class Fractal3DState
     public Flame3DSettings Flame { get; set; } = new();
     public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
     public GrayScott3DSettings GrayScott { get; set; } = new();
+    public Turing3DSettings Turing { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
 
@@ -394,6 +396,7 @@ public sealed class Fractal3DState
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
+        clone.Turing = Turing is null ? new() : Turing with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         return clone;
@@ -487,6 +490,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Turing3D => new(
+            "Узоры Тьюринга 3D · многомасштабный объём", "Тьюринг · 3D",
+            "Несколько масштабов соревнуются в каждой точке куба и вырастают в губки, кораллы и кружево. Симметрии многогранников превращают объём в радиолярии и кристаллы; срез и оболочка открывают внутреннюю структуру.",
+            "Fractal3DTuring", "turing3d"),
         Fractal3DKind.GrayScott3D => new(
             "Gray–Scott 3D · объёмная реакция–диффузия", "Gray–Scott · 3D",
             "Два вещества реагируют и распространяются внутри объёма. Наблюдайте развитие пространственных узоров, добавляйте сферические затравки и открывайте внутреннюю структуру срезом.",
@@ -587,6 +594,10 @@ public static class Fractal3DCatalog
     {
         if (kind == Fractal3DKind.Dla3D && mode == Fractal3DColoringMode.IterationIndex)
             return "По возрасту частиц";
+        if (kind == Fractal3DKind.Turing3D && mode == Fractal3DColoringMode.OrbitTrap)
+            return "По масштабу узора";
+        if (kind == Fractal3DKind.Turing3D && mode == Fractal3DColoringMode.CrossTrap)
+            return "По расстоянию от центра";
         if (kind == Fractal3DKind.ApollonianPacking)
         {
             return mode switch
@@ -671,6 +682,19 @@ public static class Fractal3DCatalog
                 state.BackgroundBottom = Color.FromRgb(1, 2, 5);
                 state.SoftShadows = false;
                 state.AmbientOcclusion = false;
+                break;
+            case Fractal3DKind.Turing3D:
+                state.Turing = new() { Region = Turing3DRegion.Sphere, DetailSize = .6, Layers = Turing3DSettings.DefaultLayers(3) };
+                state.ShadingStyle = Fractal3DShadingStyle.Classic;
+                // By distance from the centre: the outer skin is light, the depths seen through holes are dark.
+                state.ColoringMode = Fractal3DColoringMode.CrossTrap;
+                state.ColorScale = 1.4;
+                state.ColorOffset = -.4;
+                state.Palette = Fractal3DPalettes.Get("Медь и патина");
+                state.CameraDistance = 3.1;
+                state.SoftShadows = false;
+                state.AmbientOcclusion = true;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
             case Fractal3DKind.GrayScott3D:
                 state.ShadingStyle = Fractal3DShadingStyle.Studio;
@@ -881,6 +905,49 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Turing3D =>
+        [
+            Preset(kind, "Коралловый шар", _ => { }),
+            Preset(kind, "Радиолярия · икосаэдр", s =>
+            {
+                s.Turing = new() { Symmetry = Turing3DSymmetry.Icosahedral, Mirror = true, Boundary = TuringBoundary.Reflect,
+                    Region = Turing3DRegion.Shell, ShellThickness = .12, DetailSize = .5, Seed = 4242 };
+                s.Palette = Fractal3DPalettes.Get("Лёд");
+                s.ColoringMode = Fractal3DColoringMode.CrossTrap;
+                s.ColorScale = 8; s.ColorOffset = -6.8;
+            }),
+            Preset(kind, "Оболочка · октаэдр", s =>
+            {
+                s.Turing = new() { Symmetry = Turing3DSymmetry.Octahedral, Mirror = true, Boundary = TuringBoundary.Reflect,
+                    Region = Turing3DRegion.Shell, ShellThickness = .15, DetailSize = .55, Seed = 808 };
+                s.Palette = Fractal3DPalettes.Get("Аметист");
+                s.ColorScale = 6.5; s.ColorOffset = -5.3;
+            }),
+            Preset(kind, "Тетраэдрический орнамент", s =>
+            {
+                s.Turing = new() { Symmetry = Turing3DSymmetry.Tetrahedral, Mirror = true, Boundary = TuringBoundary.Reflect,
+                    Region = Turing3DRegion.Sphere, DetailSize = .6, Seed = 31415 };
+                s.Palette = Fractal3DPalettes.Get("Мрамор");
+                s.ShadingStyle = Fractal3DShadingStyle.Clay;
+                s.ColoringMode = Fractal3DColoringMode.Material;
+            }),
+            Preset(kind, "Шестилучевой шар · срез", s =>
+            {
+                s.Turing = new() { Symmetry = Turing3DSymmetry.Axial, Arms = 6, Mirror = true, Boundary = TuringBoundary.Reflect,
+                    Region = Turing3DRegion.Sphere, DetailSize = .6, CutAxis = 2, CutPosition = .2, Seed = 602 };
+                s.Palette = Fractal3DPalettes.Get("Закат");
+                s.CameraPitch = 40;
+            }),
+            Preset(kind, "Губчатый куб · срез", s =>
+            {
+                s.Turing = new() { Region = Turing3DRegion.Cube, CutAxis = 3, CutPosition = .3, Seed = 2718 };
+                s.Palette = Fractal3DPalettes.Get("Виридис");
+                s.ShadingStyle = Fractal3DShadingStyle.Studio;
+                s.ColoringMode = Fractal3DColoringMode.Height;
+                s.ColorScale = .5; s.ColorOffset = .5;
+                s.CameraDistance = 3.6;
+            })
+        ],
         Fractal3DKind.GrayScott3D =>
         [
             Preset(kind, "Пористый объём", _ => { }),

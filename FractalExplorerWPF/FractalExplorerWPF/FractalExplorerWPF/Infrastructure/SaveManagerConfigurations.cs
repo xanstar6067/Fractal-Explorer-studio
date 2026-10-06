@@ -329,6 +329,21 @@ public static class SaveManagerConfigurations
                 $"Прилипание: {dla.Stickiness:P0} · Поток: {dla.FlowStrength:P0} · Случайное число: {dla.Seed}\n" +
                 $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
         }
+        if (state.Kind == Fractal3DKind.Turing3D)
+        {
+            Turing3DSettings turing = state.Turing;
+            string region = turing.Region switch
+            {
+                Turing3DRegion.Sphere => "шар",
+                Turing3DRegion.Shell => $"оболочка {turing.ShellThickness:P0} радиуса",
+                _ => "весь куб"
+            };
+            return $"{Prefix(state.Timestamp)} · сетка {turing.Size}³ · " +
+                   (turing.Field is { } field ? $"шаг {field.Step:N0}" : $"новое поле, {turing.WarmupSteps} шагов развития") + "\n" +
+                   $"Масштабов: {turing.Layers.Count(layer => layer.Enabled)} · детали {turing.DetailSize:G3} · " +
+                   $"{Turing3DSettings.SymmetryName(turing.Symmetry, turing.Arms, turing.Mirror)} · {region}\n" +
+                   $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
+        }
         if (state.Kind == Fractal3DKind.Terrain)
         {
             TerrainSettings terrain = state.Terrain;

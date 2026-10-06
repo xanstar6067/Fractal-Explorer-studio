@@ -169,6 +169,107 @@
                                 <Button x:Name="GrayBrushButton" Content="Добавить затравку в центре" Click="GrayBrush_OnClick"/>
                                 <TextBlock Text="Shift + щелчок: сферическая затравка на выбранном срезе. Стиль «Плотность» показывает облако V; остальные стили — его поверхность." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                             </StackPanel>
+                            <StackPanel x:Name="TuringPanel" Visibility="Collapsed">
+                                <TextBlock Text="В каждой клетке куба побеждает масштаб с наименьшей вариацией и сдвигает поле к своей фазе." TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
+                                <TextBlock x:Name="TuringDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Форма объёма"/>
+                                <ComboBox x:Name="TuringRegionBox" SelectionChanged="TuringRule_OnChanged">
+                                    <ComboBoxItem Content="Весь куб"/><ComboBoxItem Content="Шар"/><ComboBoxItem Content="Сферическая оболочка"/>
+                                </ComboBox>
+                                <StackPanel x:Name="TuringShellPanel">
+                                    <TextBlock x:Name="TuringShellText" Style="{StaticResource FieldCaption}" Text="Толщина оболочки"/>
+                                    <Slider x:Name="TuringShellSlider" Minimum="0.05" Maximum="0.6" Value="0.2" ValueChanged="TuringRule_OnChanged"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TuringDetailText" Style="{StaticResource FieldCaption}" Text="Размер деталей"/>
+                                <Slider x:Name="TuringDetailSlider" Minimum="0.25" Maximum="3" Value="1" ValueChanged="TuringRule_OnChanged"/>
+                                <TextBlock x:Name="TuringDepthText" Style="{StaticResource FieldCaption}" Text="Глубина структуры"/>
+                                <Slider x:Name="TuringDepthSlider" Minimum="1" Maximum="6" Value="4" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringDepth_OnChanged"/>
+                                <TextBlock x:Name="TuringRateText" Style="{StaticResource FieldCaption}" Text="Отклик"/>
+                                <Slider x:Name="TuringRateSlider" Minimum="0.1" Maximum="3" Value="1" ValueChanged="TuringRule_OnChanged"/>
+                                <TextBlock x:Name="TuringRatioText" Style="{StaticResource FieldCaption}" Text="Радиус подавления"/>
+                                <Slider x:Name="TuringRatioSlider" Minimum="1.2" Maximum="4" Value="2" ValueChanged="TuringRule_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Симметрия"/>
+                                <ComboBox x:Name="TuringSymmetryBox" SelectionChanged="TuringRule_OnChanged">
+                                    <ComboBoxItem Content="Без симметрии"/><ComboBoxItem Content="Лучи вокруг оси Y"/>
+                                    <ComboBoxItem Content="Тетраэдр"/><ComboBoxItem Content="Куб и октаэдр"/>
+                                    <ComboBoxItem Content="Икосаэдр и додекаэдр"/>
+                                </ComboBox>
+                                <StackPanel x:Name="TuringArmsPanel">
+                                    <TextBlock x:Name="TuringArmsText" Style="{StaticResource FieldCaption}" Text="Лучей"/>
+                                    <Slider x:Name="TuringArmsSlider" Minimum="1" Maximum="16" Value="6" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringRule_OnChanged"/>
+                                </StackPanel>
+                                <CheckBox x:Name="TuringMirrorBox" Content="Зеркальные отражения" Margin="0,6,0,0" Checked="TuringRule_OnChanged" Unchecked="TuringRule_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Грани куба"/>
+                                <ComboBox x:Name="TuringBoundaryBox" SelectionChanged="TuringRule_OnChanged">
+                                    <ComboBoxItem Content="Замкнуты (узор продолжается)"/><ComboBoxItem Content="Зеркальные"/>
+                                </ComboBox>
+                                <Expander Header="Масштабы" IsExpanded="False" Margin="0,8,0,4">
+                                    <StackPanel>
+                                        <Grid Margin="0,2,0,2">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="1" Text="Радиус (0,5–64)" FontSize="11" Margin="0,0,4,0"/>
+                                            <TextBlock Grid.Column="2" Text="Отклик (0,001–0,15)" FontSize="11"/>
+                                        </Grid>
+                                        <StackPanel x:Name="TuringLayersPanel"/>
+                                        <Button Content="Применить масштабы" Margin="0,4,0,0" Click="TuringLayersApply_OnClick"/>
+                                        <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                                   Text="Радиусы активатора — в клетках сетки 128: смена сетки не меняет размер узора. «Глубина структуры» возвращает стандартный набор."/>
+                                    </StackPanel>
+                                </Expander>
+                                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Форма, симметрия и масштабы действуют на текущее поле со следующего шага, время не сбрасывается."/>
+
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–160)"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TuringSizeBox" Text="96" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                    <Button Grid.Column="1" Margin="4,0,0,0" Padding="8,0" Content="Перенести поле" Click="TuringResize_OnClick"
+                                            ToolTip="Пересчитать текущее поле на новую сетку без сброса времени"/>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,4,0">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
+                                        <TextBox x:Name="TuringSeedBox" Text="1729" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное развитие"/>
+                                        <TextBox x:Name="TuringWarmupBox" Text="120" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"
+                                                 ToolTip="Сколько шагов (0–2000) пройти перед показом нового поля"/>
+                                    </StackPanel>
+                                </Grid>
+                                <UniformGrid Columns="2" Margin="0,6,0,0">
+                                    <Button Margin="0,0,3,0" Content="Новый рисунок" Click="TuringNewDrawing_OnClick" ToolTip="Другое случайное поле с текущим правилом"/>
+                                    <Button Margin="3,0,0,0" Content="Начать заново" Click="TuringRestart_OnClick" ToolTip="Поле по указанным сетке и случайному числу"/>
+                                </UniformGrid>
+                                <TextBlock x:Name="TuringSpeedText" Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+                                <Slider x:Name="TuringSpeedSlider" Minimum="1" Maximum="16" Value="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringLabels_OnChanged"/>
+
+                                <TextBlock x:Name="TuringLevelText" Style="{StaticResource FieldCaption}" Text="Уровень поверхности"/>
+                                <Slider x:Name="TuringLevelSlider" Minimum="0.05" Maximum="0.95" Value="0.5" ValueChanged="TuringView_OnChanged"/>
+                                <CheckBox x:Name="TuringSheetBox" Content="Тонкая мембрана на уровне поверхности" Margin="0,6,0,0" Checked="TuringView_OnChanged" Unchecked="TuringView_OnChanged"
+                                          ToolTip="Показывать не заполненную фазу, а лист вокруг уровня: видны обе стороны лабиринта"/>
+                                <Slider x:Name="TuringSheetSlider" Minimum="0.02" Maximum="0.3" Value="0.08" ValueChanged="TuringView_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+                                <ComboBox x:Name="TuringCutBox" SelectionChanged="TuringView_OnChanged">
+                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
+                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+                                </ComboBox>
+                                <Slider x:Name="TuringCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="TuringView_OnChanged"/>
+
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сферическая кисть"/>
+                                <ComboBox x:Name="TuringBrushBox" SelectionChanged="TuringLabels_OnChanged">
+                                    <ComboBoxItem Content="Заполнить"/><ComboBoxItem Content="Вырезать"/><ComboBoxItem Content="Шум"/>
+                                </ComboBox>
+                                <TextBlock x:Name="TuringBrushRadiusText" Style="{StaticResource FieldCaption}" Text="Радиус"/>
+                                <Slider x:Name="TuringBrushRadiusSlider" Minimum="0.02" Maximum="0.3" Value="0.08" ValueChanged="TuringLabels_OnChanged"/>
+                                <TextBlock x:Name="TuringBrushStrengthText" Style="{StaticResource FieldCaption}" Text="Сила"/>
+                                <Slider x:Name="TuringBrushStrengthSlider" Minimum="0.05" Maximum="1" Value="0.7" ValueChanged="TuringLabels_OnChanged"/>
+                                <Button x:Name="TuringBrushButton" Content="Мазок в центре" Click="TuringBrush_OnClick"/>
+                                <TextBlock Text="Shift + щелчок: мазок на выбранном срезе. Мазок повторяется по всей симметрии. Пробел — пауза и продолжение." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
                             <StackPanel x:Name="PowerPanel">
                                 <TextBlock x:Name="PowerLabel" Style="{StaticResource FieldCaption}" Text="Степень n"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
@@ -837,6 +938,15 @@
                         <TextBlock x:Name="GrayTimeText" FontSize="11"/>
                         <Button x:Name="GrayPlayButton" Content="▶ Продолжить" Click="GrayPlay_OnClick"/>
                         <Button x:Name="GrayStepButton" Content="Один кадр" Click="GrayStep_OnClick"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="TuringOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock x:Name="TuringTimeText" FontSize="11"/>
+                        <Button x:Name="TuringPlayButton" Content="▶ Продолжить" Click="TuringPlay_OnClick"/>
+                        <Button x:Name="TuringStepButton" Content="Один кадр" Click="TuringStep_OnClick"/>
                     </StackPanel>
                 </Border>
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->

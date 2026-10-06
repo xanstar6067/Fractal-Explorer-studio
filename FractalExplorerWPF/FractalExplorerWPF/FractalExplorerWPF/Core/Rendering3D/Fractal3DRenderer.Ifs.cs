@@ -14,6 +14,7 @@ public sealed partial class Fractal3DRenderer
     internal int BuddhabrotSamplingBuilds { get; private set; }
     private ID3D11PixelShader? _dlaPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
+    private ID3D11PixelShader? _turingPixelShader;
     private int _volumeSide;
     private Dla3DCluster? _dlaCluster;
     private Format _volumeFormat;
@@ -30,6 +31,8 @@ public sealed partial class Fractal3DRenderer
     {
         if (kind == Fractal3DKind.GrayScott3D)
             return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
+        if (kind == Fractal3DKind.Turing3D)
+            return _turingPixelShader ??= _device!.CreatePixelShader(Compile(TuringPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Buddhabrot4D)
             return _buddhabrotPixelShader ??= _device!.CreatePixelShader(Compile(BuddhabrotPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Dla3D)
@@ -45,10 +48,11 @@ public sealed partial class Fractal3DRenderer
         _ifsSampler ??= _device!.CreateSamplerState(
             new SamplerDescription(Filter.MinMagMipLinear, TextureAddressMode.Clamp));
 
-    /// <summary>Объём для трассировки: Gray–Scott 3D живёт на ГП, остальные строятся на ЦП и загружаются.</summary>
+    /// <summary>Объём для трассировки: Gray–Scott 3D и узоры Тьюринга 3D живут на ГП, остальные строятся на ЦП и загружаются.</summary>
     private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token)
     {
         if (state.Kind == Fractal3DKind.GrayScott3D) return GrayScottVolumeView(state, token);
+        if (state.Kind == Fractal3DKind.Turing3D) return TuringVolumeView(state, token);
         EnsureIfsVolume(state, token);
         return _ifsVolumeView!;
     }
@@ -154,6 +158,8 @@ public sealed partial class Fractal3DRenderer
         if (first.Kind != second.Kind) return false;
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
+        if (first.Kind == Fractal3DKind.Turing3D)
+            return first.Turing.Live == second.Turing.Live && first.Turing.SameEvolution(second.Turing);
         if (first.Kind == Fractal3DKind.Buddhabrot4D)
             return (first.Buddhabrot ?? new()).SameVolume(second.Buddhabrot ?? new());
         if (first.Kind == Fractal3DKind.Dla3D)
@@ -203,6 +209,8 @@ public sealed partial class Fractal3DRenderer
         _dlaPixelShader?.Dispose();
         _grayScottPixelShader?.Dispose();
         DisposeGrayScottPreview();
+        _turingPixelShader?.Dispose();
+        DisposeTuringPreview();
         _dlaCluster = null;
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;
