@@ -111,10 +111,7 @@
                             </StackPanel>
                             <StackPanel x:Name="GrayPanel" Visibility="Collapsed">
                                 <TextBlock Text="U + 2V → 3V · реакция внутри объёма" TextWrapping="Wrap" Margin="0,4,0,8"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления"/>
-                                <ComboBox x:Name="GrayBackendBox" SelectionChanged="GrayBackend_OnChanged">
-                                    <ComboBoxItem Content="ЦП"/><ComboBoxItem Content="ГП · рекомендуется"/>
-                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
                                 <TextBlock x:Name="GrayDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>
                                 <TextBox x:Name="GraySizeBox" Text="64" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>

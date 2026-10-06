@@ -125,7 +125,18 @@ public partial class Fractal3DWindow : Window
 
     #region Менеджер сохранений и экспорт
 
-    public Fractal3DState CaptureState(string saveName) => new()
+    /// <summary>
+    /// Состояние для сохранения. Живой кадр Gray–Scott 3D забирается с ГП как точная контрольная
+    /// точка; кадры, превью палитры, экспорт и зонд берут <see cref="CaptureViewState"/> без чтения поля.
+    /// </summary>
+    public Fractal3DState CaptureState(string saveName)
+    {
+        Fractal3DState state = CaptureViewState(saveName);
+        if (Kind == Fractal3DKind.GrayScott3D) state.GrayScott = CheckpointGrayScott(state.GrayScott);
+        return state;
+    }
+
+    private Fractal3DState CaptureViewState(string saveName) => new()
     {
         SaveName = saveName,
         Timestamp = DateTime.Now,
@@ -684,7 +695,7 @@ public partial class Fractal3DWindow : Window
     private Task<BitmapSource> RenderPalettePreviewAsync(
         Fractal3DPalette palette, int width, int height, CancellationToken token)
     {
-        Fractal3DState state = CaptureState("palette");
+        Fractal3DState state = CaptureViewState("palette");
         state.Palette = palette.Clone();
         state.Ssaa = 1;
         if (palette.OverridesEnvironment)
@@ -765,7 +776,7 @@ public partial class Fractal3DWindow : Window
         Fractal3DState state;
         try
         {
-            state = CaptureState("export");
+            state = CaptureViewState("export");
         }
         catch (Exception exception)
         {
@@ -892,9 +903,17 @@ public partial class Fractal3DWindow : Window
         Fractal3DState state;
         try
         {
-            state = CaptureState("preview");
-            if (Kind == Fractal3DKind.GrayScott3D && _grayPendingField is not null)
-                state.GrayScott = state.GrayScott with { Field = _grayPendingField };
+            state = CaptureViewState("preview");
+            if (Kind == Fractal3DKind.GrayScott3D)
+            {
+                if (_grayPending is not null) state.GrayScott = state.GrayScott with { Live = _grayPending };
+                // Поле ещё готовится на ГП: кадр появится, когда порция опубликует его.
+                if (state.GrayScott.Live is null)
+                {
+                    if (_grayBusy) StatusText.Text = "Подготовка поля Gray–Scott 3D…";
+                    return;
+                }
+            }
             if (Kind == Fractal3DKind.Dla3D) state.Dla.ParticleCount = _dlaRequestedCount;
             _lastGoodState = state;
         }

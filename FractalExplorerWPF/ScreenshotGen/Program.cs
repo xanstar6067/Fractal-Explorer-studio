@@ -177,7 +177,7 @@ internal static class Program
 
         bool IsBusy() => GetMember(win, renderFlag) is true ||
             GetMember(win, "_frameRequested") is true ||
-            GetMember(win, "_grayBusy") is true || GetMember(win, "_grayPendingField") is not null ||
+            GetMember(win, "_grayBusy") is true || GetMember(win, "_grayPending") is not null ||
             win is DynamicSystemWindow && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();

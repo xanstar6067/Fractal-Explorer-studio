@@ -781,7 +781,7 @@ public partial class Fractal3DWindow
     {
         try
         {
-            state = CaptureState("probe");
+            state = CaptureViewState("probe");
             _lastGoodState = state;
             return true;
         }

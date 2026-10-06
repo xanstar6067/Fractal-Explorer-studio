@@ -33,7 +33,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// <summary>Как часто ожидание очереди к устройству оглядывается на отмену.</summary>
     private const int GateWaitMs = 20;
 
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>Общее с вычислениями на ГП устройство; полосы кадра встают в его очередь.</summary>
+    private readonly Direct3DDeviceHost _host;
+    private SemaphoreSlim Gate => _host.Gate;
 
     /// <summary>Опорные цвета палитры кадра: тот же массив переиспользуется каждой полосой.</summary>
     private readonly float[] _palette = new float[Fractal3DPalette.MaxColors * 4];
@@ -54,10 +56,16 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private int _surfaceWidth;
     private int _surfaceHeight;
     private bool _disposed;
-    private readonly bool _softwareRendering;
 
     /// <param name="softwareRendering">Use WARP for a GPU-independent diagnostic render.</param>
-    public Fractal3DRenderer(bool softwareRendering = false) => _softwareRendering = softwareRendering;
+    public Fractal3DRenderer(bool softwareRendering = false) : this(new Direct3DDeviceHost(softwareRendering), true) { }
+
+    /// <summary>Рендер на устройстве окна: те же ресурсы видят вычисления на ГП (Gray–Scott 3D).</summary>
+    public Fractal3DRenderer(Direct3DDeviceHost host) : this(host.AddRef(), true) { }
+
+    private Fractal3DRenderer(Direct3DDeviceHost host, bool _) => _host = host;
+
+    public Direct3DDeviceHost DeviceHost => _host;
 
     /// <summary>Разовый рендер во временном устройстве — для превью каталога и проверок.</summary>
     public static async Task<BitmapSource> RenderOnceAsync(
@@ -128,7 +136,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private double ProbeDistance(
         Fractal3DState state, double pixelX, double pixelY, int width, int height, CancellationToken token)
     {
-        _gate.Wait(token);
+        Gate.Wait(token);
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -148,7 +156,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 WriteConstants(constants, state);
             }
             if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
-            if (IsDensityVolume(state.Kind)) EnsureIfsVolume(state, token);
+            ID3D11ShaderResourceView? volume = IsDensityVolume(state.Kind) ? EnsureDensityVolume(state, token) : null;
 
             context.OMSetRenderTargets(_probeView!);
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
@@ -157,7 +165,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
             if (IsDensityVolume(state.Kind))
             {
-                context.PSSetShaderResource(0, _ifsVolumeView!);
+                context.PSSetShaderResource(0, volume!);
                 context.PSSetSampler(0, GetIfsSampler());
             }
             context.PSSetConstantBuffer(0, _constantBuffer!);
@@ -182,7 +190,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         }
         finally
         {
-            _gate.Release();
+            Gate.Release();
         }
     }
 
@@ -201,7 +209,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         for (int index = 0; index < strips; index++)
         {
             if (token.IsCancellationRequested) return false;
-            while (!_gate.Wait(GateWaitMs))
+            while (!Gate.Wait(GateWaitMs))
             {
                 if (token.IsCancellationRequested) return false;
             }
@@ -219,7 +227,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             }
             finally
             {
-                _gate.Release();
+                Gate.Release();
             }
             progress?.Report((index + 1) * 100 / strips);
         }
@@ -262,7 +270,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             WriteConstants(constants, state);
         }
         if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
-        if (IsDensityVolume(state.Kind)) EnsureIfsVolume(state, token);
+        ID3D11ShaderResourceView? volume = IsDensityVolume(state.Kind) ? EnsureDensityVolume(state, token) : null;
 
         context.OMSetRenderTargets(_renderTargetView!);
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
@@ -271,7 +279,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
         if (IsDensityVolume(state.Kind))
         {
-            context.PSSetShaderResource(0, _ifsVolumeView!);
+            context.PSSetShaderResource(0, volume!);
             context.PSSetSampler(0, GetIfsSampler());
         }
         context.PSSetConstantBuffer(0, _constantBuffer!);
@@ -549,49 +557,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private void EnsureDevice()
     {
         if (_device is not null) return;
-
-        if (!_softwareRendering)
-        {
-            // A null hardware adapter selects adapter 0, often the integrated GPU on laptops.
-            // Rendering reads pixels back into RAM, so the dedicated adapter needs no WPF interop.
-            using IDXGIFactory1? factory = DXGI.CreateDXGIFactory1<IDXGIFactory1>();
-            var adapters = new List<IDXGIAdapter1>();
-            try
-            {
-                for (uint index = 0; factory is not null && factory.EnumAdapters1(index, out IDXGIAdapter1? adapter).Success; index++)
-                    if (adapter is not null) adapters.Add(adapter);
-                foreach (IDXGIAdapter1 adapter in adapters.OrderByDescending(candidate => candidate.Description1.DedicatedVideoMemory))
-                {
-                    if (!D3D11.D3D11CreateDevice(adapter, DriverType.Unknown, DeviceCreationFlags.BgraSupport,
-                            [FeatureLevel.Level_11_0], out ID3D11Device? preferredDevice,
-                            out ID3D11DeviceContext? preferredContext).Success) continue;
-                    _device = preferredDevice;
-                    _context = preferredContext;
-                    break;
-                }
-            }
-            finally { foreach (IDXGIAdapter1 adapter in adapters) adapter.Dispose(); }
-        }
-
-        ReadOnlySpan<DriverType> drivers = _softwareRendering
-            ? [DriverType.Warp]
-            : [DriverType.Hardware, DriverType.Warp];
-        foreach (DriverType driver in _device is null ? drivers : [])
-        {
-            if (D3D11.D3D11CreateDevice(null, driver, DeviceCreationFlags.BgraSupport,
-                    [FeatureLevel.Level_11_0], out ID3D11Device? device, out ID3D11DeviceContext? context).Success)
-            {
-                _device = device;
-                _context = context;
-                break;
-            }
-        }
-        if (_device is null)
-        {
-            throw new InvalidOperationException(
-                "Не удалось создать устройство Direct3D 11. Трёхмерные фракталы считаются на видеокарте, " +
-                "поэтому нужен драйвер с поддержкой Direct3D 11 (Feature Level 11_0).");
-        }
+        _host.EnsureCreated();
+        _device = _host.Device;
+        _context = _host.Context;
 
         _vertexShader = _device.CreateVertexShader(
             Compile(VertexShaderEntry()).Span);
@@ -667,7 +635,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         _disposed = true;
         // Рендер уже отменён вызывающим кодом; ждём выхода из полосы, чтобы не освободить
         // ресурсы под работающей отрисовкой.
-        _gate.Wait(TimeSpan.FromSeconds(10));
+        bool entered = Gate.Wait(TimeSpan.FromSeconds(10));
         _renderTargetView?.Dispose();
         _renderTarget?.Dispose();
         _stagingTexture?.Dispose();
@@ -682,9 +650,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();
         _vertexShader?.Dispose();
-        _context?.Dispose();
-        _device?.Dispose();
-        _gate.Dispose();
+        _context?.PSSetShaderResource(0, null!);
+        if (entered) Gate.Release();
+        _host.Release();
     }
 
     [StructLayout(LayoutKind.Sequential)]
