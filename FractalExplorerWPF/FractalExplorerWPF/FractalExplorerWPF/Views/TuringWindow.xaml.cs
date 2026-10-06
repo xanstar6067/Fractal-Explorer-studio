@@ -18,7 +18,7 @@ namespace FractalExplorerWPF.Views;
 public partial class TuringWindow : Window
 {
     private static readonly TuringPreset CustomPreset = new("custom", "Свой узор", "Ваш вариант. Меняйте форму на текущем поле или выберите готовый вид для нового старта.", 1, 5, 1, false, 1729);
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(8) };
     private readonly DispatcherTimer _shapeTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private readonly DispatcherTimer _sizeTimer = new() { Interval = TimeSpan.FromMilliseconds(180) };
     private readonly TuringSaveStore _saveStore = new();
@@ -26,6 +26,8 @@ public partial class TuringWindow : Window
     private List<DynamicPalette> _palettes;
     private readonly List<StrokePoint> _strokes = [];
     private readonly Stopwatch _fpsWatch = Stopwatch.StartNew();
+    private readonly Stopwatch _scheduleWatch = Stopwatch.StartNew();
+    private double _nextFrameAtMilliseconds;
     private TuringState _state = new();
     private TuringState? _undo;
     private TuringCheckpoint? _presented;
@@ -51,7 +53,14 @@ public partial class TuringWindow : Window
         InitializeComponent();
         _palettes = _paletteStore.Load(); PaletteBox.ItemsSource = _palettes;
         PresetBox.ItemsSource = TuringPresets.All.Append(CustomPreset).ToList();
-        _timer.Tick += async (_, _) => { if (_running) await ProduceFrameAsync(_state.StepsPerFrame); };
+        _timer.Tick += async (_, _) =>
+        {
+            if (!_running || _busy) return;
+            double now = _scheduleWatch.Elapsed.TotalMilliseconds;
+            if (now < _nextFrameAtMilliseconds) return;
+            _nextFrameAtMilliseconds = Math.Max(_nextFrameAtMilliseconds + 1000d / 30, now);
+            await ProduceFrameAsync(_state.StepsPerFrame);
+        };
         _shapeTimer.Tick += (_, _) => { _shapeTimer.Stop(); ApplyShape(); };
         _sizeTimer.Tick += (_, _) => { _sizeTimer.Stop(); UpdateFrameHint(); RequestRepaint(); };
         CanvasHost.SizeChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
@@ -244,7 +253,13 @@ public partial class TuringWindow : Window
     private void SetRunning(bool running)
     {
         _running = running && !_closed && !_resetting && _simulation is not null;
-        if (_running) { _frameCount = 0; _measuredFps = 0; _fpsWatch.Restart(); _timer.Start(); } else _timer.Stop();
+        if (_running)
+        {
+            _frameCount = 0; _measuredFps = 0; _fpsWatch.Restart();
+            _nextFrameAtMilliseconds = _scheduleWatch.Elapsed.TotalMilliseconds;
+            _timer.Start();
+        }
+        else _timer.Stop();
         UpdateRunState();
         UpdateStatus();
         FrameBadgeText.Text = $"{(_running ? "Развитие" : "Пауза")} · шаг {_presented?.StepCount ?? 0:N0}";

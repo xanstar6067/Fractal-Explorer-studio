@@ -4,8 +4,19 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 
 internal static class TuringComputeShader
 {
-    public static readonly string[] EntryPoints = ["Blur", "Difference", "Choose", "Compose", "Symmetry", "Reduce", "Normalize", "Paint", "Render"];
-    public static IEnumerable<ShaderCacheEntry> CacheEntries => EntryPoints.Select(name => new ShaderCacheEntry("turing-" + name, Source, name, "cs_5_0"));
+    public static readonly string[] EntryPoints = ["Blur", "Blur256", "Blur512", "Blur1024", "Difference", "Choose", "Compose", "Symmetry", "Reduce", "Normalize", "Paint", "Render"];
+    public static IEnumerable<ShaderCacheEntry> CacheEntries => EntryPoints.Select(name =>
+        new ShaderCacheEntry("turing-" + name, BlurSource(name), name, "cs_5_0"));
+
+    private static string BlurSource(string name)
+    {
+        if (!name.StartsWith("Blur", StringComparison.Ordinal) || name == "Blur") return Source;
+        int capacity = int.Parse(name.AsSpan(4));
+        return Source.Replace("Prefix[4096]", $"Prefix[{capacity * 2}]")
+            .Replace("ScanCapacity = 2048", $"ScanCapacity = {capacity}")
+            .Replace("2048 - origin", $"{capacity} - origin")
+            .Replace("void Blur(", $"void {name}(");
+    }
 
     // Float4 buffers share a pool. Only the committed field owns value and scale together.
     // Prefix sums perform every blur in O(N²), independent of the selected radius.
@@ -17,15 +28,19 @@ internal static class TuringComputeShader
         StructuredBuffer<float4> Palette : register(t3);
         RWStructuredBuffer<float4> Out : register(u0);
         RWStructuredBuffer<uint> Pixels : register(u1);
-        groupshared float Prefix[2048];
+        // Ping-pong scans keep the same addition order without a private array
+        // of eight values per thread or two barriers for every scan stage.
+        groupshared float Prefix[4096];
+        static const uint ScanCapacity = 2048;
         groupshared float2 Ranges[256];
         uint Size() { return (uint)P[0].x; }
         int Edge(int p) {
             int n = (int)Size();
             if ((uint)p < (uint)n) return p;
-            int period = P[0].z == 0 ? n : n * 2;
-            p = (p % period + period) % period;
-            return p < n ? p : period - 1 - p;
+            // Rotated grid points and relief samples remain in [-n,2n).
+            // One fold suffices; no dynamic integer remainder is needed.
+            if (P[0].z == 0) return p < 0 ? p + n : p - n;
+            return p < 0 ? -1 - p : 2 * n - 1 - p;
         }
         float Sample(float2 p) {
             int2 q = (int2)floor(p); float2 t = p - q; uint n = Size();
@@ -33,11 +48,11 @@ internal static class TuringComputeShader
             float v1 = lerp(A[Edge(q.y + 1) * n + Edge(q.x)].x, A[Edge(q.y + 1) * n + Edge(q.x + 1)].x, t.x);
             return lerp(v0, v1, t.y);
         }
-        float Integral(int index) {
+        float Integral(int index, uint origin) {
             int n = (int)Size(), period = P[0].z == 0 ? n : n * 2;
             int cycles = (int)floor((float)index / period), r = index - cycles * period;
-            float total = Prefix[n - 1];
-            float part = r == 0 ? 0 : r <= n ? Prefix[r - 1] : total * 2 - Prefix[2 * n - r - 1];
+            float total = Prefix[origin + n - 1];
+            float part = r == 0 ? 0 : r <= n ? Prefix[origin + r - 1] : total * 2 - Prefix[origin + 2 * n - r - 1];
             return cycles * total * (P[0].z == 0 ? 1 : 2) + part;
         }
         [numthreads(256,1,1)]
@@ -45,16 +60,20 @@ internal static class TuringComputeShader
             uint n = Size(), row = group.x; bool vertical = P[1].y != 0;
             for (uint x = tid; x < n; x += 256) Prefix[x] = A[vertical ? x * n + row : row * n + x].x;
             GroupMemoryBarrierWithGroupSync();
-            for (uint offset = 1; offset < n; offset *= 2) {
-                float add[8];
-                for (uint k = 0; k < 8; k++) { uint x = tid + k * 256; add[k] = x < n && x >= offset ? Prefix[x - offset] : 0; }
+            uint origin = 0;
+            [unroll] for (uint offset = 1; offset < ScanCapacity; offset *= 2) {
+                if (offset >= n) break;
+                uint target = 2048 - origin;
+                [unroll] for (uint k = 0; k < ScanCapacity; k += 256) {
+                    uint x = tid + k;
+                    if (x < n) Prefix[target + x] = Prefix[origin + x] + (x >= offset ? Prefix[origin + x - offset] : 0);
+                }
                 GroupMemoryBarrierWithGroupSync();
-                for (uint k = 0; k < 8; k++) { uint x = tid + k * 256; if (x < n) Prefix[x] += add[k]; }
-                GroupMemoryBarrierWithGroupSync();
+                origin = target;
             }
             int radius = (int)P[0].y;
             for (uint x = tid; x < n; x += 256) {
-                float mean = (Integral((int)x + radius + 1) - Integral((int)x - radius)) / (radius * 2 + 1);
+                float mean = (Integral((int)x + radius + 1, origin) - Integral((int)x - radius, origin)) / (radius * 2 + 1);
                 Out[vertical ? x * n + row : row * n + x] = float4(mean,0,0,0);
             }
         }

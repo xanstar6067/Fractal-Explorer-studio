@@ -21,6 +21,7 @@ public sealed class TuringGpuEngine : ITuringEngine
     private GpuBuffer _field = null!, _next = null!, _work = null!, _temporary = null!, _activator = null!, _inhibitor = null!, _blur = null!, _best = null!, _stats0 = null!, _stats1 = null!, _palette = null!;
     private GpuBuffer? _pixels;
     private readonly float[] _parameters = new float[32];
+    private readonly string _blurShader;
     private bool _disposed;
     private long _step;
     public int Size { get; }
@@ -30,6 +31,7 @@ public sealed class TuringGpuEngine : ITuringEngine
     public TuringGpuEngine(TuringState state, bool softwareForVerification = false)
     {
         state.Validate(); Size = state.GridSize;
+        _blurShader = Size <= 256 ? "Blur256" : Size <= 512 ? "Blur512" : Size <= 1024 ? "Blur1024" : "Blur";
         try
         {
             CreateDevice(softwareForVerification);
@@ -101,8 +103,8 @@ public sealed class TuringGpuEngine : ITuringEngine
         foreach (int width in TuringSimulation.GaussianBoxWidths(radius * .75))
         {
             token.ThrowIfCancellationRequested(); _parameters[1] = width / 2; _parameters[5] = 0;
-            Dispatch("Blur", source, null, null, _temporary, Size);
-            _parameters[5] = 1; Dispatch("Blur", _temporary, null, null, target, Size);
+            Dispatch(_blurShader, source, null, null, _temporary, Size);
+            _parameters[5] = 1; Dispatch(_blurShader, _temporary, null, null, target, Size);
             source = target;
         }
     }
@@ -127,8 +129,17 @@ public sealed class TuringGpuEngine : ITuringEngine
                 Dispatch("Choose", _blur, _activator, _inhibitor, _best, groups); first = false;
             }
             Dispatch("Compose", _field, _best, null, _work, groups);
-            _parameters[6] = state.Symmetry; _parameters[2] = (int)TuringBoundary.Reflect;
-            Dispatch("Symmetry", _work, null, null, _next, (Size + 15) / 16, (Size + 15) / 16);
+            if (state.Symmetry == 1 && !state.Mirror)
+            {
+                // Identity symmetry needs neither resampling nor a GPU copy.
+                // Both buffers are scratch; the committed field stays untouched.
+                (_work, _next) = (_next, _work);
+            }
+            else
+            {
+                _parameters[6] = state.Symmetry; _parameters[2] = (int)TuringBoundary.Reflect;
+                Dispatch("Symmetry", _work, null, null, _next, (Size + 15) / 16, (Size + 15) / 16);
+            }
             _parameters[3] = count; _parameters[4] = 0;
             Dispatch("Reduce", _next, null, null, _stats0, groups);
             int remaining = groups; GpuBuffer range = _stats0, other = _stats1;
@@ -152,7 +163,9 @@ public sealed class TuringGpuEngine : ITuringEngine
         while (true)
         {
             token.ThrowIfCancellationRequested();
-            var result = _context.GetData(_completion, IntPtr.Zero, 0, AsyncGetDataFlags.DoNotFlush);
+            // Offscreen compute has no Present to keep the driver queue moving.
+            // Let polling submit pending work, including short preparation batches.
+            var result = _context.GetData(_completion, IntPtr.Zero, 0, AsyncGetDataFlags.None);
             result.CheckError();
             if (result.Code == 0) return;
             if (watch.Elapsed.TotalSeconds > 15) throw new TimeoutException("Видеокарта не завершила расчёт. Попробуйте уменьшить сетку или выбрать ЦП.");

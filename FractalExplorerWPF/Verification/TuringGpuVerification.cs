@@ -17,7 +17,7 @@ internal static partial class Program
     private static async Task VerifyTuringGpuAsync(string[] args)
     {
         using var sandbox = DataSandbox.Create("turing-gpu");
-        string? output = args.Length > 1 ? Directory.CreateDirectory(Path.GetFullPath(args[1])).FullName : null;
+        string? output = args.Length > 1 && !args[1].StartsWith("--", StringComparison.Ordinal) ? Directory.CreateDirectory(Path.GetFullPath(args[1])).FullName : null;
         var state = new TuringState { GridSize = 64, WarmupSteps = 0, Layers = [new() { Radius = 8, Amount = .017 }, new() { Radius = 24, Amount = .05 }] };
         state.Checkpoint = new TuringSimulation(state).Snapshot();
         foreach (TuringBoundary boundary in Enum.GetValues<TuringBoundary>())
@@ -68,8 +68,18 @@ internal static partial class Program
             replay.Advance((int)(after.StepCount - before.StepCount), replayState, CancellationToken.None);
             Check(after.Field.SequenceEqual(replay.Snapshot().Field), "Mid-pass cancellation must retain only complete GPU iterations.");
         }
-        foreach (int size in new[] { 192, 1024, 2048 })
+        foreach (int size in new[] { 33, 127, 257, 511, 513, 1025 })
         {
+            foreach (TuringBoundary boundary in Enum.GetValues<TuringBoundary>())
+            {
+                VerifyTuringGpuBoxMean(size, boundary);
+            }
+        }
+        bool skipLargest = args.Contains("--skip-2048");
+        if (skipLargest) Console.WriteLine("SKIP: full 2048² evolution explicitly excluded; partial scans through 1025² still verified.");
+        foreach (int size in skipLargest ? new[] { 192, 1024 } : new[] { 192, 1024, 2048 })
+        {
+            Console.WriteLine($"Turing GPU checking grid {size}²…");
             var large = new TuringState { GridSize=size, WarmupSteps=0 };
             using var gpu = new TuringGpuEngine(large); gpu.Advance(2,large,CancellationToken.None);
             var cp = gpu.Snapshot(); Check(cp.Field.All(v=>float.IsFinite(v)&&v is >= -1 and <= 1)&&cp.StepCount==2,"Large GPU fields must be finite and normalized.");
@@ -95,6 +105,31 @@ internal static partial class Program
         finally { TuringEngineFactory.GpuFactoryOverrideForTests = null; }
         await VerifyTuringGpuWindowAsync(output);
         Console.WriteLine("PASS (turing-gpu): hardware compute, CPU agreement, symmetric brush, exact disk continuation, large scans, cache, backend switching, custom grids and DPI/manual buffers.");
+    }
+
+    private static void VerifyTuringGpuBoxMean(int size, TuringBoundary boundary)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var state = new TuringState { GridSize = size, WarmupSteps = 0, Boundary = boundary };
+        using var gpu = new TuringGpuEngine(state);
+        var initial = gpu.Snapshot();
+        object Field(string name) => typeof(TuringGpuEngine).GetField(name, flags)!.GetValue(gpu)!;
+        object target = Field("_next"), temporary = Field("_temporary"), context = Field("_context");
+        string shader = (string?)typeof(TuringGpuEngine).GetField("_blurShader", flags)?.GetValue(gpu) ?? "Blur";
+        var dispatch = typeof(TuringGpuEngine).GetMethod("Dispatch", flags)!;
+        foreach (int radius in new[] { 1, size / 2, size - 1 })
+        {
+            typeof(TuringGpuEngine).GetMethod("Parameters", flags)!.Invoke(gpu, [state]);
+            float[] parameters = (float[])Field("_parameters"); parameters[1] = radius;
+            dispatch.Invoke(gpu, [shader, Field("_field"), null, null, temporary, size, 1, null]);
+            parameters[5] = 1;
+            dispatch.Invoke(gpu, [shader, temporary, null, null, target, size, 1, null]);
+            float[] values = (float[])target.GetType().GetMethod("ReadFloats")!.Invoke(target, [context])!;
+            var expected = new float[size * size]; var scratch = new float[expected.Length];
+            TuringSimulation.BoxMean(initial.Field, expected, scratch, size, radius, boundary, CancellationToken.None);
+            double error = Enumerable.Range(0, expected.Length).Max(i => Math.Abs(values[i * 4] - expected[i]));
+            Check(error < 2e-5, $"GPU box mean {size}²/{boundary}/radius {radius} must match independent CPU sliding sums on partial scan groups: {error:G5}.");
+        }
     }
 
     private static async Task VerifyTuringGpuWindowAsync(string? output)
