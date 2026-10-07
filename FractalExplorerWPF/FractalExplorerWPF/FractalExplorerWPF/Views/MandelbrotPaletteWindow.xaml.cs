@@ -29,6 +29,12 @@ public partial class MandelbrotPaletteWindow : Window
     {
         InitializeComponent();
         _manager = manager;
+        if (_manager.LoadWarning is { } warning)
+        {
+            PaletteLoadWarning.Text = warning;
+            PaletteLoadWarning.Visibility = Visibility.Visible;
+        }
+        SavePaletteButton.IsEnabled = _manager.CanSaveCustomPalettes;
         RefreshList(_manager.ActivePalette);
     }
 
@@ -79,27 +85,33 @@ public partial class MandelbrotPaletteWindow : Window
 
     private void Delete_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_selected is null || _selected.IsBuiltIn) return;
+        if (_selected is null || _selected.IsBuiltIn || !_manager.CanSaveCustomPalettes) return;
         if (MessageBox.Show(this, $"Удалить «{_selected.Name}»?", "Палитра",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
-        bool active = ReferenceEquals(_selected, _manager.ActivePalette);
-        _manager.Palettes.Remove(_selected);
+        MandelbrotPalette selected = _selected;
+        bool active = ReferenceEquals(selected, _manager.ActivePalette);
+        int index = _manager.Palettes.IndexOf(selected);
+        _manager.Palettes.RemoveAt(index);
+        if (!TrySaveCustomPalettes())
+        {
+            _manager.Palettes.Insert(index, selected);
+            return;
+        }
         if (active) _manager.ActivePalette = _manager.Palettes[0];
-        _manager.SaveCustomPalettes();
         RefreshList(_manager.ActivePalette);
     }
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
-        if (!ApplyEdits()) return;
+        if (!_manager.CanSaveCustomPalettes || !ApplyEdits()) return;
         if (_selected is not null && !_manager.Palettes.Contains(_selected))
         {
             if (_manager.Palettes.Any(palette => palette.Name.Equals(_selected.Name, StringComparison.OrdinalIgnoreCase)))
                 _selected.Name = UniqueName($"{_selected.Name} копия");
             _manager.Palettes.Add(_selected);
         }
-        _manager.SaveCustomPalettes();
+        if (!TrySaveCustomPalettes()) return;
         RefreshList(_selected);
     }
 
@@ -108,10 +120,26 @@ public partial class MandelbrotPaletteWindow : Window
         if (_selected is null) return;
         if (!_selected.IsBuiltIn && !ApplyEdits()) return;
 
+        if (_manager.CanSaveCustomPalettes && !TrySaveCustomPalettes()) return;
         _manager.ActivePalette = _selected;
-        _manager.SaveCustomPalettes();
         PaletteList.Items.Refresh();
         PaletteApplied?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool TrySaveCustomPalettes()
+    {
+        try
+        {
+            _manager.SaveCustomPalettes();
+            return true;
+        }
+        catch (Exception exception)
+        {
+            CrashLogger.Log("MandelbrotPaletteWindow.SaveCustomPalettes", exception);
+            MessageBox.Show(this, exception.Message, "Не удалось сохранить палитры",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
     }
 
     private void AddColor_OnClick(object sender, RoutedEventArgs e)
@@ -317,8 +345,10 @@ public partial class MandelbrotPaletteWindow : Window
         PeriodBox.IsEnabled = editable;
         AlignIterationsBox.IsEnabled = editable;
         RandomizeButton.IsEnabled = editable;
-        DeletePaletteButton.IsEnabled = editable;
-        EditHint.Text = editable
+        DeletePaletteButton.IsEnabled = editable && _manager.CanSaveCustomPalettes;
+        EditHint.Text = !_manager.CanSaveCustomPalettes
+            ? "Палитру можно применить к текущему изображению. Запись на диск заблокирована из-за ошибки загрузки."
+            : editable
             ? "Пользовательскую палитру можно редактировать, сохранять и применять."
             : "Встроенную палитру можно применить или скопировать для редактирования.";
     }

@@ -10,6 +10,10 @@ public class MandelbrotPaletteManager
 {
     private const string DefaultFileName = "custom_palettes_mandelbrot.json";
     private readonly string _fileName;
+    private readonly Exception? _loadError;
+
+    public bool CanSaveCustomPalettes => _loadError is null;
+    public string? LoadWarning { get; }
 
     public List<MandelbrotPalette> Palettes { get; } =
     [
@@ -58,24 +62,60 @@ public class MandelbrotPaletteManager
                 palette.ColorPeriod = builtInColorPeriod.Value;
         }
 
-        try { LoadCustomPalettes(); } catch { }
+        try { LoadCustomPalettes(); }
+        catch (Exception exception)
+        {
+            _loadError = exception;
+            string path = AppPaths.GetPaletteFile(_fileName);
+            LoadWarning = $"Не удалось загрузить пользовательские палитры: {path}\n" +
+                          "Запись палитр заблокирована, исходный файл не изменён. " +
+                          "Восстановите файл и перезапустите приложение.\n" + exception.Message;
+            CrashLogger.Log($"MandelbrotPaletteManager.LoadCustomPalettes: {path}", exception);
+        }
         ActivePalette = Palettes[0];
     }
 
     public void SaveCustomPalettes()
     {
+        if (!CanSaveCustomPalettes)
+            throw new InvalidOperationException(LoadWarning, _loadError);
+
         string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(_fileName));
-        File.WriteAllText(path, JsonSerializer.Serialize(
-            Palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
+        string temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                JsonSerializer.Serialize(stream, Palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create());
+                stream.Flush(flushToDisk: true);
+            }
+            if (File.Exists(path)) File.Replace(temporaryPath, path, null);
+            else File.Move(temporaryPath, path);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
     }
 
     private void LoadCustomPalettes()
     {
         string path = AppPaths.GetPaletteFile(_fileName);
-        if (!File.Exists(path)) return;
-        List<MandelbrotPalette>? custom = JsonSerializer.Deserialize<List<MandelbrotPalette>>(
-            File.ReadAllText(path), JsonOptionsFactory.Create());
-        if (custom is not null) Palettes.AddRange(custom.Where(p => !p.IsBuiltIn));
+        string json;
+        try { json = File.ReadAllText(path); }
+        catch (FileNotFoundException) { return; }
+        catch (DirectoryNotFoundException) { return; }
+
+        List<MandelbrotPalette> custom = JsonSerializer.Deserialize<List<MandelbrotPalette>>(
+            json, JsonOptionsFactory.Create()) ?? throw new JsonException("Ожидался список палитр, получен null.");
+        // Проверяем весь список до AddRange: поздняя ошибка не должна оставлять часть библиотеки.
+        foreach (MandelbrotPalette palette in custom)
+        {
+            if (palette is null || (!palette.IsBuiltIn &&
+                (string.IsNullOrWhiteSpace(palette.Name) || palette.Colors is not { Count: > 0 })))
+                throw new JsonException("В списке есть палитра без имени или цветов.");
+        }
+        Palettes.AddRange(custom.Where(p => !p.IsBuiltIn));
     }
 
     private static MandelbrotPalette BuiltIn(

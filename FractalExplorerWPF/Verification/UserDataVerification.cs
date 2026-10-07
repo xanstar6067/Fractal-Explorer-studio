@@ -1,9 +1,11 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Windows;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Migrations;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Views;
 
 // Пользовательские данные: сохранения по файлу на запись, Корзина вместо удаления, версии
 // формата, шаги миграции и перенос папки Saves прежних версий. Всё — во временном каталоге
@@ -13,11 +15,13 @@ internal static partial class Program
     private static void VerifyUserData()
     {
         VerifySaveStoreFiles();
+        VerifyReplacementFailures();
+        VerifyPalettePersistence();
         VerifyTypedSaveRoundTrip();
         VerifySaveFormatUpgrades();
         VerifyUserDataMigrator();
         VerifyLegacyImport();
-        Console.WriteLine("[diag] User data: per-file saves, Recycle Bin, format versions, migrations and legacy import OK");
+        Console.WriteLine("[diag] User data: per-file saves, atomic replacement/rollback, palette failure protection, format versions, migrations and legacy import OK");
     }
 
     private static void VerifySaveStoreFiles()
@@ -42,7 +46,7 @@ internal static partial class Program
         SaveSlot<State> replaced = store.Save(new State("a:b", new DateTime(2026, 3, 1)), colon);
         Check(replaced.FilePath == colon.FilePath, "Overwriting must keep the file name.");
         Check(sandbox.Recycled.Count == 2 &&
-              sandbox.Recycled.Any(item => item.Original == colon.FilePath && File.ReadAllText(item.Stored) == colonJson) &&
+              sandbox.Recycled.Any(item => IsReplacementBackup(item.Original, colon.FilePath) && File.ReadAllText(item.Stored) == colonJson) &&
               sandbox.Recycled.Any(item => item.Original == colon.PreviewPath && File.ReadAllBytes(item.Stored).SequenceEqual(new byte[] { 1, 2, 3 })),
             "Overwriting must move the previous JSON and preview to the Recycle Bin.");
         Check(!File.Exists(colon.PreviewPath), "The previous preview must not stay next to the new state.");
@@ -83,6 +87,153 @@ internal static partial class Program
         finally
         {
             sandbox.InstallRecycleBin();
+        }
+    }
+
+    private static bool IsReplacementBackup(string candidate, string path) =>
+        candidate.StartsWith(Path.GetFullPath(path) + ".", StringComparison.OrdinalIgnoreCase) &&
+        Path.GetExtension(candidate) == ".bak";
+
+    private static void VerifyReplacementFailures()
+    {
+        using var sandbox = DataSandbox.Create("replacement-failures");
+        string path = Path.Combine(sandbox.Root, "save.json");
+        string temporary = path + ".tmp";
+        File.WriteAllText(path, "previous version");
+
+        bool failed = false;
+        try { RecycleBin.ReplaceWith(temporary, path); }
+        catch (IOException) { failed = true; }
+        Check(failed && File.ReadAllText(path) == "previous version" && sandbox.Recycled.Count == 0,
+            "A missing replacement must never recycle or remove the old file.");
+
+        File.WriteAllText(temporary, "new version");
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            failed = false;
+            try { RecycleBin.ReplaceWith(temporary, path); }
+            catch (IOException) { failed = true; }
+            Check(failed && !File.Exists(temporary) && sandbox.Recycled.Count == 0,
+                "If atomic replacement fails, the temporary file is cleaned and nothing is recycled.");
+        }
+        Check(File.ReadAllText(path) == "previous version", "A locked target must keep its original bytes.");
+
+        File.WriteAllText(temporary, "new version");
+        RecycleBin.SendOverrideForTests = backup =>
+        {
+            Check(IsReplacementBackup(backup, path) && File.ReadAllText(backup) == "previous version" &&
+                  File.ReadAllText(path) == "new version",
+                "The old bytes remain in a backup while the new file is already published atomically.");
+            throw new IOException("recycle failed after replacement");
+        };
+        failed = false;
+        try { RecycleBin.ReplaceWith(temporary, path); }
+        catch (IOException) { failed = true; }
+        Check(failed && File.ReadAllText(path) == "previous version" &&
+              !Directory.EnumerateFiles(sandbox.Root, "*.tmp").Any() &&
+              !Directory.EnumerateFiles(sandbox.Root, "*.bak").Any(),
+            "A rejected recycle must roll back the original file and clean the replacement.");
+
+        // Даже двойной сбой не должен стирать последнюю копию прежней версии.
+        File.WriteAllText(temporary, "new version");
+        FileStream? rollbackLock = null;
+        RecycleBin.SendOverrideForTests = _ =>
+        {
+            rollbackLock = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            throw new IOException("recycle failed, target locked");
+        };
+        IOException? failure = null;
+        try { RecycleBin.ReplaceWith(temporary, path); }
+        catch (IOException exception) { failure = exception; }
+        finally { rollbackLock?.Dispose(); sandbox.InstallRecycleBin(); }
+        string recovery = Directory.EnumerateFiles(sandbox.Root, "*.bak").Single();
+        Check(failure is not null && failure.Message.Contains(recovery) &&
+              File.ReadAllText(recovery) == "previous version" && File.ReadAllText(path) == "new version" &&
+              !File.Exists(temporary),
+            "If rollback also fails, both versions survive and the error identifies the recovery backup.");
+    }
+
+    private static void VerifyPalettePersistence()
+    {
+        using var sandbox = DataSandbox.Create("palette-persistence");
+        string path = AppPaths.GetPaletteFile("custom_palettes_mandelbrot.json");
+        var manager = new MandelbrotPaletteManager();
+        Check(manager.CanSaveCustomPalettes && manager.LoadWarning is null,
+            "A missing palette file allows creation without a load warning.");
+        manager.Palettes.Add(new MandelbrotPalette { Name = "User palette", ColorPeriod = 731 });
+        manager.SaveCustomPalettes();
+        var loaded = new MandelbrotPaletteManager();
+        Check(loaded.Palettes.Single(p => !p.IsBuiltIn).ColorPeriod == 731,
+            "A custom palette survives the atomic save and load.");
+        loaded.Palettes.Single(p => !p.IsBuiltIn).ColorPeriod = 853;
+        loaded.SaveCustomPalettes();
+        Check(new MandelbrotPaletteManager().Palettes.Single(p => !p.IsBuiltIn).ColorPeriod == 853,
+            "Replacing an existing palette file publishes the entire updated library.");
+        byte[] original = File.ReadAllBytes(path);
+
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            bool failed = false;
+            try { loaded.SaveCustomPalettes(); }
+            catch (IOException) { failed = true; }
+            Check(failed, "A palette write must report a locked target.");
+        }
+        Check(File.ReadAllBytes(path).SequenceEqual(original) &&
+              !Directory.EnumerateFiles(Path.GetDirectoryName(path)!, "*.tmp").Any(),
+            "A failed palette replacement preserves the original bytes and cleans its temporary file.");
+
+        loaded.Palettes.Single(p => !p.IsBuiltIn).Gamma = double.NaN;
+        bool serializationFailed = false;
+        try { loaded.SaveCustomPalettes(); }
+        catch (ArgumentException) { serializationFailed = true; }
+        Check(serializationFailed && File.ReadAllBytes(path).SequenceEqual(original) &&
+              !Directory.EnumerateFiles(Path.GetDirectoryName(path)!, "*.tmp").Any(),
+            "A serialization failure must not truncate the palette file or leave a temporary file.");
+
+        foreach (string damaged in new[] { "{ not json", "null", "[null]",
+                     "[{\"Name\":\"valid\"},{\"Name\":\"bad\",\"Colors\":null}]" })
+        {
+            File.WriteAllText(path, damaged);
+            var failedManager = new MandelbrotPaletteManager();
+            Check(!failedManager.CanSaveCustomPalettes && failedManager.LoadWarning?.Contains(path) == true &&
+                  failedManager.Palettes.All(p => p.IsBuiltIn),
+                "A failed load reports its path and does not expose a partially loaded library.");
+            failedManager.Palettes.Add(new MandelbrotPalette { Name = "New palette" });
+            bool blocked = false;
+            try { failedManager.SaveCustomPalettes(); }
+            catch (InvalidOperationException) { blocked = true; }
+            Check(blocked && File.ReadAllText(path) == damaged,
+                "Adding a palette after a failed load must never overwrite the damaged source file.");
+
+            var window = new MandelbrotPaletteWindow(failedManager);
+            bool applied = false;
+            window.PaletteApplied += (_, _) => applied = true;
+            Check(!window.SavePaletteButton.IsEnabled && window.PaletteLoadWarning.Visibility == Visibility.Visible,
+                "The editor displays the load error and disables saving.");
+            window.ApplyPaletteButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            Check(applied && File.ReadAllText(path) == damaged,
+                "Applying a palette in memory remains available without writing the damaged library.");
+            window.Close();
+        }
+
+        File.WriteAllBytes(path, original);
+        MandelbrotPaletteManager readFailure;
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+            readFailure = new MandelbrotPaletteManager();
+        Check(!readFailure.CanSaveCustomPalettes && readFailure.LoadWarning is not null &&
+              File.ReadAllText(CrashLogger.LogFilePath).Contains(path),
+            "Read access failures also block saving and are recorded in the diagnostic log.");
+        Check(new MandelbrotPaletteManager().CanSaveCustomPalettes,
+            "A fresh manager can save again after the source file is restored.");
+
+        foreach (var (fileName, create) in new (string, Func<MandelbrotPaletteManager>)[]
+                 { ("custom_palettes_nova.json", () => new NovaPaletteManager()),
+                   ("custom_palettes_collatz.json", () => new CollatzPaletteManager()) })
+        {
+            string derivedPath = AppPaths.GetPaletteFile(fileName);
+            File.WriteAllText(derivedPath, "{ damaged");
+            Check(!create().CanSaveCustomPalettes && File.ReadAllText(derivedPath) == "{ damaged",
+                "Nova and Collatz inherit the same protection for their separate palette files.");
         }
     }
 

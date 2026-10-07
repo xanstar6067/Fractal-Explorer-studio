@@ -8,6 +8,7 @@
         WindowStartupLocation="CenterOwner" Icon="../Assets/Icons/Color.ico">
     <Grid Margin="12">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -17,7 +18,10 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <GroupBox Grid.Row="0" Grid.Column="0" Header="Список палитр">
+        <TextBlock x:Name="PaletteLoadWarning" Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,12"
+                   TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        <GroupBox Grid.Row="1" Grid.Column="0" Header="Список палитр">
             <Grid Margin="6">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
@@ -53,7 +57,7 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="0" Grid.Column="2" Header="Редактор палитры">
+        <GroupBox Grid.Row="1" Grid.Column="2" Header="Редактор палитры">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
@@ -165,10 +169,10 @@
             </ScrollViewer>
         </GroupBox>
 
-        <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,12,0,0">
-            <Button HorizontalAlignment="Left" MinWidth="150" Content="Сохранить изменения" Click="Save_OnClick"/>
+        <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,12,0,0">
+            <Button x:Name="SavePaletteButton" HorizontalAlignment="Left" MinWidth="150" Content="Сохранить изменения" Click="Save_OnClick"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Width="110" Margin="0,0,8,0" Content="Применить" Click="Apply_OnClick"/>
+                <Button x:Name="ApplyPaletteButton" Width="110" Margin="0,0,8,0" Content="Применить" Click="Apply_OnClick"/>
                 <Button Width="110" Content="Закрыть" IsCancel="True"/>
             </StackPanel>
         </Grid>

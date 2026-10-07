@@ -223,7 +223,7 @@ internal static partial class Program
         Click(view, "RenderPreviewButton");
         jobs[^1].Completion.SetResult(Pixel(43)); await DrainAsync();
         Check(ReadPixel(Image(view)!) == 43 && ReadPixel(LoadPng(SavePreviewPath(store, "B"))) == 43, "A new render must replace the PNG.");
-        Check(sandbox.Recycled.Count == 1 && sandbox.Recycled[0].Original == Path.GetFullPath(SavePreviewPath(store, "B")) &&
+        Check(sandbox.Recycled.Count == 1 && IsReplacementBackup(sandbox.Recycled[0].Original, SavePreviewPath(store, "B")) &&
               File.ReadAllBytes(sandbox.Recycled[0].Stored).SequenceEqual(beforeCancel),
             "The replaced preview must go to the Recycle Bin instead of vanishing.");
 

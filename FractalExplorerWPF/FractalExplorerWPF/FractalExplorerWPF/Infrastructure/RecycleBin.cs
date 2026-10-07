@@ -5,7 +5,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 /// <summary>
 /// Правило приложения: удаляемые и заменяемые сохранения и превью не стираются бесследно,
-/// а уходят в Корзину Windows, откуда их можно восстановить на прежнее место.
+/// а уходят в Корзину Windows. Заменённая версия хранится там под именем резервного файла.
 /// </summary>
 public static class RecycleBin
 {
@@ -48,15 +48,41 @@ public static class RecycleBin
     }
 
     /// <summary>
-    /// Атомарно ставит готовый временный файл на место <paramref name="path"/>: прежний файл,
-    /// если он был, сначала уходит в Корзину. Временный файл при любом исходе не остаётся.
+    /// Атомарно заменяет файл, оставляя прежнюю версию рядом в .bak до отправки в Корзину.
+    /// При отказе Корзины возвращает прежний файл. Если откат тоже не удался, .bak сохраняется
+    /// для восстановления, а исключение и журнал содержат его путь.
     /// </summary>
     public static void ReplaceWith(string temporaryPath, string path)
     {
         try
         {
-            Send(path);
-            File.Move(temporaryPath, path, overwrite: false);
+            if (!File.Exists(path))
+            {
+                File.Move(temporaryPath, path, overwrite: false);
+                return;
+            }
+
+            string backupPath = $"{path}.{Guid.NewGuid():N}.bak";
+            File.Replace(temporaryPath, path, backupPath);
+            try { Send(backupPath); }
+            catch (Exception recycleError)
+            {
+                try
+                {
+                    if (File.Exists(path)) File.Replace(backupPath, path, temporaryPath);
+                    else File.Move(backupPath, path, overwrite: false);
+                }
+                catch (Exception rollbackError)
+                {
+                    var failure = new IOException(
+                        $"Не удалось отправить прежнюю версию в Корзину и вернуть её на место. " +
+                        $"Резервный файл для восстановления: {backupPath}",
+                        new AggregateException(recycleError, rollbackError));
+                    CrashLogger.Log("RecycleBin.ReplaceWith rollback", failure);
+                    throw failure;
+                }
+                throw;
+            }
         }
         finally
         {
