@@ -123,7 +123,7 @@ internal static partial class Program
         string old = Path.Combine(store.DirectoryPath, "old.json");
         File.WriteAllText(old, """{ "Title": "Old", "Timestamp": "2026-01-01T00:00:00" }""");
 
-        Check(SaveFormat.CurrentVersion == 4, "The shipped save format includes legacy CPU migrations and Turing reaction metadata.");
+        Check(SaveFormat.CurrentVersion == 5, "The shipped save format includes legacy Julia constants alongside CPU migrations and reaction metadata.");
         var oldTuring = JsonNode.Parse("{\"SaveFormatVersion\":3,\"Checkpoint\":{\"Field\":\"unchanged\"}}")!.AsObject();
         SaveFormat.UpgradeInPlace("TuringPatterns", oldTuring);
         Check(oldTuring["Reaction"]!["Model"]!.GetValue<int>() == 0 && oldTuring["Checkpoint"]!["Field"]!.GetValue<string>() == "unchanged",

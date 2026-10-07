@@ -334,13 +334,7 @@ public partial class MandelbrotWindow : Window
         DistanceContoursBox.IsChecked = state.DistanceContoursEnabled;
         DistanceContourSpacingBox.Text = state.DistanceContourSpacing.ToString(CultureInfo.InvariantCulture);
         DistanceContourStrengthBox.Text = state.DistanceContourStrength.ToString(CultureInfo.InvariantCulture);
-        MandelbrotPalette loadedPalette = state.Palette;
-        if (!string.IsNullOrWhiteSpace(state.PaletteName) &&
-            (loadedPalette.Colors.Count == 0 || loadedPalette.Name == "Новая палитра"))
-        {
-            loadedPalette = _paletteManager.Palettes.FirstOrDefault(palette =>
-                palette.Name.Equals(state.PaletteName, StringComparison.OrdinalIgnoreCase)) ?? loadedPalette;
-        }
+        MandelbrotPalette loadedPalette = ResolveSavedPalette(state);
         _paletteManager.ActivePalette = loadedPalette.Clone(
             string.IsNullOrWhiteSpace(state.PaletteName) ? loadedPalette.Name : state.PaletteName);
         _updatingControls = false;
@@ -352,8 +346,23 @@ public partial class MandelbrotWindow : Window
         SavePreviewCapture.Capture(SavePreviewLayer, CanvasHost.Background, width, height, StablePreviewImage, CanvasImage);
 
     public Task<BitmapSource> RenderStatePreviewAsync(
-        MandelbrotState state, int width, int height, CancellationToken token, IProgress<int>? progress = null) =>
-        RenderBitmapAsync(CloneState(state), width, height, 1, token, progress);
+        MandelbrotState state, int width, int height, CancellationToken token, IProgress<int>? progress = null)
+    {
+        MandelbrotState preview = CloneState(state);
+        MandelbrotPalette palette = ResolveSavedPalette(state);
+        preview.Palette = palette.Clone(palette.Name);
+        return RenderBitmapAsync(preview, width, height, 1, token, progress);
+    }
+
+    private MandelbrotPalette ResolveSavedPalette(MandelbrotState state)
+    {
+        MandelbrotPalette palette = state.Palette;
+        if (!string.IsNullOrWhiteSpace(state.PaletteName) &&
+            (palette.Colors.Count == 0 || palette.Name == "Новая палитра"))
+            return _paletteManager.Palettes.FirstOrDefault(candidate =>
+                candidate.Name.Equals(state.PaletteName, StringComparison.OrdinalIgnoreCase)) ?? palette;
+        return palette;
+    }
 
     private MandelbrotColoringMode SelectedColoringMode =>
         ColoringModeBox.SelectedIndex < 0 ? MandelbrotColoringMode.Smooth : (MandelbrotColoringMode)ColoringModeBox.SelectedIndex;

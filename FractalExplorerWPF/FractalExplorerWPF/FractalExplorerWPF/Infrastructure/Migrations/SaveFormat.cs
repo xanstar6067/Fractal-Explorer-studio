@@ -36,7 +36,8 @@ public static class SaveFormat
         {
             JsonObject? settings = category == "TuringPatterns" ? save : category == "Fractal3DTuring" ? save["Turing"] as JsonObject : null;
             if (settings is not null && !settings.ContainsKey("Reaction")) settings["Reaction"] = new JsonObject { ["Model"] = 0 };
-        })
+        }),
+        new("Константы C старых сохранений Жюлиа", RestoreLegacyJuliaConstant)
     ];
 
     /// <summary>Шов для проверок: подменяет список апгрейдов.</summary>
@@ -68,6 +69,20 @@ public static class SaveFormat
         {
             upgrades[version - 1].Apply(category, save);
             save[VersionProperty] = version + 1;
+        }
+        // The legacy importer stamps the current version without converting old property names.
+        // Normalize these aliases even for newly imported, already-stamped files.
+        RestoreLegacyJuliaConstant(category, save);
+    }
+
+    private static void RestoreLegacyJuliaConstant(string category, JsonObject save)
+    {
+        if (category is not ("Julia" or "JuliaBurningShip")) return;
+        foreach (var (legacy, current) in new[] { ("CRe", "JuliaCReal"), ("CIm", "JuliaCImaginary") })
+        {
+            // An explicitly stored modern value, including zero, always has priority.
+            if (!save.ContainsKey(current) && save[legacy] is { } value)
+                save[current] = value.DeepClone();
         }
     }
 
