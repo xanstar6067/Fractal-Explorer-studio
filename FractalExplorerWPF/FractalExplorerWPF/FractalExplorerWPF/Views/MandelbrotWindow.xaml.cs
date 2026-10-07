@@ -758,6 +758,17 @@ public partial class MandelbrotWindow : Window
         RenderSession session,
         CancellationToken token)
     {
+        // Histogram equalization needs one CDF for the entire frame. Rendering it
+        // independently per tile changes the palette after loading a saved preview.
+        byte[]? histogramFrame = null;
+        if (state.ColoringMode == MandelbrotColoringMode.Histogram)
+        {
+            StatusText.Text = "ЦП · Расчёт гистограммы кадра...";
+            histogramFrame = new byte[checked(session.RenderWidth * session.RenderHeight * 4)];
+            await Task.Run(() => MandelbrotFamilyRenderer.Render(state, histogramFrame,
+                session.RenderWidth, session.RenderHeight, session.RenderWidth * 4, token));
+            token.ThrowIfCancellationRequested();
+        }
         var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
         int workerCount = state.Threads <= 0 ? Environment.ProcessorCount : state.Threads;
         workerCount = Math.Clamp(workerCount, 1, Environment.ProcessorCount);
@@ -767,8 +778,19 @@ public partial class MandelbrotWindow : Window
             {
                 if (token.IsCancellationRequested) return;
                 session.Events.Enqueue(new TileRenderEvent(true, tile, null));
-                byte[]? pixels = MandelbrotFamilyRenderer.RenderTile(
-                    state, session.RenderWidth, session.RenderHeight, tile, token);
+                byte[]? pixels;
+                if (histogramFrame is not null)
+                {
+                    pixels = new byte[checked(tile.Width * tile.Height * 4)];
+                    for (int row = 0; row < tile.Height; row++)
+                        Buffer.BlockCopy(histogramFrame, ((tile.Y + row) * session.RenderWidth + tile.X) * 4,
+                            pixels, row * tile.Width * 4, tile.Width * 4);
+                }
+                else
+                {
+                    pixels = MandelbrotFamilyRenderer.RenderTile(
+                        state, session.RenderWidth, session.RenderHeight, tile, token);
+                }
                 if (pixels is null || token.IsCancellationRequested) return;
                 session.Events.Enqueue(new TileRenderEvent(false, tile, pixels));
             }
