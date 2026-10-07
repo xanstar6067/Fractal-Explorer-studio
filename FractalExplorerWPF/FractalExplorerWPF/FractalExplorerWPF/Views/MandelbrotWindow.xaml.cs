@@ -36,7 +36,6 @@ public partial class MandelbrotWindow : Window
     private JuliaConstantPickerWindow? _constantPicker;
     private bool _liveRenderPending;
     private bool _liveFrameRequested;
-    private double _livePixelBudget = 100_000;
     private bool _closed;
     private bool _isPanning;
     private bool _isFullscreen;
@@ -653,25 +652,20 @@ public partial class MandelbrotWindow : Window
             if (_definition.HasJuliaConstant && _gpuPreview.CanRender(state))
             {
                 bool liveFrame = _liveFrameRequested;
-                double liveScale = liveFrame ? Math.Min(1, Math.Sqrt(_livePixelBudget / ((double)pixelWidth * pixelHeight))) : 1;
-                int outputWidth = Math.Max(1, (int)Math.Round(pixelWidth * liveScale));
-                int outputHeight = Math.Max(1, (int)Math.Round(pixelHeight * liveScale));
-                int gpuFactor = liveFrame ? 1 : factor;
-                int gpuWidth = checked(outputWidth * gpuFactor), gpuHeight = checked(outputHeight * gpuFactor);
+                // Live input keeps the same DPI-sized output and selected SSAA as a settled frame.
+                // Coalescing pending C values controls latency without reducing image quality.
+                int gpuWidth = checked(pixelWidth * factor), gpuHeight = checked(pixelHeight * factor);
                 byte[] gpuPixels = new byte[checked(gpuWidth * gpuHeight * 4)];
                 bool rendered = await Task.Run(() => _gpuPreview.TryRender(state, gpuPixels, gpuWidth, gpuHeight, token));
                 token.ThrowIfCancellationRequested();
                 if (rendered)
                 {
-                    if (gpuFactor > 1)
-                        gpuPixels = await Task.Run(() => DownsampleBox(gpuPixels, gpuWidth, outputWidth, outputHeight, gpuFactor, token));
+                    if (factor > 1)
+                        gpuPixels = await Task.Run(() => DownsampleBox(gpuPixels, gpuWidth, pixelWidth, pixelHeight, factor, token));
                     token.ThrowIfCancellationRequested();
                     if (_closed) return;
-                    var gpuBitmap = BitmapSource.Create(outputWidth, outputHeight,
-                        surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Bgra32, null, gpuPixels, outputWidth * 4);
-                    if (liveFrame)
-                        _livePixelBudget = Math.Clamp(outputWidth * (double)outputHeight *
-                            Math.Clamp(25 / Math.Max(1, stopwatch.Elapsed.TotalMilliseconds), 0.5, 1.5), 32_768, 300_000);
+                    var gpuBitmap = BitmapSource.Create(pixelWidth, pixelHeight,
+                        surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Bgra32, null, gpuPixels, pixelWidth * 4);
                     gpuBitmap.Freeze();
                     SetStableBitmap(gpuBitmap, BigFloat.FromDecimal(state.CenterX), BigFloat.FromDecimal(state.CenterY),
                         state.Zoom, logicalWidth, logicalHeight);

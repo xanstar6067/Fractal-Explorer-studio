@@ -136,6 +136,8 @@ internal static partial class Program
                 Check(owner.CaptureState("test").JuliaCReal == -0.72m, "Apply must update the owner immediately.");
                 Invoke(owner, "JuliaConstantButton_OnClick", owner, new RoutedEventArgs());
                 Check(ReferenceEquals(picker, Field(owner,"_constantPicker")), "Repeated open must reuse the same picker.");
+                ((ComboBox)owner.FindName("PreviewSsaaBox")).SelectedIndex = 1;
+                await WaitFrame(owner);
                 ((CheckBox)picker.FindName("LivePreviewBox")).IsChecked = true;
                 Set(picker, "_selecting", true);
                 for (int i=0; i<12; i++)
@@ -148,16 +150,23 @@ internal static partial class Program
                 await WaitFrame(owner);
                 Check(owner.CaptureState("test").JuliaCReal == -0.667m && !(bool)Field(owner,"_liveRenderPending")!,
                     "Rapid live input must render the latest C with no pending queue.");
-                var draft = (BitmapSource)Field(owner, "_stableBitmap")!;
+                var liveFrame = (BitmapSource)Field(owner, "_stableBitmap")!;
                 var surface = RenderSurfaceMetrics.Measure((FrameworkElement)owner.FindName("CanvasHost"));
-                Check(draft.PixelWidth < surface.PixelWidth, "Live pointer input must render a fast adaptive frame before release.");
+                Check(liveFrame.PixelWidth == surface.PixelWidth && liveFrame.PixelHeight == surface.PixelHeight,
+                    "Live pointer input must keep full DPI-sized resolution before release.");
+                var livePixels = new byte[liveFrame.PixelWidth * liveFrame.PixelHeight * 4];
+                liveFrame.CopyPixels(livePixels, liveFrame.PixelWidth * 4, 0);
                 // Capture loss follows the same commit path as leaving the map during a drag.
                 Invoke(picker, "MapHost_OnLostMouseCapture", picker,
                     new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0));
                 await WaitFrame(owner);
                 var completed = (BitmapSource)Field(owner,"_stableBitmap")!;
                 Check(completed.PixelWidth == surface.PixelWidth && completed.PixelHeight == surface.PixelHeight,
-                    "The final drag point must restore full image size.");
+                    "The final drag point must keep full image size.");
+                var settledPixels = new byte[completed.PixelWidth * completed.PixelHeight * 4];
+                completed.CopyPixels(settledPixels, completed.PixelWidth * 4, 0);
+                Check(livePixels.SequenceEqual(settledPixels),
+                    "Live and settled frames at the same C must have identical pixels with 2x SSAA enabled.");
                 ((ComboBox)owner.FindName("PreviewSsaaBox")).SelectedIndex = 1;
                 await WaitFrame(owner);
                 Check(((BitmapSource)Field(owner,"_stableBitmap")!).PixelWidth == surface.PixelWidth,
