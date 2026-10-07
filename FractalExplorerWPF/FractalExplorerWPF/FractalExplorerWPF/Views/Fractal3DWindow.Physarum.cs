@@ -41,6 +41,7 @@ public partial class Fractal3DWindow
     {
         if (Kind != Fractal3DKind.Physarum3D) return;
         var s = (settings ?? new()) with { Live = null }; s.Validate();
+        CancelPhysarumSearch();
         _physarumEpoch++; _physarumCts?.Cancel(); _physarumRunning = false;
         _physarumShown = _physarumPending = null;
         _physarumSettings = s; _physarumResetTo = s;
@@ -71,14 +72,15 @@ public partial class Fractal3DWindow
         PhysarumDeviceText.Text = _physarumDevice;
         PhysarumCutSlider.IsEnabled = PhysarumCutBox.SelectedIndex > 0;
         bool ready = !_physarumBusy && _physarumPending is null && _physarumShown is not null;
-        PhysarumStepButton.IsEnabled = ready && !_physarumRunning;
-        PhysarumPlayButton.IsEnabled = !_physarumPreparing;
+        PhysarumStepButton.IsEnabled = ready && !_physarumRunning && _physarumSearchCts is null;
+        PhysarumPlayButton.IsEnabled = !_physarumPreparing && _physarumSearchCts is null;
+        UpdatePhysarumSearchButtons();
         UpdateCancelAvailability();
     }
 
     private void PhysarumPlay_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_physarumPreparing) return;
+        if (_physarumPreparing || _physarumSearchCts is not null) return;
         if (_physarumRunning) { PausePhysarum(); return; }
         _physarumRunning = true; UpdatePhysarumLabels();
         if (_physarumPending is null && !_physarumBusy)
@@ -94,7 +96,7 @@ public partial class Fractal3DWindow
 
     private void PhysarumStep_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_physarumPreparing || _physarumBusy || _physarumPending is not null) return;
+        if (_physarumPreparing || _physarumBusy || _physarumPending is not null || _physarumSearchCts is not null) return;
         _physarumRunning = false; _physarumQueuedSteps = (int)PhysarumSpeedSlider.Value; _ = RunPhysarumWorkAsync();
     }
 
@@ -210,6 +212,7 @@ public partial class Fractal3DWindow
     private void SuspendPhysarum()
     {
         if (Kind != Fractal3DKind.Physarum3D) return;
+        CancelPhysarumSearch();
         _physarumCts?.Cancel(); _physarumQueuedSteps = 0;
     }
 
@@ -226,6 +229,7 @@ public partial class Fractal3DWindow
 
     private void ClosePhysarum()
     {
+        CancelPhysarumSearch();
         _physarumRunning = false; _physarumEpoch++; _physarumCts?.Cancel();
         if (!_physarumBusy) DisposePhysarumSimulation();
     }

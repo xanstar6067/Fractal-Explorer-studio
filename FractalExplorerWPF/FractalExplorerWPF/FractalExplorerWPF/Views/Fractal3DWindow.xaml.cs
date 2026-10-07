@@ -795,7 +795,7 @@ public partial class Fractal3DWindow : Window
         else if (Kind == Fractal3DKind.GrayScott3D) PauseGrayScott();
         else if (Kind == Fractal3DKind.Turing3D) PauseTuring();
         else if (Kind == Fractal3DKind.CahnHilliard3D) PauseCahnHilliard();
-        else if (Kind == Fractal3DKind.Physarum3D) PausePhysarum();
+        else if (Kind == Fractal3DKind.Physarum3D) { CancelPhysarumSearch(); PausePhysarum(); }
         else _renderCts?.Cancel();
     }
 
@@ -1261,7 +1261,7 @@ public partial class Fractal3DWindow : Window
 
     private void UpdateCancelAvailability()
     {
-        bool enabled = _isRendering || _lichtenbergRunning || (Kind == Fractal3DKind.Dla3D && _dlaRunning) || _grayRunning || _grayBusy || _physarumRunning || _cahnRunning || _turingRunning || _physarumBusy || _cahnBusy || _turingBusy;
+        bool enabled = _isRendering || _lichtenbergRunning || (Kind == Fractal3DKind.Dla3D && _dlaRunning) || _grayRunning || _grayBusy || _physarumSearchCts is not null || _physarumRunning || _cahnRunning || _turingRunning || _physarumBusy || _cahnBusy || _turingBusy;
         if (CancelButton.IsEnabled != enabled) CancelButton.IsEnabled = enabled;
     }
 

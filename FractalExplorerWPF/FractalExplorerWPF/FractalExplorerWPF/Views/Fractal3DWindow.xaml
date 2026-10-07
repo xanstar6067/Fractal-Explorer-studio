@@ -144,6 +144,13 @@
                             <StackPanel x:Name="PhysarumPanel" Visibility="Collapsed">
                                 <TextBlock Text="Агенты чувствуют след, выбирают путь и оставляют новые нити. Сеть непрерывно перестраивается." TextWrapping="Wrap" Margin="0,4,0,8"/>
                                 <TextBlock x:Name="PhysarumDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <Expander Header="Поиск интересных форм" IsExpanded="True" Margin="0,8,0,4"><StackPanel>
+                                    <Button x:Name="PhysarumSearchButton" Content="Найти интересную форму" Click="PhysarumSearch_OnClick"/>
+                                    <Button x:Name="PhysarumVariationButton" Content="Вариация текущей" Click="PhysarumVariation_OnClick"/>
+                                    <Button x:Name="PhysarumSearchUndoButton" Content="Вернуть предыдущую сеть" Click="PhysarumSearchUndo_OnClick" IsEnabled="False"/>
+                                    <ProgressBar x:Name="PhysarumSearchProgress" Minimum="0" Maximum="100" Height="4" Margin="0,6,0,6" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="PhysarumSearchStatus" Text="10 быстрых проб и подбор яркости. Вариация меняет параметры рядом с текущими." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                </StackPanel></Expander>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка объёма"/>
                                 <ComboBox x:Name="PhysarumSizeBox" SelectedIndex="3">
                                     <ComboBoxItem Content="48³ · быстро"/><ComboBoxItem Content="64³"/><ComboBoxItem Content="96³ · стандарт"/><ComboBoxItem Content="128³ · подробно"/>
@@ -179,7 +186,7 @@
                                     <TextBox x:Name="PhysarumWarmupBox" Text="80" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
                                 </StackPanel></Expander>
                                 <Button Content="Применить и начать заново" Click="PhysarumRestart_OnClick"/>
-                                <Button Content="Другая сеть" Click="PhysarumRandom_OnClick"/>
+                                <Button Content="Только новая затравка" Click="PhysarumRandom_OnClick"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
                                 <Slider x:Name="PhysarumSpeedSlider" Minimum="1" Maximum="32" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Яркость нитей"/>
