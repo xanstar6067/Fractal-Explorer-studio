@@ -513,7 +513,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     }
 
     private static bool IsDensityVolume(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D;
+        kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D;
 
     private static ShaderCacheEntry GrayScottPixelShaderEntry() =>
         new("gray-scott3d-pixel", GrayScott3DShader.Source, "PSMain", "ps_5_0");
@@ -542,6 +542,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private static ShaderCacheEntry DlaPixelShaderEntry() =>
         new("dla3d-pixel", Dla3DShader.Source, "PSMain", "ps_5_0");
 
+    private static ShaderCacheEntry LichtenbergPixelShaderEntry() =>
+        new("lichtenberg3d-pixel", Dla3DShader.Source, "PSMain", "ps_5_0");
+
     private static ReadOnlyMemory<byte> Compile(ShaderCacheEntry entry) =>
         ShaderBytecodeCache.GetOrCompile(entry, CompileUncached);
 
@@ -555,6 +558,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(FlamePixelShaderEntry());
         entries.Add(BuddhabrotPixelShaderEntry());
         entries.Add(DlaPixelShaderEntry());
+        entries.Add(LichtenbergPixelShaderEntry());
+        entries.Add(Lichtenberg3DComputeShader.CacheEntry);
         entries.Add(GrayScottPixelShaderEntry());
         entries.Add(TuringPixelShaderEntry());
         entries.Add(CahnHilliardPixelShaderEntry());

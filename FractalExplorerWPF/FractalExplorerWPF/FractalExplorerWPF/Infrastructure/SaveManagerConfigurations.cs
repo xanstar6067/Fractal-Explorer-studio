@@ -366,6 +366,10 @@ public static class SaveManagerConfigurations
                    $"Масштаб деталей: {terrain.Scale:G4} · Участок: {terrain.Size:G4} × {terrain.Size:G4} · Высота: {terrain.Height:G4}\n" +
                    $"Карта высот: {terrain.Resolution} × {terrain.Resolution} · Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode)}";
         }
+        if (state.Kind == Fractal3DKind.Lichtenberg3D)
+            return $"{Prefix(state.Timestamp)} · {state.Lichtenberg.SegmentCount:N0} участков · η = {state.Lichtenberg.Eta:G4}\n" +
+                   $"Электроды: {(state.Lichtenberg.Electrodes == LichtenbergElectrodes.Radial ? "Сфера" : "Плоскость")} · Сетка: {state.Lichtenberg.Size}³ · Число: {state.Lichtenberg.Seed}\n" +
+                   $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)}";
         if (state.Kind == Fractal3DKind.Flame3D)
             return $"{Prefix(state.Timestamp)} · {state.Iterations:N0} точек · {state.Flame.Transforms.Count} преобразований\n" +
                    $"Начальное число: {state.Flame.Seed} · Экспозиция: {state.Flame.Exposure:G4} · Гамма: {state.Flame.Gamma:G4}\n" +

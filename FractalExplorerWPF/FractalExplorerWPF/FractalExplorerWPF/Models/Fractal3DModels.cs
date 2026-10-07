@@ -31,7 +31,8 @@ public enum Fractal3DKind
     GrayScott3D,
     Turing3D,
     CahnHilliard3D,
-    Hopf
+    Hopf,
+    Lichtenberg3D
 }
 
 public enum Hybrid3DOrder
@@ -305,6 +306,7 @@ public sealed class Fractal3DState
     public KifsSettings Kifs { get; set; } = new();
 
     public Dla3DSettings Dla { get; set; } = new();
+    public Lichtenberg3DSettings Lichtenberg { get; set; } = new();
 
     public TerrainSettings Terrain { get; set; } = new();
     public LSystem3DSettings LSystem { get; set; } = new();
@@ -396,6 +398,7 @@ public sealed class Fractal3DState
         clone.Palette = Palette?.Clone();
         clone.Kifs = Kifs?.Clone() ?? new();
         clone.Dla = Dla?.Normalized() ?? new();
+        clone.Lichtenberg = Lichtenberg is null ? new() : Lichtenberg with { };
         clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.Hopf = Hopf?.Copy() ?? new();
         clone.Flame = Flame?.Clone() ?? new();
@@ -523,6 +526,10 @@ public static class Fractal3DCatalog
             "DLA в 3D — кораллы и дендриты", "Объёмный DLA",
             "Частицы блуждают в пространстве и прилипают к затравке. Наблюдайте рождение ветвей, задавайте поток и окрашивайте кластер по времени присоединения частиц.",
             "Fractal3DDla", "dla-3d"),
+        Fractal3DKind.Lichtenberg3D => new(
+            "Фигуры Лихтенберга · пробой диэлектрика", "Фигуры Лихтенберга 3D",
+            "Ветвящийся разряд растёт по электрическому полю. Параметр η меняет ветвление от густого куста до тонкой молнии; сферический и плоский электроды задают направление роста.",
+            "Fractal3DLichtenberg", "lichtenberg-3d"),
         Fractal3DKind.Kifs => new(
             "Калейдоскопические фракталы — KIFS", "Калейдоскопические фракталы",
             "Зеркальные плоскости складывают пространство в кристаллы, звёзды и рекурсивные соборы. Симметрия, поворот и смещение на каждой итерации меняют архитектуру; карта смещения и рандомайзер работают вживую.",
@@ -614,8 +621,8 @@ public static class Fractal3DCatalog
         }
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
             return "По составу смеси";
-        if (kind == Fractal3DKind.Dla3D && mode == Fractal3DColoringMode.IterationIndex)
-            return "По возрасту частиц";
+        if ((kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D) && mode == Fractal3DColoringMode.IterationIndex)
+            return kind == Fractal3DKind.Lichtenberg3D ? "По времени роста" : "По возрасту частиц";
         if (kind == Fractal3DKind.Turing3D && mode == Fractal3DColoringMode.OrbitTrap)
             return "По масштабу узора";
         if (kind == Fractal3DKind.Turing3D && mode == Fractal3DColoringMode.CrossTrap)
@@ -750,6 +757,19 @@ public static class Fractal3DCatalog
                 state.SoftShadows = false;
                 state.Ambient = .35;
                 state.Ssaa = 2;
+                break;
+            case Fractal3DKind.Lichtenberg3D:
+                state.CameraDistance = 2;
+                state.CameraPitch = 15;
+                state.ColoringMode = Fractal3DColoringMode.IterationIndex;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.Palette = Fractal3DPalettes.Get("Лёд");
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.BackgroundTop = Color.FromRgb(3, 5, 12);
+                state.BackgroundBottom = Color.FromRgb(1, 2, 5);
+                state.SoftShadows = false;
+                state.AmbientOcclusion = false;
+                state.Ambient = .4;
                 break;
             case Fractal3DKind.Dla3D:
                 state.Iterations = 1;
@@ -1031,6 +1051,14 @@ public static class Fractal3DCatalog
             if (p.Settings.ColorSource == LSystem3DColorSource.DrawingOrder)
                 s.Palette = Fractal3DPalettes.Get("Спектр");
         })).ToArray(),
+        Fractal3DKind.Lichtenberg3D =>
+        [
+            Preset(kind, "Ветвящийся разряд", s => { }),
+            Preset(kind, "Густой электрический куст", s => { s.Lichtenberg = new() { Eta = .6, Seed = 73, SegmentCount = 600 }; s.CameraDistance = 1.6; s.Palette = Fractal3DPalettes.Get("Раскалённый металл"); }),
+            Preset(kind, "Тонкая молния", s => { s.Lichtenberg = new() { Eta = 4, Seed = 91 }; s.CameraDistance = 2.3; s.Palette = Fractal3DPalettes.Get("Спектр"); }),
+            Preset(kind, "Разряд к плоскости", s => { s.Lichtenberg = new() { Electrodes = LichtenbergElectrodes.Plane, Eta = 2.5, Seed = 256, SegmentCount = 250 }; }),
+            Preset(kind, "Веер к электроду", s => { s.Lichtenberg = new() { Electrodes = LichtenbergElectrodes.Plane, Eta = 1, Seed = 17, SegmentCount = 500 }; s.Palette = Fractal3DPalettes.Get("Закат"); })
+        ],
         Fractal3DKind.Dla3D =>
         [
             Preset(kind, "Коралл · свободный рост", _ => { }),

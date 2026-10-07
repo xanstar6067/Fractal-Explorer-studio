@@ -40,6 +40,8 @@ public sealed partial class Fractal3DRenderer
             return _buddhabrotPixelShader ??= _device!.CreatePixelShader(Compile(BuddhabrotPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Dla3D)
             return _dlaPixelShader ??= _device!.CreatePixelShader(Compile(DlaPixelShaderEntry()).Span);
+        if (kind == Fractal3DKind.Lichtenberg3D)
+            return _lichtenbergPixelShader ??= _device!.CreatePixelShader(Compile(LichtenbergPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Flame3D)
             return _flamePixelShader ??= _device!.CreatePixelShader(Compile(FlamePixelShaderEntry()).Span);
         if (_ifsPixelShader is not null) return _ifsPixelShader;
@@ -65,13 +67,15 @@ public sealed partial class Fractal3DRenderer
     {
         if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
         bool colorVolume = state.Kind is Fractal3DKind.Flame3D or Fractal3DKind.Buddhabrot4D;
-        int side = colorVolume ? Flame3DVolume.Side : state.Kind == Fractal3DKind.Dla3D ? Dla3DVolume.Side : Ifs3DVolume.Side;
-        int bytesPerCell = colorVolume ? 8 : state.Kind == Fractal3DKind.Dla3D ? 2 : 1;
-        Format format = colorVolume ? Format.R16G16B16A16_Float : state.Kind == Fractal3DKind.Dla3D ? Format.R8G8_UNorm : Format.R8_UNorm;
+        bool ageVolume = state.Kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D;
+        int side = colorVolume ? Flame3DVolume.Side : ageVolume ? Dla3DVolume.Side : Ifs3DVolume.Side;
+        int bytesPerCell = colorVolume ? 8 : ageVolume ? 2 : 1;
+        Format format = colorVolume ? Format.R16G16B16A16_Float : ageVolume ? Format.R8G8_UNorm : Format.R8_UNorm;
         byte[] voxels = state.Kind switch
         {
             Fractal3DKind.Buddhabrot4D => BuildBuddhabrotVolume(state, token),
             Fractal3DKind.Dla3D => BuildDlaVolume(state, token),
+            Fractal3DKind.Lichtenberg3D => BuildLichtenbergVolume(state, token),
             Fractal3DKind.Flame3D => Flame3DVolume.Build(state, token),
             Fractal3DKind.StrangeAttractor => Attractor3DVolume.Build(state, token),
             _ => Ifs3DVolume.Build(state, token)
@@ -126,6 +130,14 @@ public sealed partial class Fractal3DRenderer
         _volumeFormat = format;
         _volumeSide = side;
         _ifsVolumeState = state.Clone();
+        if (state.Kind == Fractal3DKind.Lichtenberg3D)
+        {
+            LichtenbergDisplayedField = _lichtenberg!.Snapshot();
+            _lichtenbergAnchor = LichtenbergDisplayedField;
+            LichtenbergBoundaryReached = _lichtenberg.BoundaryReached;
+            _ifsVolumeState.Lichtenberg = state.Lichtenberg with
+                { Field = LichtenbergDisplayedField, SegmentCount = LichtenbergDisplayedField.Count };
+        }
         if (state.Kind == Fractal3DKind.Dla3D)
         {
             DlaParticleCount = _dlaCluster!.Count;
@@ -160,6 +172,11 @@ public sealed partial class Fractal3DRenderer
     internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.Lichtenberg3D)
+            return first.Lichtenberg.SameGrowth(second.Lichtenberg) &&
+                first.Lichtenberg.SegmentCount == second.Lichtenberg.SegmentCount &&
+                (ReferenceEquals(first.Lichtenberg.Field, second.Lichtenberg.Field) ||
+                 first.Lichtenberg.Field is null && second.Lichtenberg.Field is null);
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
         if (first.Kind == Fractal3DKind.CahnHilliard3D)
@@ -213,6 +230,10 @@ public sealed partial class Fractal3DRenderer
         _buddhabrotPixelShader?.Dispose();
         _buddhabrotCloud = null;
         _dlaPixelShader?.Dispose();
+        _lichtenbergPixelShader?.Dispose();
+        _lichtenberg?.Dispose(); _lichtenberg = null;
+        _lichtenbergOrigin = _lichtenbergAnchor = null;
+        LichtenbergDisplayedField = null;
         _grayScottPixelShader?.Dispose();
         DisposeGrayScottPreview();
         _turingPixelShader?.Dispose();

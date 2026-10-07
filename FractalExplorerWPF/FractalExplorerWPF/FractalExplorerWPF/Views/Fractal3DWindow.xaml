@@ -46,6 +46,37 @@
                     <controls:LSystem3DEditor x:Name="LSystemEditor" Visibility="Collapsed" SettingsChanged="LSystem_OnChanged" Margin="0,8,0,0"/>
                     <controls:HopfEditor x:Name="HopfEditor" Visibility="Collapsed" SettingsChanged="Hopf_OnChanged" Margin="0,8,0,0"/>
 
+                    <StackPanel x:Name="LichtenbergPanel" Visibility="Collapsed" Margin="0,8,0,4">
+                        <TextBlock x:Name="LichtenbergCountText" FontWeight="SemiBold" Text="Готовим разряд…"/>
+                        <ProgressBar x:Name="LichtenbergGrowthProgress" Height="6" Margin="0,6"/>
+                        <UniformGrid Columns="2">
+                            <Button x:Name="LichtenbergPlayButton" Content="▶ Растить" Click="LichtenbergPlay_OnClick" Margin="0,0,3,0"/>
+                            <Button Content="Один участок" Click="LichtenbergStep_OnClick" Margin="3,0,0,0"/>
+                            <Button Content="↺ Сначала" Click="LichtenbergRestart_OnClick" Margin="0,4,3,0"/>
+                            <Button Content="Другой разряд" Click="LichtenbergRandom_OnClick" Margin="3,4,0,0"/>
+                        </UniformGrid>
+                        <Button Content="Вписать разряд в кадр" Click="LichtenbergFit_OnClick"/>
+                        <TextBlock Text="Ветвление · η (0–8)" Style="{StaticResource FieldCaption}"/>
+                        <TextBox x:Name="LichtenbergEtaBox" Text="1.8" numeric:NumericSpinner.IsEnabled="True"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Малое η — густой куст; большое — тонкие ветви. При η = 0 поле не влияет на выбор шага."/>
+                        <TextBlock Text="Электроды" Style="{StaticResource FieldCaption}"/>
+                        <ComboBox x:Name="LichtenbergElectrodeBox" SelectedIndex="0">
+                            <ComboBoxItem Content="Центр → сферическая оболочка"/>
+                            <ComboBoxItem Content="Точка сверху → нижняя плоскость"/>
+                        </ComboBox>
+                        <TextBlock Text="Сетка" Style="{StaticResource FieldCaption}"/>
+                        <ComboBox x:Name="LichtenbergSizeBox" SelectedIndex="1">
+                            <ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="48³ · обычно"/><ComboBoxItem Content="64³ · подробно"/>
+                        </ComboBox>
+                        <TextBlock Text="Случайное число" Style="{StaticResource FieldCaption}"/>
+                        <TextBox x:Name="LichtenbergSeedBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                        <Button Content="Применить и начать заново" Click="LichtenbergApply_OnClick"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Параметры выше применяются кнопкой. Рост останавливается при достижении электрода. Вращайте мышью и приближайте колесом."/>
+                        <TextBlock x:Name="LichtenbergTargetText" Style="{StaticResource FieldCaption}" Text="Цель"/>
+                        <Slider x:Name="LichtenbergTargetSlider" Minimum="1" Maximum="4000" Value="1000" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="LichtenbergDisplay_OnChanged"/>
+                        <TextBlock x:Name="LichtenbergSpeedText" Style="{StaticResource FieldCaption}" Text="Участков на кадр"/>
+                        <Slider x:Name="LichtenbergSpeedSlider" Minimum="1" Maximum="25" Value="5" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="LichtenbergDisplay_OnChanged"/>
+                    </StackPanel>
                     <StackPanel x:Name="DlaGrowthPanel" Visibility="Collapsed" Margin="0,8,0,4">
                         <TextBlock x:Name="DlaCountText" FontWeight="SemiBold" Text="Готовим затравку…"/>
                         <ProgressBar x:Name="DlaGrowthProgress" Height="6" Margin="0,6,0,6" Maximum="6000"/>
@@ -977,6 +1008,15 @@
                     <Image x:Name="CanvasImage" Stretch="Fill" SnapsToDevicePixels="True"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
                 </Grid>
+                <Border x:Name="LichtenbergOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ElementName=LichtenbergCountText, Path=Text}" FontSize="11"/>
+                        <Button Content="{Binding ElementName=LichtenbergPlayButton, Path=Content}" Click="LichtenbergPlay_OnClick"/>
+                        <Button Content="Один участок" Click="LichtenbergStep_OnClick"/>
+                    </StackPanel>
+                </Border>
                 <Border x:Name="DlaGrowthOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
