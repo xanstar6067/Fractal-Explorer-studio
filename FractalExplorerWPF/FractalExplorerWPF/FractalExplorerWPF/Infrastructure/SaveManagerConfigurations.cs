@@ -322,6 +322,13 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Physarum3D)
+        {
+            var s = state.Physarum;
+            return $"{Prefix(state.Timestamp)} · {s.AgentCount:N0} агентов · сетка {s.Size}³\n" +
+                (s.Field is { } field ? $"Шаг {field.Step:N0}" : $"Новая сеть, {s.WarmupSteps} шагов подготовки") +
+                $" · дальность {s.SensorDistance:G3} · испарение {s.Decay:G3}\nПалитра: {state.ResolvePalette().Name}";
+        }
         if (state.Kind == Fractal3DKind.Hopf)
             return $"{Prefix(state.Timestamp)} · {state.Hopf.BasePoints().Count} колец · толщина {state.Hopf.Thickness:G4}\n" +
                    $"Видимая область: {state.Hopf.ClipRadius:G4} · " +

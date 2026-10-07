@@ -5,12 +5,14 @@
 
 [Русский](#русский) · [English](#english) · [Галерея / Gallery](Pictures/WPF/README.md) · [Лицензия / License](LICENSE)
 
-**89 пунктов каталога · 25 трёхмерных режимов · 20 математических лабораторий**<br>
-**89 catalog entries · 25 3D modes · 20 mathematical laboratories**
+**91 пункт каталога · 27 трёхмерных режимов · 20 математических лабораторий**<br>
+**91 catalog entries · 27 3D modes · 20 mathematical laboratories**
 
 <p align="center">
   <a href="Pictures/WPF/00-main-catalog.png"><img src="Pictures/WPF/00-main-catalog.png" alt="Актуальный каталог: поиск, разделы, избранное и превью / Current catalog with search, categories, favorites, and previews" width="1000"></a>
 </p>
+
+Physarum 3D: живые объёмные сети агентов, свечение нитей и точное продолжение сохранений — [описание режима](FractalExplorerWPF/PHYSARUM3D.md).
 
 ## Витрина / Showcase
 

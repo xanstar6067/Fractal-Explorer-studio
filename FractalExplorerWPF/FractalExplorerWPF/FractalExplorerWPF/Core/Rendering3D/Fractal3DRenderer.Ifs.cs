@@ -14,6 +14,7 @@ public sealed partial class Fractal3DRenderer
     internal int BuddhabrotSamplingBuilds { get; private set; }
     private ID3D11PixelShader? _dlaPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
+    private ID3D11PixelShader? _physarumPixelShader;
     private ID3D11PixelShader? _turingPixelShader;
     private ID3D11PixelShader? _cahnHilliardPixelShader;
     private int _volumeSide;
@@ -30,6 +31,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Physarum3D)
+            return _physarumPixelShader ??= _device!.CreatePixelShader(Compile(PhysarumPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.GrayScott3D)
             return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.CahnHilliard3D)
@@ -56,6 +59,7 @@ public sealed partial class Fractal3DRenderer
     /// <summary>Объём для трассировки: Gray–Scott 3D и узоры Тьюринга 3D живут на ГП, остальные строятся на ЦП и загружаются.</summary>
     private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token)
     {
+        if (state.Kind == Fractal3DKind.Physarum3D) return PhysarumVolumeView(state, token);
         if (state.Kind == Fractal3DKind.GrayScott3D) return GrayScottVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Turing3D) return TuringVolumeView(state, token);
         if (state.Kind == Fractal3DKind.CahnHilliard3D) return CahnHilliardVolumeView(state, token);
@@ -240,6 +244,8 @@ public sealed partial class Fractal3DRenderer
         DisposeTuringPreview();
         _cahnHilliardPixelShader?.Dispose();
         DisposeCahnHilliardPreview();
+        _physarumPixelShader?.Dispose();
+        DisposePhysarumPreview();
         _dlaCluster = null;
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;

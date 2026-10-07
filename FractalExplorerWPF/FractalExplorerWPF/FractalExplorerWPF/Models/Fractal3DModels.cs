@@ -32,7 +32,8 @@ public enum Fractal3DKind
     Turing3D,
     CahnHilliard3D,
     Hopf,
-    Lichtenberg3D
+    Lichtenberg3D,
+    Physarum3D
 }
 
 public enum Hybrid3DOrder
@@ -302,6 +303,7 @@ public sealed class Fractal3DState
     public GrayScott3DSettings GrayScott { get; set; } = new();
     public Turing3DSettings Turing { get; set; } = new();
     public CahnHilliard3DSettings CahnHilliard { get; set; } = new();
+    public Physarum3DSettings Physarum { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
 
@@ -499,6 +501,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Physarum3D => new(
+            "Physarum 3D · живая паутина", "Physarum · 3D",
+            "Тысячи агентов чувствуют след соседей, прокладывают пути и перестраивают объёмную сеть. Светящиеся нити, нейронные сферы и живые торы; камера открывает глубину переплетений.",
+            "Fractal3DPhysarum", "physarum3d"),
         Fractal3DKind.Hopf => new(
             "Расслоение Хопфа", "Расслоение Хопфа · 4D → 3D",
             "Каждая точка базовой сферы задаёт окружность в четырёхмерной сфере. В стереографической проекции любые два разных кольца сцеплены один раз; широты превращаются в торы. Выбирайте точки и вращайте всю конструкцию в 4D.",
@@ -736,6 +742,17 @@ public static class Fractal3DCatalog
                 state.SoftShadows = false;
                 state.AmbientOcclusion = true;
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                break;
+            case Fractal3DKind.Physarum3D:
+                state.ShadingStyle = Fractal3DShadingStyle.Glow;
+                state.EffectStrength = 1.4;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.Palette = Fractal3DPalettes.Get("Неон");
+                state.CameraDistance = 2.8;
+                state.BackgroundTop = Color.FromRgb(3, 4, 12);
+                state.BackgroundBottom = Color.FromRgb(1, 2, 6);
+                state.SoftShadows = false; state.AmbientOcclusion = false;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp; state.ColorScale = 1;
                 break;
             case Fractal3DKind.CahnHilliard3D:
             case Fractal3DKind.GrayScott3D:
@@ -1019,6 +1036,14 @@ public static class Fractal3DCatalog
                 s.ColorScale = .5; s.ColorOffset = .5;
                 s.CameraDistance = 3.6;
             })
+        ],
+        Fractal3DKind.Physarum3D =>
+        [
+            Preset(kind, "Нейронная туманность", s => { }),
+            Preset(kind, "Живой тор", s => { s.Physarum = new() { AgentCount = 8192, SeedShape = Physarum3DSeed.Torus, SensorDistance = 2.5, Decay = .05, WarmupSteps = 100 }; s.Palette = Fractal3DPalettes.Get("Северное сияние"); }),
+            Preset(kind, "Космическая оболочка", s => { s.Physarum = new() { AgentCount = 8192, SeedShape = Physarum3DSeed.Shell, SensorDistance = 3, TurnAngle = 15, WarmupSteps = 110 }; s.Palette = Fractal3DPalettes.Get("Аметист"); }),
+            Preset(kind, "Две звезды", s => { s.Physarum = new() { AgentCount = 8192, SeedShape = Physarum3DSeed.TwinStars, SensorDistance = 4, WarmupSteps = 80 }; s.Palette = Fractal3DPalettes.Get("Лёд"); }),
+            Preset(kind, "Золотой мицелий", s => { s.Physarum = new() { AgentCount = 8192, SensorAngle = 55, TurnAngle = 35, Diffusion = .08, Decay = .045, WarmupSteps = 120 }; s.Palette = Fractal3DPalettes.Get("Раскалённый металл"); })
         ],
         Fractal3DKind.CahnHilliard3D =>
         [
