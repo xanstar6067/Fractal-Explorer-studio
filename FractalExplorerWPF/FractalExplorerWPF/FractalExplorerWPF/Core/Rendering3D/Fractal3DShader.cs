@@ -12,7 +12,9 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 internal static class Fractal3DShader
 {
     public static string Build(Fractal3DKind kind) =>
-        $"#define FRACTAL_KIND {(int)kind}\n" + (kind == Fractal3DKind.Terrain
+        $"#define FRACTAL_KIND {(int)kind}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n" + (kind == Fractal3DKind.Hopf
+            ? Source.Replace("float BoxDistance", HopfShader.Source + "\nfloat BoxDistance")
+            : kind == Fractal3DKind.Terrain
             ? Source.Replace("float BoxDistance", TerrainShader.Source + "\nfloat BoxDistance")
             : kind == Fractal3DKind.LSystem3D
                 ? Source.Replace("float BoxDistance", LSystem3DShader.Source + "\nfloat BoxDistance") : Source);
@@ -181,6 +183,8 @@ internal static class Fractal3DShader
 
         #if FRACTAL_KIND == 19
             return LMap(p, trap);
+        #elif FRACTAL_KIND == HOPF_KIND
+            return HopfMap(p, trap);
         #elif FRACTAL_KIND == 10
             float2 slope;
             float height = TerrainHeight(p.xz, slope);
@@ -985,6 +989,8 @@ internal static class Fractal3DShader
             float radius = 1.112373;
         #elif FRACTAL_KIND == 19
             float radius = 1.732051;
+        #elif FRACTAL_KIND == HOPF_KIND
+            float radius = ShapeA.x;
         #else
             float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
         #endif

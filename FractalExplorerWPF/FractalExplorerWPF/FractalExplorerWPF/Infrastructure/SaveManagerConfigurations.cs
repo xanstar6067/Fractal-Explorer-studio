@@ -322,6 +322,11 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Hopf)
+            return $"{Prefix(state.Timestamp)} · {state.Hopf.BasePoints().Count} колец · толщина {state.Hopf.Thickness:G4}\n" +
+                   $"Видимая область: {state.Hopf.ClipRadius:G4} · " +
+                   (state.Hopf.OnlySelected ? $"только кольцо {state.Hopf.SelectedFiber + 1}" : "всё семейство") + "\n" +
+                   $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
         if (state.Kind == Fractal3DKind.CahnHilliard3D)
         {
             var s = state.CahnHilliard;

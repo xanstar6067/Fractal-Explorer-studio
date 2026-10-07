@@ -63,6 +63,7 @@ internal static partial class Program
               File.Exists(AppPaths.GetShaderCacheFile("turing3d-Blur")) &&
               File.Exists(AppPaths.GetShaderCacheFile("dla3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-LSystem3D-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Hopf-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-Vicsek-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-CantorDust-pixel")),
             "Rebuild must create a shader for every 3D mode, sharing IFS/attractor density and including colored Flame.");

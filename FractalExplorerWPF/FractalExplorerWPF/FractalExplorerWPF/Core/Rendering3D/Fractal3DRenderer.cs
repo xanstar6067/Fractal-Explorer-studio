@@ -150,6 +150,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
             EnsureLSystem(state, token);
+            EnsureHopf(state, token);
             if (state.Kind == Fractal3DKind.LSystem3D)
             {
                 constants.ShapeA.Z = LSystemSegmentCount;
@@ -244,6 +245,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
             return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.LSystem3D)
             return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
+        if (state.Kind == Fractal3DKind.Hopf)
+            return Math.Clamp(24_000 / Math.Max(width, 1), 1, height);
         if (height <= 8) return height;
         if (IsDensityVolume(state.Kind))
             return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
@@ -263,6 +266,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
         EnsureLSystem(state, token);
+        EnsureHopf(state, token);
         if (state.Kind == Fractal3DKind.LSystem3D)
         {
             var constants = BuildConstants(state, width, height, offsetY);
@@ -364,6 +368,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         if (state.Kind == Fractal3DKind.GrayScott3D) state.GrayScott.Validate();
         if (state.Kind == Fractal3DKind.Turing3D) state.Turing.Validate();
         if (state.Kind == Fractal3DKind.CahnHilliard3D) state.CahnHilliard.Validate();
+        if (state.Kind == Fractal3DKind.Hopf) state.Hopf.Validate();
         KifsSettings kifs = (state.Kifs ?? new()).Normalized();
         Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
         Vector3 light = Fractal3DCamera.LightDirection(state);
@@ -371,6 +376,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.Hopf => ((float)state.Hopf.ClipRadius,
+                state.Hopf.OnlySelected ? 1 : state.Hopf.BasePoints().Count, HopfGeometry.Scale * HopfGeometry.Scale),
             Fractal3DKind.CahnHilliard3D => (state.CahnHilliard.Size, (float)(.5+.5*(state.CahnHilliard.Invert ? -state.CahnHilliard.Level : state.CahnHilliard.Level)), 0),
             Fractal3DKind.GrayScott3D => (state.GrayScott.Size, (float)state.GrayScott.Threshold, 0),
             Fractal3DKind.Turing3D => (state.Turing.Size, (float)state.Turing.Level, (float)state.Turing.SheetThickness),
@@ -666,6 +673,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeIfsResources();
         DisposeTerrainResources();
         DisposeLSystemResources();
+        DisposeHopfResources();
         _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();

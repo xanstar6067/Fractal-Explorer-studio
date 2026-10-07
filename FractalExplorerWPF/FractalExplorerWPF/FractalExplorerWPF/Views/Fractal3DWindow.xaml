@@ -44,6 +44,7 @@
                     <TextBlock Style="{StaticResource FieldCaption}" Text="Готовый вид"/>
                     <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_OnSelectionChanged"/>
                     <controls:LSystem3DEditor x:Name="LSystemEditor" Visibility="Collapsed" SettingsChanged="LSystem_OnChanged" Margin="0,8,0,0"/>
+                    <controls:HopfEditor x:Name="HopfEditor" Visibility="Collapsed" SettingsChanged="Hopf_OnChanged" Margin="0,8,0,0"/>
 
                     <StackPanel x:Name="DlaGrowthPanel" Visibility="Collapsed" Margin="0,8,0,4">
                         <TextBlock x:Name="DlaCountText" FontWeight="SemiBold" Text="Готовим затравку…"/>

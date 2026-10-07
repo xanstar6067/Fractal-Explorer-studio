@@ -30,7 +30,8 @@ public enum Fractal3DKind
     Buddhabrot4D,
     GrayScott3D,
     Turing3D,
-    CahnHilliard3D
+    CahnHilliard3D,
+    Hopf
 }
 
 public enum Hybrid3DOrder
@@ -307,6 +308,7 @@ public sealed class Fractal3DState
 
     public TerrainSettings Terrain { get; set; } = new();
     public LSystem3DSettings LSystem { get; set; } = new();
+    public HopfSettings Hopf { get; set; } = new();
 
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
@@ -395,6 +397,7 @@ public sealed class Fractal3DState
         clone.Kifs = Kifs?.Clone() ?? new();
         clone.Dla = Dla?.Normalized() ?? new();
         clone.LSystem = LSystem is null ? new() : LSystem with { };
+        clone.Hopf = Hopf?.Copy() ?? new();
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
@@ -493,6 +496,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Hopf => new(
+            "Расслоение Хопфа", "Расслоение Хопфа · 4D → 3D",
+            "Каждая точка базовой сферы задаёт окружность в четырёхмерной сфере. В стереографической проекции любые два разных кольца сцеплены один раз; широты превращаются в торы. Выбирайте точки и вращайте всю конструкцию в 4D.",
+            "Fractal3DHopf", "hopf"),
         Fractal3DKind.CahnHilliard3D => new(
             "Кан–Хиллиард 3D · спинодальный распад", "Кан–Хиллиард · 3D",
             "Смесь расслаивается на две фазы, сохраняя средний состав. При равных долях возникают взаимопроникающие губчатые домены, которые постепенно укрупняются. Срез открывает внутренние каналы.",
@@ -599,6 +606,12 @@ public static class Fractal3DCatalog
 
     public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
+        if (kind == Fractal3DKind.Hopf)
+        {
+            if (mode == Fractal3DColoringMode.OrbitTrap) return "По долготе на базовой сфере";
+            if (mode == Fractal3DColoringMode.CrossTrap) return "По широте на базовой сфере";
+            if (mode == Fractal3DColoringMode.IterationIndex) return "По номеру кольца";
+        }
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
             return "По составу смеси";
         if (kind == Fractal3DKind.Dla3D && mode == Fractal3DColoringMode.IterationIndex)
@@ -677,6 +690,18 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.Hopf:
+                state.CameraDistance = 6.2;
+                state.CameraPitch = 22;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.Palette = Fractal3DPalettes.Get("Спектр");
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.SoftShadows = false;
+                state.AmbientOcclusion = false;
+                state.MaxSteps = 256;
+                state.Ssaa = 2;
+                break;
             case Fractal3DKind.Buddhabrot4D:
                 state.CameraDistance = 2.4;
                 state.CameraYaw = 0;
@@ -915,6 +940,23 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Hopf =>
+        [
+            Preset(kind, "Вложенные торы", _ => { }),
+            Preset(kind, "Один тор · 32 кольца", s => { s.Hopf = new() { Family = HopfFamily.Latitude, Fibers = 32, Latitude = 30 }; }),
+            Preset(kind, "Три сцепленных тора", s => { s.Hopf = new() { Family = HopfFamily.LinkedTori, Fibers = 24, Layers = 3, Latitude = 65, XW = 25 }; }),
+            Preset(kind, "Кольца по всей сфере", s => { s.Hopf = new() { Family = HopfFamily.Sphere, Fibers = 64, Thickness = .012, XW = 30, YW = -20 }; }),
+            Preset(kind, "Зацепление Хопфа · два кольца", s =>
+            {
+                s.Hopf = new() { Family = HopfFamily.Custom, Points = [new(0, 0), new(90, 0)], Thickness = .045, ClipRadius = 3 };
+                s.CameraDistance = 3.5;
+            }),
+            Preset(kind, "Кольцо через бесконечность", s =>
+            {
+                s.Hopf = new() { Family = HopfFamily.Custom, Points = [new(0, -90), new(0, 90), new(90, 10)], Thickness = .03, ClipRadius = 2.5 };
+                s.ColoringMode = Fractal3DColoringMode.IterationIndex;
+            })
+        ],
         Fractal3DKind.Turing3D =>
         [
             Preset(kind, "Коралловый шар", _ => { }),

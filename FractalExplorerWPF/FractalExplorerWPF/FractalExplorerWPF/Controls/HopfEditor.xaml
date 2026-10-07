@@ -1,0 +1,91 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.HopfEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Margin" Value="0,7,0,2"/><Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/></Style>
+        <Style x:Key="Angle" TargetType="Slider"><Setter Property="Minimum" Value="-180"/><Setter Property="Maximum" Value="180"/><Setter Property="SmallChange" Value="1"/><Setter Property="Margin" Value="0,0,8,0"/></Style>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="Семейство колец" Style="{StaticResource Caption}"/>
+        <ComboBox x:Name="FamilyBox" SelectionChanged="FamilyChanged">
+            <ComboBoxItem Content="Одна широта · тор"/><ComboBoxItem Content="Несколько широт · вложенные торы"/>
+            <ComboBoxItem Content="Точки по всей сфере"/><ComboBoxItem Content="Разные направления · сцепленные торы"/>
+            <ComboBoxItem Content="Мои точки на сфере"/>
+        </ComboBox>
+        <StackPanel x:Name="FamilyParameters">
+            <TextBlock Text="Колец на семейство" Style="{StaticResource Caption}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
+                <Slider x:Name="CountSlider" Minimum="1" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="FamilyParameterChanged"/>
+                <TextBlock Grid.Column="1" Text="{Binding ElementName=CountSlider,Path=Value,StringFormat={}{0:0}}" HorizontalAlignment="Right"/>
+            </Grid>
+            <StackPanel x:Name="LayersPanel">
+                <TextBlock Text="Число семейств" Style="{StaticResource Caption}"/>
+                <Slider x:Name="LayersSlider" Minimum="1" Maximum="4" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="FamilyParameterChanged"/>
+                <TextBlock Text="{Binding ElementName=LayersSlider,Path=Value,StringFormat={}{0:0}}" HorizontalAlignment="Right"/>
+            </StackPanel>
+            <StackPanel x:Name="LatitudePanel">
+                <TextBlock Text="Широта · размер тора" Style="{StaticResource Caption}"/>
+                <Slider x:Name="LatitudeSlider" Minimum="-85" Maximum="85" ValueChanged="FamilyParameterChanged"/>
+                <TextBlock Text="{Binding ElementName=LatitudeSlider,Path=Value,StringFormat={}{0:F1}°}" HorizontalAlignment="Right"/>
+            </StackPanel>
+            <StackPanel x:Name="SpreadPanel">
+                <TextBlock Text="Разброс широт" Style="{StaticResource Caption}"/>
+                <Slider x:Name="SpreadSlider" Minimum="0" Maximum="150" ValueChanged="FamilyParameterChanged"/>
+            </StackPanel>
+            <TextBlock Text="Сдвиг точек по долготе" Style="{StaticResource Caption}"/>
+            <Slider x:Name="PhaseSlider" Minimum="-180" Maximum="180" ValueChanged="FamilyParameterChanged"/>
+        </StackPanel>
+        <Expander Header="Базовая сфера · выбрать кольцо" IsExpanded="True" Margin="0,10,0,0">
+            <StackPanel>
+                <c:HopfBaseSphere x:Name="BaseSphere"/>
+                <CheckBox x:Name="BackBox" Content="Обратная полусфера" Checked="HemisphereChanged" Unchecked="HemisphereChanged"/>
+                <TextBlock Text="Точка — кольцо. Щелчок по точке выделяет его; по пустому месту добавляет. Ctrl+щелчок всегда добавляет. ←/→ выбирают соседнее кольцо." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,5,0,3"/>
+                <TextBlock x:Name="SelectionText" TextWrapping="Wrap"/>
+                <CheckBox x:Name="OnlyBox" Content="Показать только выбранное кольцо" Checked="Changed" Unchecked="Changed"/>
+                <Button x:Name="RemoveButton" Content="Удалить выбранную точку" Click="RemoveClicked"/>
+                <Button Content="Снять выделение" Click="ClearSelectionClicked"/>
+            </StackPanel>
+        </Expander>
+        <TextBlock Text="Толщина трубок" Style="{StaticResource Caption}"/>
+        <Slider x:Name="ThicknessSlider" Minimum="0.003" Maximum="0.12" SmallChange="0.001" ValueChanged="Changed"/>
+        <TextBlock Text="{Binding ElementName=ThicknessSlider,Path=Value,StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
+        <TextBlock Text="Радиус видимой области" Style="{StaticResource Caption}"/>
+        <Slider x:Name="ClipSlider" Minimum="1" Maximum="8" SmallChange="0.1" ValueChanged="Changed"/>
+        <TextBlock Text="{Binding ElementName=ClipSlider,Path=Value,StringFormat={}{0:F1}}" HorizontalAlignment="Right"/>
+        <TextBlock Text="Окружность через полюс проекции становится прямой. Видимая область обрезает уходящие в бесконечность части; увеличьте её радиус, чтобы увидеть больше." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <Expander Header="Вращения в четырёх измерениях" IsExpanded="True" Margin="0,10,0,0">
+            <StackPanel>
+                <TextBlock Text="X ↔ W" Style="{StaticResource Caption}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="XWSlider" Style="{StaticResource Angle}" ValueChanged="Changed"/>
+                    <TextBox Grid.Column="1" Text="{Binding ElementName=XWSlider,Path=Value,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" c:NumericSpinner.IsEnabled="True"/>
+                </Grid>
+                <TextBlock Text="Y ↔ W" Style="{StaticResource Caption}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="YWSlider" Style="{StaticResource Angle}" ValueChanged="Changed"/>
+                    <TextBox Grid.Column="1" Text="{Binding ElementName=YWSlider,Path=Value,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" c:NumericSpinner.IsEnabled="True"/>
+                </Grid>
+                <TextBlock Text="Z ↔ W" Style="{StaticResource Caption}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions>
+                    <Slider x:Name="ZWSlider" Style="{StaticResource Angle}" ValueChanged="Changed"/>
+                    <TextBox Grid.Column="1" Text="{Binding ElementName=ZWSlider,Path=Value,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" c:NumericSpinner.IsEnabled="True"/>
+                </Grid>
+                <Expander Header="Пространственные плоскости XY / XZ / YZ">
+                    <StackPanel>
+                        <TextBlock Text="XY"/><Slider x:Name="XYSlider" Style="{StaticResource Angle}" ValueChanged="Changed"/>
+                        <TextBlock Text="XZ"/><Slider x:Name="XZSlider" Style="{StaticResource Angle}" ValueChanged="Changed"/>
+                        <TextBlock Text="YZ"/><Slider x:Name="YZSlider" Style="{StaticResource Angle}" ValueChanged="Changed"/>
+                    </StackPanel>
+                </Expander>
+                <Button Content="Сбросить вращения 4D" Click="ResetClicked"/>
+                <TextBlock Text="Плоскость анимации" Style="{StaticResource Caption}"/>
+                <ComboBox x:Name="AnimationBox" SelectionChanged="Changed"/>
+                <Slider x:Name="SpeedSlider" Minimum="-60" Maximum="60" ValueChanged="Changed"/>
+                <TextBlock Text="{Binding ElementName=SpeedSlider,Path=Value,StringFormat={}{0:F1}°/с}" HorizontalAlignment="Right"/>
+                <Button x:Name="PlayButton" Content="▶ Вращать в 4D" Click="PlayClicked"/>
+            </StackPanel>
+        </Expander>
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6,0,0"/>
+    </StackPanel>
+</UserControl>

@@ -154,6 +154,7 @@ public partial class Fractal3DWindow : Window
         Attractor = CaptureAttractor(),
         Terrain = CaptureTerrain(),
         LSystem = Kind == Fractal3DKind.LSystem3D ? LSystemEditor.Capture() : new(),
+        Hopf = Kind == Fractal3DKind.Hopf ? HopfEditor.Capture() : new(),
         Kifs = CaptureKifs(),
         Dla = CaptureDla(),
         GrayScott = CaptureGrayScott(),
@@ -317,6 +318,11 @@ public partial class Fractal3DWindow : Window
         LoadAttractor(state.Attractor);
         LoadTerrain(state.Terrain);
         if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.Load(state.LSystem ?? new());
+        if (Kind == Fractal3DKind.Hopf)
+        {
+            HopfEditor.Load(state.Hopf ?? new());
+            HopfEditor.SetColoring(state);
+        }
         LoadKifs(state.Kifs);
         LoadDla(state.Dla);
         LoadGrayScott(state.GrayScott);
@@ -417,6 +423,15 @@ public partial class Fractal3DWindow : Window
         }
         TerrainPanel.Visibility = Collapse(Kind == Fractal3DKind.Terrain);
         LSystemEditor.Visibility = Collapse(Kind == Fractal3DKind.LSystem3D);
+        HopfEditor.Visibility = Collapse(Kind == Fractal3DKind.Hopf);
+        if (Kind == Fractal3DKind.Hopf)
+        {
+            ControlsColumn.Width = new GridLength(395);
+            ShapeExpander.Visibility = Visibility.Collapsed;
+            foreach (var mode in new[] { Fractal3DColoringMode.OrbitTrap, Fractal3DColoringMode.CrossTrap, Fractal3DColoringMode.IterationIndex })
+                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Content = Fractal3DCatalog.ColoringModeName(mode, Kind);
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.Escape]).Visibility = Visibility.Collapsed;
+        }
         if (Kind == Fractal3DKind.LSystem3D)
         {
             ControlsColumn.Width = new GridLength(395);
@@ -425,7 +440,7 @@ public partial class Fractal3DWindow : Window
             foreach (var mode in new[] { Fractal3DColoringMode.CrossTrap, Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
                 ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
         }
-        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.LSystem3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D));
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.LSystem3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D));
         BuddhabrotEditor.Visibility = Collapse(Kind == Fractal3DKind.Buddhabrot4D);
         if (Kind == Fractal3DKind.Buddhabrot4D) ShapeExpander.Header = "Проекция и орбиты";
         DlaPanel.Visibility = DlaGrowthPanel.Visibility = DlaGrowthOverlay.Visibility = Collapse(Kind == Fractal3DKind.Dla3D);
@@ -472,7 +487,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D));
+            Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -785,6 +800,7 @@ public partial class Fractal3DWindow : Window
         SuspendGrayScott();
         SuspendTuring();
         SuspendCahnHilliard();
+        if (Kind == Fractal3DKind.Hopf) HopfEditor.Stop();
         DetachLoop();
         _renderCts?.Cancel();
         try
@@ -906,7 +922,7 @@ public partial class Fractal3DWindow : Window
 
         // Движение кончилось — доводим кадр. Мышь отпускают не только кнопкой: так же кончаются
         // инерция, перелёт и автовращение, и в каждом случае показанным остаётся живой кадр.
-        bool moving = IsMoving || _grayRunning || _cahnRunning || _turingRunning;
+        bool moving = IsMoving || _grayRunning || _cahnRunning || _turingRunning || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying);
         if (_wasMoving && !moving) RequestFrame(FrameQuality.Full, RefineDelayMs);
         _wasMoving = moving;
 
@@ -971,7 +987,7 @@ public partial class Fractal3DWindow : Window
         _renderCts?.Cancel();
         var cts = new CancellationTokenSource();
         _renderCts = cts;
-        bool moving = IsMoving || _grayRunning || _cahnRunning || _turingRunning;
+        bool moving = IsMoving || _grayRunning || _cahnRunning || _turingRunning || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying);
 
         // Черновик во весь холст, да ещё и без движения, ничем не отличается от полного кадра:
         // считаем его сразу полным, чтобы не гонять ту же работу дважды и честно назвать результат.
@@ -1069,6 +1085,11 @@ public partial class Fractal3DWindow : Window
             OnCahnFrameDisplayed(state);
             if (Kind == Fractal3DKind.LSystem3D)
                 LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount);
+            if (Kind == Fractal3DKind.Hopf)
+            {
+                HopfEditor.SetColoring(state);
+                HopfEditor.OnFrameDisplayed();
+            }
             RequestRefinement(quality, scale, ssaa, simplified);
         }
         catch (OperationCanceledException)
@@ -1099,6 +1120,7 @@ public partial class Fractal3DWindow : Window
             StatusText.Text = "Ошибка рендера";
             CrashLogger.Log("Fractal3DWindow.RenderFrameAsync", exception);
             if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.ShowError(exception.Message);
+            else if (Kind == Fractal3DKind.Hopf) HopfEditor.ShowError(exception.Message);
             else MessageBox.Show(this, exception.Message, _definition.Title,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -1117,7 +1139,7 @@ public partial class Fractal3DWindow : Window
     /// </summary>
     private void RequestRefinement(FrameQuality quality, double scale, int ssaa, bool simplified)
     {
-        if (IsMoving || _dlaRunning || _grayRunning || _grayBusy || _cahnRunning || _turingRunning || _cahnBusy || _turingBusy || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying)) return;
+        if (IsMoving || _dlaRunning || _grayRunning || _grayBusy || _cahnRunning || _turingRunning || _cahnBusy || _turingBusy || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying) || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying)) return;
         if (quality == FrameQuality.Draft && (scale < 1 || simplified))
             RequestFrame(FrameQuality.Full, RefineDelayMs);
         else if (quality != FrameQuality.Antialiased && ssaa > 1)
@@ -1255,6 +1277,7 @@ public partial class Fractal3DWindow : Window
         CloseTuring();
         CloseCahnHilliard();
         LSystemEditor.CancelWork();
+        HopfEditor.Stop();
         _dlaRunning = false;
         DetachLoop();
         _renderCts?.Cancel();

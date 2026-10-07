@@ -349,7 +349,8 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(7).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+            Check(ViewItems(window).Take(8).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+                      Fractal3DCatalog.LaunchKey(Fractal3DKind.Hopf),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.CahnHilliard3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Turing3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.GrayScott3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.Buddhabrot4D), "TuringPatterns", "Hopalong", "SnowCrystal"]),
@@ -372,7 +373,7 @@ internal static partial class Program
             Check(recents.Count == 4 && mandelbrot.RecentRank == 0 && Tile(window, oldest).RecentRank == 1,
                 "Recent ranks and the menu count must follow launches.");
             window.ScopeList.SelectedItem = arrivals;
-            Check(ViewItems(window)[0].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.CahnHilliard3D),
+            Check(ViewItems(window)[0].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Hopf),
                 "Launching an old mode must not change the introduction chronology.");
 
             // ----- Избранное -----
