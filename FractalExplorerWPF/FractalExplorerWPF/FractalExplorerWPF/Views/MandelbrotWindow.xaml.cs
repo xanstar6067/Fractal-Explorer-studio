@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using FractalExplorerWPF.Core.Rendering;
+using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
@@ -31,6 +32,12 @@ public partial class MandelbrotWindow : Window
     private CancellationTokenSource? _renderCts;
     private CancellationTokenSource? _juliaMapPreviewCts;
     private bool _isRendering;
+    private readonly MandelbrotPreviewRenderer _gpuPreview = new();
+    private JuliaConstantPickerWindow? _constantPicker;
+    private bool _liveRenderPending;
+    private bool _liveFrameRequested;
+    private double _livePixelBudget = 100_000;
+    private bool _closed;
     private bool _isPanning;
     private bool _isFullscreen;
     private bool _updatingControls;
@@ -394,6 +401,7 @@ public partial class MandelbrotWindow : Window
 
     private void JuliaConstantButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_constantPicker is { } existing) { existing.Activate(); return; }
         decimal real;
         decimal imaginary;
         try
@@ -411,13 +419,39 @@ public partial class MandelbrotWindow : Window
             ? MandelbrotVariant.BurningShip
             : MandelbrotVariant.Mandelbrot;
         var dialog = new JuliaConstantPickerWindow(sourceVariant, real, imaginary) { Owner = this };
-        if (dialog.ShowDialog() != true) return;
+        _constantPicker = dialog;
+        dialog.CanLivePreview = CanPreviewJuliaLive;
+        dialog.ConstantApplied += (_, _) => ApplyPickerConstant(dialog, false);
+        dialog.LiveConstantChanged += (_, _) => ApplyPickerConstant(dialog, true);
+        dialog.Closed += (_, _) => { if (ReferenceEquals(_constantPicker, dialog)) _constantPicker = null; };
+        dialog.Show();
+    }
+
+    private bool CanPreviewJuliaLive()
+    {
+        if (_closed || !_definition.HasJuliaConstant) return false;
+        try { return _gpuPreview.CanRender(CaptureState("live")); }
+        catch { return false; }
+    }
+
+    private void ApplyPickerConstant(JuliaConstantPickerWindow picker, bool live)
+    {
+        if (_closed || (live && !CanPreviewJuliaLive())) return;
+        _liveFrameRequested = live;
         _updatingControls = true;
-        JuliaRealBox.Text = dialog.SelectedReal.ToString(CultureInfo.InvariantCulture);
-        JuliaImaginaryBox.Text = dialog.SelectedImaginary.ToString(CultureInfo.InvariantCulture);
+        JuliaRealBox.Text = picker.SelectedReal.ToString(CultureInfo.InvariantCulture);
+        JuliaImaginaryBox.Text = picker.SelectedImaginary.ToString(CultureInfo.InvariantCulture);
         _updatingControls = false;
         UpdateJuliaMapMarker();
-        ScheduleRender();
+        if (CanPreviewJuliaLive())
+        {
+            // Do not cancel the frame in flight: continuously cancelling can starve presentation.
+            // One pending flag retains the latest C, with no queue of obsolete frames.
+            _liveRenderPending = true;
+            _renderTimer.Interval = TimeSpan.FromMilliseconds(16);
+            if (!_isRendering && !_renderTimer.IsEnabled) _renderTimer.Start();
+        }
+        else ScheduleRender();
     }
 
     private void JuliaMapPreviewHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -575,7 +609,11 @@ public partial class MandelbrotWindow : Window
 
     private void ScheduleRender()
     {
-        if (!IsLoaded) return;
+        if (!IsLoaded || _closed) return;
+        _liveRenderPending = false;
+        _liveFrameRequested = false;
+        _renderCts?.Cancel();
+        _renderTimer.Interval = TimeSpan.FromMilliseconds(CanPreviewJuliaLive() ? 16 : 320);
         if (_isRendering) CommitAndBakePreview();
         else UpdateCoarsePreviewTransform();
         _renderTimer.Stop();
@@ -590,7 +628,9 @@ public partial class MandelbrotWindow : Window
 
     private async Task RenderPreviewAsync()
     {
-        if (_isRendering) { ScheduleRender(); return; }
+        if (_closed) return;
+        if (_isRendering) { _renderTimer.Start(); return; }
+        _liveRenderPending = false;
         MandelbrotState state;
         try { state = CaptureState("preview"); }
         catch (Exception ex) { StatusText.Text = ex.Message; return; }
@@ -610,6 +650,36 @@ public partial class MandelbrotWindow : Window
         try
         {
             int factor = SelectedPreviewSsaaFactor;
+            if (_definition.HasJuliaConstant && _gpuPreview.CanRender(state))
+            {
+                bool liveFrame = _liveFrameRequested;
+                double liveScale = liveFrame ? Math.Min(1, Math.Sqrt(_livePixelBudget / ((double)pixelWidth * pixelHeight))) : 1;
+                int outputWidth = Math.Max(1, (int)Math.Round(pixelWidth * liveScale));
+                int outputHeight = Math.Max(1, (int)Math.Round(pixelHeight * liveScale));
+                int gpuFactor = liveFrame ? 1 : factor;
+                int gpuWidth = checked(outputWidth * gpuFactor), gpuHeight = checked(outputHeight * gpuFactor);
+                byte[] gpuPixels = new byte[checked(gpuWidth * gpuHeight * 4)];
+                bool rendered = await Task.Run(() => _gpuPreview.TryRender(state, gpuPixels, gpuWidth, gpuHeight, token));
+                token.ThrowIfCancellationRequested();
+                if (rendered)
+                {
+                    if (gpuFactor > 1)
+                        gpuPixels = await Task.Run(() => DownsampleBox(gpuPixels, gpuWidth, outputWidth, outputHeight, gpuFactor, token));
+                    token.ThrowIfCancellationRequested();
+                    if (_closed) return;
+                    var gpuBitmap = BitmapSource.Create(outputWidth, outputHeight,
+                        surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Bgra32, null, gpuPixels, outputWidth * 4);
+                    if (liveFrame)
+                        _livePixelBudget = Math.Clamp(outputWidth * (double)outputHeight *
+                            Math.Clamp(25 / Math.Max(1, stopwatch.Elapsed.TotalMilliseconds), 0.5, 1.5), 32_768, 300_000);
+                    gpuBitmap.Freeze();
+                    SetStableBitmap(gpuBitmap, BigFloat.FromDecimal(state.CenterX), BigFloat.FromDecimal(state.CenterY),
+                        state.Zoom, logicalWidth, logicalHeight);
+                    UpdateCoarsePreviewTransform();
+                    StatusText.Text = $"ГП{(liveFrame ? " · Живой просмотр" : "")} · Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. Центр: {state.CenterX:G6}; {state.CenterY:G6}";
+                    return;
+                }
+            }
             int renderWidth = checked(pixelWidth * factor);
             int renderHeight = checked(pixelHeight * factor);
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(
@@ -647,7 +717,7 @@ public partial class MandelbrotWindow : Window
             RenderOverlay.EndSession();
             if (ReferenceEquals(_activeSession, session)) _activeSession = null;
             stopwatch.Stop();
-            StatusText.Text = $"Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. " +
+            StatusText.Text = $"ЦП{(_gpuPreview.FailureReason is null ? "" : " (ГП недоступен)")} · Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. " +
                               $"Стратегия: {GetStrategyDisplayName(strategy)}. Центр: {_centerX:G6}; {_centerY:G6}";
         }
         catch (OperationCanceledException)
@@ -671,6 +741,11 @@ public partial class MandelbrotWindow : Window
                 SetRenderingState(false);
             }
             cts.Dispose();
+            if (!_closed && _liveRenderPending)
+            {
+                _renderTimer.Interval = TimeSpan.FromMilliseconds(1);
+                _renderTimer.Start();
+            }
         }
     }
 
@@ -1137,13 +1212,14 @@ public partial class MandelbrotWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _closed = true;
+        _constantPicker?.Close();
         _renderTimer.Stop();
         _visualizationTimer.Stop();
         _renderCts?.Cancel();
-        _renderCts?.Dispose();
         _juliaMapPreviewCts?.Cancel();
-        _juliaMapPreviewCts?.Dispose();
         _activeSession = null;
+        _ = Task.Run(_gpuPreview.Dispose);
     }
 
     private static int ReadInt(string text, string name, int minimum, int maximum)

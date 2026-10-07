@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using FractalExplorerWPF.Core.Rendering;
+using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Models;
 using Point = System.Windows.Point;
 using MediaColors = System.Windows.Media.Colors;
@@ -20,6 +21,15 @@ public partial class JuliaConstantPickerWindow : Window
     private readonly MandelbrotVariant _sourceVariant;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(260) };
     private CancellationTokenSource? _renderCts;
+    private readonly MandelbrotPreviewRenderer _gpu = new();
+    private readonly DispatcherTimer _liveTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
+    private bool _selecting, _selectionChanged, _closed;
+    public event EventHandler? ConstantApplied;
+    public event EventHandler? LiveConstantChanged;
+    // Consult the main view, independently of the parameter map's backend.
+    public Func<bool>? CanLivePreview { get; set; }
+    private bool LiveRequested => LivePreviewBox.IsChecked == true;
+    private bool LiveAvailable => LiveRequested && CanLivePreview?.Invoke() == true;
     private bool _updatingText;
     private bool _panning;
     private Point _lastPoint;
@@ -69,9 +79,20 @@ public partial class JuliaConstantPickerWindow : Window
             ? "Карта «Горящего корабля»"
             : "Карта множества Мандельброта";
         _renderTimer.Tick += RenderTimer_OnTick;
+        _liveTimer.Tick += LiveTimer_OnTick;
         SetConstantText();
         ResetView();
-        Loaded += (_, _) => ScheduleRender();
+        Loaded += (_, _) => { ScheduleRender(); _liveTimer.Start(); };
+    }
+
+    private void LiveTimer_OnTick(object? sender, EventArgs e)
+    {
+        LiveStatusText.Text = !LiveRequested ? ""
+            : LiveAvailable ? "Удерживайте левую кнопку для живого просмотра."
+            : "Основное изображение на ЦП: C применяется после отпускания кнопки.";
+        if (!_selectionChanged) return;
+        _selectionChanged = false;
+        if (_selecting && LiveAvailable) LiveConstantChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ResetView()
@@ -84,7 +105,9 @@ public partial class JuliaConstantPickerWindow : Window
 
     private void ScheduleRender()
     {
-        if (!IsLoaded) return;
+        if (!IsLoaded || _closed) return;
+        _renderCts?.Cancel();
+        _renderTimer.Interval = TimeSpan.FromMilliseconds(_gpu.CanRender(CreateMapState()) ? 16 : 260);
         _renderTimer.Stop();
         _renderTimer.Start();
     }
@@ -106,9 +129,13 @@ public partial class JuliaConstantPickerWindow : Window
             MandelbrotState state = CreateMapState();
             decimal renderedZoom = _zoom;
             byte[] pixels = new byte[checked(width * height * 4)];
-            await Task.Run(() => MandelbrotFamilyRenderer.Render(
-                state, pixels, width, height, width * 4, cts.Token));
-            if (cts.Token.IsCancellationRequested) return;
+            bool onGpu = await Task.Run(() =>
+            {
+                if (_gpu.TryRender(state, pixels, width, height, cts.Token)) return true;
+                MandelbrotFamilyRenderer.Render(state, pixels, width, height, width * 4, cts.Token);
+                return false;
+            });
+            if (cts.IsCancellationRequested || _closed || !ReferenceEquals(_renderCts, cts)) return;
             BitmapSource bitmap = BitmapSource.Create(width, height,
                 surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY,
                 PixelFormats.Bgra32, null, pixels, width * 4);
@@ -119,7 +146,7 @@ public partial class JuliaConstantPickerWindow : Window
             _renderedZoom = renderedZoom;
             _renderedAspect = (double)height / Math.Max(1, width);
             _hasRenderedFrame = true;
-            StatusText.Text = $"C = {SelectedReal:G10} {(SelectedImaginary < 0 ? "−" : "+")} {Math.Abs(SelectedImaginary):G10}i";
+            StatusText.Text = $"{(onGpu ? "ГП" : _gpu.FailureReason is null ? "ЦП" : "ЦП (ГП недоступен)")} · C = {SelectedReal:G10} {(SelectedImaginary < 0 ? "−" : "+")} {Math.Abs(SelectedImaginary):G10}i";
             UpdateView();
         }
         catch (OperationCanceledException) { }
@@ -174,7 +201,7 @@ public partial class JuliaConstantPickerWindow : Window
         Point mouse = e.GetPosition(MapHost);
         (decimal X, decimal Y) before = ScreenToWorld(mouse);
         decimal step = WheelZoomStep;
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? step : 1m / step), 0.05m, 1_000_000m);
+        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? step : 1m / step), 0.05m, 1_000_000_000_000m);
         (decimal X, decimal Y) after = ScreenToWorld(mouse);
         _centerX += before.X - after.X;
         _centerY += before.Y - after.Y;
@@ -183,23 +210,53 @@ public partial class JuliaConstantPickerWindow : Window
         e.Handled = true;
     }
 
+    private bool SelectAt(Point point)
+    {
+        if (point.X < 0 || point.Y < 0 || point.X > MapHost.ActualWidth || point.Y > MapHost.ActualHeight) return false;
+        (decimal x, decimal y) = ScreenToWorld(point);
+        if (x < _minReal || x > _maxReal || y < _minImaginary || y > _maxImaginary) return false;
+        SelectedReal = x;
+        SelectedImaginary = y;
+        SetConstantText();
+        UpdateMarker();
+        return true;
+    }
+
     private void MapHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (_panning || e.ChangedButton != MouseButton.Left) return;
-        (decimal x, decimal y) = ScreenToWorld(e.GetPosition(MapHost));
-        if (x >= _minReal && x <= _maxReal && y >= _minImaginary && y <= _maxImaginary)
-        {
-            SelectedReal = x;
-            SelectedImaginary = y;
-            SetConstantText();
-            UpdateMarker();
-        }
+        bool changed = SelectAt(e.GetPosition(MapHost));
+        bool wasSelecting = _selecting;
+        _selecting = false;
+        _selectionChanged = false;
+        if (wasSelecting) MapHost.ReleaseMouseCapture();
+        // Release commits the latest point exactly once, including when live input fell back to CPU.
+        if (LiveRequested && (changed || wasSelecting)) ConstantApplied?.Invoke(this, EventArgs.Empty);
         e.Handled = true;
+    }
+
+    private void MapHost_OnLostMouseCapture(object sender, MouseEventArgs e)
+    {
+        bool commit = _selecting;
+        bool wasPanning = _panning;
+        _selecting = false;
+        _selectionChanged = false;
+        _panning = false;
+        Mouse.OverrideCursor = null;
+        if (!_closed && commit && LiveRequested) ConstantApplied?.Invoke(this, EventArgs.Empty);
+        if (wasPanning) ScheduleRender();
     }
 
     private void MapHost_OnMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Middle)
+        if (e.ChangedButton == MouseButton.Left && !_panning && LiveRequested)
+        {
+            _selecting = SelectAt(e.GetPosition(MapHost));
+            _selectionChanged = _selecting;
+            if (_selecting) MapHost.CaptureMouse();
+            e.Handled = true;
+        }
+        else if (e.ChangedButton == MouseButton.Middle && !_selecting)
         {
             _panning = true;
             _lastPoint = e.GetPosition(MapHost);
@@ -214,6 +271,12 @@ public partial class JuliaConstantPickerWindow : Window
 
     private void MapHost_OnMouseMove(object sender, MouseEventArgs e)
     {
+        if (_selecting && e.LeftButton == MouseButtonState.Pressed)
+        {
+            _selectionChanged |= SelectAt(e.GetPosition(MapHost));
+            e.Handled = true;
+            return;
+        }
         if (!_panning || e.MiddleButton != MouseButtonState.Pressed) return;
         Point current = e.GetPosition(MapHost);
         (decimal X, decimal Y) before = ScreenToWorld(_lastPoint);
@@ -350,7 +413,8 @@ public partial class JuliaConstantPickerWindow : Window
         }
         SelectedReal = real;
         SelectedImaginary = imaginary;
-        DialogResult = true;
+        UpdateMarker();
+        ConstantApplied?.Invoke(this, EventArgs.Empty);
     }
 
     private void MapHost_OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -361,7 +425,15 @@ public partial class JuliaConstantPickerWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _closed = true;
+        _liveTimer.Stop();
         _renderTimer.Stop();
         _renderCts?.Cancel();
+        MapHost.ReleaseMouseCapture();
+        Mouse.OverrideCursor = null;
+        // Never block the UI on a native GPU dispatch during close.
+        _ = Task.Run(_gpu.Dispose);
     }
+
+    private void Close_OnClick(object sender, RoutedEventArgs e) => Close();
 }

@@ -565,6 +565,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.AddRange(Turing3DComputeShader.CacheEntries);
         entries.AddRange(TuringComputeShader.CacheEntries);
         entries.AddRange(GrayScottComputeShader.CacheEntries);
+        entries.Add(MandelbrotPreviewShader.CacheEntry);
         ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
     }
 

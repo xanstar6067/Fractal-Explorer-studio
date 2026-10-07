@@ -19,6 +19,8 @@
                 <ColumnDefinition Width="150"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
+                <CheckBox x:Name="LivePreviewBox" Content="Живой просмотр" Margin="0,0,0,5"/>
+                <TextBlock x:Name="LiveStatusText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                 <TextBlock x:Name="HeaderText" FontSize="20" FontWeight="SemiBold"/>
                 <TextBlock Margin="0,3,12,8" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                            Text="Щёлкните по карте, чтобы выбрать C. Колесо — масштаб (Ctrl — ×10, Shift — точно), средняя кнопка — перемещение." TextWrapping="Wrap"/>
@@ -38,7 +40,7 @@
                 theme:ThemeContract.IgnoreAudit="True" ClipToBounds="True"
                 SizeChanged="MapHost_OnSizeChanged" MouseWheel="MapHost_OnMouseWheel"
                 MouseLeftButtonUp="MapHost_OnMouseLeftButtonUp"
-                MouseDown="MapHost_OnMouseDown" MouseMove="MapHost_OnMouseMove" MouseUp="MapHost_OnMouseUp">
+                LostMouseCapture="MapHost_OnLostMouseCapture" MouseDown="MapHost_OnMouseDown" MouseMove="MapHost_OnMouseMove" MouseUp="MapHost_OnMouseUp">
             <Grid>
                 <Image x:Name="PreviewImage" Stretch="Fill" SnapsToDevicePixels="True"/>
                 <Canvas x:Name="MarkerLayer" IsHitTestVisible="False">
@@ -54,7 +56,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Button Width="105" Margin="4" Content="Сбросить вид" Click="Reset_OnClick"/>
                 <Button Width="105" Margin="4" Content="Применить" IsDefault="True" Click="Accept_OnClick"/>
-                <Button Width="105" Margin="4" Content="Отмена" IsCancel="True"/>
+                <Button Width="105" Margin="4" Content="Закрыть" IsCancel="True" Click="Close_OnClick"/>
             </StackPanel>
         </Grid>
     </Grid>

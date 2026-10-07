@@ -52,7 +52,8 @@ internal static partial class Program
         Console.WriteLine($"Parallel shader rebuild: {watch.Elapsed.TotalSeconds:F1} s.");
         Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length ==
               Enum.GetValues<Fractal3DKind>().Length + TuringComputeShader.EntryPoints.Length + GrayScottComputeShader.CacheEntries.Count + GrayScott3DComputeShader.CacheEntries.Count +
-              Turing3DComputeShader.CacheEntries.Count + CahnHilliard3DComputeShader.CacheEntries.Count + 2 &&
+              Turing3DComputeShader.CacheEntries.Count + CahnHilliard3DComputeShader.CacheEntries.Count + 3 &&
+              File.Exists(AppPaths.GetShaderCacheFile("julia-preview-metrics")) &&
               File.Exists(AppPaths.GetShaderCacheFile("ifs3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("flame3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("buddhabrot4d-pixel")) &&
