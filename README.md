@@ -5,8 +5,8 @@
 
 [Русский](#русский) · [English](#english) · [Галерея / Gallery](Pictures/WPF/README.md) · [Лицензия / License](LICENSE)
 
-**86 пунктов каталога · 20 трёхмерных режимов · 19 математических лабораторий**<br>
-**86 catalog entries · 20 3D modes · 19 mathematical laboratories**
+**89 пунктов каталога · 25 трёхмерных режимов · 20 математических лабораторий**<br>
+**89 catalog entries · 25 3D modes · 20 mathematical laboratories**
 
 <p align="center">
   <a href="Pictures/WPF/00-main-catalog.png"><img src="Pictures/WPF/00-main-catalog.png" alt="Актуальный каталог: поиск, разделы, избранное и превью / Current catalog with search, categories, favorites, and previews" width="1000"></a>
@@ -80,11 +80,11 @@ Fractal Explorer Studio — интерактивная лаборатория к
 
 ### Каталог
 
-В каталоге **86 пунктов**: 52 в разделе «Фракталы» (включая две галереи Julia), 15 в «Динамических системах и хаосе» и 19 математических лабораторий. Подборка «Трёхмерные» объединяет 20 режимов из разных разделов — они уже входят в эти числа.
+В каталоге **89 пунктов**: 51 в разделе «Фракталы», 18 в «Динамических системах и хаосе» и 20 математических лабораторий. Подборка «Трёхмерные» объединяет 25 режимов из разных разделов — они уже входят в эти числа.
 
 | Направление | Режимы |
 | --- | --- |
-| Комплексная динамика | Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, Multibrot; Julia и две галереи констант; 12 режимов бассейнов; Phoenix, Nova Mandelbrot/Julia, Collatz, Buddhabrot/Anti-Buddhabrot |
+| Комплексная динамика | Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, Multibrot; Julia; 12 режимов бассейнов; Phoenix, Nova Mandelbrot/Julia, Collatz, Buddhabrot/Anti-Buddhabrot |
 | Трёхмерные формы | Мандельбульб, Жюлиабульб, Burning Ship 3D и Julia, Phoenix 3D, Мандельбокс, гибрид Bulb × Box, Менгер, Вицек, Кантор, тетраэдр Серпинского, кватернионное Julia, KIFS, ландшафты |
 | Самоподобие и рост | IFS 2D/3D, Flame 2D/3D, Popcorn, Серпинский — игра хаоса, аполлонова упаковка окружностей/сфер, DLA 2D/3D |
 | Динамика и хаос | Ляпунов, логистические орбиты, бифуркации, Лоренц, Рёсслер, Хенон, Икэда, странные 2D-аттракторы, Спротт, Symmetric Icons, Hopalong; семь систем объёмных аттракторов в одном режиме |
@@ -159,11 +159,11 @@ Active development takes place in **`FractalExplorerWPF/`**. The earlier WinForm
 
 ### Catalog
 
-The catalog has **86 entries**: 52 fractal entries (including two Julia galleries), 15 dynamical-system entries, and 19 mathematical laboratories. The **20 3D modes** span these sections and are already included in their counts.
+The catalog has **89 entries**: 51 fractal entries, 18 dynamical-system entries, and 20 mathematical laboratories. The **25 3D modes** span these sections and are already included in their counts.
 
 | Area | Modes |
 | --- | --- |
-| Complex dynamics | Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, Multibrot; Julia and two constant galleries; 12 basin modes; Phoenix, Nova Mandelbrot/Julia, Collatz, Buddhabrot/Anti-Buddhabrot |
+| Complex dynamics | Mandelbrot, Burning Ship, Tricorn, Buffalo, Celtic, Simonobrot, Multibrot; Julia; 12 basin modes; Phoenix, Nova Mandelbrot/Julia, Collatz, Buddhabrot/Anti-Buddhabrot |
 | 3D forms | Mandelbulb, Juliabulb, Burning Ship 3D and Julia, Phoenix 3D, Mandelbox, Bulb × Box hybrid, Menger, Vicsek, Cantor, Sierpiński tetrahedron, quaternion Julia, KIFS, terrain |
 | Self-similarity and growth | 2D/3D IFS, 2D/3D Flame, Popcorn, Sierpiński chaos game, Apollonian circle/sphere packing, 2D/3D DLA |
 | Dynamics and chaos | Lyapunov, logistic orbits, bifurcation, Lorenz, Rössler, Hénon, Ikeda, strange 2D attractors, Sprott, Symmetric Icons, Hopalong; seven volumetric attractor systems in one mode |

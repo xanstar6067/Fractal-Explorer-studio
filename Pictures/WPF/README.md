@@ -2,12 +2,12 @@
 
 [← README](../../README.md)
 
-**123 скриншота актуальной WPF-версии · 4 октября 2026**<br>
-**123 screenshots of the current WPF application · October 4, 2026**
+**121 скриншот актуальной WPF-версии · 4 октября 2026**<br>
+**121 screenshots of the current WPF application · October 4, 2026**
 
-Нажмите на изображение, чтобы открыть оригинальный PNG. Галерея охватывает все 86 пунктов каталога и их редакторы, генераторы и служебные диалоги. Пространственная L-система показана в разделе 3D; остальные 18 математических лабораторий — ниже.
+Нажмите на изображение, чтобы открыть оригинальный PNG. Галерея охватывает 84 пункта каталога на дату съёмки и их редакторы, генераторы и служебные диалоги. Пространственная L-система показана в разделе 3D; остальные 18 математических лабораторий — ниже.
 
-Click an image to open the original PNG. The gallery covers all 86 catalog entries, their editors, generators, and utility dialogs. The spatial L-system is shown in the 3D section; the other 18 mathematical laboratories are below.
+Click an image to open the original PNG. The gallery covers 84 catalog entries as of the capture date, their editors, generators, and utility dialogs. The spatial L-system is shown in the 3D section; the other 18 mathematical laboratories are below.
 
 Облачные окна заполнены вымышленными данными без сетевого подключения. Диалог ошибки содержит демонстрационное сообщение. Живые симуляции показаны на одной из стадий роста; их вид меняется со временем.
 
@@ -42,10 +42,6 @@ dotnet run --project .\FractalExplorerWPF\ScreenshotGen\ScreenshotGen.csproj -- 
 </tr>
 <tr>
 <td width="50%" align="center"><a href="mandelbrot-julia-burning-ship.png"><img src="mandelbrot-julia-burning-ship.png" alt="Жюлиа — Горящий корабль / Julia Burning Ship" width="480" loading="lazy"></a><br><sub>Жюлиа — Горящий корабль / Julia Burning Ship</sub></td>
-<td width="50%" align="center"><a href="julia-gallery.png"><img src="julia-gallery.png" alt="Галерея констант Жюлиа / Julia constant gallery" width="480" loading="lazy"></a><br><sub>Галерея констант Жюлиа / Julia constant gallery</sub></td>
-</tr>
-<tr>
-<td width="50%" align="center"><a href="julia-burning-ship-gallery.png"><img src="julia-burning-ship-gallery.png" alt="Галерея Julia Burning Ship / Julia Burning Ship gallery" width="480" loading="lazy"></a><br><sub>Галерея Julia Burning Ship / Julia Burning Ship gallery</sub></td>
 <td width="50%" align="center"><a href="phoenix.png"><img src="phoenix.png" alt="Феникс / Phoenix" width="480" loading="lazy"></a><br><sub>Феникс / Phoenix</sub></td>
 </tr>
 <tr>

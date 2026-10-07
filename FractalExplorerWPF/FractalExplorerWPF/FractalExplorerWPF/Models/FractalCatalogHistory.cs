@@ -30,8 +30,6 @@ internal static class FractalCatalogHistory
 
         // 80ce12c
         Add("2026-07-11T14:46:08+03:00",
-            "JuliaBurningShipGallery",
-            "JuliaGallery",
             "JuliaBurningShip",
             "Julia");
 

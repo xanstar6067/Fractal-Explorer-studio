@@ -546,12 +546,6 @@ internal static class Program
 
             switch (key)
             {
-                case "JuliaGallery":
-                    await CaptureAsync(() => new JuliaGalleryWindow(MandelbrotVariant.Julia), "julia-gallery", 2200);
-                    return;
-                case "JuliaBurningShipGallery":
-                    await CaptureAsync(() => new JuliaGalleryWindow(MandelbrotVariant.JuliaBurningShip), "julia-burning-ship-gallery", 2200);
-                    return;
                 case "LSystem":
                 case "Serpinsky":
                 {

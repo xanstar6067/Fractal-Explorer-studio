@@ -142,7 +142,7 @@ internal static partial class Program
         List<string> newton = Search("ньютон");
         Check(newton.Contains("Бассейны Ньютона+") && newton.Contains("Бассейны метода Лагерра"),
             "Search must look into descriptions, not only names.");
-        Check(Search("жюлиа галерея").ToHashSet().SetEquals(["Галерея констант C (Жюлиа)", "Галерея констант C (Жюлиа горящий корабль)"]),
+        Check(Search("корабль жюлиа").ToHashSet().SetEquals(["Горящий Корабль (Жюлиа)", "Горящий корабль 3D — Жюлиа"]),
             "All words of the query must match, in any order.");
         List<string> attractors = Search("аттракторы");
         Check(catalog.Where(item => item.CategoryPath[^1] == "Аттракторы").All(item => attractors.Contains(item.DisplayName)),

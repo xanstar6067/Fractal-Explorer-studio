@@ -458,8 +458,6 @@ public partial class MainWindow : Window
 
         Func<Window>? named = launchKey switch
         {
-            "JuliaGallery" => () => new JuliaGalleryWindow(MandelbrotVariant.Julia),
-            "JuliaBurningShipGallery" => () => new JuliaGalleryWindow(MandelbrotVariant.JuliaBurningShip),
             "LSystem" or "Serpinsky" => () => new LSystemWindow(),
             "SerpinskyChaos" => () => new SerpinskyWindow(chaosOnly: true),
             "NewtonPools" => () => new NewtonPoolsWindow(),
