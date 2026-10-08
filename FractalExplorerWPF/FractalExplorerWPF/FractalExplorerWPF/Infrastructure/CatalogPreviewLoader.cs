@@ -43,6 +43,7 @@ internal sealed class CatalogPreviewLoader
         item.LaunchKey == "TuringPatterns" && TuringPresets.All[0].CreateState().Backend == TuringBackend.Gpu;
 
     public static bool IsRendered(FractalCatalogItem item) =>
+        (Enum.TryParse(item.LaunchKey, out MandelbrotVariant folded) && FoldedFormulaCatalog.IsProgram(folded)) ||
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         item.LaunchKey is "JuliaGeneralized" or "JuliaTricorn" or "JuliaBuffalo" or "JuliaCeltic" or "JuliaSimonobrot"

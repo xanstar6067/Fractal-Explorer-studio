@@ -32,6 +32,7 @@ public partial class JuliaConstantPickerWindow : Window
     public Func<bool>? CanLivePreview { get; set; }
     private bool LiveRequested => LivePreviewBox.IsChecked == true;
     private bool LiveAvailable => LiveRequested && CanLivePreview?.Invoke() == true;
+    private HybridFormulaSettings _hybrid = new();
     private bool _updatingText;
     private bool _panning;
     private Point _lastPoint;
@@ -60,11 +61,12 @@ public partial class JuliaConstantPickerWindow : Window
     public decimal SelectedImaginary { get; private set; }
 
     public JuliaConstantPickerWindow(MandelbrotVariant sourceVariant, decimal selectedReal, decimal selectedImaginary,
-        decimal power = 2m, bool useInversion = false)
+        decimal power = 2m, bool useInversion = false, HybridFormulaSettings? hybrid = null)
     {
         if (!Enum.IsDefined(sourceVariant) || MandelbrotVariantDefinition.IsJulia(sourceVariant))
             throw new ArgumentOutOfRangeException(nameof(sourceVariant));
 
+        _hybrid = hybrid?.Clone() ?? new();
         _sourceVariant = sourceVariant;
         _power = power;
         _useInversion = useInversion;
@@ -94,9 +96,10 @@ public partial class JuliaConstantPickerWindow : Window
         Loaded += (_, _) => { ScheduleRender(); _liveTimer.Start(); };
     }
 
-    internal void UpdateFormulaParameters(decimal power, bool useInversion)
+    internal void UpdateFormulaParameters(decimal power, bool useInversion, HybridFormulaSettings? hybrid = null)
     {
-        if (_power == power && _useInversion == useInversion) return;
+        if (_power == power && _useInversion == useInversion && hybrid is null) return;
+        if (hybrid is not null) _hybrid = hybrid.Clone();
         _power = power;
         _useInversion = useInversion;
         ScheduleRender();
@@ -182,6 +185,7 @@ public partial class JuliaConstantPickerWindow : Window
     {
         Variant = _sourceVariant,
         Power = _power,
+        Hybrid = _hybrid.Clone(),
         UseInversion = _useInversion,
         CenterX = _centerX,
         CenterY = _centerY,

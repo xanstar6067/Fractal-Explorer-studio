@@ -104,16 +104,15 @@ public static partial class MandelbrotFamilyRenderer
         public required double MaxLevel1RadiusSquared;
 
         /// <summary>
-        /// Строит таблицу по опорной орбите. Ровно один из <paramref name="reflect"/> и
-        /// <paramref name="simonobrotPower"/> должен быть задан; иначе возвращается null
-        /// (вариант обслуживает комплексная <see cref="BlaTable"/>).
+        /// Строит таблицу по опорной орбите отражённой формулы, Симоноброта
+        /// либо полиномиального графа. Обычный Multibrot обслуживает комплексная BlaTable.
         /// </summary>
         public static RealBlaTable? Build(
             double[] re, double[] im, int length, bool isJulia, double escapeSquared, FloatExp deltaCMax,
-            ReflectKind? reflect, int simonobrotPower, FloatExp[]? cubicV = null)
+            ReflectKind? reflect, int simonobrotPower, FloatExp[]? cubicV = null, ProgramReferenceStep[]? programs = null)
         {
             if (length < 4 || length > RealBlaMaxOrbitLength) return null;
-            if (reflect is null && simonobrotPower < 2) return null;
+            if (reflect is null && simonobrotPower < 2 && programs is null) return null;
 
             int level0Count = length - 1;
             // length >= 4 ⇒ level0Count >= 3 ⇒ цикл доводит levels минимум до 2, так что
@@ -168,7 +167,15 @@ public static partial class MandelbrotFamilyRenderer
                 // где d — степень однородности формулы по вещественным компонентам z.
                 double secondOrderCoefficient;
 
-                if (simonobrotPower >= 2)
+                if (programs is not null)
+                {
+                    var bounds = programs[n].Program.BlaBounds(programs[n].Values);
+                    var j = bounds.Jacobian;
+                    n11 = j.Xx; n12 = j.Xy; n21 = j.Yx; n22 = j.Yy;
+                    foldLimit = bounds.FoldRadius; secondOrderCoefficient = bounds.Remainder;
+                    if (!(foldLimit > 0)) blocked = true;
+                }
+                else if (simonobrotPower >= 2)
                 {
                     // z ← zᵖ·M^(p/2) + c. Линейная часть: M^(p/2)·p·Zᵖ⁻¹·δ (комплексная) плюс
                     // Zᵖ·p·M^(p/2−1)·(Zr·δr + Zi·δi) (вещественная, ранга 1). d = 2p.

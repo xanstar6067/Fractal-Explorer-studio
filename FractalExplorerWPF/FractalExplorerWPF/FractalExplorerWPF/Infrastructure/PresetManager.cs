@@ -200,8 +200,28 @@ public static class PresetManager
             M("Лиловые Фьорды (p=2)", variant, -0.928m, 0.3955m, 468.8m, 1000, "Космос", power: 2m, scale: 1),
             M("Бирюзовые Лезвия (p=3)", variant, 0.675m, 0.575m, 93.75m, 700, "Бирюза", power: 3m, scale: 1)
         ],
-        _ => []
+        _ => FoldedFormulaCatalog.IsProgram(variant) ? GetProgramPresets(variant) : []
     };
+
+    private static IReadOnlyList<MandelbrotState> GetProgramPresets(MandelbrotVariant variant)
+    {
+        var def = MandelbrotVariantDefinition.For(variant);
+        var formula = FoldedFormulaCatalog.Find(variant);
+        var overview = M("Обзор · " + def.DisplayName, variant, def.InitialCenterX, def.InitialCenterY, 0.75m,
+            350, "Бирюза", power: def.DefaultPower, juliaReal: def.HasJuliaConstant ? def.DefaultJuliaReal : 0,
+            juliaImaginary: def.HasJuliaConstant ? def.DefaultJuliaImaginary : 0, scale: 24, phase: 0.2);
+        var second = M("Другой вид · " + def.DisplayName, variant, 0, 0, 1.05m,
+            450, "Аметист", power: def.DefaultPower,
+            juliaReal: def.HasJuliaConstant ? formula?.AlternativeReal ?? -0.4m : 0, juliaImaginary: def.HasJuliaConstant ? formula?.AlternativeImaginary ?? 0.2m : 0, scale: 30, phase: 0.3);
+        if (FoldedFormulaCatalog.IsHybrid(variant))
+        {
+            overview.Hybrid = new();
+            second.Hybrid = new() { Steps = [new() { Formula = MandelbrotVariant.Celtic, Repeats = 2 },
+                new() { Formula = MandelbrotVariant.Tricorn, Power = 3 }] };
+            second.SaveName = "Celtic × Mandelbar · " + def.DisplayName;
+        }
+        return [overview, second];
+    }
 
     public static IReadOnlyList<PhoenixState> GetPhoenixPresets() =>
     [

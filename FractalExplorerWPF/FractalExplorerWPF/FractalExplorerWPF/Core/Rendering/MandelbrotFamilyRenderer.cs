@@ -59,6 +59,8 @@ public static partial class MandelbrotFamilyRenderer
         MandelbrotRenderTile tile,
         CancellationToken token)
     {
+        if (FoldedFormulaCatalog.IsProgram(state.Variant))
+            return RenderProgramTile(state, canvasWidth, canvasHeight, tile, token);
         if (ShouldUseDeepZoom(state))
             return RenderDeepZoomTile(state, canvasWidth, canvasHeight, tile, token);
 
@@ -108,6 +110,12 @@ public static partial class MandelbrotFamilyRenderer
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
         if (buffer.Length < stride * height) throw new ArgumentException("Буфер изображения слишком мал.", nameof(buffer));
+
+        if (FoldedFormulaCatalog.IsProgram(state.Variant))
+        {
+            RenderProgram(state, buffer, width, height, stride, token, reportProgress);
+            return;
+        }
 
         if (ShouldUseDeepZoom(state))
         {

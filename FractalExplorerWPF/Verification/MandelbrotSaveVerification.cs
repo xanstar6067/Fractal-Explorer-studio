@@ -39,6 +39,9 @@ internal static partial class Program
         {
             var node = JsonSerializer.SerializeToNode(state,options)!.AsObject();
             node.Remove("SaveName"); node.Remove("Timestamp");
+            // Decimal scale is formatting: an integer control may return 2 instead of 2.0.
+            node["Power"] = decimal.Parse(state.Power.ToString("G29", System.Globalization.CultureInfo.InvariantCulture),
+                System.Globalization.CultureInfo.InvariantCulture);
             if (state.CenterXExact is not null)
             {
                 node.Remove("CenterXExact"); node.Remove("CenterYExact");
@@ -56,7 +59,10 @@ internal static partial class Program
             Check(!Directory.Exists(AppPaths.ShaderCacheDirectory) || !Directory.EnumerateFiles(AppPaths.ShaderCacheDirectory,"*.cso").Any(),
                 "Save previews must not compile GPU shaders.");
         }
-        foreach (MandelbrotVariant variant in Enum.GetValues<MandelbrotVariant>())
+        string? only = args.FirstOrDefault(a => a.StartsWith("--only="))?[7..];
+        var selected = only?.Split(',').Select(name => Enum.Parse<MandelbrotVariant>(name)).ToHashSet();
+        MandelbrotVariant[] variants = Enum.GetValues<MandelbrotVariant>().Where(v => selected is null || selected.Contains(v)).ToArray();
+        foreach (MandelbrotVariant variant in variants)
         {
             var window = new MandelbrotWindow(variant);
             var store = new MandelbrotSaveStore(variant);
@@ -116,6 +122,7 @@ internal static partial class Program
                     state.JuliaCReal = 0; state.JuliaCImaginary = 0;
                     state.Power = MandelbrotVariantDefinition.ParameterVariant(variant) is
                         MandelbrotVariant.Generalized or MandelbrotVariant.CubicQuasiBurningShip or MandelbrotVariant.CubicFlyingSquirrel ? 3m : 2m;
+                    if (FoldedFormulaCatalog.IsProgram(variant)) state.Power = MandelbrotVariantDefinition.For(variant).DefaultPower;
                     state.Iterations = exponent >= 300 ? 3800 : 240;
                     if (exponent >= 26)
                     {
@@ -227,6 +234,6 @@ internal static partial class Program
             finally { window.Close(); }
         }
         if (output is not null) File.WriteAllText(Path.Combine(output,"results.csv"),report.ToString());
-        Console.WriteLine($"PASS (mandelbrot-saves): {cases} cases, {Enum.GetValues<MandelbrotVariant>().Length} variants, nine zoom depths to 1e1000, seven colour modes, presets, exact JSON/PNG/WPF round-trips, CPU-only previews and real manager controls.");
+        Console.WriteLine($"PASS (mandelbrot-saves): {cases} cases, {variants.Length} variants, nine zoom depths to 1e1000, seven colour modes, presets, exact JSON/PNG/WPF round-trips, CPU-only previews and real manager controls.");
     }
 }

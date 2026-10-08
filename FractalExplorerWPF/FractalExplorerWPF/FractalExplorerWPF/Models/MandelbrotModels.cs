@@ -36,7 +36,101 @@ public enum MandelbrotVariant
     CubicFlyingSquirrel,
     JuliaCelticMandelbar,
     JuliaCubicQuasiBurningShip,
-    JuliaCubicFlyingSquirrel
+    JuliaCubicFlyingSquirrel,
+    CubicBurningShip,
+    JuliaCubicBurningShip,
+    CubicBuffalo,
+    JuliaCubicBuffalo,
+    CubicCeltic,
+    JuliaCubicCeltic,
+    CubicMandelbar,
+    JuliaCubicMandelbar,
+    QuarticBurningShip,
+    JuliaQuarticBurningShip,
+    QuarticBuffalo,
+    JuliaQuarticBuffalo,
+    QuarticCeltic,
+    JuliaQuarticCeltic,
+    QuarticMandelbar,
+    JuliaQuarticMandelbar,
+    QuinticBurningShip,
+    JuliaQuinticBurningShip,
+    QuinticBuffalo,
+    JuliaQuinticBuffalo,
+    QuinticCeltic,
+    JuliaQuinticCeltic,
+    QuinticMandelbar,
+    JuliaQuinticMandelbar,
+    CubicPartialBurningShipReal,
+    JuliaCubicPartialBurningShipReal,
+    CubicPartialBurningShipImag,
+    JuliaCubicPartialBurningShipImag,
+    CubicQuasiPerpendicular,
+    JuliaCubicQuasiPerpendicular,
+    CubicCelticQuasiPerpendicular,
+    JuliaCubicCelticQuasiPerpendicular,
+    CubicQuasiPerpendicularBurningShip,
+    JuliaCubicQuasiPerpendicularBurningShip,
+    CubicQuasiPerpendicularBuffalo,
+    JuliaCubicQuasiPerpendicularBuffalo,
+    QuarticPartialBurningShipImag,
+    JuliaQuarticPartialBurningShipImag,
+    QuarticPartialBurningShipReal,
+    JuliaQuarticPartialBurningShipReal,
+    QuarticPartialBurningShipRealMandelbar,
+    JuliaQuarticPartialBurningShipRealMandelbar,
+    QuarticCelticPartialBurningShipImag,
+    JuliaQuarticCelticPartialBurningShipImag,
+    QuarticCelticPartialBurningShipReal,
+    JuliaQuarticCelticPartialBurningShipReal,
+    QuarticCelticPartialBurningShipRealMandelbar,
+    JuliaQuarticCelticPartialBurningShipRealMandelbar,
+    QuarticBuffaloPartialImag,
+    JuliaQuarticBuffaloPartialImag,
+    QuarticCelticMandelbar,
+    JuliaQuarticCelticMandelbar,
+    QuarticFalseQuasiPerpendicular,
+    JuliaQuarticFalseQuasiPerpendicular,
+    QuarticFalseQuasiHeart,
+    JuliaQuarticFalseQuasiHeart,
+    QuarticCelticFalseQuasiPerpendicular,
+    JuliaQuarticCelticFalseQuasiPerpendicular,
+    QuarticCelticFalseQuasiHeart,
+    JuliaQuarticCelticFalseQuasiHeart,
+    QuarticImagQuasi,
+    JuliaQuarticImagQuasi,
+    QuarticRealQuasiPerpendicular,
+    JuliaQuarticRealQuasiPerpendicular,
+    QuarticRealQuasiHeart,
+    JuliaQuarticRealQuasiHeart,
+    QuarticCelticImagQuasi,
+    JuliaQuarticCelticImagQuasi,
+    QuarticCelticRealQuasiPerpendicular,
+    JuliaQuarticCelticRealQuasiPerpendicular,
+    QuarticCelticRealQuasiHeart,
+    JuliaQuarticCelticRealQuasiHeart,
+    QuinticPartialBurningShipReal,
+    JuliaQuinticPartialBurningShipReal,
+    QuinticPartialBurningShipRealMandelbar,
+    JuliaQuinticPartialBurningShipRealMandelbar,
+    QuinticCelticMandelbar,
+    JuliaQuinticCelticMandelbar,
+    QuinticQuasiBurningShip,
+    JuliaQuinticQuasiBurningShip,
+    QuinticQuasiPerpendicular,
+    JuliaQuinticQuasiPerpendicular,
+    QuinticQuasiHeart,
+    JuliaQuinticQuasiHeart,
+    QuinticQuasiPerpendicularBurningShip,
+    JuliaQuinticQuasiPerpendicularBurningShip,
+    QuinticQuasiPerpendicularBuffalo,
+    JuliaQuinticQuasiPerpendicularBuffalo,
+    QuinticCelticQuasiPerpendicular,
+    JuliaQuinticCelticQuasiPerpendicular,
+    QuinticCelticQuasiHeart,
+    JuliaQuinticCelticQuasiHeart,
+    Hybrid,
+    JuliaHybrid
 }
 
 public enum MandelbrotColoringMode
@@ -77,7 +171,7 @@ public sealed record MandelbrotVariantDefinition(
     decimal DefaultJuliaReal = 0m,
     decimal DefaultJuliaImaginary = 0m)
 {
-    public static bool IsJulia(MandelbrotVariant variant) => variant is
+    public static bool IsJulia(MandelbrotVariant variant) => FoldedFormulaCatalog.IsJulia(variant) || variant is
         MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip or MandelbrotVariant.JuliaGeneralized
         or MandelbrotVariant.JuliaTricorn or MandelbrotVariant.JuliaBuffalo or MandelbrotVariant.JuliaCeltic
         or MandelbrotVariant.JuliaSimonobrot
@@ -106,7 +200,7 @@ public sealed record MandelbrotVariantDefinition(
         MandelbrotVariant.JuliaCelticMandelbar => MandelbrotVariant.CelticMandelbar,
         MandelbrotVariant.JuliaCubicQuasiBurningShip => MandelbrotVariant.CubicQuasiBurningShip,
         MandelbrotVariant.JuliaCubicFlyingSquirrel => MandelbrotVariant.CubicFlyingSquirrel,
-        _ => variant
+        _ => FoldedFormulaCatalog.ParameterVariant(variant)
     };
 
     public static MandelbrotVariantDefinition For(MandelbrotVariant variant) => variant switch
@@ -154,7 +248,7 @@ public sealed record MandelbrotVariantDefinition(
         MandelbrotVariant.CubicFlyingSquirrel => new(variant, "Кубическая летящая белка (Flying Squirrel)", "CubicFlyingSquirrel", 0, -0.25m, 0.75, DefaultPower: 3),
         MandelbrotVariant.JuliaCubicFlyingSquirrel => new(variant, "Кубическая летящая белка (Жюлиа)", "JuliaCubicFlyingSquirrel", 0, 0, 0.75,
             DefaultPower: 3, HasJuliaConstant: true, DefaultJuliaReal: -0.1m, DefaultJuliaImaginary: -0.85m),
-        _ => throw new ArgumentOutOfRangeException(nameof(variant))
+        _ => FoldedFormulaCatalog.Definition(variant)
     };
 }
 
@@ -234,6 +328,7 @@ public sealed class MandelbrotState
     public MandelbrotColoringMode ColoringMode { get; set; } = MandelbrotColoringMode.Smooth;
     public string PaletteName { get; set; } = string.Empty;
     public MandelbrotPalette Palette { get; set; } = new();
+    public HybridFormulaSettings Hybrid { get; set; } = new();
     public decimal Power { get; set; } = 2;
     public bool UseInversion { get; set; }
     public decimal JuliaCReal { get; set; }

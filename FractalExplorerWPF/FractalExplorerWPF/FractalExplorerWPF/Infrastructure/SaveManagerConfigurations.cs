@@ -441,6 +441,9 @@ public static class SaveManagerConfigurations
             details += $"\nКонстанта C: {Complex(state.JuliaCReal, state.JuliaCImaginary)}";
         MandelbrotVariantDefinition definition = MandelbrotVariantDefinition.For(state.Variant);
         if (definition.HasPower) details += $"\nСтепень: {state.Power:G6}";
+        if (FoldedFormulaCatalog.IsHybrid(state.Variant))
+            details += "\nЦикл: " + string.Join(" → ", state.Hybrid.Steps.Select(step =>
+                $"{MandelbrotVariantDefinition.For(step.Formula).DisplayName} p={step.Power} ×{step.Repeats}"));
         if (definition.HasInversion) details += $" · Инверсия: {(state.UseInversion ? "да" : "нет")}";
         return details;
     }

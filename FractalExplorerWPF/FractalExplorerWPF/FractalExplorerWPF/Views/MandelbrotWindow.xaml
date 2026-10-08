@@ -34,6 +34,16 @@
                     <TextBlock Text="Приближение"/>
                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="ZoomBox" TextChanged="ZoomBox_OnTextChanged"
                              ToolTip="Принимается и научная нотация: 1e500. Колесо мыши — ×1.5 за щелчок, с Ctrl — ×10, с Shift — ×1.05"/>
+                    <Expander x:Name="HybridExpander" Header="Последовательность гибрида" Visibility="Collapsed" IsExpanded="True">
+                        <StackPanel>
+                            <TextBlock Text="Строки выполняются сверху вниз и повторяются по кругу. Каждая итерация добавляет C." TextWrapping="Wrap" Margin="0,4,0,6"/>
+                            <TextBlock Text="Формула · степень · повторы" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            <StackPanel x:Name="HybridRowsPanel"/>
+                            <Button x:Name="HybridAddButton" Content="Добавить шаг" Click="HybridAdd_OnClick" Margin="0,5,0,3"/>
+                            <TextBlock x:Name="HybridValidationText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                        </StackPanel>
+                    </Expander>
+
                     <StackPanel x:Name="JuliaConstantPanel">
                         <TextBlock Text="Константа C (Re / Im)"/>
                         <UniformGrid Columns="2">

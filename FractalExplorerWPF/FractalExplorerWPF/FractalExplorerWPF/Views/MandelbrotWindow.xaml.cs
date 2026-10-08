@@ -90,7 +90,7 @@ public partial class MandelbrotWindow : Window
     //    Generalized/Simonobrot высокой целой степени (до p=12) шаг опорной орбиты в BigFloat
     //    дороже (O(p) умножений), поэтому на глубоком зуме с большим числом итераций рендер
     //    объективно медленнее, чем у z²+c, — практический компромисс, а не потолок типа.
-    private FloatExp EffectiveMaxZoom => MandelbrotVariantDefinition.ParameterVariant(_definition.Variant) switch
+    private FloatExp EffectiveMaxZoom => FoldedFormulaCatalog.IsProgram(_definition.Variant) ? MaxZoom : MandelbrotVariantDefinition.ParameterVariant(_definition.Variant) switch
     {
         MandelbrotVariant.Mandelbrot or MandelbrotVariant.BurningShip
             or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic
@@ -129,6 +129,7 @@ public partial class MandelbrotWindow : Window
         _renderTimer.Tick += RenderTimer_OnTick;
         _visualizationTimer.Tick += VisualizationTimer_OnTick;
         InitializeControls();
+        InitializeHybridControls();
         if (_definition.HasJuliaConstant && juliaReal.HasValue && juliaImaginary.HasValue)
         {
             _updatingControls = true;
@@ -212,6 +213,7 @@ public partial class MandelbrotWindow : Window
         int iterations = ReadInt(IterationsBox.Text, "итерации", 50, MaxIterations);
         decimal threshold = ReadDecimal(ThresholdBox.Text, "порог выхода", 0.1m, 1_000m);
         decimal power = ReadFormulaPower();
+        if (FoldedFormulaCatalog.IsHybrid(_definition.Variant)) _hybridSettings = ReadHybridControls();
         MandelbrotPalette palette = _paletteManager.ActivePalette.Clone(_paletteManager.ActivePalette.Name);
 
         return new MandelbrotState
@@ -231,6 +233,7 @@ public partial class MandelbrotWindow : Window
             PaletteName = palette.Name,
             Palette = palette,
             Power = power,
+            Hybrid = _hybridSettings.Clone(),
             UseInversion = InversionBox.IsChecked == true,
             JuliaCReal = _definition.HasJuliaConstant
                 ? ReadDecimal(JuliaRealBox.Text, "действительная часть C", -10m, 10m)
@@ -311,6 +314,7 @@ public partial class MandelbrotWindow : Window
         ThresholdBox.Text = state.Threshold.ToString(CultureInfo.InvariantCulture);
         ZoomBox.Text = FloatExpJsonConverter.ToDisplay(_zoom);
         PowerBox.Text = state.Power.ToString(CultureInfo.InvariantCulture);
+        LoadHybridSettings(state.Hybrid);
         InversionBox.IsChecked = state.UseInversion;
         JuliaRealBox.Text = state.JuliaCReal.ToString(CultureInfo.InvariantCulture);
         JuliaImaginaryBox.Text = state.JuliaCImaginary.ToString(CultureInfo.InvariantCulture);
@@ -353,7 +357,7 @@ public partial class MandelbrotWindow : Window
         UpdateJuliaMapMarker();
         if (_definition.HasJuliaConstant)
         {
-            _constantPicker?.UpdateFormulaParameters(state.Power, state.UseInversion);
+            _constantPicker?.UpdateFormulaParameters(state.Power, state.UseInversion, _hybridSettings);
             if (IsLoaded) _ = RenderJuliaMapPreviewAsync();
         }
         ScheduleRender();
@@ -393,7 +397,7 @@ public partial class MandelbrotWindow : Window
             {
                 try
                 {
-                    _constantPicker?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true);
+                    _constantPicker?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true, _hybridSettings);
                     _ = RenderJuliaMapPreviewAsync();
                 }
                 catch (Exception ex) { StatusText.Text = ex.Message; }
@@ -452,7 +456,7 @@ public partial class MandelbrotWindow : Window
         }
 
         MandelbrotVariant sourceVariant = MandelbrotVariantDefinition.ParameterVariant(_definition.Variant);
-        var dialog = new JuliaConstantPickerWindow(sourceVariant, real, imaginary, power, InversionBox.IsChecked == true) { Owner = this };
+        var dialog = new JuliaConstantPickerWindow(sourceVariant, real, imaginary, power, InversionBox.IsChecked == true, _hybridSettings) { Owner = this };
         _constantPicker = dialog;
         dialog.CanLivePreview = CanPreviewJuliaLive;
         dialog.ConstantApplied += (_, _) => ApplyPickerConstant(dialog, false);
@@ -519,6 +523,7 @@ public partial class MandelbrotWindow : Window
         {
             Variant = variant,
             Power = power,
+            Hybrid = _hybridSettings.Clone(),
             UseInversion = InversionBox.IsChecked == true,
             CenterX = centerX,
             CenterY = centerY,
@@ -1317,7 +1322,7 @@ public partial class MandelbrotWindow : Window
         CenterXExact = source.CenterXExact, CenterYExact = source.CenterYExact,
         Iterations = source.Iterations, Threshold = source.Threshold, Threads = source.Threads,
         ColoringMode = source.ColoringMode, PaletteName = source.PaletteName,
-        Palette = source.Palette.Clone(source.Palette.Name), Power = source.Power,
+        Palette = source.Palette.Clone(source.Palette.Name), Power = source.Power, Hybrid = source.Hybrid.Clone(),
         UseInversion = source.UseInversion, HistogramContrast = source.HistogramContrast,
         JuliaCReal = source.JuliaCReal, JuliaCImaginary = source.JuliaCImaginary,
         HistogramEnabledEqualization = source.HistogramEnabledEqualization,
