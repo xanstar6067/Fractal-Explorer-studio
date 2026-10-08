@@ -22,7 +22,15 @@ public enum MandelbrotVariant
     JuliaTricorn,
     JuliaBuffalo,
     JuliaCeltic,
-    JuliaSimonobrot
+    JuliaSimonobrot,
+    PerpendicularMandelbrot,
+    PerpendicularBurningShip,
+    PerpendicularCeltic,
+    PerpendicularBuffalo,
+    JuliaPerpendicularMandelbrot,
+    JuliaPerpendicularBurningShip,
+    JuliaPerpendicularCeltic,
+    JuliaPerpendicularBuffalo
 }
 
 public enum MandelbrotColoringMode
@@ -66,7 +74,11 @@ public sealed record MandelbrotVariantDefinition(
     public static bool IsJulia(MandelbrotVariant variant) => variant is
         MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip or MandelbrotVariant.JuliaGeneralized
         or MandelbrotVariant.JuliaTricorn or MandelbrotVariant.JuliaBuffalo or MandelbrotVariant.JuliaCeltic
-        or MandelbrotVariant.JuliaSimonobrot;
+        or MandelbrotVariant.JuliaSimonobrot
+        or MandelbrotVariant.JuliaPerpendicularMandelbrot
+        or MandelbrotVariant.JuliaPerpendicularBurningShip
+        or MandelbrotVariant.JuliaPerpendicularCeltic
+        or MandelbrotVariant.JuliaPerpendicularBuffalo;
 
     /// <summary>Та же формула на параметрической плоскости C; не меняет категорию сохранения.</summary>
     public static MandelbrotVariant ParameterVariant(MandelbrotVariant variant) => variant switch
@@ -78,6 +90,10 @@ public sealed record MandelbrotVariantDefinition(
         MandelbrotVariant.JuliaBuffalo => MandelbrotVariant.Buffalo,
         MandelbrotVariant.JuliaCeltic => MandelbrotVariant.Celtic,
         MandelbrotVariant.JuliaSimonobrot => MandelbrotVariant.Simonobrot,
+        MandelbrotVariant.JuliaPerpendicularMandelbrot => MandelbrotVariant.PerpendicularMandelbrot,
+        MandelbrotVariant.JuliaPerpendicularBurningShip => MandelbrotVariant.PerpendicularBurningShip,
+        MandelbrotVariant.JuliaPerpendicularCeltic => MandelbrotVariant.PerpendicularCeltic,
+        MandelbrotVariant.JuliaPerpendicularBuffalo => MandelbrotVariant.PerpendicularBuffalo,
         _ => variant
     };
 
@@ -105,6 +121,18 @@ public sealed record MandelbrotVariantDefinition(
         MandelbrotVariant.JuliaSimonobrot => new(variant, "Симоноброт (Жюлиа)", "JuliaSimonobrot", 0, 0, 0.75,
             HasPower: true, HasInversion: true, HasJuliaConstant: true,
             DefaultJuliaReal: -0.5m, DefaultJuliaImaginary: 0.2m),
+        MandelbrotVariant.PerpendicularMandelbrot => new(variant, "Перпендикулярный Мандельброт", "PerpendicularMandelbrot", -0.4m, 0, 0.75),
+        MandelbrotVariant.JuliaPerpendicularMandelbrot => new(variant, "Перпендикулярный Мандельброт (Жюлиа)", "JuliaPerpendicularMandelbrot", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.4m, DefaultJuliaImaginary: 0.2m),
+        MandelbrotVariant.PerpendicularBurningShip => new(variant, "Перпендикулярный горящий корабль", "PerpendicularBurningShip", -0.4m, 0, 0.75),
+        MandelbrotVariant.JuliaPerpendicularBurningShip => new(variant, "Перпендикулярный горящий корабль (Жюлиа)", "JuliaPerpendicularBurningShip", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.4m, DefaultJuliaImaginary: 0.3m),
+        MandelbrotVariant.PerpendicularCeltic => new(variant, "Перпендикулярный Celtic", "PerpendicularCeltic", -0.4m, 0, 0.75),
+        MandelbrotVariant.JuliaPerpendicularCeltic => new(variant, "Перпендикулярный Celtic (Жюлиа)", "JuliaPerpendicularCeltic", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.6m, DefaultJuliaImaginary: 0.2m),
+        MandelbrotVariant.PerpendicularBuffalo => new(variant, "Перпендикулярный Buffalo", "PerpendicularBuffalo", -0.4m, 0, 0.75),
+        MandelbrotVariant.JuliaPerpendicularBuffalo => new(variant, "Перпендикулярный Buffalo (Жюлиа)", "JuliaPerpendicularBuffalo", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.6m, DefaultJuliaImaginary: 0.3m),
         _ => throw new ArgumentOutOfRangeException(nameof(variant))
     };
 }

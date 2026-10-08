@@ -11,7 +11,7 @@ namespace FractalExplorerWPF.Infrastructure;
 /// <summary>
 /// Превью плиток каталога. Встроенные PNG для сетки декодируются уменьшенными, в полном размере —
 /// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы, Gray–Scott,
-/// орбитальные орнаменты, снежные кристаллы и новые варианты Жюлиа
+/// орбитальные орнаменты, снежные кристаллы и новые варианты Мандельброта/Жюлиа
 /// своих картинок не имеют: их превью рендерится по состоянию по умолчанию в фоне, по одному,
 /// и хранится в памяти (все вместе — несколько секунд). Если рендер не удался (например, нет
 /// Direct3D 11 для трёхмерных видов), плитка показывает встроенную картинку-заглушку.
@@ -34,7 +34,9 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
-        item.LaunchKey is "JuliaGeneralized" or "JuliaTricorn" or "JuliaBuffalo" or "JuliaCeltic" or "JuliaSimonobrot" or GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
+        item.LaunchKey is "JuliaGeneralized" or "JuliaTricorn" or "JuliaBuffalo" or "JuliaCeltic" or "JuliaSimonobrot"
+            or "PerpendicularMandelbrot" or "PerpendicularBurningShip" or "PerpendicularCeltic" or "PerpendicularBuffalo" or "JuliaPerpendicularMandelbrot" or "JuliaPerpendicularBurningShip" or "JuliaPerpendicularCeltic" or "JuliaPerpendicularBuffalo"
+            or GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -73,9 +75,9 @@ internal sealed class CatalogPreviewLoader
             return Fractal3DRenderer.RenderOnceAsync(
                 Fractal3DCatalog.CreateDefaultState(fractal3DKind), RenderedPixelSize, RenderedPixelSize, token);
         }
-        if (Enum.TryParse(item.LaunchKey, out MandelbrotVariant julia) && MandelbrotVariantDefinition.IsJulia(julia))
+        if (Enum.TryParse(item.LaunchKey, out MandelbrotVariant variant) && Enum.IsDefined(variant))
         {
-            MandelbrotState state = PresetManager.GetMandelbrotPresets(julia)[0];
+            MandelbrotState state = PresetManager.GetMandelbrotPresets(variant)[0];
             return Task.Run(() =>
             {
                 byte[] pixels = new byte[RenderedPixelSize * RenderedPixelSize * 4];

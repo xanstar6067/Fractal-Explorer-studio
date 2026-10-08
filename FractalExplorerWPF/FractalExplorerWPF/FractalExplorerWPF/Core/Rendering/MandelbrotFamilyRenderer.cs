@@ -721,6 +721,21 @@ public static partial class MandelbrotFamilyRenderer
                     2 * zr);
                 break;
             }
+            case MandelbrotVariant.PerpendicularMandelbrot:
+            case MandelbrotVariant.PerpendicularBurningShip:
+            case MandelbrotVariant.PerpendicularCeltic:
+            case MandelbrotVariant.PerpendicularBuffalo:
+            {
+                MandelbrotVariant family = MandelbrotVariantDefinition.ParameterVariant(state.Variant);
+                bool foldReal = family is MandelbrotVariant.PerpendicularMandelbrot or MandelbrotVariant.PerpendicularCeltic;
+                double wr = foldReal ? Math.Abs(zr) : zr;
+                double wi = foldReal ? -zi : -Math.Abs(zi);
+                result = Jacobian2.Multiply(ComplexJacobian(new Complex(2 * wr, 2 * wi)),
+                    new Jacobian2(foldReal ? Math.Sign(zr) : 1, 0, 0, foldReal ? -1 : -Math.Sign(zi)));
+                if (family is MandelbrotVariant.PerpendicularCeltic or MandelbrotVariant.PerpendicularBuffalo)
+                    result = Jacobian2.Multiply(new Jacobian2(Math.Sign(zr * zr - zi * zi), 0, 0, 1), result);
+                break;
+            }
             case MandelbrotVariant.Generalized:
             {
                 double power = (double)state.Power;
@@ -889,6 +904,24 @@ public static partial class MandelbrotFamilyRenderer
                 zr = real;
                 break;
             }
+            case MandelbrotVariant.PerpendicularMandelbrot:
+            case MandelbrotVariant.PerpendicularCeltic:
+            {
+                decimal real = zr * zr - zi * zi;
+                zi = -2 * Math.Abs(zr) * zi + ci;
+                zr = (MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.PerpendicularCeltic
+                    ? Math.Abs(real) : real) + cr;
+                break;
+            }
+            case MandelbrotVariant.PerpendicularBurningShip:
+            case MandelbrotVariant.PerpendicularBuffalo:
+            {
+                decimal real = zr * zr - zi * zi;
+                zi = -2 * zr * Math.Abs(zi) + ci;
+                zr = (MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.PerpendicularBuffalo
+                    ? Math.Abs(real) : real) + cr;
+                break;
+            }
             case MandelbrotVariant.Simonobrot:
             {
                 decimal magnitudeSquared = zr * zr + zi * zi;
@@ -951,6 +984,24 @@ public static partial class MandelbrotFamilyRenderer
                 double real = Math.Abs(zr * zr - zi * zi) + cr;
                 zi = 2 * zr * zi + ci;
                 zr = real;
+                break;
+            }
+            case MandelbrotVariant.PerpendicularMandelbrot:
+            case MandelbrotVariant.PerpendicularCeltic:
+            {
+                double real = zr * zr - zi * zi;
+                zi = -2 * Math.Abs(zr) * zi + ci;
+                zr = (MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.PerpendicularCeltic
+                    ? Math.Abs(real) : real) + cr;
+                break;
+            }
+            case MandelbrotVariant.PerpendicularBurningShip:
+            case MandelbrotVariant.PerpendicularBuffalo:
+            {
+                double real = zr * zr - zi * zi;
+                zi = -2 * zr * Math.Abs(zi) + ci;
+                zr = (MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.PerpendicularBuffalo
+                    ? Math.Abs(real) : real) + cr;
                 break;
             }
             case MandelbrotVariant.Simonobrot:

@@ -167,6 +167,15 @@ public static partial class MandelbrotFamilyRenderer
         Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
+        if (isJulia)
+        {
+            double initialReal = zReal.ToDouble(), initialImaginary = zImaginary.ToDouble();
+            double initialMagnitudeSquared = initialReal * initialReal + initialImaginary * initialImaginary;
+            if (initialMagnitudeSquared > escapeSquared)
+                return FinishDeepZoomPixelExp(0, initialMagnitudeSquared, double.MaxValue, 0,
+                    estimateDistance, initialReal, initialImaginary, derivative, distanceScale);
+        }
+
         while (iteration < maxIterations)
         {
             if ((iteration & 4095) == 0 && token.IsCancellationRequested) return default;

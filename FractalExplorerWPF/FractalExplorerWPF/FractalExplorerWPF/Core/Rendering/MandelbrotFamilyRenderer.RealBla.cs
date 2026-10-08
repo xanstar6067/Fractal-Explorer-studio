@@ -255,6 +255,24 @@ public static partial class MandelbrotFamilyRenderer
                             if (signReal == 0.0 || signImaginary == 0.0) blocked = true;
                             foldLimit = System.Math.Min(System.Math.Abs(zr), System.Math.Abs(zi));
                             break;
+                        case ReflectKind.PerpendicularMandelbrot:
+                        case ReflectKind.PerpendicularCeltic:
+                            foldedReferenceReal = System.Math.Abs(zr);
+                            foldedReferenceImaginary = -zi;
+                            diagonalReal = signReal;
+                            diagonalImaginary = -1.0;
+                            if (signReal == 0.0) blocked = true;
+                            foldLimit = System.Math.Abs(zr);
+                            break;
+                        case ReflectKind.PerpendicularBurningShip:
+                        case ReflectKind.PerpendicularBuffalo:
+                            foldedReferenceReal = zr;
+                            foldedReferenceImaginary = -System.Math.Abs(zi);
+                            diagonalReal = 1.0;
+                            diagonalImaginary = -signImaginary;
+                            if (signImaginary == 0.0) blocked = true;
+                            foldLimit = System.Math.Abs(zi);
+                            break;
                         default: // Tricorn — сопряжение, знак определён всегда, свёртки нет
                             foldedReferenceReal = zr;
                             foldedReferenceImaginary = -zi;
@@ -267,6 +285,17 @@ public static partial class MandelbrotFamilyRenderer
                     n12 = -2.0 * foldedReferenceImaginary * diagonalImaginary;
                     n21 = 2.0 * foldedReferenceImaginary * diagonalReal;
                     n22 = 2.0 * foldedReferenceReal * diagonalImaginary;
+                    if (reflect is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+                    {
+                        double u = zr * zr - zi * zi;
+                        double signU = System.Math.Sign(u);
+                        if (signU == 0.0) blocked = true;
+                        n11 *= signU;
+                        n12 *= signU;
+                        double magnitude = System.Math.Sqrt(zMagnitudeSquared);
+                        foldLimit = System.Math.Min(foldLimit,
+                            magnitude > 0.0 ? System.Math.Abs(u) / (3.0 * magnitude) : 0.0);
+                    }
                     secondOrderCoefficient = 1.0;
                 }
 

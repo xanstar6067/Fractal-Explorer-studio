@@ -98,7 +98,11 @@ public static partial class MandelbrotFamilyRenderer
     private static bool SupportsDeepZoom(MandelbrotState state) => MandelbrotVariantDefinition.ParameterVariant(state.Variant) switch
     {
         MandelbrotVariant.Mandelbrot or MandelbrotVariant.BurningShip
-            or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic => true,
+            or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic
+            or MandelbrotVariant.PerpendicularMandelbrot
+            or MandelbrotVariant.PerpendicularBurningShip
+            or MandelbrotVariant.PerpendicularCeltic
+            or MandelbrotVariant.PerpendicularBuffalo => true,
         MandelbrotVariant.Generalized => IsMultibrotDeepZoomPower(state.Power),
         MandelbrotVariant.Simonobrot => IsSimonobrotDeepZoomPower(state.Power),
         _ => false,
@@ -117,7 +121,7 @@ public static partial class MandelbrotFamilyRenderer
     // Варианты семейства с отражением/сопряжением: их линейная часть возмущения — не
     // комплексное умножение, а «свёртка знака» покомпонентно (см. DeepZoomPixelReflected).
     // Ускоряются вещественной 2×2 таблицей RealBlaTable, а не комплексной BlaTable.
-    private enum ReflectKind { BurningShip, Buffalo, Tricorn, Celtic }
+    private enum ReflectKind { BurningShip, Buffalo, Tricorn, Celtic, PerpendicularMandelbrot, PerpendicularBurningShip, PerpendicularCeltic, PerpendicularBuffalo }
 
     private static ReflectKind? ReflectKindOf(MandelbrotVariant variant) => MandelbrotVariantDefinition.ParameterVariant(variant) switch
     {
@@ -125,6 +129,10 @@ public static partial class MandelbrotFamilyRenderer
         MandelbrotVariant.Buffalo => ReflectKind.Buffalo,
         MandelbrotVariant.Tricorn => ReflectKind.Tricorn,
         MandelbrotVariant.Celtic => ReflectKind.Celtic,
+        MandelbrotVariant.PerpendicularMandelbrot => ReflectKind.PerpendicularMandelbrot,
+        MandelbrotVariant.PerpendicularBurningShip => ReflectKind.PerpendicularBurningShip,
+        MandelbrotVariant.PerpendicularCeltic => ReflectKind.PerpendicularCeltic,
+        MandelbrotVariant.PerpendicularBuffalo => ReflectKind.PerpendicularBuffalo,
         _ => null,
     };
 
@@ -227,6 +235,19 @@ public static partial class MandelbrotFamilyRenderer
         FloatExp distanceScale,
         CancellationToken token)
     {
+        // Julia starts at the pixel, so it can escape before the first iteration.
+        // Keep its iteration count, traps and initial derivative identical to direct CPU iteration.
+        if (isJulia)
+        {
+            double initialReal = orbit.Re[0] + deltaReal.ToDouble();
+            double initialImaginary = orbit.Im[0] + deltaImaginary.ToDouble();
+            double initialMagnitudeSquared = initialReal * initialReal + initialImaginary * initialImaginary;
+            if (initialMagnitudeSquared > escapeSquared)
+                return FinishDeepZoomPixelExp(0, initialMagnitudeSquared, double.MaxValue, 0,
+                    state.ColoringMode == MandelbrotColoringMode.DistanceEstimation,
+                    initialReal, initialImaginary, Jacobian2Exp.Identity, distanceScale);
+        }
+
         // Варианты с отражением/сопряжением идут своим ядром; за порогом FloatExpDeltaZoomBits
         // δ ведётся в FloatExp — тем же переключателем плана, что и у z²+c ниже.
         if (ReflectKindOf(state.Variant) is { } reflect)
@@ -847,14 +868,26 @@ public static partial class MandelbrotFamilyRenderer
                 wReal = zReal.Sign < 0 ? -zReal : zReal;
                 wImaginary = zImaginary.Sign < 0 ? -zImaginary : zImaginary;
                 break;
+            case ReflectKind.PerpendicularMandelbrot:
+            case ReflectKind.PerpendicularCeltic:
+                wReal = zReal.Sign < 0 ? -zReal : zReal;
+                wImaginary = -zImaginary;
+                break;
+            case ReflectKind.PerpendicularBurningShip:
+            case ReflectKind.PerpendicularBuffalo:
+                wReal = zReal;
+                wImaginary = zImaginary.Sign < 0 ? zImaginary : -zImaginary;
+                break;
             default: // Tricorn
                 wReal = zReal;
                 wImaginary = -zImaginary;
                 break;
         }
 
-        return (wReal * wReal - wImaginary * wImaginary + cReal,
-                two * wReal * wImaginary + cImaginary);
+        BigFloat real = wReal * wReal - wImaginary * wImaginary;
+        if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+            real = real.Sign < 0 ? -real : real;
+        return (real + cReal, two * wReal * wImaginary + cImaginary);
     }
 
     // ------------------------------------------------------------------ per-pixel perturbation
@@ -1338,6 +1371,20 @@ public static partial class MandelbrotFamilyRenderer
                             foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
                             foldedDeltaImaginary = FoldedDelta(referenceImaginary, deltaImaginary);
                             break;
+                        case ReflectKind.PerpendicularMandelbrot:
+                        case ReflectKind.PerpendicularCeltic:
+                            foldedReferenceReal = System.Math.Abs(referenceReal);
+                            foldedReferenceImaginary = -referenceImaginary;
+                            foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
+                            foldedDeltaImaginary = -deltaImaginary;
+                            break;
+                        case ReflectKind.PerpendicularBurningShip:
+                        case ReflectKind.PerpendicularBuffalo:
+                            foldedReferenceReal = referenceReal;
+                            foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
+                            foldedDeltaReal = deltaReal;
+                            foldedDeltaImaginary = -FoldedDelta(referenceImaginary, deltaImaginary);
+                            break;
                         default: // Tricorn — сопряжение, знак определён всегда
                             foldedReferenceReal = referenceReal;
                             foldedReferenceImaginary = -referenceImaginary;
@@ -1351,7 +1398,10 @@ public static partial class MandelbrotFamilyRenderer
                     double twoWDeltaImaginary = 2 * (foldedReferenceReal * foldedDeltaImaginary + foldedReferenceImaginary * foldedDeltaReal);
                     double foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
                     double foldedDeltaSquaredImaginary = 2 * foldedDeltaReal * foldedDeltaImaginary;
-                    deltaReal = twoWDeltaReal + foldedDeltaSquaredReal + addReal;
+                    double deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
+                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+                        deltaU = FoldedDelta(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
+                    deltaReal = deltaU + addReal;
                     deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;
                 }
 
@@ -1508,6 +1558,20 @@ public static partial class MandelbrotFamilyRenderer
                             foldedDeltaReal = FoldedDeltaExp(referenceReal, deltaReal);
                             foldedDeltaImaginary = FoldedDeltaExp(referenceImaginary, deltaImaginary);
                             break;
+                        case ReflectKind.PerpendicularMandelbrot:
+                        case ReflectKind.PerpendicularCeltic:
+                            foldedReferenceReal = System.Math.Abs(referenceReal);
+                            foldedReferenceImaginary = -referenceImaginary;
+                            foldedDeltaReal = FoldedDeltaExp(referenceReal, deltaReal);
+                            foldedDeltaImaginary = -deltaImaginary;
+                            break;
+                        case ReflectKind.PerpendicularBurningShip:
+                        case ReflectKind.PerpendicularBuffalo:
+                            foldedReferenceReal = referenceReal;
+                            foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
+                            foldedDeltaReal = deltaReal;
+                            foldedDeltaImaginary = -FoldedDeltaExp(referenceImaginary, deltaImaginary);
+                            break;
                         default: // Tricorn — сопряжение, знак определён всегда
                             foldedReferenceReal = referenceReal;
                             foldedReferenceImaginary = -referenceImaginary;
@@ -1520,7 +1584,10 @@ public static partial class MandelbrotFamilyRenderer
                     FloatExp twoWDeltaImaginary = (foldedReferenceReal * foldedDeltaImaginary + foldedReferenceImaginary * foldedDeltaReal) * 2.0;
                     FloatExp foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
                     FloatExp foldedDeltaSquaredImaginary = foldedDeltaReal * foldedDeltaImaginary * 2.0;
-                    deltaReal = twoWDeltaReal + foldedDeltaSquaredReal + addReal;
+                    FloatExp deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
+                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+                        deltaU = FoldedDeltaExp(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
+                    deltaReal = deltaU + addReal;
                     deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;
                 }
 

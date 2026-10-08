@@ -102,6 +102,46 @@ public static class PresetManager
             M("Радиальные три луча", variant, 0, 0, 0.9m, 400, "Неон", power: 3, juliaReal: -0.3m, juliaImaginary: 0.4m, scale: 35, phase: 0.3),
             M("Инверсия константы", variant, 0, 0, 0.8m, 400, "Лёд", power: 2, useInversion: true, juliaReal: 0.5m, juliaImaginary: 0.2m, scale: 35, phase: 0.3)
         ],
+        MandelbrotVariant.PerpendicularMandelbrot =>
+        [
+            M("Обзор множества", variant, -0.4m, 0, 0.75m, 450, "Аметист", scale: 25, phase: 0.3),
+            M("Граница крупным планом", variant, -1.4m, 0.04m, 12m, 650, "Лёд", scale: 8, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaPerpendicularMandelbrot =>
+        [
+            M("Отражённое кружево", variant, 0, 0, 0.75m, 450, "Аметист", juliaReal: -0.4m, juliaImaginary: 0.2m, scale: 35, phase: 0.3),
+            M("Разветвлённая форма", variant, 0, 0, 0.9m, 500, "Лёд", juliaReal: -1.2m, juliaImaginary: 0.05m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.PerpendicularBurningShip =>
+        [
+            M("Обзор множества", variant, -0.4m, 0, 0.75m, 450, "Огонь", scale: 25, phase: 0.3),
+            M("Граница крупным планом", variant, -1.4m, 0.04m, 12m, 650, "Лёд", scale: 8, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaPerpendicularBurningShip =>
+        [
+            M("Отражённое кружево", variant, 0, 0, 0.75m, 450, "Огонь", juliaReal: -0.4m, juliaImaginary: 0.3m, scale: 35, phase: 0.3),
+            M("Разветвлённая форма", variant, 0, 0, 0.9m, 500, "Лёд", juliaReal: -0.6m, juliaImaginary: 0.5m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.PerpendicularCeltic =>
+        [
+            M("Обзор множества", variant, -0.4m, 0, 0.75m, 450, "Океан", scale: 25, phase: 0.3),
+            M("Граница крупным планом", variant, -1.4m, 0.04m, 12m, 650, "Лёд", scale: 8, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaPerpendicularCeltic =>
+        [
+            M("Отражённое кружево", variant, 0, 0, 0.75m, 450, "Океан", juliaReal: -0.6m, juliaImaginary: 0.2m, scale: 35, phase: 0.3),
+            M("Разветвлённая форма", variant, 0, 0, 0.9m, 500, "Лёд", juliaReal: -1.2m, juliaImaginary: 0.05m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.PerpendicularBuffalo =>
+        [
+            M("Обзор множества", variant, -0.4m, 0, 0.75m, 450, "Бирюза", scale: 25, phase: 0.3),
+            M("Граница крупным планом", variant, -1.4m, 0.04m, 12m, 650, "Лёд", scale: 8, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaPerpendicularBuffalo =>
+        [
+            M("Отражённое кружево", variant, 0, 0, 0.75m, 450, "Бирюза", juliaReal: -0.6m, juliaImaginary: 0.3m, scale: 35, phase: 0.3),
+            M("Разветвлённая форма", variant, 0, 0, 0.9m, 500, "Лёд", juliaReal: -0.8m, juliaImaginary: 0.4m, scale: 35, phase: 0.3)
+        ],
         MandelbrotVariant.Generalized =>
         [
             M("Трилистник (p=3.0)", variant, 0m, 0m, 0.8m, 500, "Ультрафиолет", power: 3m, scale: 15, phase: 0.2),

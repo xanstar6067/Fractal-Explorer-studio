@@ -172,6 +172,17 @@ internal static class Program
                 await Task.Delay(150);
             return;
         }
+        if (win is JuliaConstantPickerWindow)
+        {
+            var mapWait = System.Diagnostics.Stopwatch.StartNew();
+            while (mapWait.ElapsedMilliseconds < maxExtraMs)
+            {
+                if (GetMember(win, "_hasRenderedFrame") is true && GetMember(win, "_renderCts") is null &&
+                    GetMember(win, "_renderTimer") is DispatcherTimer { IsEnabled: false }) return;
+                await Task.Delay(150);
+            }
+            throw new TimeoutException("Карта C не завершила рендер перед захватом.");
+        }
         string renderFlag = win is DynamicSystemWindow ? "_rendering" : "_isRendering";
         if (GetMember(win, renderFlag) is not bool) return;
 
@@ -784,6 +795,13 @@ internal static class Program
                     object mgr = GetMember(w, "_paletteManager")!;
                     await CaptureChildAsync(w, (Window)Activator.CreateInstance(typeof(MandelbrotPaletteWindow), mgr)!, "mandelbrot-palette-editor");
                     await CaptureChildAsync(w, new JuliaConstantPickerWindow(MandelbrotVariant.Mandelbrot, -0.5m, 0.0m), "julia-constant-picker");
+                }
+                if (w != null && MandelbrotVariantDefinition.IsJulia(variant))
+                {
+                    var definition = MandelbrotVariantDefinition.For(variant);
+                    await CaptureChildAsync(w, new JuliaConstantPickerWindow(
+                        MandelbrotVariantDefinition.ParameterVariant(variant), definition.DefaultJuliaReal,
+                        definition.DefaultJuliaImaginary, definition.DefaultPower), slug + "-constant-picker");
                 }
                 SafeCloseIfAny(w);
                 return;

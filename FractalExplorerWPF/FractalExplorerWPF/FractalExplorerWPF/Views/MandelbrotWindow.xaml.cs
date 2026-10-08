@@ -94,6 +94,10 @@ public partial class MandelbrotWindow : Window
     {
         MandelbrotVariant.Mandelbrot or MandelbrotVariant.BurningShip
             or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic
+            or MandelbrotVariant.PerpendicularMandelbrot
+            or MandelbrotVariant.PerpendicularBurningShip
+            or MandelbrotVariant.PerpendicularCeltic
+            or MandelbrotVariant.PerpendicularBuffalo
             or MandelbrotVariant.Generalized or MandelbrotVariant.Simonobrot => MaxZoom,
         _ => 5e28,
     };

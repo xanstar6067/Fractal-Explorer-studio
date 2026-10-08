@@ -142,7 +142,7 @@ internal static partial class Program
         List<string> newton = Search("ньютон");
         Check(newton.Contains("Бассейны Ньютона+") && newton.Contains("Бассейны метода Лагерра"),
             "Search must look into descriptions, not only names.");
-        Check(Search("корабль жюлиа").ToHashSet().SetEquals(["Горящий Корабль (Жюлиа)", "Горящий корабль 3D — Жюлиа"]),
+        Check(Search("корабль жюлиа").ToHashSet().SetEquals(["Горящий Корабль (Жюлиа)", "Горящий корабль 3D — Жюлиа", "Перпендикулярный горящий корабль (Жюлиа)"]),
             "All words of the query must match, in any order.");
         List<string> attractors = Search("аттракторы");
         Check(catalog.Where(item => item.CategoryPath[^1] == "Аттракторы").All(item => attractors.Contains(item.DisplayName)),
@@ -266,7 +266,7 @@ internal static partial class Program
             Check(CatalogDescendants<GroupItem>(window.CatalogGallery).Any(group =>
                       CatalogDescendants<TextBlock>(group).Any(text => text.Text == "Семейство Мандельброта") &&
                       CatalogDescendants<TextBlock>(group).Any(text => text.Text == "Фракталы › Комплексная динамика") &&
-                      CatalogDescendants<TextBlock>(group).Any(text => text.Text == "7")),
+                      CatalogDescendants<TextBlock>(group).Any(text => text.Text == "11")),
                 "Group headers must show the group title, its parent path and item count.");
             string? pngDirectory = outputDirectory is null ? null : Directory.CreateDirectory(outputDirectory).FullName;
             SaveCatalogPng(root, pngDirectory, "01-all-modes");
@@ -274,8 +274,8 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + 12,
-                "Laboratories, 3D fractals, Gray–Scott, Turing patterns, Sprott, Symmetric Icons, Popcorn, snow crystals, Hopalong and the five new Julia modes must be rendered on the fly.");
+                    Enum.GetValues<Fractal3DKind>().Length + 20,
+                "Laboratories, 3D fractals, Gray–Scott, Turing patterns, Sprott, Symmetric Icons, Popcorn, snow crystals, Hopalong and the new Mandelbrot/Julia modes must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,
@@ -318,13 +318,13 @@ internal static partial class Program
             // ----- Разделы -----
             window.ScopeList.SelectedItem = mandelbrotFamily;
             await LayoutCatalogAsync(root);
-            Check(window.CurrentScope == mandelbrotFamily && ViewItems(window).Count == 7 && window.GalleryView.Groups is null,
+            Check(window.CurrentScope == mandelbrotFamily && ViewItems(window).Count == 11 && window.GalleryView.Groups is null,
                 "A leaf category must show its modes without group headers.");
             Check(window.GalleryTitle.Text == "Семейство Мандельброта" &&
-                  window.GallerySubtitle.Text == "Фракталы › Комплексная динамика · 7 режимов",
+                  window.GallerySubtitle.Text == "Фракталы › Комплексная динамика · 11 режимов",
                 $"Wrong leaf header: {window.GalleryTitle.Text} / {window.GallerySubtitle.Text}.");
             Check(window.SelectedTile == mandelbrot, "A selection inside the new scope must be kept.");
-            CheckTileContainers(window, 7);
+            CheckTileContainers(window, 11);
 
             window.ScopeList.SelectedItem = laboratories;
             await LayoutCatalogAsync(root);
@@ -349,10 +349,13 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(ViewItems(window).Take(8).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+                ["PerpendicularMandelbrot", "PerpendicularBurningShip", "PerpendicularCeltic", "PerpendicularBuffalo", "JuliaPerpendicularMandelbrot", "JuliaPerpendicularBurningShip", "JuliaPerpendicularCeltic", "JuliaPerpendicularBuffalo"]),
+                "The eight perpendicular modes must lead new arrivals.");
+            Check(ViewItems(window).Skip(8).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["JuliaGeneralized", "JuliaTricorn", "JuliaBuffalo", "JuliaCeltic", "JuliaSimonobrot"]),
-                "The five separate Julia modes must lead new arrivals.");
-            Check(ViewItems(window).Skip(5).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+                "The previous Julia modes must retain their chronology after the perpendicular modes.");
+            Check(ViewItems(window).Skip(13).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lenia3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Physarum3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lichtenberg3D),
