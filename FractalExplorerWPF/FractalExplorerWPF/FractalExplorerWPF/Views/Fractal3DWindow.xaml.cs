@@ -135,6 +135,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.GrayScott3D) state.GrayScott = CheckpointGrayScott(state.GrayScott);
         if (Kind == Fractal3DKind.Turing3D) state.Turing = CheckpointTuring(state.Turing);
         if (Kind == Fractal3DKind.CahnHilliard3D) state.CahnHilliard = CheckpointCahnHilliard(state.CahnHilliard);
+        if (Kind == Fractal3DKind.Lenia3D) state.Lenia = CheckpointLenia(state.Lenia);
         if (Kind == Fractal3DKind.Physarum3D) state.Physarum = CheckpointPhysarum(state.Physarum);
         return state;
     }
@@ -163,6 +164,7 @@ public partial class Fractal3DWindow : Window
         Turing = CaptureTuring(),
         CahnHilliard = CaptureCahnHilliard(),
         Physarum = CapturePhysarum(),
+        Lenia = CaptureLenia(),
         Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
             ? ReadInt(PowerBox, "Степень", 2, Kind == Fractal3DKind.Phoenix ? 6 : 16)
             : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
@@ -333,6 +335,7 @@ public partial class Fractal3DWindow : Window
         LoadTuring(state.Turing);
         LoadCahnHilliard(state.CahnHilliard);
         LoadPhysarum(state.Physarum);
+        LoadLenia(state.Lenia);
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -376,6 +379,14 @@ public partial class Fractal3DWindow : Window
 
     private void ConfigureKindLayout()
     {
+        LeniaPanel.Visibility = LeniaOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lenia3D);
+        if (Kind == Fractal3DKind.Lenia3D)
+        {
+            ShapeExpander.Header = "Lenia · правило жизни";
+            ((ComboBoxItem)ColoringModeBox.Items[(int)Fractal3DColoringMode.OrbitTrap]).Content = "По плотности клеток";
+            foreach (var mode in new[] { Fractal3DColoringMode.CrossTrap, Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
+                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
+        }
         PhysarumPanel.Visibility = PhysarumOverlay.Visibility = Collapse(Kind == Fractal3DKind.Physarum3D);
         if (Kind == Fractal3DKind.Physarum3D)
         {
@@ -453,7 +464,7 @@ public partial class Fractal3DWindow : Window
             foreach (var mode in new[] { Fractal3DColoringMode.CrossTrap, Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
                 ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
         }
-        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.LSystem3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D));
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.LSystem3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D));
         BuddhabrotEditor.Visibility = Collapse(Kind == Fractal3DKind.Buddhabrot4D);
         if (Kind == Fractal3DKind.Buddhabrot4D) ShapeExpander.Header = "Проекция и орбиты";
         LichtenbergPanel.Visibility = LichtenbergOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lichtenberg3D);
@@ -500,13 +511,13 @@ public partial class Fractal3DWindow : Window
         }
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
         AttractorPanel.Visibility = Collapse(Kind == Fractal3DKind.StrangeAttractor);
-        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D));
-        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D);
-        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D);
+        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D));
+        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D);
+        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D);
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D));
+            Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -795,6 +806,7 @@ public partial class Fractal3DWindow : Window
         else if (Kind == Fractal3DKind.GrayScott3D) PauseGrayScott();
         else if (Kind == Fractal3DKind.Turing3D) PauseTuring();
         else if (Kind == Fractal3DKind.CahnHilliard3D) PauseCahnHilliard();
+        else if (Kind == Fractal3DKind.Lenia3D) { CancelLeniaSearch(); PauseLenia(); }
         else if (Kind == Fractal3DKind.Physarum3D) { CancelPhysarumSearch(); PausePhysarum(); }
         else _renderCts?.Cancel();
     }
@@ -827,6 +839,7 @@ public partial class Fractal3DWindow : Window
         SuspendTuring();
         SuspendCahnHilliard();
         SuspendPhysarum();
+        SuspendLenia();
         if (Kind == Fractal3DKind.Hopf) HopfEditor.Stop();
         DetachLoop();
         _renderCts?.Cancel();
@@ -984,6 +997,11 @@ public partial class Fractal3DWindow : Window
                     return;
                 }
             }
+            if (Kind == Fractal3DKind.Lenia3D)
+            {
+                if (_leniaPending is not null) state.Lenia = state.Lenia with { Live = _leniaPending };
+                if (state.Lenia.Live is null) return;
+            }
             if (Kind == Fractal3DKind.Physarum3D)
             {
                 if (_physarumPending is not null) state.Physarum = state.Physarum with { Live = _physarumPending };
@@ -1055,7 +1073,7 @@ public partial class Fractal3DWindow : Window
                 var progress = new Progress<int>(ReportProgress);
                 BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
                 cts.Token.ThrowIfCancellationRequested();
-                if (!IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
+                if (!IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
                 RenderOptions.SetBitmapScalingMode(CanvasImage, BitmapScalingMode.HighQuality);
                 CanvasImage.Source = bitmap;
                 StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {width}×{height}, " +
@@ -1091,7 +1109,7 @@ public partial class Fractal3DWindow : Window
                 // Кадр уступил место движению камеры: показывать половину нечего, следующий уже
                 // в очереди. Это обычный ход, поэтому ни исключения, ни сообщения здесь нет.
                 if (!frame.Completed) return;
-                if (!IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
+                if (!IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
 
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
                 RenderOptions.SetBitmapScalingMode(CanvasImage,
@@ -1118,6 +1136,7 @@ public partial class Fractal3DWindow : Window
             OnTuringFrameDisplayed(state);
             OnCahnFrameDisplayed(state);
             OnPhysarumFrameDisplayed(state);
+            OnLeniaFrameDisplayed(state);
             if (Kind == Fractal3DKind.LSystem3D)
                 LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount);
             if (Kind == Fractal3DKind.Hopf)
@@ -1139,6 +1158,11 @@ public partial class Fractal3DWindow : Window
             {
                 EndTuringPreparation();
                 UpdateTuringLabels();
+            }
+            if (Kind == Fractal3DKind.Lenia3D && IsCurrentLeniaFrame(state))
+            {
+                _leniaRunning = false; _leniaPreparing = false;
+                LeniaPreparationOverlay.Visibility = Visibility.Collapsed; UpdateLeniaLabels();
             }
             if (Kind == Fractal3DKind.Physarum3D && IsCurrentPhysarumFrame(state))
             {
@@ -1261,7 +1285,7 @@ public partial class Fractal3DWindow : Window
 
     private void UpdateCancelAvailability()
     {
-        bool enabled = _isRendering || _lichtenbergRunning || (Kind == Fractal3DKind.Dla3D && _dlaRunning) || _grayRunning || _grayBusy || _physarumSearchCts is not null || _physarumRunning || _cahnRunning || _turingRunning || _physarumBusy || _cahnBusy || _turingBusy;
+        bool enabled = _leniaBusy || _leniaRunning || _leniaSearchCts is not null || _isRendering || _lichtenbergRunning || (Kind == Fractal3DKind.Dla3D && _dlaRunning) || _grayRunning || _grayBusy || _physarumSearchCts is not null || _physarumRunning || _cahnRunning || _turingRunning || _physarumBusy || _cahnBusy || _turingBusy;
         if (CancelButton.IsEnabled != enabled) CancelButton.IsEnabled = enabled;
     }
 
@@ -1282,6 +1306,8 @@ public partial class Fractal3DWindow : Window
         {
             GrayPlay_OnClick(sender, e); e.Handled = true; return;
         }
+        if (Kind == Fractal3DKind.Lenia3D && e.Key == Key.Space && Keyboard.FocusedElement is not TextBox)
+        { LeniaPlay_OnClick(sender,e); e.Handled = true; return; }
         if (Kind == Fractal3DKind.Physarum3D && e.Key == Key.Space && Keyboard.FocusedElement is not TextBox)
         { PhysarumPlay_OnClick(sender,e); e.Handled = true; return; }
         if (Kind == Fractal3DKind.CahnHilliard3D && e.Key == Key.Space && Keyboard.FocusedElement is not TextBox)
@@ -1328,6 +1354,7 @@ public partial class Fractal3DWindow : Window
         CloseTuring();
         CloseCahnHilliard();
         ClosePhysarum();
+        CloseLenia();
         LSystemEditor.CancelWork();
         HopfEditor.Stop();
         _dlaRunning = false;

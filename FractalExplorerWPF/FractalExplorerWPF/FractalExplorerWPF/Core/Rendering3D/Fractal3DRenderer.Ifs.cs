@@ -14,6 +14,7 @@ public sealed partial class Fractal3DRenderer
     internal int BuddhabrotSamplingBuilds { get; private set; }
     private ID3D11PixelShader? _dlaPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
+    private ID3D11PixelShader? _leniaPixelShader;
     private ID3D11PixelShader? _physarumPixelShader;
     private ID3D11PixelShader? _turingPixelShader;
     private ID3D11PixelShader? _cahnHilliardPixelShader;
@@ -31,6 +32,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Lenia3D)
+            return _leniaPixelShader ??= _device!.CreatePixelShader(Compile(LeniaPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Physarum3D)
             return _physarumPixelShader ??= _device!.CreatePixelShader(Compile(PhysarumPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.GrayScott3D)
@@ -59,6 +62,7 @@ public sealed partial class Fractal3DRenderer
     /// <summary>Объём для трассировки: Gray–Scott 3D и узоры Тьюринга 3D живут на ГП, остальные строятся на ЦП и загружаются.</summary>
     private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token)
     {
+        if (state.Kind == Fractal3DKind.Lenia3D) return LeniaVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Physarum3D) return PhysarumVolumeView(state, token);
         if (state.Kind == Fractal3DKind.GrayScott3D) return GrayScottVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Turing3D) return TuringVolumeView(state, token);
@@ -183,6 +187,8 @@ public sealed partial class Fractal3DRenderer
                  first.Lichtenberg.Field is null && second.Lichtenberg.Field is null);
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
+        if (first.Kind == Fractal3DKind.Lenia3D)
+            return first.Lenia.Live == second.Lenia.Live && first.Lenia.SameEvolution(second.Lenia);
         if (first.Kind == Fractal3DKind.CahnHilliard3D)
             return first.CahnHilliard.Live == second.CahnHilliard.Live && first.CahnHilliard.SameEvolution(second.CahnHilliard);
         if (first.Kind == Fractal3DKind.Turing3D)
@@ -244,6 +250,8 @@ public sealed partial class Fractal3DRenderer
         DisposeTuringPreview();
         _cahnHilliardPixelShader?.Dispose();
         DisposeCahnHilliardPreview();
+        _leniaPixelShader?.Dispose();
+        DisposeLeniaPreview();
         _physarumPixelShader?.Dispose();
         DisposePhysarumPreview();
         _dlaCluster = null;

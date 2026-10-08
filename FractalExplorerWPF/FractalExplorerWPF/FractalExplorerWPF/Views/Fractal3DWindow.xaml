@@ -141,6 +141,44 @@
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                            Text="Изменение затравки, прилипания или потока начинает новый рост. Палитра, свет и камера меняют готовый объём."/>
                             </StackPanel>
+                            <StackPanel x:Name="LeniaPanel" Visibility="Collapsed">
+                                <TextBlock Text="Клетки чувствуют плотность соседей через сферическое ядро. Правило роста рождает движение и пульсации." TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                <TextBlock x:Name="LeniaDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <Expander Header="Поиск форм" IsExpanded="True"><StackPanel>
+                                    <Button x:Name="LeniaSearchButton" Content="Найти живую форму" Click="LeniaSearch_OnClick"/>
+                                    <Button x:Name="LeniaVariationButton" Content="Вариация текущей" Click="LeniaVariation_OnClick"/>
+                                    <Button x:Name="LeniaSearchUndoButton" Content="Вернуть предыдущую форму" Click="LeniaSearchUndo_OnClick" IsEnabled="False"/>
+                                    <ProgressBar x:Name="LeniaSearchProgress" Height="4" Margin="0,6" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="LeniaSearchStatus" Text="Подбор с проверкой выживания. Найденную форму можно продолжить или изменить." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                </StackPanel></Expander>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка объёма"/>
+                                <ComboBox x:Name="LeniaSizeBox" SelectedIndex="1"><ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="64³ · стандарт"/><ComboBoxItem Content="128³ · просторно"/></ComboBox>
+                                <Expander Header="Правило роста" IsExpanded="True"><StackPanel>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Центр роста μ (0,01–0,5)"/><TextBox x:Name="LeniaMeanBox" Text="0.17" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Ширина роста σ (0,002–0,15)"/><TextBox x:Name="LeniaWidthBox" Text="0.014" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Функция роста"/><ComboBox x:Name="LeniaGrowthBox" SelectedIndex="0"><ComboBoxItem Content="Полиномиальная · исходные виды"/><ComboBoxItem Content="Гауссова"/></ComboBox>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt (0,01–0,2)"/><TextBox x:Name="LeniaDtBox" Text="0.1" numeric:NumericSpinner.IsEnabled="True"/>
+                                </StackPanel></Expander>
+                                <Expander Header="Сферическое ядро"><StackPanel>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус · ячеек (2…N/2−1)"/><TextBox x:Name="LeniaRadiusBox" Text="18" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Число оболочек"/><ComboBox x:Name="LeniaShellCountBox" SelectedIndex="1"><ComboBoxItem Content="1"/><ComboBoxItem Content="2"/><ComboBoxItem Content="3"/><ComboBoxItem Content="4"/></ComboBox>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Веса β₁, β₂, β₃, β₄ (0–1)"/>
+                                    <UniformGrid Columns="2"><TextBox x:Name="LeniaBeta1Box" Text="1" numeric:NumericSpinner.IsEnabled="True"/><TextBox x:Name="LeniaBeta2Box" Text="0.416667" numeric:NumericSpinner.IsEnabled="True"/><TextBox x:Name="LeniaBeta3Box" Text="0" numeric:NumericSpinner.IsEnabled="True"/><TextBox x:Name="LeniaBeta4Box" Text="0" numeric:NumericSpinner.IsEnabled="True"/></UniformGrid>
+                                </StackPanel></Expander>
+                                <Expander Header="Затравка и подготовка"><StackPanel>
+                                    <ComboBox x:Name="LeniaSeedBox" SelectedIndex="0"><ComboBoxItem Content="Вращающийся куб"/><ComboBoxItem Content="Пульсирующая сфера"/><ComboBoxItem Content="Прыгающая пара"/><ComboBoxItem Content="Живой тор"/><ComboBoxItem Content="Вращающийся октаэдр"/><ComboBoxItem Content="Случайное облако"/><ComboBoxItem Content="Пустая среда"/></ComboBox>
+                                    <TextBlock Text="Для исходного вида выбирайте готовый пресет сверху: он задаёт и затравку, и правило." FontSize="11" TextWrapping="Wrap" Margin="0,4"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шум затравки (0–0,15)"/><TextBox x:Name="LeniaNoiseBox" Text="0" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/><TextBox x:Name="LeniaRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–3000)"/><TextBox x:Name="LeniaWarmupBox" Text="60" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                </StackPanel></Expander>
+                                <Button Content="Применить и начать заново" Click="LeniaRestart_OnClick"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/><Slider x:Name="LeniaSpeedSlider" Minimum="1" Maximum="32" Value="2" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Порог видимости"/><Slider x:Name="LeniaLevelSlider" Minimum="0.01" Maximum="0.9" Value="0.2" ValueChanged="LeniaView_OnChanged"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/><ComboBox x:Name="LeniaCutBox" SelectionChanged="LeniaView_OnChanged"><ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/></ComboBox>
+                                <Slider x:Name="LeniaCutSlider" Minimum="-1" Maximum="1" Value="0.05" ValueChanged="LeniaView_OnChanged"/>
+                                <TextBlock Text="Пробел — пауза/продолжение. Свечение и срез показывают внутренние полости. Сохранение запоминает каждую клетку." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
                             <StackPanel x:Name="PhysarumPanel" Visibility="Collapsed">
                                 <TextBlock Text="Агенты чувствуют след, выбирают путь и оставляют новые нити. Сеть непрерывно перестраивается." TextWrapping="Wrap" Margin="0,4,0,8"/>
                                 <TextBlock x:Name="PhysarumDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
@@ -1101,6 +1139,9 @@
                         <Button x:Name="PhysarumStepButton" Content="Один кадр" Click="PhysarumStep_OnClick"/>
                     </StackPanel>
                 </Border>
+                <Border x:Name="LeniaOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="10" CornerRadius="8" Background="{DynamicResource Theme.PanelBackgroundBrush}">
+                    <StackPanel><TextBlock x:Name="LeniaTimeText" FontSize="11"/><Button x:Name="LeniaPlayButton" Content="▶ Продолжить" Click="LeniaPlay_OnClick"/><Button x:Name="LeniaStepButton" Content="Один кадр" Click="LeniaStep_OnClick"/></StackPanel>
+                </Border>
                 <Border x:Name="CahnOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
@@ -1128,6 +1169,9 @@
                         <ProgressBar x:Name="PhysarumPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
                         <Button Content="Остановить и показать" Click="PhysarumStopPreparation_OnClick"/>
                     </StackPanel>
+                </Border>
+                <Border x:Name="LeniaPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="330"><TextBlock x:Name="LeniaPreparationText" Text="Развитие Lenia…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/><ProgressBar x:Name="LeniaPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/><Button Content="Остановить и показать" Click="LeniaStopPreparation_OnClick"/></StackPanel>
                 </Border>
                 <Border x:Name="CahnPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="430">

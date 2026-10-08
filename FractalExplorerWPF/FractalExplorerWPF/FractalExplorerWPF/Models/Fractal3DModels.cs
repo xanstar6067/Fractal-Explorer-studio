@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Text.Json.Serialization;
+using FractalExplorerWPF.Infrastructure;
 using Color = System.Windows.Media.Color;
 
 namespace FractalExplorerWPF.Models;
@@ -33,7 +34,8 @@ public enum Fractal3DKind
     CahnHilliard3D,
     Hopf,
     Lichtenberg3D,
-    Physarum3D
+    Physarum3D,
+    Lenia3D
 }
 
 public enum Hybrid3DOrder
@@ -304,6 +306,7 @@ public sealed class Fractal3DState
     public Turing3DSettings Turing { get; set; } = new();
     public CahnHilliard3DSettings CahnHilliard { get; set; } = new();
     public Physarum3DSettings Physarum { get; set; } = new();
+    public Lenia3DSettings Lenia { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
 
@@ -407,6 +410,7 @@ public sealed class Fractal3DState
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.Turing = Turing is null ? new() : Turing with { };
+        clone.Lenia = Lenia is null ? new() : Lenia with { };
         clone.CahnHilliard = CahnHilliard is null ? new() : CahnHilliard with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
@@ -501,6 +505,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Lenia3D => new(
+            "Lenia 3D · искусственная жизнь", "Lenia · 3D",
+            "Непрерывный клеточный автомат: сферическое ядро чувствует соседей, а правило роста рождает пульсации, вращение и движение. Пять трёхмерных видов, поиск форм, срезы и точное продолжение.",
+            "Fractal3DLenia", "lenia3d"),
         Fractal3DKind.Physarum3D => new(
             "Physarum 3D · живая паутина", "Physarum · 3D",
             "Тысячи агентов чувствуют след соседей, прокладывают пути и перестраивают объёмную сеть. Светящиеся нити, нейронные сферы и живые торы; камера открывает глубину переплетений.",
@@ -625,6 +633,7 @@ public static class Fractal3DCatalog
             if (mode == Fractal3DColoringMode.CrossTrap) return "По широте на базовой сфере";
             if (mode == Fractal3DColoringMode.IterationIndex) return "По номеру кольца";
         }
+        if (kind == Fractal3DKind.Lenia3D && mode == Fractal3DColoringMode.OrbitTrap) return "Плотность клеток";
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
             return "По составу смеси";
         if ((kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D) && mode == Fractal3DColoringMode.IterationIndex)
@@ -741,6 +750,14 @@ public static class Fractal3DCatalog
                 state.CameraDistance = 3.1;
                 state.SoftShadows = false;
                 state.AmbientOcclusion = true;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                break;
+            case Fractal3DKind.Lenia3D:
+                state.ShadingStyle = Fractal3DShadingStyle.Glow;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.Palette = Fractal3DPalettes.Get("Северное сияние");
+                state.EffectStrength = 1.4; state.CameraDistance = 1.05;
+                state.BackgroundTop = Color.FromRgb(35, 49, 71); state.BackgroundBottom = Color.FromRgb(7, 11, 20);
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
             case Fractal3DKind.Physarum3D:
@@ -1036,6 +1053,14 @@ public static class Fractal3DCatalog
                 s.ColorScale = .5; s.ColorOffset = .5;
                 s.CameraDistance = 3.6;
             })
+        ],
+        Fractal3DKind.Lenia3D =>
+        [
+            Preset(kind, "Вращающийся куб · Hexahedrome", s => s.Lenia = Lenia3DSeedLibrary.Settings(Lenia3DSeed.RotatingCube)),
+            Preset(kind, "Пульсирующая сфера · Sphaerome", s => { s.Lenia = Lenia3DSeedLibrary.Settings(Lenia3DSeed.PulsatingSphere); s.CameraDistance = 1.25; s.Palette = Fractal3DPalettes.Get("Аметист"); }),
+            Preset(kind, "Прыгающая пара · Diguttome", s => { s.Lenia = Lenia3DSeedLibrary.Settings(Lenia3DSeed.JumpingPair); s.CameraDistance = .75; s.Palette = Fractal3DPalettes.Get("Огонь"); }),
+            Preset(kind, "Живой тор · Ovome", s => { s.Lenia = Lenia3DSeedLibrary.Settings(Lenia3DSeed.Torus); s.CameraDistance = 1.6; s.Palette = Fractal3DPalettes.Get("Лёд"); }),
+            Preset(kind, "Вращающийся октаэдр · Octahedrome", s => { s.Lenia = Lenia3DSeedLibrary.Settings(Lenia3DSeed.RotatingOctahedron); s.Palette = Fractal3DPalettes.Get("Неон"); })
         ],
         Fractal3DKind.Physarum3D =>
         [
