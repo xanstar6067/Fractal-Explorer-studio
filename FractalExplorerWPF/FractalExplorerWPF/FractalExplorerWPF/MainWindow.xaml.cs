@@ -36,6 +36,8 @@ public partial class MainWindow : Window
     private CatalogTile? _selectedTile;
     private CatalogTile? _detailsTile;
     private Task? _previewRendering;
+    private CancellationTokenSource? _previewCancellation;
+    private bool _refreshingPreviews;
     private readonly DispatcherTimer _loadingStatusTimer = new(DispatcherPriority.Background);
     private bool _rebuildingShaders;
     private string _shaderRebuildSummary = string.Empty;
@@ -85,6 +87,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _lifetime.Cancel();
+            _previewCancellation?.Cancel();
             _loadingStatusTimer.Stop();
             _loadingStatusTimer.Tick -= LoadingStatusTimer_OnTick;
             ThemeManager.ThemeChanged -= ThemeManager_OnThemeChanged;
@@ -387,7 +390,46 @@ public partial class MainWindow : Window
         }
     }
 
-    internal Task RenderPendingPreviewsAsync() => RenderPendingPreviewsCoreAsync(_lifetime.Token);
+    internal Task RenderPendingPreviewsAsync()
+    {
+        if (_previewRendering is { IsCompleted: false }) return _previewRendering;
+        _previewCancellation?.Dispose();
+        _previewCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        return _previewRendering = RenderPendingPreviewsCoreAsync(_previewCancellation.Token);
+    }
+
+    private async void RefreshPreviewsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_refreshingPreviews) return;
+        _refreshingPreviews = true;
+        RefreshPreviewsButton.IsEnabled = false;
+        PreviewCacheStatus.Visibility = Visibility.Visible;
+        PreviewCacheStatus.Text = "Обновление превью…";
+        try
+        {
+            _previewCancellation?.Cancel();
+            if (_previewRendering is not null) await _previewRendering;
+            if (_lifetime.IsCancellationRequested) return;
+            _previews.LoadThumbnails(_tiles, refresh: true);
+            if (_detailsTile is { } selected) _previews.ShowInDetails(selected);
+            UpdateCatalogLoadingStatus();
+            await RenderPendingPreviewsAsync();
+            int failed = _tiles.Count(tile => tile.IsPreviewFailed);
+            PreviewCacheStatus.Text = failed == 0 ? "Готово: превью каталога обновлены."
+                : $"Обновление завершено. Ошибок построения: {failed}.";
+        }
+        catch (Exception exception)
+        {
+            CrashLogger.Log("MainWindow.RefreshPreviews", exception);
+            PreviewCacheStatus.Text = "Не удалось обновить превью.";
+        }
+        finally
+        {
+            _refreshingPreviews = false;
+            RefreshPreviewsButton.IsEnabled = true;
+            UpdateCatalogLoadingStatus();
+        }
+    }
 
     private async Task RenderPendingPreviewsCoreAsync(CancellationToken token)
     {
@@ -401,6 +443,8 @@ public partial class MainWindow : Window
     private void UpdateCatalogLoadingStatus()
     {
         int pending = _tiles.Count(tile => tile.IsPreviewPending);
+        CatalogPreviewStatus.Visibility = pending > 0 && !_lifetime.IsCancellationRequested
+            ? Visibility.Visible : Visibility.Collapsed;
         int failed = _tiles.Count(tile => !tile.IsPreviewPending && tile.IsPreviewFailed);
         int loaded = _tiles.Count(tile => !tile.IsPreviewPending && !tile.IsPreviewFailed && tile.Thumbnail is not null);
         CatalogPreviewStatus.Text = $"Превью: {loaded} / {_tiles.Count}" +
@@ -412,6 +456,8 @@ public partial class MainWindow : Window
             failed > 0 ? "Theme.WarningBrush" : "Theme.SecondaryTextBrush");
 
         int compiling = ShaderBytecodeCache.ActiveCompilationCount;
+        CatalogShaderStatus.Visibility = compiling > 0 || _rebuildingShaders
+            ? Visibility.Visible : Visibility.Collapsed;
         CatalogShaderStatus.Text = _rebuildingShaders
             ? _shaderRebuildSummary
             : compiling > 0 ? "Шейдеры: компиляция…" : "Шейдеры: нет компиляции";

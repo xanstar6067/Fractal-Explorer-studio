@@ -50,6 +50,12 @@ internal static partial class Program
         {
             try
             {
+                if (group == "catalog-cache")
+                {
+                    await VerifyCatalogPreviewQueuesAsync();
+                    await VerifyCatalogPreviewCacheAsync();
+                    return;
+                }
                 if (group is "all" or "manager")
                 {
                     VerifyUserData();

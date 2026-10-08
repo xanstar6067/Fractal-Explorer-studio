@@ -13,7 +13,7 @@ namespace FractalExplorerWPF.Infrastructure;
 /// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы, Gray–Scott,
 /// орбитальные орнаменты, снежные кристаллы и новые варианты Мандельброта/Жюлиа
 /// своих картинок не имеют: их превью рендерится в фоне двумя независимыми очередями ЦП и ГП,
-/// по одному на каждой очереди, и хранится в памяти. Если рендер не удался (например, нет
+/// по одному на каждой очереди, и хранится на диске и в памяти. Если рендер не удался (например, нет
 /// Direct3D 11 для трёхмерных видов), плитка показывает встроенную картинку-заглушку.
 /// </summary>
 internal sealed class CatalogPreviewLoader
@@ -32,9 +32,14 @@ internal sealed class CatalogPreviewLoader
     private CatalogTile? _priority;
     private Task? _pendingRendering;
     private readonly Func<FractalCatalogItem, CancellationToken, Task<BitmapSource>> _render;
+    private readonly bool _useDiskCache;
 
-    public CatalogPreviewLoader(Func<FractalCatalogItem, CancellationToken, Task<BitmapSource>>? render = null) =>
+    public CatalogPreviewLoader(Func<FractalCatalogItem, CancellationToken, Task<BitmapSource>>? render = null,
+        bool? useDiskCache = null)
+    {
         _render = render ?? RenderAsync;
+        _useDiskCache = useDiskCache ?? render is null;
+    }
 
     /// <summary>Очередь по штатному состоянию превью; остальные рендерящиеся пункты относятся к ЦП.</summary>
     internal static bool UsesGpu(FractalCatalogItem item) =>
@@ -149,16 +154,24 @@ internal sealed class CatalogPreviewLoader
     }
 
     /// <summary>Заполняет плитки превью для сетки; рендерящиеся на лету помечаются как ожидающие.</summary>
-    public void LoadThumbnails(IEnumerable<CatalogTile> tiles)
+    public void LoadThumbnails(IEnumerable<CatalogTile> tiles, bool refresh = false)
     {
+        if (refresh) _thumbnails.Clear();
         foreach (CatalogTile tile in tiles)
         {
+            BitmapSource? cached = !refresh && _useDiskCache ? CatalogPreviewCache.Load(tile.Item) : null;
+            tile.IsPreviewFailed = false;
             if (IsRendered(tile.Item))
-                tile.IsPreviewPending = tile.Preview is null;
+            {
+                if (cached is not null) tile.Thumbnail = tile.Preview = cached;
+                tile.IsPreviewPending = refresh || tile.Preview is null;
+            }
             else
             {
-                tile.Thumbnail = LoadThumbnail(tile.Item.PreviewResourcePath);
+                tile.Thumbnail = cached ?? LoadThumbnail(tile.Item.PreviewResourcePath);
                 tile.IsPreviewFailed = tile.Thumbnail is null;
+                if (cached is null && _useDiskCache && tile.Thumbnail is BitmapSource image)
+                    CatalogPreviewCache.Save(tile.Item, image);
             }
         }
     }
@@ -210,6 +223,9 @@ internal sealed class CatalogPreviewLoader
                 BitmapSource bitmap = await _render(next.Item, token);
                 // Даже рендерер, закончивший кадр одновременно с закрытием окна, не публикует поздний результат.
                 token.ThrowIfCancellationRequested();
+                if (_useDiskCache)
+                    await Task.Run(() => CatalogPreviewCache.Save(next.Item, bitmap), token);
+                token.ThrowIfCancellationRequested();
                 next.IsPreviewFailed = false;
                 next.Thumbnail = bitmap;
                 next.Preview = bitmap;
@@ -222,7 +238,7 @@ internal sealed class CatalogPreviewLoader
             {
                 if (token.IsCancellationRequested) return;
                 next.IsPreviewFailed = true;
-                next.Thumbnail = LoadThumbnail(next.Item.PreviewResourcePath);
+                next.Thumbnail ??= LoadThumbnail(next.Item.PreviewResourcePath);
             }
             next.IsPreviewPending = false;
         }

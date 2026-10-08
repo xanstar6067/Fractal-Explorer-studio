@@ -23,6 +23,7 @@ internal static partial class Program
     private static async Task VerifyCatalogAsync(string? outputDirectory)
     {
         await VerifyCatalogPreviewQueuesAsync();
+        await VerifyCatalogPreviewCacheAsync();
         VerifyCatalogData();
         VerifyCatalogSearch();
         await VerifyIfs3DPresetsAsync();
@@ -287,11 +288,22 @@ internal static partial class Program
             }
             Check(rendered.All(tile => tile.IsPreviewPending && tile.Thumbnail is null),
                 "Rendered previews must wait for rendering instead of showing the shared placeholder.");
+            Check(window.CatalogPreviewStatus.Visibility == Visibility.Visible &&
+                window.CatalogShaderStatus.Visibility == Visibility.Collapsed,
+                "Only active preview generation should show its header status.");
             CheckTileImage(window, Tile(window, "Классический Мандельброт"));
 
             var clock = Stopwatch.StartNew();
             await window.RenderPendingPreviewsAsync();
             clock.Stop();
+            Check(window.CatalogPreviewStatus.Visibility == Visibility.Collapsed &&
+                window.CatalogShaderStatus.Visibility == Visibility.Collapsed,
+                "Completed generation must collapse both idle header statuses.");
+            var restored = window.Tiles.Select(tile => new CatalogTile(tile.Item, tile.Group)).ToArray();
+            var cacheLoader = new CatalogPreviewLoader();
+            cacheLoader.LoadThumbnails(restored);
+            Check(restored.All(tile => !tile.IsPreviewPending && tile.Thumbnail is not null),
+                "The entire catalog must reopen from disk without regenerating previews.");
             foreach (CatalogTile tile in rendered)
             {
                 Check(!tile.IsPreviewPending && tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.RenderedPixelSize } bitmap &&

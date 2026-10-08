@@ -37,6 +37,7 @@ public static class AppPaths
     public static string SettingsDirectory => Path.Combine(DataRoot, "Settings");
     public static string LogsDirectory => Path.Combine(DataRoot, "Logs");
     public static string ShaderCacheDirectory => Path.Combine(DataRoot, "shadercache");
+    public static string CatalogPreviewCacheDirectory => Path.Combine(DataRoot, "CatalogPreviews");
 
     /// <summary>Каталог сохранений прежних версий — рядом с exe.</summary>
     public static string LegacySavesDirectory => Path.Combine(AppContext.BaseDirectory, "Saves");

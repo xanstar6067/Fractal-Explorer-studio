@@ -84,7 +84,8 @@ public static class UserDataMigrator
 
     private static readonly IReadOnlyList<IUserDataMigration> BuiltInMigrations =
     [
-        new Migration001ImportLegacyExeFolder()
+        new Migration001ImportLegacyExeFolder(),
+        new Migration002CatalogPreviewCache()
     ];
 
     /// <summary>Версия каталога данных, которую создаёт эта сборка.</summary>

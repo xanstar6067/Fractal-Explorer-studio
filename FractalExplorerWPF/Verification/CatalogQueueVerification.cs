@@ -6,6 +6,72 @@ using FractalExplorerWPF.Models;
 
 internal static partial class Program
 {
+    private static async Task VerifyCatalogPreviewCacheAsync()
+    {
+        using var sandbox = DataSandbox.Create("catalog-cache");
+        sandbox.InstallRecycleBin();
+        var migration = new FractalExplorerWPF.Infrastructure.Migrations.Migration002CatalogPreviewCache();
+        var context = new FractalExplorerWPF.Infrastructure.Migrations.UserDataMigrationContext(
+            AppPaths.DataRoot, System.IO.Path.Combine(sandbox.Root, "Backups"));
+        migration.Apply(context);
+        migration.Apply(context);
+        Check(System.IO.Directory.Exists(AppPaths.CatalogPreviewCacheDirectory), "Cache migration must be repeatable.");
+        var items = FractalCatalog.Create();
+        var item = items.First(CatalogPreviewLoader.IsRendered);
+        CatalogTile Tile(FractalCatalogItem value) => new(value, new CatalogGroup(value.CategoryPath));
+        int calls = 0;
+        int size = CatalogPreviewLoader.RenderedPixelSize;
+        var bitmap = BitmapSource.Create(size, size, 96, 96, PixelFormats.Bgra32, null,
+            new byte[size * size * 4], size * 4);
+        bitmap.Freeze();
+        Task<BitmapSource> Render(FractalCatalogItem _, CancellationToken token)
+        {
+            calls++;
+            return Task.FromResult<BitmapSource>(bitmap);
+        }
+        var first = Tile(item);
+        var loader = new CatalogPreviewLoader(Render, useDiskCache: true);
+        loader.LoadThumbnails([first]);
+        await loader.RenderPendingAsync([first], CancellationToken.None);
+        Check(calls == 1 && System.IO.File.Exists(CatalogPreviewCache.GetPath(item)), "First render must persist its PNG.");
+        var next = Tile(item);
+        var reopened = new CatalogPreviewLoader(Render, useDiskCache: true);
+        reopened.LoadThumbnails([next]);
+        await reopened.RenderPendingAsync([next], CancellationToken.None);
+        Check(calls == 1 && !next.IsPreviewPending && next.Preview is BitmapSource { IsFrozen: true },
+            "Reopening must restore the preview without invoking the renderer.");
+        reopened.LoadThumbnails([next], refresh: true);
+        Check(next.IsPreviewPending && next.Preview is not null, "Refresh must retain the displayed picture until replacement.");
+        await reopened.RenderPendingAsync([next], CancellationToken.None);
+        Check(calls == 2 && !next.IsPreviewPending, "Refresh must force a new render.");
+        System.IO.File.WriteAllText(CatalogPreviewCache.GetPath(item), "broken PNG");
+        var damaged = Tile(item);
+        reopened.LoadThumbnails([damaged]);
+        await reopened.RenderPendingAsync([damaged], CancellationToken.None);
+        Check(calls == 3 && CatalogPreviewCache.Load(item) is not null && !damaged.IsPreviewFailed,
+            "A corrupt cache must be regenerated without blocking the catalog.");
+        var bundled = Tile(items.First(value => !CatalogPreviewLoader.IsRendered(value)));
+        reopened.LoadThumbnails([bundled]);
+        Check(CatalogPreviewCache.Load(bundled.Item)?.PixelWidth == CatalogPreviewLoader.ThumbnailPixelWidth,
+            "Bundled thumbnails must also be persisted.");
+        var styles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
+        if (!Application.Current.Resources.MergedDictionaries.Any(dictionary => dictionary.Source == styles))
+            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = styles });
+        FractalExplorerWPF.Theming.ThemeManager.Initialize(Application.Current);
+        var window = new FractalExplorerWPF.MainWindow();
+        var root = DetachForLayout(window);
+        window.SettingsToggle.IsChecked = true;
+        await LayoutCatalogAsync(root, new Size(884, 520));
+        Check(window.SettingsFlyout.ActualHeight <= window.CatalogBody.ActualHeight + 0.5 &&
+            CatalogDescendants<System.Windows.Controls.ScrollViewer>(window.SettingsFlyout).Single().ScrollableHeight > 0,
+            "Settings with preview refresh must fit and scroll at the minimum window size.");
+        double logoCenter = window.CatalogLogo.TranslatePoint(new Point(11, 11), root).Y;
+        double searchCenter = window.SearchBox.TranslatePoint(new Point(0, window.SearchBox.ActualHeight / 2), root).Y;
+        Check(Math.Abs(logoCenter - searchCenter) < 0.5, "The catalog icon must remain centered with the search box while previews are pending.");
+        window.Close();
+        Console.WriteLine("PASS (catalog cache): persistence, reopening without rendering, forced refresh, corruption recovery and bundled images.");
+    }
+
     private static async Task VerifyCatalogPreviewQueuesAsync()
     {
         var catalog = FractalCatalog.Create();
