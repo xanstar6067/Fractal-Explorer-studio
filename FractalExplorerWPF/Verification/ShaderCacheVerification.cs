@@ -11,11 +11,28 @@ internal static partial class Program
         using var sandbox = DataSandbox.Create("shadercache");
         var entry = new ShaderCacheEntry("verification-pixel", "source A", "PSMain", "ps_5_0");
         int compilations = 0;
-        ReadOnlyMemory<byte> FakeCompile(ShaderCacheEntry _) => new byte[] { 1, 2, (byte)++compilations };
+        ReadOnlyMemory<byte> FakeCompile(ShaderCacheEntry _)
+        {
+            Check(ShaderBytecodeCache.ActiveCompilationCount > 0, "The catalog must see an active compiler invocation.");
+            return new byte[] { 1, 2, (byte)++compilations };
+        }
 
         byte[] first = ShaderBytecodeCache.GetOrCompile(entry, FakeCompile).ToArray();
         byte[] fromDisk = ShaderBytecodeCache.GetOrCompile(entry, FakeCompile).ToArray();
         Check(compilations == 1 && first.SequenceEqual(fromDisk), "Shader bytecode must be reused from disk.");
+        Check(ShaderBytecodeCache.ActiveCompilationCount == 0, "A cache hit must not leave compilation active.");
+        bool compilerFailed = false;
+        try
+        {
+            ShaderBytecodeCache.GetOrCompile(entry with { Key = "verification-failure" }, _ =>
+            {
+                Check(ShaderBytecodeCache.ActiveCompilationCount > 0, "A failing compiler must still be visible while running.");
+                throw new InvalidOperationException("Expected compiler failure.");
+            });
+        }
+        catch (InvalidOperationException exception) when (exception.Message == "Expected compiler failure.") { compilerFailed = true; }
+        Check(compilerFailed && ShaderBytecodeCache.ActiveCompilationCount == 0,
+            "A compiler failure must clear the active status so the catalog does not stay busy.");
 
         ShaderCacheEntry changed = entry with { Source = "source B" };
         ShaderBytecodeCache.GetOrCompile(changed, FakeCompile);
@@ -48,11 +65,16 @@ internal static partial class Program
         Console.WriteLine($"Shader cache: cold renderer {coldMs:F0} ms, new renderer from disk {warmMs:F0} ms.");
 
         watch.Restart();
-        Fractal3DRenderer.RebuildShaderCache();
+        int reportedTotal = 0;
+        Fractal3DRenderer.RebuildShaderCache((_, total, _) => reportedTotal = total);
         Console.WriteLine($"Parallel shader rebuild: {watch.Elapsed.TotalSeconds:F1} s.");
         Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length ==
-              Enum.GetValues<Fractal3DKind>().Length + TuringComputeShader.EntryPoints.Length + GrayScottComputeShader.CacheEntries.Count + GrayScott3DComputeShader.CacheEntries.Count +
-              Turing3DComputeShader.CacheEntries.Count + CahnHilliard3DComputeShader.CacheEntries.Count + 3 &&
+              reportedTotal && ShaderBytecodeCache.ActiveCompilationCount == 0 &&
+              Lenia3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
+              Physarum3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
+              File.Exists(AppPaths.GetShaderCacheFile(Lichtenberg3DComputeShader.CacheEntry.Key)) &&
+              File.Exists(AppPaths.GetShaderCacheFile("lenia3d-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("physarum3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("julia-preview-metrics")) &&
               File.Exists(AppPaths.GetShaderCacheFile("ifs3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("flame3d-pixel")) &&

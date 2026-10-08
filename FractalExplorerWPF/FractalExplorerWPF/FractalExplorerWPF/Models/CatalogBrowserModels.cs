@@ -37,6 +37,7 @@ public sealed class CatalogTile : INotifyPropertyChanged
     private ImageSource? _thumbnail;
     private ImageSource? _preview;
     private bool _isPreviewPending;
+    private bool _isPreviewFailed;
     private bool _isFavorite;
     private int _recentRank = -1;
 
@@ -90,6 +91,13 @@ public sealed class CatalogTile : INotifyPropertyChanged
     {
         get => _isPreviewPending;
         set => Set(ref _isPreviewPending, value);
+    }
+
+    /// <summary>Превью не удалось загрузить или построить; заглушка не считается готовым превью.</summary>
+    public bool IsPreviewFailed
+    {
+        get => _isPreviewFailed;
+        set => Set(ref _isPreviewFailed, value);
     }
 
     public bool IsFavorite

@@ -36,6 +36,9 @@ public partial class MainWindow : Window
     private CatalogTile? _selectedTile;
     private CatalogTile? _detailsTile;
     private Task? _previewRendering;
+    private readonly DispatcherTimer _loadingStatusTimer = new(DispatcherPriority.Background);
+    private bool _rebuildingShaders;
+    private string _shaderRebuildSummary = string.Empty;
     private bool _syncingScope;
     private bool _syncingGallery;
     private bool _initializingRenderPattern = true;
@@ -62,6 +65,9 @@ public partial class MainWindow : Window
             .ToList();
         ApplyRecentRanks();
         _previews.LoadThumbnails(_tiles);
+        UpdateCatalogLoadingStatus();
+        _loadingStatusTimer.Interval = TimeSpan.FromMilliseconds(100);
+        _loadingStatusTimer.Tick += LoadingStatusTimer_OnTick;
         UpdateSearchMatches();
 
         int patternIndex = RenderPatternPreferenceStore.Load();
@@ -71,10 +77,16 @@ public partial class MainWindow : Window
 
         ThemeManager.ThemeChanged += ThemeManager_OnThemeChanged;
         ThemeManager.ThemesChanged += ThemeManager_OnThemesChanged;
-        Loaded += (_, _) => _previewRendering ??= RenderPendingPreviewsAsync();
+        Loaded += (_, _) =>
+        {
+            _loadingStatusTimer.Start();
+            _previewRendering ??= RenderPendingPreviewsAsync();
+        };
         Closed += (_, _) =>
         {
             _lifetime.Cancel();
+            _loadingStatusTimer.Stop();
+            _loadingStatusTimer.Tick -= LoadingStatusTimer_OnTick;
             ThemeManager.ThemeChanged -= ThemeManager_OnThemeChanged;
             ThemeManager.ThemesChanged -= ThemeManager_OnThemesChanged;
         };
@@ -381,6 +393,35 @@ public partial class MainWindow : Window
     {
         try { await _previews.RenderPendingAsync(_tiles, token); }
         catch (OperationCanceledException) { }
+        finally { UpdateCatalogLoadingStatus(); }
+    }
+
+    private void LoadingStatusTimer_OnTick(object? sender, EventArgs e) => UpdateCatalogLoadingStatus();
+
+    private void UpdateCatalogLoadingStatus()
+    {
+        int pending = _tiles.Count(tile => tile.IsPreviewPending);
+        int failed = _tiles.Count(tile => !tile.IsPreviewPending && tile.IsPreviewFailed);
+        int loaded = _tiles.Count(tile => !tile.IsPreviewPending && !tile.IsPreviewFailed && tile.Thumbnail is not null);
+        CatalogPreviewStatus.Text = $"Превью: {loaded} / {_tiles.Count}" +
+            (failed > 0 ? $" · ошибок: {failed}" : pending == 0 ? " · готово" : "");
+        CatalogPreviewStatus.ToolTip = pending > 0
+            ? $"Загружено: {loaded}. Ожидают построения: {pending}. Ошибок: {failed}. Счётчик относится ко всему каталогу."
+            : $"Загрузка завершена. Загружено: {loaded}. Ошибок: {failed}.";
+        CatalogPreviewStatus.SetResourceReference(TextBlock.ForegroundProperty,
+            failed > 0 ? "Theme.WarningBrush" : "Theme.SecondaryTextBrush");
+
+        int compiling = ShaderBytecodeCache.ActiveCompilationCount;
+        CatalogShaderStatus.Text = _rebuildingShaders
+            ? _shaderRebuildSummary
+            : compiling > 0 ? "Шейдеры: компиляция…" : "Шейдеры: нет компиляции";
+        CatalogShaderStatus.ToolTip = _rebuildingShaders
+            ? ShaderCacheStatus.Text
+            : compiling > 0
+                ? $"Компилируются шейдеры: {compiling}. Готовый кэш используется без повторной компиляции."
+                : "Сейчас шейдеры не компилируются. Готовый кэш загружается без повторной компиляции.";
+        CatalogShaderStatus.SetResourceReference(TextBlock.ForegroundProperty,
+            compiling > 0 || _rebuildingShaders ? "Theme.AccentPrimaryBrush" : "Theme.SecondaryTextBrush");
     }
 
     // ---------- Избранное и недавние ----------
@@ -583,8 +624,15 @@ public partial class MainWindow : Window
         RebuildShadersButton.IsEnabled = false;
         ShaderCacheStatus.Visibility = Visibility.Visible;
         ShaderCacheStatus.Text = "Компиляция шейдеров… Это может занять несколько минут.";
+        _rebuildingShaders = true;
+        _shaderRebuildSummary = "Шейдеры: пересборка…";
+        UpdateCatalogLoadingStatus();
         IProgress<(int Completed, int Total)> progress = new Progress<(int Completed, int Total)>(value =>
-            ShaderCacheStatus.Text = $"Скомпилировано {value.Completed} из {value.Total} шейдеров…");
+        {
+            ShaderCacheStatus.Text = $"Скомпилировано {value.Completed} из {value.Total} шейдеров…";
+            _shaderRebuildSummary = $"Шейдеры: {value.Completed} / {value.Total}";
+            UpdateCatalogLoadingStatus();
+        });
         try
         {
             await Task.Run(() => Fractal3DRenderer.RebuildShaderCache((completed, total, _) =>
@@ -600,7 +648,9 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _rebuildingShaders = false;
             RebuildShadersButton.IsEnabled = true;
+            UpdateCatalogLoadingStatus();
         }
     }
 

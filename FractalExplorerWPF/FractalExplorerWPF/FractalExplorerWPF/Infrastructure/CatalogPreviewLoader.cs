@@ -144,7 +144,10 @@ internal sealed class CatalogPreviewLoader
             if (IsRendered(tile.Item))
                 tile.IsPreviewPending = tile.Preview is null;
             else
+            {
                 tile.Thumbnail = LoadThumbnail(tile.Item.PreviewResourcePath);
+                tile.IsPreviewFailed = tile.Thumbnail is null;
+            }
         }
     }
 
@@ -178,6 +181,7 @@ internal sealed class CatalogPreviewLoader
             try
             {
                 BitmapSource bitmap = await RenderAsync(next.Item, token);
+                next.IsPreviewFailed = false;
                 next.Thumbnail = bitmap;
                 next.Preview = bitmap;
             }
@@ -187,6 +191,7 @@ internal sealed class CatalogPreviewLoader
             }
             catch (Exception)
             {
+                next.IsPreviewFailed = true;
                 next.Thumbnail = LoadThumbnail(next.Item.PreviewResourcePath);
             }
             next.IsPreviewPending = false;

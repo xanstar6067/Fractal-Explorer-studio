@@ -16,6 +16,17 @@ internal readonly record struct ShaderCacheEntry(string Key, string Source, stri
 internal static class ShaderBytecodeCache
 {
     private static readonly object Sync = new();
+    private static int _activeCompilationCount;
+
+    /// <summary>Только реальные вызовы компилятора; чтение готового кэша сюда не входит.</summary>
+    public static int ActiveCompilationCount => Volatile.Read(ref _activeCompilationCount);
+
+    private static byte[] Compile(ShaderCacheEntry entry, Func<ShaderCacheEntry, ReadOnlyMemory<byte>> compiler)
+    {
+        Interlocked.Increment(ref _activeCompilationCount);
+        try { return compiler(entry).ToArray(); }
+        finally { Interlocked.Decrement(ref _activeCompilationCount); }
+    }
     private static readonly byte[] Magic = "FXSHDR01"u8.ToArray();
     private const int HeaderSize = 8 + 32 + 32 + 4;
     private const int MaxBytecodeSize = 16 * 1024 * 1024;
@@ -35,7 +46,7 @@ internal static class ShaderBytecodeCache
                 // Недоступный кэш не должен мешать рендерингу.
             }
 
-            byte[] compiled = compiler(entry).ToArray();
+            byte[] compiled = Compile(entry, compiler);
             try
             {
                 Write(path, Signature(entry), compiled);
@@ -71,7 +82,7 @@ internal static class ShaderBytecodeCache
         Parallel.For(0, entries.Count, options, index =>
         {
             ShaderCacheEntry entry = entries[index];
-            byte[] bytecode = compiler(entry).ToArray();
+            byte[] bytecode = Compile(entry, compiler);
             compiled[index] = (entry, bytecode);
             // Отчёты идут последовательно, чтобы интерфейс не получал счётчик в обратном порядке.
             lock (progressSync)
