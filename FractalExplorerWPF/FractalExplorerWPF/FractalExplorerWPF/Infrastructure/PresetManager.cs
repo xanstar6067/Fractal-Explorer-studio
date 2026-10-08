@@ -142,6 +142,36 @@ public static class PresetManager
             M("Отражённое кружево", variant, 0, 0, 0.75m, 450, "Бирюза", juliaReal: -0.6m, juliaImaginary: 0.3m, scale: 35, phase: 0.3),
             M("Разветвлённая форма", variant, 0, 0, 0.9m, 500, "Лёд", juliaReal: -0.8m, juliaImaginary: 0.4m, scale: 35, phase: 0.3)
         ],
+        MandelbrotVariant.CelticMandelbar =>
+        [
+            M("Обзор Celtic Mandelbar", variant, -0.4m, 0, 0.75m, 500, "Аметист", scale: 25, phase: 0.3),
+            M("Кельтский Трикорн крупным планом", variant, -1.4m, 0.04m, 12m, 650, "Лёд", scale: 8, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaCelticMandelbar =>
+        [
+            M("Кельтское отражённое кружево", variant, 0, 0, 0.75m, 500, "Аметист", juliaReal: -0.75m, juliaImaginary: 0.12m, scale: 35, phase: 0.3),
+            M("Кельтские ветви", variant, 0, 0, 0.85m, 550, "Лёд", juliaReal: -1.2m, juliaImaginary: 0.05m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.CubicQuasiBurningShip =>
+        [
+            M("Обзор кубического Quasi Burning Ship", variant, 0, 0.25m, 0.75m, 500, "Огонь", power: 3, scale: 25, phase: 0.3),
+            M("Кубические складки", variant, 0, 1.1m, 4m, 650, "Лёд", power: 3, scale: 10, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaCubicQuasiBurningShip =>
+        [
+            M("Кубическое корабельное кружево", variant, 0, 0, 0.75m, 500, "Огонь", power: 3, juliaReal: -0.1m, juliaImaginary: 0.85m, scale: 35, phase: 0.3),
+            M("Связное кубическое Жюлиа", variant, 0, 0, 0.85m, 550, "Лёд", power: 3, juliaReal: -0.2m, juliaImaginary: 0.6m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.CubicFlyingSquirrel =>
+        [
+            M("Обзор летящей белки", variant, 0, -0.25m, 0.75m, 500, "Бирюза", power: 3, scale: 25, phase: 0.3),
+            M("Крылья крупным планом", variant, 0, -1.1m, 4m, 650, "Аметист", power: 3, scale: 10, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaCubicFlyingSquirrel =>
+        [
+            M("Кубические крылья Жюлиа", variant, 0, 0, 0.75m, 500, "Бирюза", power: 3, juliaReal: -0.1m, juliaImaginary: -0.85m, scale: 35, phase: 0.3),
+            M("Связные крылья Жюлиа", variant, 0, 0, 0.85m, 550, "Аметист", power: 3, juliaReal: -0.2m, juliaImaginary: -0.6m, scale: 35, phase: 0.3)
+        ],
         MandelbrotVariant.Generalized =>
         [
             M("Трилистник (p=3.0)", variant, 0m, 0m, 0.8m, 500, "Ультрафиолет", power: 3m, scale: 15, phase: 0.2),

@@ -581,7 +581,7 @@ public static partial class MandelbrotFamilyRenderer
         if (iterations < state.Iterations && magnitudeSquared > 1)
         {
             double logZn = Math.Log(magnitudeSquared) / 2;
-            const double smoothingPower = 2;
+            double smoothingPower = SmoothingPower(state);
             double nu = Math.Log(Math.Max(logZn, 1e-300) / Math.Log(smoothingPower)) /
                         Math.Log(smoothingPower);
             if (double.IsFinite(nu)) smooth = iterations + 1 - nu;
@@ -649,7 +649,7 @@ public static partial class MandelbrotFamilyRenderer
         {
             double magnitudeAsDouble = (double)magnitudeSquared;
             double logZn = Math.Log(magnitudeAsDouble) / 2;
-            const double smoothingPower = 2;
+            double smoothingPower = SmoothingPower(state);
             double nu = Math.Log(Math.Max(logZn, 1e-300) / Math.Log(smoothingPower)) /
                         Math.Log(smoothingPower);
             if (double.IsFinite(nu)) smooth = iterations + 1 - nu;
@@ -736,6 +736,14 @@ public static partial class MandelbrotFamilyRenderer
                     result = Jacobian2.Multiply(new Jacobian2(Math.Sign(zr * zr - zi * zi), 0, 0, 1), result);
                 break;
             }
+            case MandelbrotVariant.CelticMandelbar:
+                result = Jacobian2.Multiply(new Jacobian2(Math.Sign(zr * zr - zi * zi), 0, 0, 1),
+                    Jacobian2.Multiply(ComplexJacobian(new Complex(2 * zr, -2 * zi)), new Jacobian2(1, 0, 0, -1)));
+                break;
+            case MandelbrotVariant.CubicQuasiBurningShip:
+            case MandelbrotVariant.CubicFlyingSquirrel:
+                result = FoldedCubicJacobian(MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.CubicQuasiBurningShip, zr, zi);
+                break;
             case MandelbrotVariant.Generalized:
             {
                 double power = (double)state.Power;
@@ -938,6 +946,24 @@ public static partial class MandelbrotFamilyRenderer
                 zi = powered.Imaginary * magnitudePower + ci;
                 break;
             }
+            case MandelbrotVariant.CelticMandelbar:
+            {
+                decimal real = Math.Abs(zr * zr - zi * zi) + cr;
+                zi = -2 * zr * zi + ci;
+                zr = real;
+                break;
+            }
+            case MandelbrotVariant.CubicQuasiBurningShip:
+            case MandelbrotVariant.CubicFlyingSquirrel:
+            {
+                bool quasi = MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.CubicQuasiBurningShip;
+                decimal x = quasi ? Math.Abs(zr) : zr;
+                decimal real = x * (x * x - 3 * zi * zi);
+                decimal imaginary = zi * (3 * x * x - zi * zi);
+                zr = real + cr;
+                zi = (quasi ? -Math.Abs(imaginary) : Math.Abs(imaginary)) + ci;
+                break;
+            }
             case MandelbrotVariant.Generalized:
             {
                 ComplexDecimal powered = ComplexDecimal.Pow(
@@ -1017,6 +1043,24 @@ public static partial class MandelbrotFamilyRenderer
                 double magnitudePower = Math.Pow(Math.Sqrt(magnitudeSquared), (double)state.Power);
                 zr = powered.Real * magnitudePower + cr;
                 zi = powered.Imaginary * magnitudePower + ci;
+                break;
+            }
+            case MandelbrotVariant.CelticMandelbar:
+            {
+                double real = Math.Abs(zr * zr - zi * zi) + cr;
+                zi = -2 * zr * zi + ci;
+                zr = real;
+                break;
+            }
+            case MandelbrotVariant.CubicQuasiBurningShip:
+            case MandelbrotVariant.CubicFlyingSquirrel:
+            {
+                bool quasi = MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.CubicQuasiBurningShip;
+                double x = quasi ? Math.Abs(zr) : zr;
+                double real = x * (x * x - 3 * zi * zi);
+                double imaginary = zi * (3 * x * x - zi * zi);
+                zr = real + cr;
+                zi = (quasi ? -Math.Abs(imaginary) : Math.Abs(imaginary)) + ci;
                 break;
             }
             case MandelbrotVariant.Generalized:

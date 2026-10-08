@@ -38,6 +38,12 @@ public static partial class MandelbrotFamilyRenderer
         public required double[] Re;
         public required double[] Im;
 
+        // Cubic folds can depend on reference values far below double, including
+        // cancellation in Im(Z^3). Other families retain their existing storage.
+        public FloatExp[]? CubicRe;
+        public FloatExp[]? CubicIm;
+        public FloatExp[]? CubicV;
+
         /// <summary>Количество заполненных точек (индексы 0..<see cref="Length"/>-1).</summary>
         public required int Length;
 
@@ -102,7 +108,10 @@ public static partial class MandelbrotFamilyRenderer
             or MandelbrotVariant.PerpendicularMandelbrot
             or MandelbrotVariant.PerpendicularBurningShip
             or MandelbrotVariant.PerpendicularCeltic
-            or MandelbrotVariant.PerpendicularBuffalo => true,
+            or MandelbrotVariant.PerpendicularBuffalo
+            or MandelbrotVariant.CelticMandelbar
+            or MandelbrotVariant.CubicQuasiBurningShip
+            or MandelbrotVariant.CubicFlyingSquirrel => true,
         MandelbrotVariant.Generalized => IsMultibrotDeepZoomPower(state.Power),
         MandelbrotVariant.Simonobrot => IsSimonobrotDeepZoomPower(state.Power),
         _ => false,
@@ -121,7 +130,7 @@ public static partial class MandelbrotFamilyRenderer
     // Варианты семейства с отражением/сопряжением: их линейная часть возмущения — не
     // комплексное умножение, а «свёртка знака» покомпонентно (см. DeepZoomPixelReflected).
     // Ускоряются вещественной 2×2 таблицей RealBlaTable, а не комплексной BlaTable.
-    private enum ReflectKind { BurningShip, Buffalo, Tricorn, Celtic, PerpendicularMandelbrot, PerpendicularBurningShip, PerpendicularCeltic, PerpendicularBuffalo }
+    private enum ReflectKind { BurningShip, Buffalo, Tricorn, Celtic, PerpendicularMandelbrot, PerpendicularBurningShip, PerpendicularCeltic, PerpendicularBuffalo, CelticMandelbar, CubicQuasiBurningShip, CubicFlyingSquirrel }
 
     private static ReflectKind? ReflectKindOf(MandelbrotVariant variant) => MandelbrotVariantDefinition.ParameterVariant(variant) switch
     {
@@ -133,6 +142,9 @@ public static partial class MandelbrotFamilyRenderer
         MandelbrotVariant.PerpendicularBurningShip => ReflectKind.PerpendicularBurningShip,
         MandelbrotVariant.PerpendicularCeltic => ReflectKind.PerpendicularCeltic,
         MandelbrotVariant.PerpendicularBuffalo => ReflectKind.PerpendicularBuffalo,
+        MandelbrotVariant.CelticMandelbar => ReflectKind.CelticMandelbar,
+        MandelbrotVariant.CubicQuasiBurningShip => ReflectKind.CubicQuasiBurningShip,
+        MandelbrotVariant.CubicFlyingSquirrel => ReflectKind.CubicFlyingSquirrel,
         _ => null,
     };
 
@@ -245,7 +257,7 @@ public static partial class MandelbrotFamilyRenderer
             if (initialMagnitudeSquared > escapeSquared)
                 return FinishDeepZoomPixelExp(0, initialMagnitudeSquared, double.MaxValue, 0,
                     state.ColoringMode == MandelbrotColoringMode.DistanceEstimation,
-                    initialReal, initialImaginary, Jacobian2Exp.Identity, distanceScale);
+                    initialReal, initialImaginary, Jacobian2Exp.Identity, distanceScale, SmoothingPower(state));
         }
 
         // Варианты с отражением/сопряжением идут своим ядром; за порогом FloatExpDeltaZoomBits
@@ -722,6 +734,10 @@ public static partial class MandelbrotFamilyRenderer
 
         bool isJulia = IsJuliaVariant(state.Variant);
         ReflectKind? reflect = ReflectKindOf(state.Variant);
+        bool cubic = reflect is { } cubicKind && IsCubicReflected(cubicKind);
+        FloatExp[]? cubicRe = cubic ? new FloatExp[capacity] : null;
+        FloatExp[]? cubicIm = cubic ? new FloatExp[capacity] : null;
+        FloatExp[]? cubicV = cubic ? new FloatExp[capacity] : null;
         int multibrotPower = MultibrotPowerOrZero(state);     // 0, либо p ∈ [2, 12]
         int simonobrotPower = SimonobrotPowerOrZero(state);   // 0, либо целое p ∈ [2, 12]
         // UseInversion (только Симоноброт): в формулу каждый шаг подставляется -re вместо re.
@@ -746,6 +762,12 @@ public static partial class MandelbrotFamilyRenderer
             double imaginaryDouble = zImaginary.ToDouble();
             re[index] = realDouble;
             im[index] = imaginaryDouble;
+            if (cubic)
+            {
+                cubicRe![index] = FloatExp.FromBigFloat(zReal);
+                cubicIm![index] = FloatExp.FromBigFloat(zImaginary);
+                cubicV![index] = FloatExp.FromBigFloat(zImaginary * (BigFloat.FromInt(3) * zReal * zReal - zImaginary * zImaginary));
+            }
             length = index + 1;
 
             double magnitudeSquared = realDouble * realDouble + imaginaryDouble * imaginaryDouble;
@@ -787,7 +809,8 @@ public static partial class MandelbrotFamilyRenderer
             }
         }
 
-        var orbit = new ReferenceOrbit { Re = re, Im = im, Length = length, Escaped = escaped };
+        var orbit = new ReferenceOrbit { Re = re, Im = im, Length = length, Escaped = escaped,
+            CubicRe = cubicRe, CubicIm = cubicIm, CubicV = cubicV };
 
         // Пирамида BLA — для z²+c (Mandelbrot/Julia) и целой степени Multibrot (A = p·Zᵖ⁻¹)
         // комплексная, для отражённых вариантов и Симоноброта — вещественная 2×2
@@ -809,7 +832,7 @@ public static partial class MandelbrotFamilyRenderer
         orbit.RealBla = complexLinearPart
             ? null
             : RealBlaTable.Build(re, im, length, isJulia, escapeSquared, deltaCMax,
-                reflect, simonobrotPower);
+                reflect, simonobrotPower, cubicV);
 
         return orbit;
     }
@@ -849,6 +872,16 @@ public static partial class MandelbrotFamilyRenderer
     private static (BigFloat, BigFloat) StepReflectedReference(
         ReflectKind kind, BigFloat zReal, BigFloat zImaginary, BigFloat cReal, BigFloat cImaginary, BigFloat two)
     {
+        if (IsCubicReflected(kind))
+        {
+            BigFloat x = kind == ReflectKind.CubicQuasiBurningShip && zReal.Sign < 0 ? -zReal : zReal;
+            BigFloat three = BigFloat.FromInt(3);
+            BigFloat u = x * (x * x - three * zImaginary * zImaginary);
+            BigFloat v = zImaginary * (three * x * x - zImaginary * zImaginary);
+            BigFloat folded = v.Sign < 0 ? -v : v;
+            return (u + cReal, (kind == ReflectKind.CubicQuasiBurningShip ? -folded : folded) + cImaginary);
+        }
+
         if (kind == ReflectKind.Celtic)
         {
             BigFloat u = zReal * zReal - zImaginary * zImaginary;
@@ -885,7 +918,7 @@ public static partial class MandelbrotFamilyRenderer
         }
 
         BigFloat real = wReal * wReal - wImaginary * wImaginary;
-        if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+        if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
             real = real.Sign < 0 ? -real : real;
         return (real + cReal, two * wReal * wImaginary + cImaginary);
     }
@@ -932,13 +965,13 @@ public static partial class MandelbrotFamilyRenderer
         double escapeReal,
         double escapeImaginary,
         Jacobian2 derivative,
-        double distanceScale)
+        double distanceScale,
+        double smoothingPower = 2)
     {
         double smooth = iteration;
         if (magnitudeSquared > 1)
         {
             double logZn = System.Math.Log(magnitudeSquared) / 2;
-            const double smoothingPower = 2;
             double nu = System.Math.Log(System.Math.Max(logZn, 1e-300) / System.Math.Log(smoothingPower)) /
                         System.Math.Log(smoothingPower);
             if (double.IsFinite(nu)) smooth = iteration + 1 - nu;
@@ -982,10 +1015,11 @@ public static partial class MandelbrotFamilyRenderer
         double escapeReal,
         double escapeImaginary,
         Jacobian2Exp derivative,
-        FloatExp distanceScale)
+        FloatExp distanceScale,
+        double smoothingPower = 2)
     {
         PixelMetrics metrics = FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            false, escapeReal, escapeImaginary, Jacobian2.Zero, 1.0);
+            false, escapeReal, escapeImaginary, Jacobian2.Zero, 1.0, smoothingPower);
         return estimateDistance
             ? metrics with { Distance = EstimateDistanceExp(escapeReal, escapeImaginary, derivative, distanceScale) }
             : metrics;
@@ -1338,11 +1372,20 @@ public static partial class MandelbrotFamilyRenderer
                     stripe += 0.5 + 0.5 * System.Math.Sin(
                         state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
 
-                if (estimateDistance)
+                if (estimateDistance && !IsCubicReflected(kind))
                     derivative = AdvanceDerivative(state, derivative, parameterDerivative,
                         currentReal, currentImaginary);
 
-                if (kind == ReflectKind.Celtic)
+                if (IsCubicReflected(kind))
+                {
+                    var delta = FoldedCubicDelta(kind, referenceReal, referenceImaginary, orbit.CubicV![referenceIndex].ToDouble(),
+                        deltaReal, deltaImaginary, estimateDistance);
+                    if (estimateDistance)
+                        derivative = Jacobian2.Multiply(delta.Jacobian, derivative) + parameterDerivative;
+                    deltaReal = delta.Real + addReal;
+                    deltaImaginary = delta.Imaginary + addImaginary;
+                }
+                else if (kind == ReflectKind.Celtic)
                 {
                     // u = Re(z²) = zr²−zi² ⇒ δu = 2Zr·δr − 2Zi·δi + δr² − δi² ;  Re' = |u| + cr
                     // v = Im(z²) = 2 zr zi ⇒ δv = 2(Zr·δi + Zi·δr) + 2 δr δi   ;  Im' = v + ci
@@ -1399,7 +1442,7 @@ public static partial class MandelbrotFamilyRenderer
                     double foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
                     double foldedDeltaSquaredImaginary = 2 * foldedDeltaReal * foldedDeltaImaginary;
                     double deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
-                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
                         deltaU = FoldedDelta(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
                     deltaReal = deltaU + addReal;
                     deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;
@@ -1440,7 +1483,7 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, SmoothingPower(state));
     }
 
     // Тот же алгоритм, что <see cref="DeepZoomPixelReflected"/>, но δ ведётся в
@@ -1527,11 +1570,20 @@ public static partial class MandelbrotFamilyRenderer
                     stripe += 0.5 + 0.5 * System.Math.Sin(
                         state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
 
-                if (estimateDistance)
+                if (estimateDistance && !IsCubicReflected(kind))
                     derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
                         currentReal, currentImaginary);
 
-                if (kind == ReflectKind.Celtic)
+                if (IsCubicReflected(kind))
+                {
+                    var delta = FoldedCubicDeltaExp(kind, orbit.CubicRe![referenceIndex], orbit.CubicIm![referenceIndex],
+                        orbit.CubicV![referenceIndex], deltaReal, deltaImaginary, estimateDistance);
+                    if (estimateDistance)
+                        derivative = Jacobian2Exp.Multiply(delta.Jacobian, derivative) + parameterDerivative;
+                    deltaReal = delta.Real + addReal;
+                    deltaImaginary = delta.Imaginary + addImaginary;
+                }
+                else if (kind == ReflectKind.Celtic)
                 {
                     FloatExp deltaU = (referenceReal * deltaReal - referenceImaginary * deltaImaginary) * 2.0
                                      + deltaReal * deltaReal - deltaImaginary * deltaImaginary;
@@ -1585,7 +1637,7 @@ public static partial class MandelbrotFamilyRenderer
                     FloatExp foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
                     FloatExp foldedDeltaSquaredImaginary = foldedDeltaReal * foldedDeltaImaginary * 2.0;
                     FloatExp deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
-                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
                         deltaU = FoldedDeltaExp(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
                     deltaReal = deltaU + addReal;
                     deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;
@@ -1616,8 +1668,16 @@ public static partial class MandelbrotFamilyRenderer
                 magnitudeSquared < deltaMagnitudeSquared ||
                 magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
             {
-                deltaReal = FloatExp.FromDouble(fullReal - orbit.Re[0]);
-                deltaImaginary = FloatExp.FromDouble(fullImaginary - orbit.Im[0]);
+                if (IsCubicReflected(kind))
+                {
+                    deltaReal = orbit.CubicRe![referenceIndex] + deltaReal - orbit.CubicRe[0];
+                    deltaImaginary = orbit.CubicIm![referenceIndex] + deltaImaginary - orbit.CubicIm[0];
+                }
+                else
+                {
+                    deltaReal = FloatExp.FromDouble(fullReal - orbit.Re[0]);
+                    deltaImaginary = FloatExp.FromDouble(fullImaginary - orbit.Im[0]);
+                }
                 referenceIndex = 0;
             }
         }
@@ -1626,7 +1686,7 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixelExp(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, SmoothingPower(state));
     }
 
     // Пертурбационное ядро Multibrot (Generalized) целой степени p ≥ 3: формула zᵖ+c.

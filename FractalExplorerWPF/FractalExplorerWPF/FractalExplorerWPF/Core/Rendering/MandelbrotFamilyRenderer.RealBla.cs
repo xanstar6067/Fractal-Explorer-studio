@@ -110,7 +110,7 @@ public static partial class MandelbrotFamilyRenderer
         /// </summary>
         public static RealBlaTable? Build(
             double[] re, double[] im, int length, bool isJulia, double escapeSquared, FloatExp deltaCMax,
-            ReflectKind? reflect, int simonobrotPower)
+            ReflectKind? reflect, int simonobrotPower, FloatExp[]? cubicV = null)
         {
             if (length < 4 || length > RealBlaMaxOrbitLength) return null;
             if (reflect is null && simonobrotPower < 2) return null;
@@ -211,6 +211,24 @@ public static partial class MandelbrotFamilyRenderer
                     secondOrderCoefficient =
                         simonobrotPower * (2.0 * simonobrotPower - 1.0) * magnitudePowerPowerMinusOne;
                 }
+                else if (reflect is ReflectKind.CubicQuasiBurningShip or ReflectKind.CubicFlyingSquirrel)
+                {
+                    bool quasi = reflect == ReflectKind.CubicQuasiBurningShip;
+                    // Use the BigFloat cube's imaginary component, not a cancellation
+                    // of rounded doubles: a fold can be only 1e-1000 from this orbit.
+                    double v = cubicV is null ? zi * (3 * zr * zr - zi * zi) : cubicV[n].ToDouble();
+                    Jacobian2 jacobian = FoldedCubicJacobian(quasi, zr, zi,
+                        exactOutputSign: cubicV is null ? System.Math.Sign(v) : cubicV[n].Sign);
+                    n11 = jacobian.M11; n12 = jacobian.M12;
+                    n21 = jacobian.M21; n22 = jacobian.M22;
+                    double magnitude = System.Math.Sqrt(zMagnitudeSquared);
+                    if (v == 0 || (quasi && zr == 0)) blocked = true;
+                    // For r <= |Z|, discarded terms are <= 4|Z|r^2 and the output
+                    // change is <= 7|Z|^2 r. A block must not cross either fold.
+                    foldLimit = System.Math.Min(magnitude, System.Math.Abs(v) / (7 * zMagnitudeSquared));
+                    if (quasi) foldLimit = System.Math.Min(foldLimit, System.Math.Abs(zr));
+                    secondOrderCoefficient = 4 * magnitude;
+                }
                 else if (reflect == ReflectKind.Celtic)
                 {
                     // Re' = |Zr²−Zi²| + cr, Im' = 2·Zr·Zi + ci ⇒ A = diag(s(U),1)·M(2Z).
@@ -285,7 +303,7 @@ public static partial class MandelbrotFamilyRenderer
                     n12 = -2.0 * foldedReferenceImaginary * diagonalImaginary;
                     n21 = 2.0 * foldedReferenceImaginary * diagonalReal;
                     n22 = 2.0 * foldedReferenceReal * diagonalImaginary;
-                    if (reflect is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo)
+                    if (reflect is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
                     {
                         double u = zr * zr - zi * zi;
                         double signU = System.Math.Sign(u);

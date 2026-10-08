@@ -173,7 +173,7 @@ public static partial class MandelbrotFamilyRenderer
             double initialMagnitudeSquared = initialReal * initialReal + initialImaginary * initialImaginary;
             if (initialMagnitudeSquared > escapeSquared)
                 return FinishDeepZoomPixelExp(0, initialMagnitudeSquared, double.MaxValue, 0,
-                    estimateDistance, initialReal, initialImaginary, derivative, distanceScale);
+                    estimateDistance, initialReal, initialImaginary, derivative, distanceScale, SmoothingPower(state));
         }
 
         while (iteration < maxIterations)
@@ -181,8 +181,18 @@ public static partial class MandelbrotFamilyRenderer
             if ((iteration & 4095) == 0 && token.IsCancellationRequested) return default;
 
             if (estimateDistance)
-                derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
-                    zReal.ToDouble(), zImaginary.ToDouble());
+            {
+                if (reflect is { } cubicKind && IsCubicReflected(cubicKind))
+                {
+                    BigFloat v = zImaginary * (BigFloat.FromInt(3) * zReal * zReal - zImaginary * zImaginary);
+                    Jacobian2 jacobian = FoldedCubicJacobian(cubicKind == ReflectKind.CubicQuasiBurningShip,
+                        zReal.ToDouble(), zImaginary.ToDouble(), zReal.Sign, v.Sign);
+                    derivative = Jacobian2Exp.Multiply(jacobian, derivative) + parameterDerivative;
+                }
+                else
+                    derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
+                        zReal.ToDouble(), zImaginary.ToDouble());
+            }
 
             if (reflect is { } kind)
             {
@@ -232,6 +242,6 @@ public static partial class MandelbrotFamilyRenderer
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
         return FinishDeepZoomPixelExp(iteration, magnitudeSquared, double.MaxValue, 0,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, SmoothingPower(state));
     }
 }

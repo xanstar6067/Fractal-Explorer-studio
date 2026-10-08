@@ -98,6 +98,9 @@ public partial class MandelbrotWindow : Window
             or MandelbrotVariant.PerpendicularBurningShip
             or MandelbrotVariant.PerpendicularCeltic
             or MandelbrotVariant.PerpendicularBuffalo
+            or MandelbrotVariant.CelticMandelbar
+            or MandelbrotVariant.CubicQuasiBurningShip
+            or MandelbrotVariant.CubicFlyingSquirrel
             or MandelbrotVariant.Generalized or MandelbrotVariant.Simonobrot => MaxZoom,
         _ => 5e28,
     };
@@ -195,7 +198,7 @@ public partial class MandelbrotWindow : Window
     {
         decimal power = _definition.HasPower
             ? ReadDecimal(PowerBox.Text, "степень", _definition.HasInversion ? -12m : 0.1m, 12m)
-            : 2m;
+            : decimal.Truncate(_definition.DefaultPower);
         if (_definition.HasInversion && Math.Abs(power) < 0.1m)
             throw new InvalidOperationException("Для Симоноброта модуль степени должен быть не меньше 0.1.");
         return power;

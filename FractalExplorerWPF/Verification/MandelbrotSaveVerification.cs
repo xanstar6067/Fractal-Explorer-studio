@@ -114,7 +114,8 @@ internal static partial class Program
                     state.CenterX = MandelbrotVariantDefinition.IsJulia(variant) ? 1m : -2m;
                     state.CenterY = 0;
                     state.JuliaCReal = 0; state.JuliaCImaginary = 0;
-                    state.Power = MandelbrotVariantDefinition.ParameterVariant(variant) == MandelbrotVariant.Generalized ? 3m : 2m;
+                    state.Power = MandelbrotVariantDefinition.ParameterVariant(variant) is
+                        MandelbrotVariant.Generalized or MandelbrotVariant.CubicQuasiBurningShip or MandelbrotVariant.CubicFlyingSquirrel ? 3m : 2m;
                     state.Iterations = exponent >= 300 ? 3800 : 240;
                     if (exponent >= 26)
                     {
@@ -122,6 +123,20 @@ internal static partial class Program
                         using var precision = new BigFloat.PrecisionScope(Math.Max(384,(int)Math.Ceiling(exponent*Math.Log2(10))+128));
                         state.CenterXExact = (BigFloat.FromDecimal(state.CenterX)+BigFloat.Parse("1e-"+(exponent+2))).ToInvariantString();
                         state.CenterYExact = BigFloat.Parse("-2e-"+(exponent+2)).ToInvariantString();
+                    }
+                    if (variant is MandelbrotVariant.CubicQuasiBurningShip or MandelbrotVariant.CubicFlyingSquirrel)
+                    {
+                        using var precision = new BigFloat.PrecisionScope(Math.Max(384,(int)Math.Ceiling(exponent*Math.Log2(10))+128));
+                        BigFloat tip = BigFloat.Sqrt(BigFloat.FromInt(2));
+                        if (variant == MandelbrotVariant.CubicFlyingSquirrel) tip = -tip;
+                        BigFloat x = BigFloat.Parse("1e-"+(exponent+2));
+                        BigFloat y = tip-BigFloat.Parse("2e-"+(exponent+2));
+                        state.CenterX = x.ToDecimalClamped(); state.CenterY = y.ToDecimalClamped();
+                        if (exponent >= 26)
+                        {
+                            state.CenterXExact = x.ToInvariantString();
+                            state.CenterYExact = y.ToInvariantString();
+                        }
                     }
                     state.Palette = new MandelbrotPalette { Name = "Test palette", Colors = [Colors.DarkBlue,Colors.Orange,Colors.White],
                         InteriorColor = Colors.DarkSlateGray, ColorPeriod = 73, Gamma = 1.2 };

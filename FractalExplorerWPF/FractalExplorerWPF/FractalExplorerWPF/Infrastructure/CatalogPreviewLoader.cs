@@ -36,6 +36,8 @@ internal sealed class CatalogPreviewLoader
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         item.LaunchKey is "JuliaGeneralized" or "JuliaTricorn" or "JuliaBuffalo" or "JuliaCeltic" or "JuliaSimonobrot"
             or "PerpendicularMandelbrot" or "PerpendicularBurningShip" or "PerpendicularCeltic" or "PerpendicularBuffalo" or "JuliaPerpendicularMandelbrot" or "JuliaPerpendicularBurningShip" or "JuliaPerpendicularCeltic" or "JuliaPerpendicularBuffalo"
+            or "CelticMandelbar" or "CubicQuasiBurningShip" or "CubicFlyingSquirrel"
+            or "JuliaCelticMandelbar" or "JuliaCubicQuasiBurningShip" or "JuliaCubicFlyingSquirrel"
             or GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
