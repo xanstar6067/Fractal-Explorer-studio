@@ -19,6 +19,8 @@ public partial class JuliaConstantPickerWindow : Window
     private const double MarkerArm = 9;
 
     private readonly MandelbrotVariant _sourceVariant;
+    private decimal _power;
+    private bool _useInversion;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(260) };
     private CancellationTokenSource? _renderCts;
     private readonly MandelbrotPreviewRenderer _gpu = new();
@@ -57,32 +59,47 @@ public partial class JuliaConstantPickerWindow : Window
     public decimal SelectedReal { get; private set; }
     public decimal SelectedImaginary { get; private set; }
 
-    public JuliaConstantPickerWindow(MandelbrotVariant sourceVariant, decimal selectedReal, decimal selectedImaginary)
+    public JuliaConstantPickerWindow(MandelbrotVariant sourceVariant, decimal selectedReal, decimal selectedImaginary,
+        decimal power = 2m, bool useInversion = false)
     {
-        if (sourceVariant is not (MandelbrotVariant.Mandelbrot or MandelbrotVariant.BurningShip))
+        if (!Enum.IsDefined(sourceVariant) || MandelbrotVariantDefinition.IsJulia(sourceVariant))
             throw new ArgumentOutOfRangeException(nameof(sourceVariant));
 
         _sourceVariant = sourceVariant;
+        _power = power;
+        _useInversion = useInversion;
         SelectedReal = selectedReal;
         SelectedImaginary = selectedImaginary;
         if (sourceVariant == MandelbrotVariant.BurningShip)
         {
             (_minReal, _maxReal, _minImaginary, _maxImaginary) = (-2m, 1.5m, -1m, 1.5m);
         }
-        else
+        else if (sourceVariant == MandelbrotVariant.Mandelbrot)
         {
             (_minReal, _maxReal, _minImaginary, _maxImaginary) = (-2m, 1m, -1.2m, 1.2m);
+        }
+        else
+        {
+            (_minReal, _maxReal, _minImaginary, _maxImaginary) = (-2m, 2m, -1.5m, 1.5m);
         }
 
         InitializeComponent();
         HeaderText.Text = sourceVariant == MandelbrotVariant.BurningShip
             ? "Карта «Горящего корабля»"
-            : "Карта множества Мандельброта";
+            : $"Карта: {MandelbrotVariantDefinition.For(sourceVariant).DisplayName}";
         _renderTimer.Tick += RenderTimer_OnTick;
         _liveTimer.Tick += LiveTimer_OnTick;
         SetConstantText();
         ResetView();
         Loaded += (_, _) => { ScheduleRender(); _liveTimer.Start(); };
+    }
+
+    internal void UpdateFormulaParameters(decimal power, bool useInversion)
+    {
+        if (_power == power && _useInversion == useInversion) return;
+        _power = power;
+        _useInversion = useInversion;
+        ScheduleRender();
     }
 
     private void LiveTimer_OnTick(object? sender, EventArgs e)
@@ -164,6 +181,8 @@ public partial class JuliaConstantPickerWindow : Window
     private MandelbrotState CreateMapState() => new()
     {
         Variant = _sourceVariant,
+        Power = _power,
+        UseInversion = _useInversion,
         CenterX = _centerX,
         CenterY = _centerY,
         Zoom = (double)_zoom,

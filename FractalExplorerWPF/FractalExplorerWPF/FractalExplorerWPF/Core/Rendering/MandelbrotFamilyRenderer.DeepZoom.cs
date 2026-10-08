@@ -75,7 +75,7 @@ public static partial class MandelbrotFamilyRenderer
         power == decimal.Truncate(power) && power >= MinMultibrotPower && power <= MaxMultibrotPower;
 
     private static int MultibrotPowerOrZero(MandelbrotState state) =>
-        state.Variant == MandelbrotVariant.Generalized && IsMultibrotDeepZoomPower(state.Power)
+        MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Generalized && IsMultibrotDeepZoomPower(state.Power)
             ? (int)state.Power
             : 0;
 
@@ -91,14 +91,13 @@ public static partial class MandelbrotFamilyRenderer
         power == decimal.Truncate(power) && power >= MinSimonobrotPower && power <= MaxSimonobrotPower;
 
     private static int SimonobrotPowerOrZero(MandelbrotState state) =>
-        state.Variant == MandelbrotVariant.Simonobrot && IsSimonobrotDeepZoomPower(state.Power)
+        MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Simonobrot && IsSimonobrotDeepZoomPower(state.Power)
             ? (int)state.Power
             : 0;
 
-    private static bool SupportsDeepZoom(MandelbrotState state) => state.Variant switch
+    private static bool SupportsDeepZoom(MandelbrotState state) => MandelbrotVariantDefinition.ParameterVariant(state.Variant) switch
     {
-        MandelbrotVariant.Mandelbrot or MandelbrotVariant.Julia
-            or MandelbrotVariant.BurningShip or MandelbrotVariant.JuliaBurningShip
+        MandelbrotVariant.Mandelbrot or MandelbrotVariant.BurningShip
             or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic => true,
         MandelbrotVariant.Generalized => IsMultibrotDeepZoomPower(state.Power),
         MandelbrotVariant.Simonobrot => IsSimonobrotDeepZoomPower(state.Power),
@@ -120,9 +119,9 @@ public static partial class MandelbrotFamilyRenderer
     // Ускоряются вещественной 2×2 таблицей RealBlaTable, а не комплексной BlaTable.
     private enum ReflectKind { BurningShip, Buffalo, Tricorn, Celtic }
 
-    private static ReflectKind? ReflectKindOf(MandelbrotVariant variant) => variant switch
+    private static ReflectKind? ReflectKindOf(MandelbrotVariant variant) => MandelbrotVariantDefinition.ParameterVariant(variant) switch
     {
-        MandelbrotVariant.BurningShip or MandelbrotVariant.JuliaBurningShip => ReflectKind.BurningShip,
+        MandelbrotVariant.BurningShip => ReflectKind.BurningShip,
         MandelbrotVariant.Buffalo => ReflectKind.Buffalo,
         MandelbrotVariant.Tricorn => ReflectKind.Tricorn,
         MandelbrotVariant.Celtic => ReflectKind.Celtic,
@@ -130,7 +129,7 @@ public static partial class MandelbrotFamilyRenderer
     };
 
     private static bool IsJuliaVariant(MandelbrotVariant variant) =>
-        variant is MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip;
+        MandelbrotVariantDefinition.IsJulia(variant);
 
     // |Zc + δc| − |Zc| без катастрофического сокращения: пока δ не перевернул знак
     // компоненты (обычный случай на глубоком зуме) это ровно ±δc; на перевороте — точное
@@ -705,9 +704,9 @@ public static partial class MandelbrotFamilyRenderer
         int multibrotPower = MultibrotPowerOrZero(state);     // 0, либо p ∈ [2, 12]
         int simonobrotPower = SimonobrotPowerOrZero(state);   // 0, либо целое p ∈ [2, 12]
         // UseInversion (только Симоноброт): в формулу каждый шаг подставляется -re вместо re.
-        bool invertReal = state.Variant == MandelbrotVariant.Simonobrot && state.UseInversion;
+        bool invertReal = MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Simonobrot && state.UseInversion;
         BigFloat constantReal = isJulia
-            ? BigFloat.FromDecimal(state.JuliaCReal)
+            ? BigFloat.FromDecimal(invertReal ? -state.JuliaCReal : state.JuliaCReal)
             : invertReal ? -centerX : centerX;
         BigFloat constantImaginary = isJulia ? BigFloat.FromDecimal(state.JuliaCImaginary) : centerY;
         BigFloat zReal = isJulia ? centerX : BigFloat.Zero;
@@ -1583,15 +1582,16 @@ public static partial class MandelbrotFamilyRenderer
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
         bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
 
-        // Generalized не бывает Жюлиа: δ₀ = 0, δc добавляется каждый шаг.
-        double deltaReal = 0.0;
-        double deltaImaginary = 0.0;
-        double addReal = deltaConstantReal;
-        double addImaginary = deltaConstantImaginary;
+        // Жюлиа меняет z₀ при постоянной C; параметрическая плоскость меняет C.
+        bool isJulia = IsJuliaVariant(state.Variant);
+        double deltaReal = isJulia ? deltaConstantReal : 0.0;
+        double deltaImaginary = isJulia ? deltaConstantImaginary : 0.0;
+        double addReal = isJulia ? 0.0 : deltaConstantReal;
+        double addImaginary = isJulia ? 0.0 : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = Jacobian2.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia: false);
+        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
+        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
             ? orbit.Bla
@@ -1734,15 +1734,16 @@ public static partial class MandelbrotFamilyRenderer
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
         bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
 
-        // Generalized не бывает Жюлиа: δ₀ = 0, δc добавляется каждый шаг.
-        FloatExp deltaReal = FloatExp.Zero;
-        FloatExp deltaImaginary = FloatExp.Zero;
-        FloatExp addReal = deltaConstantReal;
-        FloatExp addImaginary = deltaConstantImaginary;
+        // Жюлиа меняет z₀ при постоянной C; параметрическая плоскость меняет C.
+        bool isJulia = IsJuliaVariant(state.Variant);
+        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
+        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
+        FloatExp addReal = isJulia ? FloatExp.Zero : deltaConstantReal;
+        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2Exp derivative = Jacobian2Exp.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia: false);
+        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
+        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
             ? orbit.Bla
@@ -1894,16 +1895,16 @@ public static partial class MandelbrotFamilyRenderer
         int halfPower = power / 2;              // q = ⌊p/2⌋
         bool oddPower = (power & 1) != 0;       // p = 2q+1 ⇒ множитель модуля несёт ещё и √M
 
-        // Симоноброт не бывает Жюлиа: δ₀ = 0, δc добавляется каждый шаг. UseInversion —
-        // знак вещественной части добавки (см. ComputeReferenceOrbit).
-        double deltaReal = 0.0;
-        double deltaImaginary = 0.0;
-        double addReal = state.UseInversion ? -deltaConstantReal : deltaConstantReal;
-        double addImaginary = deltaConstantImaginary;
+        // У Жюлиа δ₀ — смещение пикселя, а инверсия относится к фиксированной C.
+        bool isJulia = IsJuliaVariant(state.Variant);
+        double deltaReal = isJulia ? deltaConstantReal : 0.0;
+        double deltaImaginary = isJulia ? deltaConstantImaginary : 0.0;
+        double addReal = isJulia ? 0.0 : state.UseInversion ? -deltaConstantReal : deltaConstantReal;
+        double addImaginary = isJulia ? 0.0 : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = Jacobian2.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia: false);
+        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
+        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         // BLA с вещественной 2×2 линейной частью — условия те же, что у комплексного.
         RealBlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
@@ -2098,16 +2099,16 @@ public static partial class MandelbrotFamilyRenderer
         int halfPower = power / 2;              // q = ⌊p/2⌋
         bool oddPower = (power & 1) != 0;       // p = 2q+1 ⇒ множитель модуля несёт ещё и √M
 
-        // Симоноброт не бывает Жюлиа: δ₀ = 0, δc добавляется каждый шаг. UseInversion —
-        // знак вещественной части добавки (см. ComputeReferenceOrbit).
-        FloatExp deltaReal = FloatExp.Zero;
-        FloatExp deltaImaginary = FloatExp.Zero;
-        FloatExp addReal = state.UseInversion ? -deltaConstantReal : deltaConstantReal;
-        FloatExp addImaginary = deltaConstantImaginary;
+        // У Жюлиа δ₀ — смещение пикселя, а инверсия относится к фиксированной C.
+        bool isJulia = IsJuliaVariant(state.Variant);
+        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
+        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
+        FloatExp addReal = isJulia ? FloatExp.Zero : state.UseInversion ? -deltaConstantReal : deltaConstantReal;
+        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2Exp derivative = Jacobian2Exp.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia: false);
+        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
+        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         RealBlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
             ? orbit.RealBla

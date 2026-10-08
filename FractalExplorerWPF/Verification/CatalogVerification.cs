@@ -274,8 +274,8 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + 7,
-                "Laboratories, 3D fractals, Gray–Scott, Turing patterns, Sprott, Symmetric Icons, Popcorn, snow crystals and Hopalong must be rendered on the fly.");
+                    Enum.GetValues<Fractal3DKind>().Length + 12,
+                "Laboratories, 3D fractals, Gray–Scott, Turing patterns, Sprott, Symmetric Icons, Popcorn, snow crystals, Hopalong and the five new Julia modes must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,
@@ -349,7 +349,10 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+            Check(ViewItems(window).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+                ["JuliaGeneralized", "JuliaTricorn", "JuliaBuffalo", "JuliaCeltic", "JuliaSimonobrot"]),
+                "The five separate Julia modes must lead new arrivals.");
+            Check(ViewItems(window).Skip(5).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lenia3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Physarum3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lichtenberg3D),
@@ -360,6 +363,7 @@ internal static partial class Program
                 "Modes introduced on the same day must keep their actual commit chronology.");
             Check(GalleryScrollViewer(window).VerticalOffset == 0,
                 "New arrivals must open at the top even when an older mode remains selected.");
+            var introductionOrder = ViewItems(window).Select(tile => tile.Item.LaunchKey).ToArray();
             SaveCatalogPng(root, pngDirectory, "02-new-arrivals");
 
             window.ScopeList.SelectedItem = recents;
@@ -376,7 +380,7 @@ internal static partial class Program
             Check(recents.Count == 4 && mandelbrot.RecentRank == 0 && Tile(window, oldest).RecentRank == 1,
                 "Recent ranks and the menu count must follow launches.");
             window.ScopeList.SelectedItem = arrivals;
-            Check(ViewItems(window)[0].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Lenia3D),
+            Check(ViewItems(window).Select(tile => tile.Item.LaunchKey).SequenceEqual(introductionOrder),
                 "Launching an old mode must not change the introduction chronology.");
 
             // ----- Избранное -----

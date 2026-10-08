@@ -541,9 +541,10 @@ public static partial class MandelbrotFamilyRenderer
     {
         if (state.Variant == MandelbrotVariant.Mandelbrot && IsInsideMandelbrot(re, im))
             return new PixelMetrics(state.Iterations, state.Iterations, 0, 0);
-        bool isJulia = state.Variant is MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip;
-        double cr = isJulia ? (double)state.JuliaCReal
-            : state.UseInversion && state.Variant == MandelbrotVariant.Simonobrot ? -re : re;
+        bool isJulia = IsJuliaVariant(state.Variant);
+        bool invertReal = state.UseInversion && MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Simonobrot;
+        double cr = isJulia ? (double)(invertReal ? -state.JuliaCReal : state.JuliaCReal)
+            : invertReal ? -re : re;
         double ci = isJulia ? (double)state.JuliaCImaginary : im;
         double zr = isJulia ? re : 0;
         double zi = isJulia ? im : 0;
@@ -601,9 +602,10 @@ public static partial class MandelbrotFamilyRenderer
     {
         if (state.Variant == MandelbrotVariant.Mandelbrot && IsInsideMandelbrot(re, im))
             return new PixelMetrics(state.Iterations, state.Iterations, 0, 0);
-        bool isJulia = state.Variant is MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip;
-        decimal cr = isJulia ? state.JuliaCReal
-            : state.UseInversion && state.Variant == MandelbrotVariant.Simonobrot ? -re : re;
+        bool isJulia = IsJuliaVariant(state.Variant);
+        bool invertReal = state.UseInversion && MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Simonobrot;
+        decimal cr = isJulia ? (invertReal ? -state.JuliaCReal : state.JuliaCReal)
+            : invertReal ? -re : re;
         decimal ci = isJulia ? state.JuliaCImaginary : im;
         decimal zr = isJulia ? re : 0;
         decimal zi = isJulia ? im : 0;
@@ -670,7 +672,7 @@ public static partial class MandelbrotFamilyRenderer
         isJulia
             ? Jacobian2.Zero
             : new Jacobian2(
-                state.UseInversion && state.Variant == MandelbrotVariant.Simonobrot ? -1 : 1,
+                state.UseInversion && MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Simonobrot ? -1 : 1,
                 0,
                 0,
                 1);
@@ -678,14 +680,12 @@ public static partial class MandelbrotFamilyRenderer
     private static Jacobian2 GetIterationJacobian(MandelbrotState state, double zr, double zi)
     {
         Jacobian2 result;
-        switch (state.Variant)
+        switch (MandelbrotVariantDefinition.ParameterVariant(state.Variant))
         {
             case MandelbrotVariant.Mandelbrot:
-            case MandelbrotVariant.Julia:
                 result = ComplexJacobian(new Complex(2 * zr, 2 * zi));
                 break;
             case MandelbrotVariant.BurningShip:
-            case MandelbrotVariant.JuliaBurningShip:
             {
                 double transformedReal = Math.Abs(zr);
                 double transformedImaginary = -Math.Abs(zi);
@@ -863,14 +863,12 @@ public static partial class MandelbrotFamilyRenderer
     private static void IterateOnceDecimal(
         MandelbrotState state, ref decimal zr, ref decimal zi, decimal cr, decimal ci)
     {
-        switch (state.Variant)
+        switch (MandelbrotVariantDefinition.ParameterVariant(state.Variant))
         {
             case MandelbrotVariant.Mandelbrot:
-            case MandelbrotVariant.Julia:
                 SquareAddDecimal(ref zr, ref zi, cr, ci);
                 break;
             case MandelbrotVariant.BurningShip:
-            case MandelbrotVariant.JuliaBurningShip:
                 zr = Math.Abs(zr);
                 zi = -Math.Abs(zi);
                 SquareAddDecimal(ref zr, ref zi, cr, ci);
@@ -929,14 +927,12 @@ public static partial class MandelbrotFamilyRenderer
 
     private static void IterateOnce(MandelbrotState state, ref double zr, ref double zi, double cr, double ci)
     {
-        switch (state.Variant)
+        switch (MandelbrotVariantDefinition.ParameterVariant(state.Variant))
         {
             case MandelbrotVariant.Mandelbrot:
-            case MandelbrotVariant.Julia:
                 SquareAdd(ref zr, ref zi, cr, ci);
                 break;
             case MandelbrotVariant.BurningShip:
-            case MandelbrotVariant.JuliaBurningShip:
                 zr = Math.Abs(zr);
                 zi = -Math.Abs(zi);
                 SquareAdd(ref zr, ref zi, cr, ci);

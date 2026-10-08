@@ -90,10 +90,9 @@ public partial class MandelbrotWindow : Window
     //    Generalized/Simonobrot высокой целой степени (до p=12) шаг опорной орбиты в BigFloat
     //    дороже (O(p) умножений), поэтому на глубоком зуме с большим числом итераций рендер
     //    объективно медленнее, чем у z²+c, — практический компромисс, а не потолок типа.
-    private FloatExp EffectiveMaxZoom => _definition.Variant switch
+    private FloatExp EffectiveMaxZoom => MandelbrotVariantDefinition.ParameterVariant(_definition.Variant) switch
     {
-        MandelbrotVariant.Mandelbrot or MandelbrotVariant.Julia
-            or MandelbrotVariant.BurningShip or MandelbrotVariant.JuliaBurningShip
+        MandelbrotVariant.Mandelbrot or MandelbrotVariant.BurningShip
             or MandelbrotVariant.Tricorn or MandelbrotVariant.Buffalo or MandelbrotVariant.Celtic
             or MandelbrotVariant.Generalized or MandelbrotVariant.Simonobrot => MaxZoom,
         _ => 5e28,
@@ -188,6 +187,16 @@ public partial class MandelbrotWindow : Window
         _updatingControls = false;
     }
 
+    private decimal ReadFormulaPower()
+    {
+        decimal power = _definition.HasPower
+            ? ReadDecimal(PowerBox.Text, "степень", _definition.HasInversion ? -12m : 0.1m, 12m)
+            : 2m;
+        if (_definition.HasInversion && Math.Abs(power) < 0.1m)
+            throw new InvalidOperationException("Для Симоноброта модуль степени должен быть не меньше 0.1.");
+        return power;
+    }
+
     public MandelbrotState CaptureState(string saveName)
     {
         // Потолок совпадает с BlaMaxOrbitLength: за ним таблица BLA не строится и глубокий
@@ -195,11 +204,7 @@ public partial class MandelbrotWindow : Window
         // медленным. На 1e1000 счёт идёт о сотнях тысяч итераций, так что запас есть.
         int iterations = ReadInt(IterationsBox.Text, "итерации", 50, MaxIterations);
         decimal threshold = ReadDecimal(ThresholdBox.Text, "порог выхода", 0.1m, 1_000m);
-        decimal power = _definition.HasPower
-            ? ReadDecimal(PowerBox.Text, "степень", _definition.Variant == MandelbrotVariant.Simonobrot ? -12m : 0.1m, 12m)
-            : 2m;
-        if (_definition.Variant == MandelbrotVariant.Simonobrot && Math.Abs(power) < 0.1m)
-            throw new InvalidOperationException("Для Симоноброта модуль степени должен быть не меньше 0.1.");
+        decimal power = ReadFormulaPower();
         MandelbrotPalette palette = _paletteManager.ActivePalette.Clone(_paletteManager.ActivePalette.Name);
 
         return new MandelbrotState
@@ -339,6 +344,11 @@ public partial class MandelbrotWindow : Window
             string.IsNullOrWhiteSpace(state.PaletteName) ? loadedPalette.Name : state.PaletteName);
         _updatingControls = false;
         UpdateJuliaMapMarker();
+        if (_definition.HasJuliaConstant)
+        {
+            _constantPicker?.UpdateFormulaParameters(state.Power, state.UseInversion);
+            if (IsLoaded) _ = RenderJuliaMapPreviewAsync();
+        }
         ScheduleRender();
     }
 
@@ -372,6 +382,15 @@ public partial class MandelbrotWindow : Window
         if (!_updatingControls && IsLoaded)
         {
             UpdateJuliaMapMarker();
+            if (_definition.HasJuliaConstant && (ReferenceEquals(sender, PowerBox) || ReferenceEquals(sender, InversionBox)))
+            {
+                try
+                {
+                    _constantPicker?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true);
+                    _ = RenderJuliaMapPreviewAsync();
+                }
+                catch (Exception ex) { StatusText.Text = ex.Message; }
+            }
             ScheduleRender();
         }
     }
@@ -412,10 +431,12 @@ public partial class MandelbrotWindow : Window
         if (_constantPicker is { } existing) { existing.Activate(); return; }
         decimal real;
         decimal imaginary;
+        decimal power;
         try
         {
             real = ReadDecimal(JuliaRealBox.Text, "действительная часть C", -10m, 10m);
             imaginary = ReadDecimal(JuliaImaginaryBox.Text, "мнимая часть C", -10m, 10m);
+            power = ReadFormulaPower();
         }
         catch (Exception ex)
         {
@@ -423,10 +444,8 @@ public partial class MandelbrotWindow : Window
             return;
         }
 
-        MandelbrotVariant sourceVariant = _definition.Variant == MandelbrotVariant.JuliaBurningShip
-            ? MandelbrotVariant.BurningShip
-            : MandelbrotVariant.Mandelbrot;
-        var dialog = new JuliaConstantPickerWindow(sourceVariant, real, imaginary) { Owner = this };
+        MandelbrotVariant sourceVariant = MandelbrotVariantDefinition.ParameterVariant(_definition.Variant);
+        var dialog = new JuliaConstantPickerWindow(sourceVariant, real, imaginary, power, InversionBox.IsChecked == true) { Owner = this };
         _constantPicker = dialog;
         dialog.CanLivePreview = CanPreviewJuliaLive;
         dialog.ConstantApplied += (_, _) => ApplyPickerConstant(dialog, false);
@@ -479,6 +498,9 @@ public partial class MandelbrotWindow : Window
         if (!_definition.HasJuliaConstant || JuliaMapPreviewHost.ActualWidth < 1 ||
             JuliaMapPreviewHost.ActualHeight < 1) return;
 
+        decimal power;
+        try { power = ReadFormulaPower(); }
+        catch { return; }
         _juliaMapPreviewCts?.Cancel();
         var cts = new CancellationTokenSource();
         _juliaMapPreviewCts = cts;
@@ -489,6 +511,8 @@ public partial class MandelbrotWindow : Window
         var state = new MandelbrotState
         {
             Variant = variant,
+            Power = power,
+            UseInversion = InversionBox.IsChecked == true,
             CenterX = centerX,
             CenterY = centerY,
             Zoom = (double)zoom,
@@ -534,9 +558,12 @@ public partial class MandelbrotWindow : Window
     }
 
     private (MandelbrotVariant Variant, decimal CenterX, decimal CenterY, decimal Zoom) GetJuliaMapView() =>
-        _definition.Variant == MandelbrotVariant.JuliaBurningShip
-            ? (MandelbrotVariant.BurningShip, -0.25m, 0.25m, 3m / 3.5m)
-            : (MandelbrotVariant.Mandelbrot, -0.5m, 0m, 1m);
+        MandelbrotVariantDefinition.ParameterVariant(_definition.Variant) switch
+        {
+            MandelbrotVariant.BurningShip => (MandelbrotVariant.BurningShip, -0.25m, 0.25m, 3m / 3.5m),
+            MandelbrotVariant.Mandelbrot => (MandelbrotVariant.Mandelbrot, -0.5m, 0m, 1m),
+            var source => (source, 0m, 0m, 0.75m)
+        };
 
     private void UpdateJuliaMapMarker()
     {

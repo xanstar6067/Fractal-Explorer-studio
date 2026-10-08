@@ -17,7 +17,12 @@ public enum MandelbrotVariant
     Simonobrot,
     Generalized,
     Julia,
-    JuliaBurningShip
+    JuliaBurningShip,
+    JuliaGeneralized,
+    JuliaTricorn,
+    JuliaBuffalo,
+    JuliaCeltic,
+    JuliaSimonobrot
 }
 
 public enum MandelbrotColoringMode
@@ -58,6 +63,24 @@ public sealed record MandelbrotVariantDefinition(
     decimal DefaultJuliaReal = 0m,
     decimal DefaultJuliaImaginary = 0m)
 {
+    public static bool IsJulia(MandelbrotVariant variant) => variant is
+        MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip or MandelbrotVariant.JuliaGeneralized
+        or MandelbrotVariant.JuliaTricorn or MandelbrotVariant.JuliaBuffalo or MandelbrotVariant.JuliaCeltic
+        or MandelbrotVariant.JuliaSimonobrot;
+
+    /// <summary>Та же формула на параметрической плоскости C; не меняет категорию сохранения.</summary>
+    public static MandelbrotVariant ParameterVariant(MandelbrotVariant variant) => variant switch
+    {
+        MandelbrotVariant.Julia => MandelbrotVariant.Mandelbrot,
+        MandelbrotVariant.JuliaBurningShip => MandelbrotVariant.BurningShip,
+        MandelbrotVariant.JuliaGeneralized => MandelbrotVariant.Generalized,
+        MandelbrotVariant.JuliaTricorn => MandelbrotVariant.Tricorn,
+        MandelbrotVariant.JuliaBuffalo => MandelbrotVariant.Buffalo,
+        MandelbrotVariant.JuliaCeltic => MandelbrotVariant.Celtic,
+        MandelbrotVariant.JuliaSimonobrot => MandelbrotVariant.Simonobrot,
+        _ => variant
+    };
+
     public static MandelbrotVariantDefinition For(MandelbrotVariant variant) => variant switch
     {
         MandelbrotVariant.Mandelbrot => new(variant, "Множество Мандельброта", "Mandelbrot", -0.5m, 0, 0.75),
@@ -71,6 +94,17 @@ public sealed record MandelbrotVariantDefinition(
             HasJuliaConstant: true, DefaultJuliaReal: -0.800m, DefaultJuliaImaginary: 0.156m),
         MandelbrotVariant.JuliaBurningShip => new(variant, "Горящий Корабль (Жюлиа)", "JuliaBurningShip", 0, 0, 0.75,
             HasJuliaConstant: true, DefaultJuliaReal: -1.7551867961883m, DefaultJuliaImaginary: 0.01068m),
+        MandelbrotVariant.JuliaGeneralized => new(variant, "Обобщённое Жюлиа (Multijulia)", "JuliaGeneralized", 0, 0, 0.75,
+            HasPower: true, DefaultPower: 3, HasJuliaConstant: true, DefaultJuliaReal: -0.2m, DefaultJuliaImaginary: 0.7m),
+        MandelbrotVariant.JuliaTricorn => new(variant, "Трикорн (Жюлиа)", "JuliaTricorn", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.1m, DefaultJuliaImaginary: 0.65m),
+        MandelbrotVariant.JuliaBuffalo => new(variant, "Буффало (Жюлиа)", "JuliaBuffalo", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.5m, DefaultJuliaImaginary: -0.45m),
+        MandelbrotVariant.JuliaCeltic => new(variant, "Кельтское Жюлиа", "JuliaCeltic", 0, 0, 0.75,
+            HasJuliaConstant: true, DefaultJuliaReal: -0.75m, DefaultJuliaImaginary: 0.12m),
+        MandelbrotVariant.JuliaSimonobrot => new(variant, "Симоноброт (Жюлиа)", "JuliaSimonobrot", 0, 0, 0.75,
+            HasPower: true, HasInversion: true, HasJuliaConstant: true,
+            DefaultJuliaReal: -0.5m, DefaultJuliaImaginary: 0.2m),
         _ => throw new ArgumentOutOfRangeException(nameof(variant))
     };
 }

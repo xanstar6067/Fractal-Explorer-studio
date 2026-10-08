@@ -75,6 +75,33 @@ public static class PresetManager
             M("Психонавт", variant, 0m, 0m, 1m, 500, "Психоделика", juliaReal: 0.736607134342194m, juliaImaginary: 1.09152793884277m),
             M("Кристальная Ось", variant, 0m, 0m, 1m, 400, "Неон", juliaReal: -1.7623m, juliaImaginary: 0.02m, scale: 6)
         ],
+        MandelbrotVariant.JuliaGeneralized =>
+        [
+            M("Кубическое Жюлиа", variant, 0, 0, 0.75m, 400, "Ультрафиолет", power: 3, juliaReal: -0.2m, juliaImaginary: 0.7m, scale: 35, phase: 0.3),
+            M("Четыре луча", variant, 0, 0, 0.9m, 400, "Лёд", power: 4, juliaReal: -0.3m, juliaImaginary: 0.4m, scale: 35, phase: 0.3),
+            M("Дробная степень", variant, 0, 0, 0.8m, 400, "Огонь", power: 2.5m, juliaReal: -0.4m, juliaImaginary: 0.3m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaTricorn =>
+        [
+            M("Сопряжённое кружево", variant, 0, 0, 0.75m, 400, "Аметист", juliaReal: -0.1m, juliaImaginary: 0.65m, scale: 35, phase: 0.3),
+            M("Тройные ветви", variant, 0, 0, 0.9m, 400, "Лёд", juliaReal: -0.4m, juliaImaginary: 0.2m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaBuffalo =>
+        [
+            M("Отражённые ветви", variant, 0, 0, 0.75m, 400, "Огонь", juliaReal: -0.5m, juliaImaginary: -0.45m, scale: 35, phase: 0.3),
+            M("Кристаллы Буффало", variant, 0, 0, 0.9m, 400, "Бирюза", juliaReal: -0.55m, juliaImaginary: -0.7m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaCeltic =>
+        [
+            M("Кельтские петли", variant, 0, 0, 0.75m, 400, "Океан", juliaReal: -0.75m, juliaImaginary: 0.12m, scale: 35, phase: 0.3),
+            M("Кельтская антенна", variant, 0, 0, 0.9m, 400, "Аметист", juliaReal: -1.2m, juliaImaginary: 0.05m, scale: 35, phase: 0.3)
+        ],
+        MandelbrotVariant.JuliaSimonobrot =>
+        [
+            M("Радиальное Жюлиа", variant, 0, 0, 0.75m, 400, "Золото", power: 2, juliaReal: -0.5m, juliaImaginary: 0.2m, scale: 35, phase: 0.3),
+            M("Радиальные три луча", variant, 0, 0, 0.9m, 400, "Неон", power: 3, juliaReal: -0.3m, juliaImaginary: 0.4m, scale: 35, phase: 0.3),
+            M("Инверсия константы", variant, 0, 0, 0.8m, 400, "Лёд", power: 2, useInversion: true, juliaReal: 0.5m, juliaImaginary: 0.2m, scale: 35, phase: 0.3)
+        ],
         MandelbrotVariant.Generalized =>
         [
             M("Трилистник (p=3.0)", variant, 0m, 0m, 0.8m, 500, "Ультрафиолет", power: 3m, scale: 15, phase: 0.2),

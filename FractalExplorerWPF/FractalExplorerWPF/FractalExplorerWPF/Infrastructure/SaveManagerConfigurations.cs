@@ -437,8 +437,11 @@ public static class SaveManagerConfigurations
     {
         string details = $"{Prefix(state.Timestamp)} · Итерации: {state.Iterations} · Масштаб: {state.Zoom:G6}\n" +
                          $"Центр: {state.CenterX:G8}; {state.CenterY:G8} · Палитра: {state.PaletteName} · {state.ColoringMode}";
-        if (state.Variant is MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip)
+        if (MandelbrotVariantDefinition.IsJulia(state.Variant))
             details += $"\nКонстанта C: {Complex(state.JuliaCReal, state.JuliaCImaginary)}";
+        MandelbrotVariantDefinition definition = MandelbrotVariantDefinition.For(state.Variant);
+        if (definition.HasPower) details += $"\nСтепень: {state.Power:G6}";
+        if (definition.HasInversion) details += $" · Инверсия: {(state.UseInversion ? "да" : "нет")}";
         return details;
     }
 

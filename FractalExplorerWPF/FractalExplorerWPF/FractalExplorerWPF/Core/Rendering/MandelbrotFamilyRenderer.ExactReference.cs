@@ -144,10 +144,10 @@ public static partial class MandelbrotFamilyRenderer
         ReflectKind? reflect = ReflectKindOf(state.Variant);
         int multibrotPower = MultibrotPowerOrZero(state);
         int simonobrotPower = SimonobrotPowerOrZero(state);
-        bool invertReal = state.Variant == MandelbrotVariant.Simonobrot && state.UseInversion;
+        bool invertReal = MandelbrotVariantDefinition.ParameterVariant(state.Variant) == MandelbrotVariant.Simonobrot && state.UseInversion;
 
         BigFloat constantReal = isJulia
-            ? BigFloat.FromDecimal(state.JuliaCReal)
+            ? BigFloat.FromDecimal(invertReal ? -state.JuliaCReal : state.JuliaCReal)
             : invertReal ? -startReal : startReal;
         BigFloat constantImaginary = isJulia ? BigFloat.FromDecimal(state.JuliaCImaginary) : startImaginary;
         BigFloat zReal = isJulia ? startReal : BigFloat.Zero;

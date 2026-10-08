@@ -11,7 +11,7 @@ namespace FractalExplorerWPF.Infrastructure;
 /// <summary>
 /// Превью плиток каталога. Встроенные PNG для сетки декодируются уменьшенными, в полном размере —
 /// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы, Gray–Scott,
-/// орбитальные орнаменты и снежные кристаллы
+/// орбитальные орнаменты, снежные кристаллы и новые варианты Жюлиа
 /// своих картинок не имеют: их превью рендерится по состоянию по умолчанию в фоне, по одному,
 /// и хранится в памяти (все вместе — несколько секунд). Если рендер не удался (например, нет
 /// Direct3D 11 для трёхмерных видов), плитка показывает встроенную картинку-заглушку.
@@ -34,7 +34,7 @@ internal sealed class CatalogPreviewLoader
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
-        item.LaunchKey is GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
+        item.LaunchKey is "JuliaGeneralized" or "JuliaTricorn" or "JuliaBuffalo" or "JuliaCeltic" or "JuliaSimonobrot" or GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -72,6 +72,21 @@ internal sealed class CatalogPreviewLoader
         {
             return Fractal3DRenderer.RenderOnceAsync(
                 Fractal3DCatalog.CreateDefaultState(fractal3DKind), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (Enum.TryParse(item.LaunchKey, out MandelbrotVariant julia) && MandelbrotVariantDefinition.IsJulia(julia))
+        {
+            MandelbrotState state = PresetManager.GetMandelbrotPresets(julia)[0];
+            return Task.Run(() =>
+            {
+                byte[] pixels = new byte[RenderedPixelSize * RenderedPixelSize * 4];
+                MandelbrotFamilyRenderer.Render(state, pixels, RenderedPixelSize, RenderedPixelSize,
+                    RenderedPixelSize * 4, token);
+                token.ThrowIfCancellationRequested();
+                BitmapSource image = BitmapSource.Create(RenderedPixelSize, RenderedPixelSize, 96, 96,
+                    System.Windows.Media.PixelFormats.Bgra32, null, pixels, RenderedPixelSize * 4);
+                image.Freeze();
+                return image;
+            }, token);
         }
         if (item.LaunchKey == GrayScottLaunchKey)
         {

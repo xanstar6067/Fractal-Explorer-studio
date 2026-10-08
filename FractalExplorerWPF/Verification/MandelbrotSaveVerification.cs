@@ -111,10 +111,10 @@ internal static partial class Program
                 {
                     MandelbrotState state = window.CaptureState("depth");
                     state.Zoom = FloatExp.Pow10(exponent);
-                    state.CenterX = variant is MandelbrotVariant.Julia or MandelbrotVariant.JuliaBurningShip ? 1m : -2m;
+                    state.CenterX = MandelbrotVariantDefinition.IsJulia(variant) ? 1m : -2m;
                     state.CenterY = 0;
                     state.JuliaCReal = 0; state.JuliaCImaginary = 0;
-                    state.Power = variant == MandelbrotVariant.Generalized ? 3m : 2m;
+                    state.Power = MandelbrotVariantDefinition.ParameterVariant(variant) == MandelbrotVariant.Generalized ? 3m : 2m;
                     state.Iterations = exponent >= 300 ? 3800 : 240;
                     if (exponent >= 26)
                     {
@@ -151,12 +151,12 @@ internal static partial class Program
                 }
                 foreach (var preset in PresetManager.GetMandelbrotPresets(variant))
                     await Run(preset,"preset-"+cases);
-                if (variant is MandelbrotVariant.Simonobrot or MandelbrotVariant.Generalized)
+                if (MandelbrotVariantDefinition.ParameterVariant(variant) is MandelbrotVariant.Simonobrot or MandelbrotVariant.Generalized)
                 {
                     var extra = window.CaptureState("power"); extra.Zoom = 0.75;
                     extra.CenterXExact = null; extra.CenterYExact = null; extra.CenterX = 0; extra.CenterY = 0;
-                    extra.Power = variant == MandelbrotVariant.Simonobrot ? -3m : 3.1m;
-                    extra.UseInversion = variant == MandelbrotVariant.Simonobrot;
+                    extra.Power = MandelbrotVariantDefinition.ParameterVariant(variant) == MandelbrotVariant.Simonobrot ? -3m : 3.1m;
+                    extra.UseInversion = MandelbrotVariantDefinition.ParameterVariant(variant) == MandelbrotVariant.Simonobrot;
                     await Run(extra,"negative-or-fractional-power");
                 }
                 // Exercise the actual save-manager selection, PNG cache, manual CPU rerender and Load button.
@@ -212,6 +212,6 @@ internal static partial class Program
             finally { window.Close(); }
         }
         if (output is not null) File.WriteAllText(Path.Combine(output,"results.csv"),report.ToString());
-        Console.WriteLine($"PASS (mandelbrot-saves): {cases} cases, nine variants, nine zoom depths to 1e1000, seven colour modes, presets, exact JSON/PNG/WPF round-trips, CPU-only previews and real manager controls.");
+        Console.WriteLine($"PASS (mandelbrot-saves): {cases} cases, {Enum.GetValues<MandelbrotVariant>().Length} variants, nine zoom depths to 1e1000, seven colour modes, presets, exact JSON/PNG/WPF round-trips, CPU-only previews and real manager controls.");
     }
 }
