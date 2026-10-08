@@ -12,8 +12,8 @@ namespace FractalExplorerWPF.Infrastructure;
 /// Превью плиток каталога. Встроенные PNG для сетки декодируются уменьшенными, в полном размере —
 /// только для пункта, открытого в панели деталей. Лаборатории, трёхмерные фракталы, Gray–Scott,
 /// орбитальные орнаменты, снежные кристаллы и новые варианты Мандельброта/Жюлиа
-/// своих картинок не имеют: их превью рендерится по состоянию по умолчанию в фоне, по одному,
-/// и хранится в памяти (все вместе — несколько секунд). Если рендер не удался (например, нет
+/// своих картинок не имеют: их превью рендерится в фоне двумя независимыми очередями ЦП и ГП,
+/// по одному на каждой очереди, и хранится в памяти. Если рендер не удался (например, нет
 /// Direct3D 11 для трёхмерных видов), плитка показывает встроенную картинку-заглушку.
 /// </summary>
 internal sealed class CatalogPreviewLoader
@@ -30,6 +30,17 @@ internal sealed class CatalogPreviewLoader
 
     private readonly Dictionary<string, BitmapSource?> _thumbnails = new(StringComparer.OrdinalIgnoreCase);
     private CatalogTile? _priority;
+    private Task? _pendingRendering;
+    private readonly Func<FractalCatalogItem, CancellationToken, Task<BitmapSource>> _render;
+
+    public CatalogPreviewLoader(Func<FractalCatalogItem, CancellationToken, Task<BitmapSource>>? render = null) =>
+        _render = render ?? RenderAsync;
+
+    /// <summary>Очередь по штатному состоянию превью; остальные рендерящиеся пункты относятся к ЦП.</summary>
+    internal static bool UsesGpu(FractalCatalogItem item) =>
+        Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
+        item.LaunchKey == GrayScottLaunchKey && GrayScottPresets.All[0].State.Backend == GrayScottBackend.Gpu ||
+        item.LaunchKey == "TuringPatterns" && TuringPresets.All[0].CreateState().Backend == TuringBackend.Gpu;
 
     public static bool IsRendered(FractalCatalogItem item) =>
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
@@ -169,18 +180,35 @@ internal sealed class CatalogPreviewLoader
     }
 
     /// <summary>
-    /// Рендерит ожидающие превью по одному, начиная с открытого в панели деталей. Ошибка рендера
-    /// оставляет встроенную картинку-заглушку из каталога. Вызывается на UI-потоке.
+    /// Одновременно выполняет очереди ЦП и ГП, по одному превью внутри каждой.
+    /// Выбранный пункт получает приоритет в своей очереди. Вызывается на UI-потоке:
+    /// выбор следующего пункта и публикация изображений сохраняют контекст WPF.
+    /// Повторный вызов присоединяется к уже запущенной подготовке.
     /// </summary>
-    public async Task RenderPendingAsync(IReadOnlyList<CatalogTile> tiles, CancellationToken token)
+    public Task RenderPendingAsync(IReadOnlyList<CatalogTile> tiles, CancellationToken token) =>
+        _pendingRendering is { IsCompleted: false }
+            ? _pendingRendering
+            : _pendingRendering = RenderQueuesAsync(tiles, token);
+
+    private Task RenderQueuesAsync(IReadOnlyList<CatalogTile> tiles, CancellationToken token)
+    {
+        CatalogTile[] gpu = tiles.Where(tile => UsesGpu(tile.Item)).ToArray();
+        CatalogTile[] cpu = tiles.Where(tile => !UsesGpu(tile.Item)).ToArray();
+        return Task.WhenAll(RenderQueueAsync(cpu, token), RenderQueueAsync(gpu, token));
+    }
+
+    private async Task RenderQueueAsync(IReadOnlyList<CatalogTile> tiles, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
-            CatalogTile? next = _priority is { IsPreviewPending: true } ? _priority : tiles.FirstOrDefault(tile => tile.IsPreviewPending);
+            CatalogTile? next = _priority is { IsPreviewPending: true } priority && tiles.Contains(priority)
+                ? priority : tiles.FirstOrDefault(tile => tile.IsPreviewPending);
             if (next is null) return;
             try
             {
-                BitmapSource bitmap = await RenderAsync(next.Item, token);
+                BitmapSource bitmap = await _render(next.Item, token);
+                // Даже рендерер, закончивший кадр одновременно с закрытием окна, не публикует поздний результат.
+                token.ThrowIfCancellationRequested();
                 next.IsPreviewFailed = false;
                 next.Thumbnail = bitmap;
                 next.Preview = bitmap;
@@ -191,6 +219,7 @@ internal sealed class CatalogPreviewLoader
             }
             catch (Exception)
             {
+                if (token.IsCancellationRequested) return;
                 next.IsPreviewFailed = true;
                 next.Thumbnail = LoadThumbnail(next.Item.PreviewResourcePath);
             }

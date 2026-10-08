@@ -22,6 +22,7 @@ internal static partial class Program
 {
     private static async Task VerifyCatalogAsync(string? outputDirectory)
     {
+        await VerifyCatalogPreviewQueuesAsync();
         VerifyCatalogData();
         VerifyCatalogSearch();
         await VerifyIfs3DPresetsAsync();
