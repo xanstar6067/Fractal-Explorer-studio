@@ -9,10 +9,15 @@ namespace FractalExplorerWPF.Infrastructure;
 /// <summary>Постоянный кэш каталога. Версия меняется при изменении формата или качества превью.</summary>
 internal static class CatalogPreviewCache
 {
-    internal static string GetPath(FractalCatalogItem item) => Path.Combine(
-        AppPaths.CatalogPreviewCacheDirectory,
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"v1|{item.LaunchKey}|{item.PreviewResourcePath}|{CatalogPreviewLoader.IsRendered(item)}"))) + ".png");
+    internal static string GetPath(FractalCatalogItem item)
+    {
+        // Новая окраска стартовых 3D-видов должна обновить превью после установки версии.
+        // Кэш остальных разделов остаётся действительным.
+        string version = Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ? "v2" : "v1";
+        return Path.Combine(AppPaths.CatalogPreviewCacheDirectory,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+                $"{version}|{item.LaunchKey}|{item.PreviewResourcePath}|{CatalogPreviewLoader.IsRendered(item)}"))) + ".png");
+    }
 
     public static BitmapSource? Load(FractalCatalogItem item)
     {

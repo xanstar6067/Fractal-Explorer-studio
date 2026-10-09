@@ -425,6 +425,8 @@ internal static partial class Program
     private static async Task VerifyFractal3DColoringAsync(Fractal3DRenderer renderer)
     {
         Fractal3DState state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Mandelbulb);
+        // Проверяем палитры явно в режиме, который ими пользуется; стартовый вид — материал.
+        state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
         byte[] reference = await Fractal3DFrameAsync(renderer, state);
 
         Fractal3DState repainted = state.Clone();

@@ -708,6 +708,10 @@ public static class Fractal3DCatalog
         {
             Kind = kind,
             SaveName = GetDefinition(kind).Title,
+            // У обычной поверхности цвет материала не меняется при облёте и приближении.
+            // Режимы с содержательной окраской задают свой источник ниже; DTO сохраняет
+            // прежнее значение по умолчанию для совместимости со старыми JSON.
+            ColoringMode = Fractal3DColoringMode.Material,
             Palette = Fractal3DPalettes.Classic()
         };
         switch (kind)
@@ -894,8 +898,6 @@ public static class Fractal3DCatalog
                 state.CameraDistance = 4.2;
                 state.CameraYaw = 28;
                 state.CameraPitch = 24;
-                state.ColoringMode = Fractal3DColoringMode.Depth;
-                // Глубина — не циклическая величина: градиент проходится один раз от ближнего края.
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
             case Fractal3DKind.Vicsek:
@@ -905,7 +907,6 @@ public static class Fractal3DCatalog
                 state.CameraYaw = 28;
                 state.CameraPitch = 24;
                 state.MaxSteps = 220;
-                state.ColoringMode = Fractal3DColoringMode.Depth;
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp;
                 break;
             case Fractal3DKind.SierpinskiTetrahedron:
