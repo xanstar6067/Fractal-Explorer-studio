@@ -288,6 +288,12 @@
                                 <TextBlock Text="{Binding ElementName=CahnCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
                             </StackPanel>
                             <StackPanel x:Name="KobPanel" Visibility="Collapsed">
+                                <Button x:Name="KobSearchButton" Content="Найти интересную форму" Click="KobSearch_OnClick"/>
+                                <Button x:Name="KobVariationButton" Content="Вариация текущей" Click="KobVariation_OnClick"/>
+                                <Button x:Name="KobSearchUndoButton" Content="Вернуть предыдущий кристалл" Click="KobSearchUndo_OnClick" IsEnabled="False"/>
+                                <CheckBox x:Name="KobSearchFitBox" Content="Вписывать найденную форму в кадр" IsChecked="True" Margin="0,6"/>
+                                <ProgressBar x:Name="KobSearchProgress" Minimum="0" Maximum="100" Height="4" Margin="0,6,0,6" Visibility="Collapsed"/>
+                                <TextBlock x:Name="KobSearchStatus" Text="Поиск проверяет рост и форму. Вариация меняет параметры рядом с текущими. Сохраняются четыре предыдущих кристалла." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                                 <TextBlock Text="φ — твёрдая фаза · T — температура расплава" TextWrapping="Wrap" Margin="0,4,0,8"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
                                 <TextBlock x:Name="KobDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
@@ -317,8 +323,15 @@
                                 <ComboBox x:Name="KobSeedBox">
                                     <ComboBoxItem Content="Одна сфера"/><ComboBoxItem Content="Восемь сфер"/>
                                     <ComboBoxItem Content="Кольцо"/><ComboBoxItem Content="Чистая среда"/>
+                                    <ComboBoxItem Content="Случайные зародыши"/>
                                 </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус зародышей (доля сетки: 0,035–0,16)"/>
+                                <TextBox x:Name="KobSeedRadiusBox" Text=".075" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Разброс / радиус кольца (0–0,3)"/>
+                                <TextBox x:Name="KobSeedSpreadBox" Text=".18" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Число случайных зародышей (1–8)"/>
+                                <TextBox x:Name="KobSeedCountBox" Text="4" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число (расположение и шум)"/>
                                 <TextBox x:Name="KobRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
                                 <Button Content="Применить и начать заново" Click="KobRestart_OnClick"/>
                                 <TextBlock Text="Стенки теплоизолированы. Кристалл развивается до выбранной стадии и встаёт на паузу. Пробел — продолжить рост." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>

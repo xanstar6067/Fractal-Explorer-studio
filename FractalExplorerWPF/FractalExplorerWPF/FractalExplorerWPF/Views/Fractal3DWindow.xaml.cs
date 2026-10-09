@@ -814,7 +814,7 @@ public partial class Fractal3DWindow : Window
     {
         if (Kind == Fractal3DKind.Dla3D) StopDlaGrowth();
         else if (Kind == Fractal3DKind.Lichtenberg3D) PauseLichtenberg();
-        else if (Kind == Fractal3DKind.Kobayashi3D) PauseKobayashi();
+        else if (Kind == Fractal3DKind.Kobayashi3D) { CancelKobSearch(); PauseKobayashi(); }
         else if (Kind == Fractal3DKind.GrayScott3D) PauseGrayScott();
         else if (Kind == Fractal3DKind.Turing3D) PauseTuring();
         else if (Kind == Fractal3DKind.CahnHilliard3D) PauseCahnHilliard();
@@ -1304,7 +1304,7 @@ public partial class Fractal3DWindow : Window
 
     private void UpdateCancelAvailability()
     {
-        bool enabled = _leniaBusy || _leniaRunning || _leniaSearchCts is not null || _isRendering || _lichtenbergRunning || (Kind == Fractal3DKind.Dla3D && _dlaRunning) || _kobRunning || _grayRunning || _kobBusy || _grayBusy || _physarumSearchCts is not null || _physarumRunning || _cahnRunning || _turingRunning || _physarumBusy || _cahnBusy || _turingBusy;
+        bool enabled = _kobSearchCts is not null || _leniaBusy || _leniaRunning || _leniaSearchCts is not null || _isRendering || _lichtenbergRunning || (Kind == Fractal3DKind.Dla3D && _dlaRunning) || _kobRunning || _grayRunning || _kobBusy || _grayBusy || _physarumSearchCts is not null || _physarumRunning || _cahnRunning || _turingRunning || _physarumBusy || _cahnBusy || _turingBusy;
         if (CancelButton.IsEnabled != enabled) CancelButton.IsEnabled = enabled;
     }
 

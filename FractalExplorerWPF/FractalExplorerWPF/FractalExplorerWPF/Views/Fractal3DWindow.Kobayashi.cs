@@ -10,7 +10,7 @@ namespace FractalExplorerWPF.Views;
 /// Кобаяси 3D: моделирование и рендер делят устройство Direct3D окна. Порция шагов
 /// публикует на ГП новый кадр (<see cref="Kobayashi3DVolume"/>), рендер рисует его без копий
 /// через ЦП, и только показанный кадр запускает следующую порцию. В оперативную память поле
-/// попадает лишь при сохранении (<see cref="CheckpointKobayashi"/>).
+/// попадает при сохранении и запоминании формы для возврата (<see cref="CheckpointKobayashi"/>).
 /// </summary>
 public partial class Fractal3DWindow
 {
@@ -42,6 +42,7 @@ public partial class Fractal3DWindow
     {
         if (Kind != Fractal3DKind.Kobayashi3D) return;
         var s = (settings ?? new()) with { Live = null }; s.Validate();
+        CancelKobSearch();
         _kobEpoch++; _kobCts?.Cancel(); _kobRunning = false; _kobBrush = null;
         _kobShown = _kobPending = null;
         _kobSettings = s; _kobResetTo = s;
@@ -53,6 +54,8 @@ public partial class Fractal3DWindow
         KobNoiseBox.Text = Format(s.Noise); KobDtBox.Text = Format(s.TimeStep);
         KobWarmupBox.Text = s.WarmupSteps.ToString();
         KobSeedBox.SelectedIndex = (int)s.SeedShape; KobRandomBox.Text = s.Seed.ToString();
+        KobSeedRadiusBox.Text = Format(s.SeedRadius); KobSeedSpreadBox.Text = Format(s.SeedSpread);
+        KobSeedCountBox.Text = s.SeedCount.ToString();
         KobSpeedSlider.Value = s.StepsPerFrame; KobThresholdSlider.Value = s.Threshold;
         KobCutBox.SelectedIndex = s.CutAxis; KobCutSlider.Value = s.CutPosition;
         _kobQueuedSteps = s.Field is null ? s.InitialSteps : 0;
@@ -72,8 +75,10 @@ public partial class Fractal3DWindow
         KobDtText.Text = $"Фактический шаг времени: {_kobSettings.EffectiveTimeStep:G3}";
         KobCutSlider.IsEnabled = KobCutBox.SelectedIndex > 0;
         bool ready = !_kobBusy && _kobPending is null && _kobShown is not null;
-        KobStepButton.IsEnabled = ready && !_kobRunning;
-        KobBrushButton.IsEnabled = ready;
+        KobStepButton.IsEnabled = ready && !_kobRunning && _kobSearchCts is null;
+        KobBrushButton.IsEnabled = ready && _kobSearchCts is null;
+        KobPlayButton.IsEnabled = _kobSearchCts is null;
+        UpdateKobSearchButtons();
         UpdateCancelAvailability();
     }
 
@@ -81,6 +86,7 @@ public partial class Fractal3DWindow
 
     private void KobPlay_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_kobSearchCts is not null) return;
         if (_kobRunning) { PauseKobayashi(); return; }
         _kobRunning = true; UpdateKobLabels();
         if (_kobPending is null && !_kobBusy)
@@ -96,7 +102,7 @@ public partial class Fractal3DWindow
 
     private void KobStep_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_kobBusy || _kobPending is not null) return;
+        if (_kobBusy || _kobPending is not null || _kobSearchCts is not null) return;
         _kobRunning = false; _kobQueuedSteps = (int)KobSpeedSlider.Value; _ = RunKobWorkAsync();
     }
 
@@ -117,6 +123,9 @@ public partial class Fractal3DWindow
                 WarmupSteps = ReadInt(KobWarmupBox, "Подготовка", 0, 20000),
                 Seed = ReadInt(KobRandomBox, "Случайное число", int.MinValue, int.MaxValue),
                 SeedShape = (Kobayashi3DSeed)Math.Max(0, KobSeedBox.SelectedIndex),
+                SeedRadius = ReadDouble(KobSeedRadiusBox, "Радиус зародыша", .035, .16),
+                SeedSpread = ReadDouble(KobSeedSpreadBox, "Разброс зародышей", 0, .3),
+                SeedCount = ReadInt(KobSeedCountBox, "Число зародышей", 1, 8),
                 StepsPerFrame = (int)KobSpeedSlider.Value, Threshold = KobThresholdSlider.Value,
                 CutAxis = Math.Max(0, KobCutBox.SelectedIndex), CutPosition = KobCutSlider.Value
             };
@@ -137,7 +146,7 @@ public partial class Fractal3DWindow
 
     private void QueueKobBrush(double x, double y, double z)
     {
-        if (_kobBusy || _kobPending is not null || _kobShown is null || _isClosing || _suspended) return;
+        if (_kobBusy || _kobPending is not null || _kobSearchCts is not null || _kobShown is null || _isClosing || _suspended) return;
         _kobBrush = (x, y, z, KobBrushSlider.Value); _kobQueuedSteps = 0; _ = RunKobWorkAsync();
     }
 
@@ -241,6 +250,7 @@ public partial class Fractal3DWindow
     private void SuspendKobayashi()
     {
         if (Kind != Fractal3DKind.Kobayashi3D) return;
+        CancelKobSearch();
         _kobCts?.Cancel(); _kobQueuedSteps = 0;
     }
 
@@ -257,6 +267,7 @@ public partial class Fractal3DWindow
 
     private void CloseKobayashi()
     {
+        CancelKobSearch();
         _kobRunning = false; _kobEpoch++; _kobCts?.Cancel();
         if (!_kobBusy) DisposeKobSimulation();
     }

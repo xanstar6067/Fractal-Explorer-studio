@@ -4,7 +4,7 @@ using FractalExplorerWPF.Infrastructure.Serialization;
 
 namespace FractalExplorerWPF.Models;
 
-public enum Kobayashi3DSeed { Sphere, EightSpheres, Ring, Empty }
+public enum Kobayashi3DSeed { Sphere, EightSpheres, Ring, Empty, RandomSpheres }
 
 /// <summary>Immutable, lossless solid fraction / dimensionless temperature checkpoint.</summary>
 [JsonConverter(typeof(Kobayashi3DFieldConverter))]
@@ -42,6 +42,10 @@ public sealed record Kobayashi3DSettings
     public int WarmupSteps { get; init; } = 6000;
     public Kobayashi3DSeed SeedShape { get; init; } = Kobayashi3DSeed.Sphere;
     public int Seed { get; init; } = 42;
+    // Fractions of the grid width. Defaults preserve the original four initial fields.
+    public double SeedRadius { get; init; } = .075;
+    public double SeedSpread { get; init; } = .18;
+    public int SeedCount { get; init; } = 4;
     public int StepsPerFrame { get; init; } = 32;
     public double Threshold { get; init; } = .5;
     public int CutAxis { get; init; }
@@ -57,6 +61,7 @@ public sealed record Kobayashi3DSettings
         if (Size is < 32 or > 128 || StepsPerFrame is < 1 or > 256 || WarmupSteps is < 0 or > 20000 ||
             !In(InterfaceWidth, .5, 2) || !In(Anisotropy, -.06, .06) || !In(Mobility, .1, 4) ||
             !In(ThermalDiffusion, .1, 4) || !In(LatentHeat, 0, 3) || !In(Undercooling, .05, 1.5) ||
+            !In(SeedRadius, .035, .16) || !In(SeedSpread, 0, .3) || SeedCount is < 1 or > 8 ||
             !In(Noise, 0, .1) || !In(TimeStep, .001, .1) || !In(Threshold, .05, .95) ||
             !In(CutPosition, -1, 1) || CutAxis is < 0 or > 3 || !Enum.IsDefined(SeedShape) ||
             Field is not null && Field.Size != Size || Live is not null && Live.Size != Size)
@@ -66,5 +71,6 @@ public sealed record Kobayashi3DSettings
     public bool SameEvolution(Kobayashi3DSettings s) => Size == s.Size && InterfaceWidth == s.InterfaceWidth &&
         Anisotropy == s.Anisotropy && Mobility == s.Mobility && ThermalDiffusion == s.ThermalDiffusion &&
         LatentHeat == s.LatentHeat && Undercooling == s.Undercooling && Noise == s.Noise && TimeStep == s.TimeStep &&
-        Seed == s.Seed && SeedShape == s.SeedShape && WarmupSteps == s.WarmupSteps && ReferenceEquals(Field, s.Field);
+        Seed == s.Seed && SeedShape == s.SeedShape && SeedRadius == s.SeedRadius &&
+        SeedSpread == s.SeedSpread && SeedCount == s.SeedCount && WarmupSteps == s.WarmupSteps && ReferenceEquals(Field, s.Field);
 }

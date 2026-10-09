@@ -12,7 +12,7 @@
   <a href="Pictures/WPF/00-main-catalog.png"><img src="Pictures/WPF/00-main-catalog.png" alt="Актуальный каталог: поиск, разделы, избранное и превью / Current catalog with search, categories, favorites, and previews" width="1000"></a>
 </p>
 
-Фазовое поле Кобаяси 3D: рост дендритов, анизотропия, температурное поле, скрытая теплота и точное продолжение — [описание режима](FractalExplorerWPF/KOBAYASHI3D.md).
+Фазовое поле Кобаяси 3D: рост дендритов, анизотропия, температурное поле, скрытая теплота, поиск случайных форм, вариации и точный возврат — [описание режима](FractalExplorerWPF/KOBAYASHI3D.md).
 
 Lenia 3D: непрерывный клеточный автомат, пять объёмных видов, поиск форм и вариаций, срезы и точное продолжение — [описание режима](FractalExplorerWPF/LENIA3D.md).
 

@@ -17,7 +17,7 @@ public sealed record Kobayashi3DVolume(Kobayashi3DGpuSimulation Source, long Ver
 /// Кобаяси в трёхмерной сетке целиком на ГП: явный Эйлер с ограничением шага, потоки анизотропной энергии,
 /// непроницаемые границы. Поле не покидает видеокарту: <see cref="Publish"/> копирует фазу и температуру в
 /// текстуру, которую рендер того же <see cref="Direct3DDeviceHost"/> читает напрямую, а в
-/// оперативную память φ/T попадает только по запросу — для сохранения и проверок.
+/// оперативную память φ/T попадает только по запросу — для сохранения, подбора форм и проверок.
 /// Слотов публикации два: новый кадр пишется мимо того, что показан, поэтому кадр, который
 /// ещё рисуется или сохраняется, не меняется под ним.
 /// Методы без суффикса <c>Locked</c> сами встают в очередь устройства; с суффиксом — вызываются
@@ -338,22 +338,50 @@ public sealed class Kobayashi3DGpuSimulation : IDisposable
     internal static float[] InitialField(Kobayashi3DSettings s)
     {
         int n = s.Size; var field = new float[n * n * n * 2];
+        var nuclei = s.SeedShape == Kobayashi3DSeed.RandomSpheres ? RandomNuclei(s) : [];
         for (int z = 0; z < n; z++) for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
         {
             double px = x + .5 - n / 2.0, py = y + .5 - n / 2.0, pz = z + .5 - n / 2.0;
             double distance = s.SeedShape switch
             {
-                Kobayashi3DSeed.EightSpheres => Math.Sqrt(Math.Pow(Math.Abs(px) - n * .18, 2) +
-                    Math.Pow(Math.Abs(py) - n * .18, 2) + Math.Pow(Math.Abs(pz) - n * .18, 2)) - n * .075,
-                Kobayashi3DSeed.Ring => Math.Sqrt(Math.Pow(Math.Sqrt(px * px + pz * pz) - n * .18, 2) + py * py) - n * .075,
-                _ => Math.Sqrt(px * px + py * py + pz * pz) - n * .075
+                Kobayashi3DSeed.EightSpheres => Math.Sqrt(Math.Pow(Math.Abs(px) - n * s.SeedSpread, 2) +
+                    Math.Pow(Math.Abs(py) - n * s.SeedSpread, 2) + Math.Pow(Math.Abs(pz) - n * s.SeedSpread, 2)) - n * s.SeedRadius,
+                Kobayashi3DSeed.Ring => Math.Sqrt(Math.Pow(Math.Sqrt(px * px + pz * pz) - n * s.SeedSpread, 2) + py * py) - n * s.SeedRadius,
+                Kobayashi3DSeed.RandomSpheres => double.PositiveInfinity,
+                _ => Math.Sqrt(px * px + py * py + pz * pz) - n * s.SeedRadius
             };
+            foreach (var c in nuclei)
+                distance = Math.Min(distance, Math.Sqrt(Math.Pow(px - n * c.X, 2) +
+                    Math.Pow(py - n * c.Y, 2) + Math.Pow(pz - n * c.Z, 2)) - n * c.Radius);
             int i = ((z * n + y) * n + x) * 2;
             field[i] = s.SeedShape == Kobayashi3DSeed.Empty ? 0 :
                 (float)(.5 * (1 - Math.Tanh(distance / (Math.Sqrt(2) * s.InterfaceWidth))));
             field[i + 1] = (float)-s.Undercooling;
         }
         return field;
+    }
+
+    // Fixed seed and normalized coordinates reproduce the same layout on any grid.
+    // Best-of-24 placement spreads nuclei without an unbounded rejection loop.
+    private static (double X, double Y, double Z, double Radius)[] RandomNuclei(Kobayashi3DSettings s)
+    {
+        var random = new Random(s.Seed);
+        var result = new (double X, double Y, double Z, double Radius)[s.SeedCount];
+        double Coordinate() => (random.NextDouble() * 2 - 1) * s.SeedSpread;
+        for (int i = 0; i < result.Length; i++)
+        {
+            double best = -1;
+            for (int trial = 0; trial < 24; trial++)
+            {
+                var c = (X: Coordinate(), Y: Coordinate(), Z: Coordinate(), Radius: s.SeedRadius * (.85 + .3 * random.NextDouble()));
+                double separation = double.PositiveInfinity;
+                for (int j = 0; j < i; j++)
+                    separation = Math.Min(separation, Math.Pow(c.X - result[j].X, 2) +
+                        Math.Pow(c.Y - result[j].Y, 2) + Math.Pow(c.Z - result[j].Z, 2));
+                if (separation > best) { best = separation; result[i] = c; }
+            }
+        }
+        return result;
     }
 
     internal static void ValidateBrush(double x, double y, double z, double radius)
