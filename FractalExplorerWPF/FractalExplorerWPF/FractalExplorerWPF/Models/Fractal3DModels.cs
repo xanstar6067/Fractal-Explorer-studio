@@ -35,7 +35,8 @@ public enum Fractal3DKind
     Hopf,
     Lichtenberg3D,
     Physarum3D,
-    Lenia3D
+    Lenia3D,
+    Kobayashi3D
 }
 
 public enum Hybrid3DOrder
@@ -302,6 +303,7 @@ public sealed class Fractal3DState
 
     public Flame3DSettings Flame { get; set; } = new();
     public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
+    public Kobayashi3DSettings Kobayashi { get; set; } = new();
     public GrayScott3DSettings GrayScott { get; set; } = new();
     public Turing3DSettings Turing { get; set; } = new();
     public CahnHilliard3DSettings CahnHilliard { get; set; } = new();
@@ -408,6 +410,7 @@ public sealed class Fractal3DState
         clone.Hopf = Hopf?.Copy() ?? new();
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
+        clone.Kobayashi = Kobayashi is null ? new() : Kobayashi with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.Turing = Turing is null ? new() : Turing with { };
         clone.Lenia = Lenia is null ? new() : Lenia with { };
@@ -525,6 +528,9 @@ public static class Fractal3DCatalog
             "Узоры Тьюринга 3D", "Тьюринг · 3D",
             "Маккейб и классические реакции Брюсселятора, Шнакенберга и Гирера–Мейнхардта формируют узор в каждой точке объёма. Симметрии многогранников, шар, оболочка и срез открывают внутреннюю структуру.",
             "Fractal3DTuring", "turing3d"),
+        Fractal3DKind.Kobayashi3D => new(
+            "Фазовое поле Кобаяси 3D", "Кристаллизация расплава", "Рост дендритного кристалла в переохлаждённом расплаве: анизотропия границы, температурное поле и скрытая теплота.",
+            "Fractal3DKobayashi", "kobayashi3d"),
         Fractal3DKind.GrayScott3D => new(
             "Gray–Scott 3D · объёмная реакция–диффузия", "Gray–Scott · 3D",
             "Два вещества реагируют и распространяются внутри объёма. Наблюдайте развитие пространственных узоров, добавляйте сферические затравки и открывайте внутреннюю структуру срезом.",
@@ -633,6 +639,7 @@ public static class Fractal3DCatalog
             if (mode == Fractal3DColoringMode.CrossTrap) return "По широте на базовой сфере";
             if (mode == Fractal3DColoringMode.IterationIndex) return "По номеру кольца";
         }
+        if (kind == Fractal3DKind.Kobayashi3D && mode == Fractal3DColoringMode.OrbitTrap) return "По температуре";
         if (kind == Fractal3DKind.Lenia3D && mode == Fractal3DColoringMode.OrbitTrap) return "Плотность клеток";
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
             return "По составу смеси";
@@ -772,6 +779,14 @@ public static class Fractal3DCatalog
                 state.CameraDistance = 2.8;
                 state.BackgroundTop = Color.FromRgb(3, 4, 12);
                 state.BackgroundBottom = Color.FromRgb(1, 2, 6);
+                state.SoftShadows = false; state.AmbientOcclusion = false;
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp; state.ColorScale = 1;
+                break;
+            case Fractal3DKind.Kobayashi3D:
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.Palette = Fractal3DPalettes.Get("Лёд");
+                state.CameraDistance = 1.9; state.CameraPitch = 20;
                 state.SoftShadows = false; state.AmbientOcclusion = false;
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp; state.ColorScale = 1;
                 break;
@@ -1078,6 +1093,14 @@ public static class Fractal3DCatalog
             Preset(kind, "Крупные домены", s => { s.CahnHilliard = new() { Kappa = 2, WarmupSteps = 900, Seed = 2718 }; s.Palette = Fractal3DPalettes.Get("Огонь"); }),
             Preset(kind, "Гироидная затравка", s => { s.CahnHilliard = new() { SeedShape = CahnHilliard3DSeed.Gyroid, WarmupSteps = 180 }; }),
             Preset(kind, "Слоистая затравка", s => { s.CahnHilliard = new() { SeedShape = CahnHilliard3DSeed.Layers, WarmupSteps = 250, Seed = 808 }; s.Palette = Fractal3DPalettes.Get("Лёд"); })
+        ],
+        Fractal3DKind.Kobayashi3D =>
+        [
+            Preset(kind, "Шесть осевых ветвей", s => s.Kobayashi = new()),
+            Preset(kind, "Восемь диагональных ветвей", s => { s.Kobayashi = new() { Anisotropy = -.055, WarmupSteps = 8000 }; s.Palette = Fractal3DPalettes.Get("Медь и патина"); }),
+            Preset(kind, "Сильное переохлаждение", s => { s.Kobayashi = new() { Undercooling = .65, LatentHeat = 1.8, Noise = .06, WarmupSteps = 4500 }; s.Palette = Fractal3DPalettes.Get("Огонь"); }),
+            Preset(kind, "Восемь зародышей", s => { s.Kobayashi = new() { SeedShape = Kobayashi3DSeed.EightSpheres, WarmupSteps = 3000 }; s.CameraDistance = 3.4; }),
+            Preset(kind, "Кольцевая затравка", s => { s.Kobayashi = new() { SeedShape = Kobayashi3DSeed.Ring, WarmupSteps = 3000 }; s.Palette = Fractal3DPalettes.Get("Аметист"); })
         ],
         Fractal3DKind.GrayScott3D =>
         [

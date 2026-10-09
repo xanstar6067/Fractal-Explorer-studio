@@ -5,12 +5,14 @@
 
 [Русский](#русский) · [English](#english) · [Галерея / Gallery](Pictures/WPF/README.md) · [Лицензия / License](LICENSE)
 
-**92 пункта каталога · 28 трёхмерных режимов · 20 математических лабораторий**<br>
-**92 catalog entries · 28 3D modes · 20 mathematical laboratories**
+**206 пунктов каталога · 29 трёхмерных режимов · 20 математических лабораторий**<br>
+**206 catalog entries · 29 3D modes · 20 mathematical laboratories**
 
 <p align="center">
   <a href="Pictures/WPF/00-main-catalog.png"><img src="Pictures/WPF/00-main-catalog.png" alt="Актуальный каталог: поиск, разделы, избранное и превью / Current catalog with search, categories, favorites, and previews" width="1000"></a>
 </p>
+
+Фазовое поле Кобаяси 3D: рост дендритов, анизотропия, температурное поле, скрытая теплота и точное продолжение — [описание режима](FractalExplorerWPF/KOBAYASHI3D.md).
 
 Lenia 3D: непрерывный клеточный автомат, пять объёмных видов, поиск форм и вариаций, срезы и точное продолжение — [описание режима](FractalExplorerWPF/LENIA3D.md).
 

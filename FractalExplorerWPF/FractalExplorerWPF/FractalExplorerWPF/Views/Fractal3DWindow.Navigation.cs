@@ -293,7 +293,7 @@ public partial class Fractal3DWindow
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (_turingPreparing) { e.Handled = true; return; }
-        if (TryGrayBrush(e) || TryTuringBrush(e)) return;
+        if (TryKobBrush(e) || TryGrayBrush(e) || TryTuringBrush(e)) return;
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
             CanvasHost.Focus();

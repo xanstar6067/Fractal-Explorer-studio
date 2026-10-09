@@ -287,6 +287,59 @@
                                 <Slider x:Name="CahnCutSlider" Minimum="-1" Maximum="1" Value="0.55" ValueChanged="CahnView_OnChanged"/>
                                 <TextBlock Text="{Binding ElementName=CahnCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
                             </StackPanel>
+                            <StackPanel x:Name="KobPanel" Visibility="Collapsed">
+                                <TextBlock Text="φ — твёрдая фаза · T — температура расплава" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
+                                <TextBlock x:Name="KobDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>
+                                <TextBox x:Name="KobSizeBox" Text="64" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Толщина границы (0,5–2)"/>
+                                <TextBox x:Name="KobWidthBox" Text=".6" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Анизотропия (−0,06…0,06)"/>
+                                <TextBox x:Name="KobAnisotropyBox" Text=".055" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Подвижность фазы (0,1–4)"/>
+                                <TextBox x:Name="KobMobilityBox" Text="1" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Теплопроводность (0,1–4)"/>
+                                <TextBox x:Name="KobDiffusionBox" Text=".5" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Скрытая теплота (0–3)"/>
+                                <TextBox x:Name="KobHeatBox" Text="1.8" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Переохлаждение (0,05–1,5)"/>
+                                <TextBox x:Name="KobColdBox" Text=".5" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шум границы (0–0,1)"/>
+                                <TextBox x:Name="KobNoiseBox" Text=".02" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени (0,001–0,1)"/>
+                                <TextBox x:Name="KobDtBox" Text=".04" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–20000)"/>
+                                <TextBox x:Name="KobWarmupBox" Text="6000" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <TextBlock Text="Положительная анизотропия: шесть осевых ветвей; отрицательная: восемь диагональных. Ноль — изотропная среда." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock x:Name="KobDtText" FontSize="11" TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Затравка"/>
+                                <ComboBox x:Name="KobSeedBox">
+                                    <ComboBoxItem Content="Одна сфера"/><ComboBoxItem Content="Восемь сфер"/>
+                                    <ComboBoxItem Content="Кольцо"/><ComboBoxItem Content="Чистая среда"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
+                                <TextBox x:Name="KobRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                <Button Content="Применить и начать заново" Click="KobRestart_OnClick"/>
+                                <TextBlock Text="Стенки теплоизолированы. Кристалл развивается до выбранной стадии и встаёт на паузу. Пробел — продолжить рост." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+                                <Slider x:Name="KobSpeedSlider" Minimum="1" Maximum="256" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Text="{Binding ElementName=KobSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень твёрдой фазы φ"/>
+                                <Slider x:Name="KobThresholdSlider" Minimum="0.05" Maximum="0.95" Value="0.5" ValueChanged="KobView_OnChanged"/>
+                                <TextBlock Text="{Binding ElementName=KobThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+                                <ComboBox x:Name="KobCutBox" SelectionChanged="KobView_OnChanged">
+                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
+                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+                                </ComboBox>
+                                <Slider x:Name="KobCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="KobView_OnChanged"/>
+                                <TextBlock Text="{Binding ElementName=KobCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус сферической кисти"/>
+                                <Slider x:Name="KobBrushSlider" Minimum="0.02" Maximum="0.2" Value="0.08"/>
+                                <Button x:Name="KobBrushButton" Content="Добавить затравку в центре" Click="KobBrush_OnClick"/>
+                                <TextBlock Text="Shift + щелчок: новая затравка на срезе. Окраска «По температуре» показывает нагрев при кристаллизации; «Плотность» — облако твёрдой фазы." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
                             <StackPanel x:Name="GrayPanel" Visibility="Collapsed">
                                 <TextBlock Text="U + 2V → 3V · реакция внутри объёма" TextWrapping="Wrap" Margin="0,4,0,8"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
@@ -1120,6 +1173,22 @@
                     <StackPanel>
                         <TextBlock Text="{Binding ElementName=DlaCountText, Path=Text}" FontSize="11"/>
                         <Button Content="{Binding ElementName=DlaPlayButton, Path=Content}" Click="DlaPlay_OnClick"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="KobPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="340">
+                        <TextBlock x:Name="KobPreparationText" Text="Выращивание кристалла…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/>
+                        <ProgressBar x:Name="KobPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
+                        <Button Content="Остановить и показать" Click="KobStopPreparation_OnClick"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="KobOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock x:Name="KobTimeText" FontSize="11"/>
+                        <Button x:Name="KobPlayButton" Content="▶ Продолжить" Click="KobPlay_OnClick"/>
+                        <Button x:Name="KobStepButton" Content="Один кадр" Click="KobStep_OnClick"/>
                     </StackPanel>
                 </Border>
                 <Border x:Name="GrayOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"

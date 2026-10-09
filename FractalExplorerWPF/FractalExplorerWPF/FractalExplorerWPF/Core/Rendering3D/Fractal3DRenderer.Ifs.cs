@@ -13,6 +13,7 @@ public sealed partial class Fractal3DRenderer
     private Buddhabrot4DOrbitCloud? _buddhabrotCloud;
     internal int BuddhabrotSamplingBuilds { get; private set; }
     private ID3D11PixelShader? _dlaPixelShader;
+    private ID3D11PixelShader? _kobayashiPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
     private ID3D11PixelShader? _leniaPixelShader;
     private ID3D11PixelShader? _physarumPixelShader;
@@ -36,6 +37,8 @@ public sealed partial class Fractal3DRenderer
             return _leniaPixelShader ??= _device!.CreatePixelShader(Compile(LeniaPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Physarum3D)
             return _physarumPixelShader ??= _device!.CreatePixelShader(Compile(PhysarumPixelShaderEntry()).Span);
+        if (kind == Fractal3DKind.Kobayashi3D)
+            return _kobayashiPixelShader ??= _device!.CreatePixelShader(Compile(KobayashiPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.GrayScott3D)
             return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.CahnHilliard3D)
@@ -64,6 +67,7 @@ public sealed partial class Fractal3DRenderer
     {
         if (state.Kind == Fractal3DKind.Lenia3D) return LeniaVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Physarum3D) return PhysarumVolumeView(state, token);
+        if (state.Kind == Fractal3DKind.Kobayashi3D) return KobayashiVolumeView(state, token);
         if (state.Kind == Fractal3DKind.GrayScott3D) return GrayScottVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Turing3D) return TuringVolumeView(state, token);
         if (state.Kind == Fractal3DKind.CahnHilliard3D) return CahnHilliardVolumeView(state, token);
@@ -185,6 +189,8 @@ public sealed partial class Fractal3DRenderer
                 first.Lichtenberg.SegmentCount == second.Lichtenberg.SegmentCount &&
                 (ReferenceEquals(first.Lichtenberg.Field, second.Lichtenberg.Field) ||
                  first.Lichtenberg.Field is null && second.Lichtenberg.Field is null);
+        if (first.Kind == Fractal3DKind.Kobayashi3D)
+            return first.Kobayashi.Live == second.Kobayashi.Live && first.Kobayashi.SameEvolution(second.Kobayashi);
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
         if (first.Kind == Fractal3DKind.Lenia3D)
@@ -245,6 +251,8 @@ public sealed partial class Fractal3DRenderer
         _lichtenbergOrigin = _lichtenbergAnchor = null;
         LichtenbergDisplayedField = null;
         _grayScottPixelShader?.Dispose();
+        _kobayashiPixelShader?.Dispose();
+        DisposeKobayashiPreview();
         DisposeGrayScottPreview();
         _turingPixelShader?.Dispose();
         DisposeTuringPreview();

@@ -246,6 +246,7 @@ internal static class FractalCatalogHistory
         Add("2026-10-08T11:07:20+03:00", "PerpendicularMandelbrot", "PerpendicularBurningShip", "PerpendicularCeltic", "PerpendicularBuffalo", "JuliaPerpendicularMandelbrot", "JuliaPerpendicularBurningShip", "JuliaPerpendicularCeltic", "JuliaPerpendicularBuffalo");
         Add("2026-10-08T11:52:00+03:00", "CelticMandelbar", "CubicQuasiBurningShip", "CubicFlyingSquirrel", "JuliaCelticMandelbar", "JuliaCubicQuasiBurningShip", "JuliaCubicFlyingSquirrel");
         Add("2026-10-08T16:00:00+03:00", FoldedFormulaCatalog.All.SelectMany(d => new[] { d.Parameter.ToString(), d.Julia.ToString() }).Concat(new[] { "Hybrid", "JuliaHybrid" }).ToArray());
+        Add("2026-10-09T15:49:33+03:00", Fractal3DCatalog.LaunchKey(Fractal3DKind.Kobayashi3D));
         return dates;
 
         void Add(string timestamp, params string[] launchKeys)

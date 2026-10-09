@@ -70,6 +70,8 @@ internal static partial class Program
         Console.WriteLine($"Parallel shader rebuild: {watch.Elapsed.TotalSeconds:F1} s.");
         Check(Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length ==
               reportedTotal && ShaderBytecodeCache.ActiveCompilationCount == 0 &&
+              Kobayashi3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
+              File.Exists(AppPaths.GetShaderCacheFile("kobayashi3d-pixel")) &&
               Lenia3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               Physarum3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile(Lichtenberg3DComputeShader.CacheEntry.Key)) &&
