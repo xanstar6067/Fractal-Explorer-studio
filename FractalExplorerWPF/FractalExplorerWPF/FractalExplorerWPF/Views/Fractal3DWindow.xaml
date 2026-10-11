@@ -141,6 +141,47 @@
                                 <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                            Text="Изменение затравки, прилипания или потока начинает новый рост. Палитра, свет и камера меняют готовый объём."/>
                             </StackPanel>
+                            <StackPanel x:Name="LyapunovPanel" Visibility="Collapsed">
+                                <TextBlock Text="xₙ₊₁ = rₙ · xₙ · (1 − xₙ)" TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Чередование параметров · латинские A / B / C"/>
+                                <TextBox x:Name="LyapunovPatternBox" Text="ABCCAAB" MaxLength="128" TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Text="A → X, B → Y, C → Z. λ &lt; 0 — устойчивость; λ &gt; 0 — хаос. Изменения применяются автоматически." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,6"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Диапазоны параметров · минимум / максимум (0–4)"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                    <TextBlock Text="A" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="LyapunovMinABox" Grid.Column="1" Text="3.2" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBox x:Name="LyapunovMaxABox" Grid.Column="2" Text="3.8" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBlock Grid.Row="1" Text="B" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="LyapunovMinBBox" Grid.Row="1" Grid.Column="1" Text="3.2" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBox x:Name="LyapunovMaxBBox" Grid.Row="1" Grid.Column="2" Text="3.8" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBlock Grid.Row="2" Text="C" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="LyapunovMinCBox" Grid.Row="2" Grid.Column="1" Text="3.2" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                    <TextBox x:Name="LyapunovMaxCBox" Grid.Row="2" Grid.Column="2" Text="3.8" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка объёма"/>
+                                <ComboBox x:Name="LyapunovSizeBox" SelectedIndex="1" SelectionChanged="Parameter_OnChanged"><ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="64³ · стандарт"/><ComboBoxItem Content="128³ · подробно"/></ComboBox>
+                                <Expander Header="Точность измерения" IsExpanded="False" Margin="0,6">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Прогрев (0–4096)"/><TextBox x:Name="LyapunovTransientBox" Text="256" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Итераций измерения (16–4096)"/><TextBox x:Name="LyapunovSamplesBox" Text="512" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
+                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное x (0,000001–0,999999)"/><TextBox x:Name="LyapunovInitialBox" Text="0.5" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                        <TextBlock Text="Конечное число итераций приближает λ. У тонкой границы увеличьте сетку и время измерения." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                    </StackPanel>
+                                </Expander>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Видимая область"/>
+                                <ComboBox x:Name="LyapunovRegionBox" SelectedIndex="0" SelectionChanged="Parameter_OnChanged"><ComboBoxItem Content="Устойчивость · λ ≤ уровень"/><ComboBoxItem Content="Хаос · λ ≥ уровень"/><ComboBoxItem Content="Граница · полоса вокруг уровня"/></ComboBox>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень λ (−2…1)"/><TextBox x:Name="LyapunovLevelBox" Text="0" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Полуширина полосы (0,005–0,5)"/><TextBox x:Name="LyapunovBandBox" Text="0.04" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Диапазон окраски ±λ (0,05–4)"/><TextBox x:Name="LyapunovRangeBox" Text="0.4" TextChanged="Parameter_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез / отсечение объёма"/>
+                                <ComboBox x:Name="LyapunovCutBox" SelectedIndex="0" SelectionChanged="LyapunovView_OnChanged"><ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="A · ось X"/><ComboBoxItem Content="B · ось Y"/><ComboBoxItem Content="C · ось Z"/></ComboBox>
+                                <Slider x:Name="LyapunovCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="LyapunovView_OnChanged"/>
+                                <TextBlock x:Name="LyapunovCutText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <CheckBox x:Name="LyapunovSliceBox" Content="Только цветная плоскость среза" Checked="LyapunovView_OnChanged" Unchecked="LyapunovView_OnChanged" Margin="0,6"/>
+                                <TextBlock Text="Для прозрачного объёма выберите стиль «Плотность» в разделе окраски. Срез показывает λ независимо от выбранной области." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
                             <StackPanel x:Name="LeniaPanel" Visibility="Collapsed">
                                 <TextBlock Text="Клетки чувствуют плотность соседей через сферическое ядро. Правило роста рождает движение и пульсации." TextWrapping="Wrap" Margin="0,4,0,8"/>
                                 <TextBlock x:Name="LeniaDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>

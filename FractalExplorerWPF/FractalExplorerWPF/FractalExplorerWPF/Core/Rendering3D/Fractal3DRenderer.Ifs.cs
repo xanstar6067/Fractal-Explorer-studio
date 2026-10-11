@@ -33,6 +33,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Lyapunov3D)
+            return _lyapunovPixel ??= _device!.CreatePixelShader(Compile(LyapunovPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Lenia3D)
             return _leniaPixelShader ??= _device!.CreatePixelShader(Compile(LeniaPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Physarum3D)
@@ -63,8 +65,10 @@ public sealed partial class Fractal3DRenderer
             new SamplerDescription(Filter.MinMagMipLinear, TextureAddressMode.Clamp));
 
     /// <summary>Объём для трассировки: Gray–Scott 3D и узоры Тьюринга 3D живут на ГП, остальные строятся на ЦП и загружаются.</summary>
-    private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token)
+    private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token,
+        IProgress<int>? progress = null)
     {
+        if (state.Kind == Fractal3DKind.Lyapunov3D) return LyapunovVolumeView(state, token, progress);
         if (state.Kind == Fractal3DKind.Lenia3D) return LeniaVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Physarum3D) return PhysarumVolumeView(state, token);
         if (state.Kind == Fractal3DKind.Kobayashi3D) return KobayashiVolumeView(state, token);
@@ -184,6 +188,7 @@ public sealed partial class Fractal3DRenderer
     internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.Lyapunov3D) return first.Lyapunov.SameField(second.Lyapunov);
         if (first.Kind == Fractal3DKind.Lichtenberg3D)
             return first.Lichtenberg.SameGrowth(second.Lichtenberg) &&
                 first.Lichtenberg.SegmentCount == second.Lichtenberg.SegmentCount &&
@@ -260,6 +265,7 @@ public sealed partial class Fractal3DRenderer
         DisposeCahnHilliardPreview();
         _leniaPixelShader?.Dispose();
         DisposeLeniaPreview();
+        DisposeLyapunov();
         _physarumPixelShader?.Dispose();
         DisposePhysarumPreview();
         _dlaCluster = null;

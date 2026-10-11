@@ -167,6 +167,7 @@ public partial class Fractal3DWindow : Window
         CahnHilliard = CaptureCahnHilliard(),
         Physarum = CapturePhysarum(),
         Lenia = CaptureLenia(),
+        Lyapunov = CaptureLyapunov(),
         Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
             ? ReadInt(PowerBox, "Степень", 2, Kind == Fractal3DKind.Phoenix ? 6 : 16)
             : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
@@ -339,6 +340,7 @@ public partial class Fractal3DWindow : Window
         LoadCahnHilliard(state.CahnHilliard);
         LoadPhysarum(state.Physarum);
         LoadLenia(state.Lenia);
+        LoadLyapunov(state.Lyapunov);
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -382,6 +384,14 @@ public partial class Fractal3DWindow : Window
 
     private void ConfigureKindLayout()
     {
+        LyapunovPanel.Visibility = Collapse(Kind == Fractal3DKind.Lyapunov3D);
+        if (Kind == Fractal3DKind.Lyapunov3D)
+        {
+            ShapeExpander.Header = "Параметры и экспонента";
+            foreach (var mode in new[] { Fractal3DColoringMode.OrbitTrap, Fractal3DColoringMode.CrossTrap,
+                         Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
+                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Content = Fractal3DCatalog.ColoringModeName(mode, Kind);
+        }
         LeniaPanel.Visibility = LeniaOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lenia3D);
         if (Kind == Fractal3DKind.Lenia3D)
         {
@@ -475,7 +485,7 @@ public partial class Fractal3DWindow : Window
             foreach (var mode in new[] { Fractal3DColoringMode.CrossTrap, Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
                 ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
         }
-        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.LSystem3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D));
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.LSystem3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D));
         BuddhabrotEditor.Visibility = Collapse(Kind == Fractal3DKind.Buddhabrot4D);
         if (Kind == Fractal3DKind.Buddhabrot4D) ShapeExpander.Header = "Проекция и орбиты";
         LichtenbergPanel.Visibility = LichtenbergOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lichtenberg3D);
@@ -522,13 +532,13 @@ public partial class Fractal3DWindow : Window
         }
         IfsPanel.Visibility = Collapse(Kind == Fractal3DKind.Ifs3D);
         AttractorPanel.Visibility = Collapse(Kind == Fractal3DKind.StrangeAttractor);
-        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D));
-        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D);
-        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D);
+        RayQualityGrid.Visibility = Collapse(Kind is not (Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D));
+        MaxDistanceLabel.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D);
+        MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D);
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
         BailoutPanel.Visibility = Collapse(
-            Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D));
+            Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D));
     }
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
@@ -733,6 +743,12 @@ public partial class Fractal3DWindow : Window
         if (ReferenceEquals(sender, ShadingStyleBox)) UpdateColoringPanels();
         if (!_updatingUi)
         {
+            if (Kind == Fractal3DKind.Lyapunov3D)
+            {
+                UpdateLyapunovCutLabel();
+                if (sender is FrameworkElement control && control.Name.StartsWith("Lyapunov", StringComparison.Ordinal))
+                    _renderCts?.Cancel();
+            }
             ScheduleRender();
             if (ReferenceEquals(sender, PowerBox) || ReferenceEquals(sender, IterationsBox) ||
                 ReferenceEquals(sender, BailoutBox) || ReferenceEquals(sender, BurningShipFormulaBox))
@@ -1065,7 +1081,8 @@ public partial class Fractal3DWindow : Window
         _renderingQuality = quality;
 
         var watch = Stopwatch.StartNew();
-        SetRendering(true, quality == FrameQuality.Draft ? null : "Рендеринг...");
+        bool preparingLyapunov = Kind == Fractal3DKind.Lyapunov3D && _renderer.NeedsLyapunovField(state.Lyapunov);
+        SetRendering(true, preparingLyapunov ? "Расчёт объёма Ляпунова…" : quality == FrameQuality.Draft ? null : "Рендеринг...");
 
         void ReportProgress(int value)
         {
@@ -1091,7 +1108,7 @@ public partial class Fractal3DWindow : Window
                 var progress = new Progress<int>(ReportProgress);
                 BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
                 cts.Token.ThrowIfCancellationRequested();
-                if (!IsCurrentKobFrame(state) || !IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
+                if (!IsCurrentLyapunovFrame(state) || !IsCurrentKobFrame(state) || !IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
                 RenderOptions.SetBitmapScalingMode(CanvasImage, BitmapScalingMode.HighQuality);
                 CanvasImage.Source = bitmap;
                 StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {width}×{height}, " +
@@ -1102,7 +1119,7 @@ public partial class Fractal3DWindow : Window
                 bool draft = quality == FrameQuality.Draft;
                 Fractal3DState frameState = draft && moving ? ApplyMotionQuality(state) : state;
                 simplified = !ReferenceEquals(frameState, state);
-                IProgress<int>? progress = draft && !_turingPreparing
+                IProgress<int>? progress = draft && !_turingPreparing && !preparingLyapunov
                     ? null
                     : new Progress<int>(ReportProgress);
 
@@ -1127,7 +1144,7 @@ public partial class Fractal3DWindow : Window
                 // Кадр уступил место движению камеры: показывать половину нечего, следующий уже
                 // в очереди. Это обычный ход, поэтому ни исключения, ни сообщения здесь нет.
                 if (!frame.Completed) return;
-                if (!IsCurrentKobFrame(state) || !IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
+                if (!IsCurrentLyapunovFrame(state) || !IsCurrentKobFrame(state) || !IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
 
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
                 RenderOptions.SetBitmapScalingMode(CanvasImage,

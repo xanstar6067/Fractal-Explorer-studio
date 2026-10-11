@@ -1,5 +1,10 @@
 # Проверка превью сохранений WPF
 
+Ляпунов 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- lyapunov3d [папка PNG]`.
+Независимые орбиты в double и аналитическая экспонента против GPU, сетки, фаза последовательности,
+пять видов, девять стилей, срезы, зонд, переиспользование поля, отмена, сохранения, облако и WPF.
+Описание и ограничения точности — в [LYAPUNOV3D.md](../LYAPUNOV3D.md).
+
 Gray–Scott 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- gray-scott3d [папка PNG]`.
 Независимое правило в объёме, ЦП/ГП, кисть через границы, точное продолжение U/V,
 пресеты, девять стилей, срезы, зонд, кэш и цикл WPF с восстановлением при отказе ГП.

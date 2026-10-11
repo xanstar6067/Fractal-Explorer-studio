@@ -36,7 +36,8 @@ public enum Fractal3DKind
     Lichtenberg3D,
     Physarum3D,
     Lenia3D,
-    Kobayashi3D
+    Kobayashi3D,
+    Lyapunov3D
 }
 
 public enum Hybrid3DOrder
@@ -310,6 +311,8 @@ public sealed class Fractal3DState
     public Physarum3DSettings Physarum { get; set; } = new();
     public Lenia3DSettings Lenia { get; set; } = new();
 
+    public Lyapunov3DSettings Lyapunov { get; set; } = new();
+
     public KifsSettings Kifs { get; set; } = new();
 
     public Dla3DSettings Dla { get; set; } = new();
@@ -414,6 +417,7 @@ public sealed class Fractal3DState
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.Turing = Turing is null ? new() : Turing with { };
         clone.Lenia = Lenia is null ? new() : Lenia with { };
+        clone.Lyapunov = Lyapunov is null ? new() : Lyapunov with { };
         clone.CahnHilliard = CahnHilliard is null ? new() : CahnHilliard with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();
         clone.Attractor = Attractor?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
@@ -528,6 +532,10 @@ public static class Fractal3DCatalog
             "Узоры Тьюринга 3D", "Тьюринг · 3D",
             "Маккейб и классические реакции Брюсселятора, Шнакенберга и Гирера–Мейнхардта формируют узор в каждой точке объёма. Симметрии многогранников, шар, оболочка и срез открывают внутреннюю структуру.",
             "Fractal3DTuring", "turing3d"),
+        Fractal3DKind.Lyapunov3D => new(
+            "Ляпунов 3D", "Ляпунов · A / B / C",
+            "Экспонента логистического отображения в трёхмерном пространстве параметров A, B, C. Последовательность задаёт их чередование: λ < 0 — устойчивость, λ > 0 — хаос. Поверхность, объём и цветные срезы открывают структуру границы.",
+            "Fractal3DLyapunov", "lyapunov3d"),
         Fractal3DKind.Kobayashi3D => new(
             "Фазовое поле Кобаяси 3D", "Кристаллизация расплава", "Рост дендритного кристалла в переохлаждённом расплаве: анизотропия границы, температурное поле и скрытая теплота.",
             "Fractal3DKobayashi", "kobayashi3d"),
@@ -639,6 +647,13 @@ public static class Fractal3DCatalog
             if (mode == Fractal3DColoringMode.CrossTrap) return "По широте на базовой сфере";
             if (mode == Fractal3DColoringMode.IterationIndex) return "По номеру кольца";
         }
+        if (kind == Fractal3DKind.Lyapunov3D)
+        {
+            if (mode == Fractal3DColoringMode.OrbitTrap) return "По экспоненте λ";
+            if (mode == Fractal3DColoringMode.CrossTrap) return "По параметру A";
+            if (mode == Fractal3DColoringMode.IterationIndex) return "По параметру B";
+            if (mode == Fractal3DColoringMode.Escape) return "По параметру C";
+        }
         if (kind == Fractal3DKind.Kobayashi3D && mode == Fractal3DColoringMode.OrbitTrap) return "По температуре";
         if (kind == Fractal3DKind.Lenia3D && mode == Fractal3DColoringMode.OrbitTrap) return "Плотность клеток";
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
@@ -723,6 +738,18 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.Lyapunov3D:
+                state.CameraDistance = 4.2;
+                state.CameraYaw = 35; state.CameraPitch = 22;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.Palette = Fractal3DPalette.FromPair("Ляпунов · устойчивость / хаос",
+                    Color.FromRgb(40, 95, 210), Color.FromRgb(255, 190, 60));
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.SoftShadows = false; state.AmbientOcclusion = true;
+                state.BackgroundTop = Color.FromRgb(42, 58, 88);
+                state.BackgroundBottom = Color.FromRgb(9, 14, 24);
+                break;
             case Fractal3DKind.Hopf:
                 state.CameraDistance = 6.2;
                 state.CameraPitch = 22;
@@ -1010,6 +1037,19 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.Lyapunov3D =>
+        [
+            Preset(kind, "ABCCAAB · области устойчивости", _ => { }),
+            Preset(kind, "ABCBBACC · устойчивые острова", s => s.Lyapunov = new() {
+                Pattern = "ABCBBACC", MinA = 3.4, MinB = 3.4, MinC = 3.4, MaxA = 3.9, MaxB = 3.9, MaxC = 3.9 }),
+            Preset(kind, "ABCCAAB · граница λ = 0", s => s.Lyapunov = new() { Region = Lyapunov3DRegion.Boundary }),
+            Preset(kind, "AABBC · прозрачный объём", s => {
+                s.Lyapunov = new() { Pattern = "AABBC", Region = Lyapunov3DRegion.Stable, CutAxis = 3 };
+                s.ShadingStyle = Fractal3DShadingStyle.Density; s.EffectStrength = .7; }),
+            Preset(kind, "ABCCAAB · карта при C = 3,5", s => {
+                s.Lyapunov = new() { SliceOnly = true, CutAxis = 3 };
+                s.CameraYaw = 0; s.CameraPitch = 0; s.CameraDistance = 3; })
+        ],
         Fractal3DKind.Hopf =>
         [
             Preset(kind, "Вложенные торы", _ => { }),

@@ -220,7 +220,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 EnsureDevice();
                 EnsureSurface(width, stripRows);
                 int offsetY = index * stripRows;
-                RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token);
+                RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token, progress);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -230,7 +230,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
             {
                 Gate.Release();
             }
-            progress?.Report((index + 1) * 100 / strips);
+            progress?.Report(state.Kind == Fractal3DKind.Lyapunov3D
+                ? 60 + (index + 1) * 40 / strips : (index + 1) * 100 / strips);
         }
         return true;
     }
@@ -260,7 +261,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private void RenderStrip(
         Fractal3DState state, int width, int height, int offsetY, int rows, byte[] destination,
-        CancellationToken token)
+        CancellationToken token, IProgress<int>? progress)
     {
         ID3D11DeviceContext context = _context!;
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
@@ -274,7 +275,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             WriteConstants(constants, state);
         }
         if (state.Kind == Fractal3DKind.Terrain) EnsureTerrain(state.Terrain, token);
-        ID3D11ShaderResourceView? volume = IsDensityVolume(state.Kind) ? EnsureDensityVolume(state, token) : null;
+        ID3D11ShaderResourceView? volume = IsDensityVolume(state.Kind) ? EnsureDensityVolume(state, token, progress) : null;
 
         context.OMSetRenderTargets(_renderTargetView!);
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
@@ -365,6 +366,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
+        if (state.Kind == Fractal3DKind.Lyapunov3D) state.Lyapunov.Validate();
         if (state.Kind == Fractal3DKind.Lenia3D) state.Lenia.Validate();
         if (state.Kind == Fractal3DKind.Physarum3D) state.Physarum.Validate();
         if (state.Kind == Fractal3DKind.Kobayashi3D) state.Kobayashi.Validate();
@@ -379,6 +381,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.Lyapunov3D => (state.Lyapunov.Size, .5f, (float)state.Lyapunov.ColorRange),
             Fractal3DKind.Hopf => ((float)state.Hopf.ClipRadius,
                 state.Hopf.OnlySelected ? 1 : state.Hopf.BasePoints().Count, HopfGeometry.Scale * HopfGeometry.Scale),
             Fractal3DKind.CahnHilliard3D => (state.CahnHilliard.Size, (float)(.5+.5*(state.CahnHilliard.Invert ? -state.CahnHilliard.Level : state.CahnHilliard.Level)), 0),
@@ -421,7 +424,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.Kobayashi3D
+            ShapeB = state.Kind == Fractal3DKind.Lyapunov3D
+                ? new Vector4(state.Lyapunov.CutAxis, (float)state.Lyapunov.CutPosition,
+                    (int)state.Lyapunov.Region, (float)state.Lyapunov.BandWidth)
+                : state.Kind == Fractal3DKind.Kobayashi3D
                 ? new Vector4(state.Kobayashi.CutAxis, (float)state.Kobayashi.CutPosition, (float)state.Kobayashi.Undercooling, (float)Math.Max(state.Kobayashi.LatentHeat, .1))
                 : state.Kind == Fractal3DKind.Lenia3D
                 ? new Vector4(state.Lenia.CutAxis, (float)state.Lenia.CutPosition, 0, 0)
@@ -446,7 +452,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
                     state.Kind == Fractal3DKind.Buddhabrot4D ? (float)state.Buddhabrot.Saturation :
                     state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
-            BoxInversion = state.Kind == Fractal3DKind.Kifs
+            BoxInversion = state.Kind == Fractal3DKind.Lyapunov3D
+                ? new Vector4((float)state.Lyapunov.Level, state.Lyapunov.SliceOnly ? 1 : 0, 0, 0)
+                : state.Kind == Fractal3DKind.Kifs
                 ? new Vector4((float)(kifs.RotationX * Math.PI / 180), (float)(kifs.RotationY * Math.PI / 180),
                     (float)(kifs.RotationZ * Math.PI / 180), (float)kifs.Seed)
                 : new Vector4(
@@ -525,7 +533,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
     }
 
     private static bool IsDensityVolume(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Kobayashi3D or Fractal3DKind.Lenia3D or Fractal3DKind.Physarum3D or Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D;
+        kind is Fractal3DKind.Lyapunov3D or Fractal3DKind.Kobayashi3D or Fractal3DKind.Lenia3D or Fractal3DKind.Physarum3D or Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D;
+
+    private static ShaderCacheEntry LyapunovPixelShaderEntry() =>
+        new("lyapunov3d-pixel", Lyapunov3DShader.Source, "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry LeniaPixelShaderEntry() =>
         new("lenia3d-pixel", Lenia3DShader.Source, "PSMain", "ps_5_0");
@@ -576,6 +587,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
         foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
             if (!IsDensityVolume(kind)) entries.Add(PixelShaderEntry(kind));
         entries.Add(IfsPixelShaderEntry());
+        entries.Add(LyapunovPixelShaderEntry());
+        entries.Add(Lyapunov3DComputeShader.CacheEntry);
         entries.Add(FlamePixelShaderEntry());
         entries.Add(BuddhabrotPixelShaderEntry());
         entries.Add(DlaPixelShaderEntry());

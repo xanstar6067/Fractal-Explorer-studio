@@ -322,6 +322,15 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Lyapunov3D)
+        {
+            var s = state.Lyapunov;
+            string region = s.Region switch { Lyapunov3DRegion.Stable => "устойчивость", Lyapunov3DRegion.Chaotic => "хаос", _ => "граница" };
+            return $"{Prefix(state.Timestamp)} · {s.Sequence} · {s.Size}³ · прогрев {s.Transient}, измерение {s.Samples}\n" +
+                $"A: {s.MinA:G6}…{s.MaxA:G6}; B: {s.MinB:G6}…{s.MaxB:G6}; C: {s.MinC:G6}…{s.MaxC:G6}\n" +
+                $"{region} · уровень λ = {s.Level:G5}" + (s.SliceOnly ? " · плоскость среза" : "") + "\n" +
+                $"Камера: азимут {state.CameraYaw:F1}°, наклон {state.CameraPitch:F1}°, расстояние {state.CameraDistance:G6}";
+        }
         if (state.Kind == Fractal3DKind.Physarum3D)
         {
             var s = state.Physarum;
