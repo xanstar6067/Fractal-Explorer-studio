@@ -37,7 +37,8 @@ public enum Fractal3DKind
     Physarum3D,
     Lenia3D,
     Kobayashi3D,
-    Lyapunov3D
+    Lyapunov3D,
+    Excitable3D
 }
 
 public enum Hybrid3DOrder
@@ -305,6 +306,7 @@ public sealed class Fractal3DState
     public Flame3DSettings Flame { get; set; } = new();
     public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
     public Kobayashi3DSettings Kobayashi { get; set; } = new();
+    public Excitable3DSettings Excitable { get; set; } = new();
     public GrayScott3DSettings GrayScott { get; set; } = new();
     public Turing3DSettings Turing { get; set; } = new();
     public CahnHilliard3DSettings CahnHilliard { get; set; } = new();
@@ -414,6 +416,7 @@ public sealed class Fractal3DState
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.Kobayashi = Kobayashi is null ? new() : Kobayashi with { };
+        clone.Excitable = Excitable is null ? new() : Excitable with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.Turing = Turing is null ? new() : Turing with { };
         clone.Lenia = Lenia is null ? new() : Lenia with { };
@@ -539,6 +542,10 @@ public static class Fractal3DCatalog
         Fractal3DKind.Kobayashi3D => new(
             "Фазовое поле Кобаяси 3D", "Кристаллизация расплава", "Рост дендритного кристалла в переохлаждённом расплаве: анизотропия границы, температурное поле и скрытая теплота.",
             "Fractal3DKobayashi", "kobayashi3d"),
+        Fractal3DKind.Excitable3D => new(
+            "Свитковые волны 3D · возбудимые среды", "Свитковые волны · 3D",
+            "Баркли, Oregonator (Белоусов–Жаботинский), FitzHugh–Nagumo и Aliev–Panfilov. Бегущие фронты, фаза и вихревые нити внутри объёма.",
+            "Fractal3DExcitable", "excitable3d"),
         Fractal3DKind.GrayScott3D => new(
             "Gray–Scott 3D · объёмная реакция–диффузия", "Gray–Scott · 3D",
             "Два вещества реагируют и распространяются внутри объёма. Наблюдайте развитие пространственных узоров, добавляйте сферические затравки и открывайте внутреннюю структуру срезом.",
@@ -654,6 +661,8 @@ public static class Fractal3DCatalog
             if (mode == Fractal3DColoringMode.IterationIndex) return "По параметру B";
             if (mode == Fractal3DColoringMode.Escape) return "По параметру C";
         }
+        if (kind == Fractal3DKind.Excitable3D && mode == Fractal3DColoringMode.OrbitTrap) return "По фазе";
+        if (kind == Fractal3DKind.Excitable3D && mode == Fractal3DColoringMode.CrossTrap) return "По возбуждению U";
         if (kind == Fractal3DKind.Kobayashi3D && mode == Fractal3DColoringMode.OrbitTrap) return "По температуре";
         if (kind == Fractal3DKind.Lenia3D && mode == Fractal3DColoringMode.OrbitTrap) return "Плотность клеток";
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
@@ -816,6 +825,13 @@ public static class Fractal3DCatalog
                 state.CameraDistance = 1.9; state.CameraPitch = 20;
                 state.SoftShadows = false; state.AmbientOcclusion = false;
                 state.ColorRepeat = Fractal3DColorRepeat.Clamp; state.ColorScale = 1;
+                break;
+            case Fractal3DKind.Excitable3D:
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.Palette = Fractal3DPalettes.Get("Неон");
+                state.CameraDistance = 3.6; state.SoftShadows = false; state.AmbientOcclusion = false;
+                state.ColorRepeat = Fractal3DColorRepeat.Cycle; state.ColorScale = 1;
                 break;
             case Fractal3DKind.CahnHilliard3D:
             case Fractal3DKind.GrayScott3D:
@@ -1141,6 +1157,16 @@ public static class Fractal3DCatalog
             Preset(kind, "Сильное переохлаждение", s => { s.Kobayashi = new() { Undercooling = .65, LatentHeat = 1.8, Noise = .06, WarmupSteps = 4500 }; s.Palette = Fractal3DPalettes.Get("Огонь"); }),
             Preset(kind, "Восемь зародышей", s => { s.Kobayashi = new() { SeedShape = Kobayashi3DSeed.EightSpheres, WarmupSteps = 3000 }; s.CameraDistance = 3.4; }),
             Preset(kind, "Кольцевая затравка", s => { s.Kobayashi = new() { SeedShape = Kobayashi3DSeed.Ring, WarmupSteps = 3000 }; s.Palette = Fractal3DPalettes.Get("Аметист"); })
+        ],
+        Fractal3DKind.Excitable3D =>
+        [
+            Preset(kind, "Баркли · прямой свиток", s => s.Excitable = new()),
+            Preset(kind, "Баркли · вихревое кольцо", s => s.Excitable = new() { SeedShape = Excitable3DSeed.Ring }),
+            Preset(kind, "Oregonator · химическая спираль", s => s.Excitable = Excitable3DSettings.Default(Excitable3DModel.Oregonator)),
+            Preset(kind, "FitzHugh–Nagumo · свиток", s => s.Excitable = Excitable3DSettings.Default(Excitable3DModel.FitzHughNagumo)),
+            Preset(kind, "Aliev–Panfilov · волна возбуждения", s => s.Excitable = Excitable3DSettings.Default(Excitable3DModel.AlievPanfilov)),
+            Preset(kind, "Вихревые нити", s => s.Excitable = new() { View = Excitable3DView.Filaments, Threshold = .15 }),
+            Preset(kind, "Перекрещённые свитки", s => s.Excitable = new() { SeedShape = Excitable3DSeed.CrossedScrolls })
         ],
         Fractal3DKind.GrayScott3D =>
         [

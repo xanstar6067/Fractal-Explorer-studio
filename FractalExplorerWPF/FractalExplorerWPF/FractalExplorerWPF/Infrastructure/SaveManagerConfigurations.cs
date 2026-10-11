@@ -322,6 +322,16 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.Excitable3D)
+        {
+            var s = state.Excitable;
+            string view = s.View switch { Excitable3DView.Filaments => "вихревые нити", Excitable3DView.WavesAndFilaments => "волны и нити", _ => "фронты волн" };
+            return $"{Prefix(state.Timestamp)} · {s.Name} · сетка {s.Size}³\n" +
+                (s.Field is { } field ? $"Шаг {field.Step:N0} · t = {field.Step * s.TimeStep:G6}" : $"Новая среда, {s.InitialSteps} шагов подготовки") +
+                $" · ε = {s.Epsilon:G4} · Δt = {s.TimeStep:G4}\n" +
+                $"{view} · {(s.Boundary == Excitable3DBoundary.Periodic ? "периодические границы" : "непроницаемые стенки")}\n" +
+                $"Палитра: {state.ResolvePalette().Name} · Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)}";
+        }
         if (state.Kind == Fractal3DKind.Lyapunov3D)
         {
             var s = state.Lyapunov;

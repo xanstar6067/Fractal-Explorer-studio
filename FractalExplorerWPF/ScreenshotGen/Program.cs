@@ -188,6 +188,7 @@ internal static class Program
 
         bool IsBusy() => GetMember(win, renderFlag) is true ||
             GetMember(win, "_frameRequested") is true ||
+            GetMember(win, "_exBusy") is true || GetMember(win, "_exPending") is not null ||
             GetMember(win, "_grayBusy") is true || GetMember(win, "_grayPending") is not null ||
             GetMember(win, "_turingBusy") is true || GetMember(win, "_turingPending") is not null ||
             GetMember(win, "_cahnBusy") is true || GetMember(win, "_cahnPending") is not null || GetMember(win, "_cahnPreparing") is true ||
@@ -497,7 +498,7 @@ internal static class Program
 
             if (Fractal3DCatalog.TryParseLaunchKey(key, out Fractal3DKind fractal3DKind))
             {
-                // Включая Terrain, LSystem3D, Buddhabrot4D, Hopf, Lichtenberg3D Physarum3D, Lenia3D, Lyapunov3D и Kobayashi3D (fractal3d-kobayashi3-d):
+                // Включая Terrain, LSystem3D, Buddhabrot4D, Hopf, Lichtenberg3D Physarum3D, Lenia3D, Lyapunov3D, Excitable3D и Kobayashi3D (fractal3d-kobayashi3-d):
                 // параметры, пространственный редактор и экспорт встроены в окно.
                 // Кадр считает GPU. Общий менеджер палитр снимается
                 // один раз — на Мандельбульбе; предпросмотр фрактала в нём отключён (null), чтобы
