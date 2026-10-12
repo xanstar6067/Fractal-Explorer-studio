@@ -12,7 +12,10 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 internal static class Fractal3DShader
 {
     public static string Build(Fractal3DKind kind, ImplicitSurfaceSettings? implicitSurface = null) =>
-        $"#define FRACTAL_KIND {(int)kind}\n#define IMPLICIT_KIND {(int)Fractal3DKind.ImplicitSurface}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.ImplicitSurface
+        $"#define FRACTAL_KIND {(int)kind}\n#define HYPERBOLIC_KIND {(int)Fractal3DKind.HyperbolicHoneycomb}\n#define IMPLICIT_KIND {(int)Fractal3DKind.ImplicitSurface}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.HyperbolicHoneycomb
+            ? Source.Replace("float BoxDistance", HyperbolicHoneycombShader.Geometry + "\nfloat BoxDistance")
+                .Replace("float4 PSMain", HyperbolicHoneycombShader.Rendering + "\nfloat4 PSMain")
+            : kind == Fractal3DKind.ImplicitSurface
             ? Source.Replace("float BoxDistance", ImplicitSurfaceShader.Build(implicitSurface ?? new()) + "\nfloat BoxDistance")
             : kind == Fractal3DKind.PeriodicSurfaces
             ? Source.Replace("float BoxDistance", PeriodicSurfaceShader.Source + "\nfloat BoxDistance")
@@ -189,6 +192,8 @@ internal static class Fractal3DShader
             return LMap(p, trap);
         #elif FRACTAL_KIND == HOPF_KIND
             return HopfMap(p, trap);
+        #elif FRACTAL_KIND == HYPERBOLIC_KIND
+            return HyperbolicMap(p, trap);
         #elif FRACTAL_KIND == PERIODIC_KIND
             return PeriodicMap(p, trap);
         #elif FRACTAL_KIND == IMPLICIT_KIND
@@ -971,6 +976,10 @@ internal static class Fractal3DShader
             float3 rayDirection = normalize(
                 CameraForward.xyz * CameraPosition.w + CameraRight.xyz * plane.x + CameraUp.xyz * plane.y);
             float3 rayOrigin = CameraPosition.xyz;
+
+        #if FRACTAL_KIND == HYPERBOLIC_KIND
+            return RenderHyperbolic(rayOrigin,rayDirection,2*March.y/max(Resolution.y*CameraPosition.w,1));
+        #endif
 
         #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
             float markerDistance = Probe.x < 0.5 ? MarkerDistance(rayOrigin, rayDirection) : -1.0;

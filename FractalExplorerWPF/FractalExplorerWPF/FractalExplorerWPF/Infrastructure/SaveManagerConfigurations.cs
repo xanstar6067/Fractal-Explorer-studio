@@ -322,6 +322,15 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.HyperbolicHoneycomb)
+        {
+            var s = state.HyperbolicHoneycomb;
+            var (p,q,r) = s.Symbol;
+            return $"{Prefix(state.Timestamp)} · {{{p},{q},{r}}} · глубина {s.Depth}\n" +
+                $"Радиус рёбер в H³: {s.EdgeRadius:G5} · непрозрачность граней: {(s.ShowFaces ? s.FaceOpacity : 0):G4}\n" +
+                $"Наблюдатель: {s.ObserverX:G4}; {s.ObserverY:G4}; {s.ObserverZ:G4}\n" +
+                $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
+        }
         if (state.Kind == Fractal3DKind.ImplicitSurface)
         {
             var s = state.ImplicitSurface;

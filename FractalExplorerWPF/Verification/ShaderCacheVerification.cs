@@ -76,6 +76,7 @@ internal static partial class Program
               Excitable3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile("excitable3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-PeriodicSurfaces-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("fractal3d-HyperbolicHoneycomb-pixel")) &&
               Fractal3DCatalog.GetPresets(Fractal3DKind.ImplicitSurface).All(s =>
                   File.Exists(AppPaths.GetShaderCacheFile(Fractal3DRenderer.ImplicitPixelShaderEntry(s.ImplicitSurface).Key))) &&
               Kobayashi3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&

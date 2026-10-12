@@ -759,6 +759,9 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="HyperbolicPanel" Visibility="Collapsed">
+                                <controls:HyperbolicHoneycombEditor x:Name="HyperbolicEditor" SettingsChanged="HyperbolicChanged"/>
+                            </StackPanel>
                             <StackPanel x:Name="PeriodicPanel" Visibility="Collapsed">
                                 <TextBlock Text="Семейство поверхности" Style="{StaticResource FieldCaption}"/>
                                 <ComboBox x:Name="PeriodicFamilyBox" SelectedIndex="0" SelectionChanged="Periodic_OnChanged">

@@ -163,6 +163,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             EnsureApollonianTree(state);
             EnsureLSystem(state, token);
             EnsureHopf(state, token);
+            EnsureHyperbolic(state);
             if (state.Kind == Fractal3DKind.LSystem3D)
             {
                 constants.ShapeA.Z = LSystemSegmentCount;
@@ -256,6 +257,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// </summary>
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
+        if (state.Kind == Fractal3DKind.HyperbolicHoneycomb)
+            return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.ImplicitSurface)
             return Math.Clamp(6_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.Terrain)
@@ -285,6 +288,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         EnsureApollonianTree(state);
         EnsureLSystem(state, token);
         EnsureHopf(state, token);
+        EnsureHyperbolic(state);
         if (state.Kind == Fractal3DKind.LSystem3D)
         {
             var constants = BuildConstants(state, width, height, offsetY);
@@ -385,6 +389,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
+        if (state.Kind == Fractal3DKind.HyperbolicHoneycomb) state.HyperbolicHoneycomb.Validate();
         if (state.Kind == Fractal3DKind.ImplicitSurface) state.ImplicitSurface.Validate();
         if (state.Kind == Fractal3DKind.PeriodicSurfaces) state.PeriodicSurface.Validate();
         if (state.Kind == Fractal3DKind.Lyapunov3D) state.Lyapunov.Validate();
@@ -403,6 +408,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.HyperbolicHoneycomb => ((float)state.HyperbolicHoneycomb.EdgeRadius, (float)state.HyperbolicHoneycomb.FaceThickness, 0),
             Fractal3DKind.ImplicitSurface => ((float)state.ImplicitSurface.Extent, (float)state.ImplicitSurface.Level, 0),
             Fractal3DKind.PeriodicSurfaces => ((float)state.PeriodicSurface.Family, (float)state.PeriodicSurface.Level, (float)state.PeriodicSurface.Thickness),
             Fractal3DKind.Lyapunov3D => (state.Lyapunov.Size, .5f, (float)state.Lyapunov.ColorRange),
@@ -449,7 +455,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.ImplicitSurface
+            ShapeB = state.Kind == Fractal3DKind.HyperbolicHoneycomb
+                ? new Vector4((float)state.HyperbolicHoneycomb.ObserverX, (float)state.HyperbolicHoneycomb.ObserverY,
+                    (float)state.HyperbolicHoneycomb.ObserverZ, (float)state.HyperbolicHoneycomb.FaceOpacity)
+                : state.Kind == Fractal3DKind.ImplicitSurface
                 ? new Vector4((float)state.ImplicitSurface.A, (float)state.ImplicitSurface.B, (float)state.ImplicitSurface.C, 0)
                 : state.Kind == Fractal3DKind.PeriodicSurfaces
                 ? new Vector4((float)state.PeriodicSurface.StretchX, (float)state.PeriodicSurface.StretchY,
@@ -484,7 +493,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
                     state.Kind == Fractal3DKind.Buddhabrot4D ? (float)state.Buddhabrot.Saturation :
                     state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
-            BoxInversion = state.Kind == Fractal3DKind.ImplicitSurface
+            BoxInversion = state.Kind == Fractal3DKind.HyperbolicHoneycomb
+                ? new Vector4(state.HyperbolicHoneycomb.CutAxis, (float)state.HyperbolicHoneycomb.CutPosition,
+                    state.HyperbolicHoneycomb.ShowEdges ? 1 : 0, state.HyperbolicHoneycomb.ShowFaces ? 1 : 0)
+                : state.Kind == Fractal3DKind.ImplicitSurface
                 ? new Vector4(state.ImplicitSurface.CutAxis, (float)(state.ImplicitSurface.CutPosition/state.ImplicitSurface.Extent), 0, 0)
                 : state.Kind == Fractal3DKind.PeriodicSurfaces
                 ? new Vector4(state.PeriodicSurface.CutAxis, (float)state.PeriodicSurface.CutPosition, (float)state.PeriodicSurface.Region, 0)
@@ -785,6 +797,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeTerrainResources();
         DisposeLSystemResources();
         DisposeHopfResources();
+        _hyperbolicConstants?.Dispose();
         _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();

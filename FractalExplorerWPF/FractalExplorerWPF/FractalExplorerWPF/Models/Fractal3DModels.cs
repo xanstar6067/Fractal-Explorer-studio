@@ -40,7 +40,8 @@ public enum Fractal3DKind
     Lyapunov3D,
     Excitable3D,
     PeriodicSurfaces,
-    ImplicitSurface
+    ImplicitSurface,
+    HyperbolicHoneycomb
 }
 
 public enum Hybrid3DOrder
@@ -327,6 +328,7 @@ public sealed class Fractal3DState
     public HopfSettings Hopf { get; set; } = new();
     public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
     public ImplicitSurfaceSettings ImplicitSurface { get; set; } = new();
+    public HyperbolicHoneycombSettings HyperbolicHoneycomb { get; set; } = new();
 
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
@@ -419,6 +421,7 @@ public sealed class Fractal3DState
         clone.Hopf = Hopf?.Copy() ?? new();
         clone.PeriodicSurface = PeriodicSurface is null ? new() : PeriodicSurface with { };
         clone.ImplicitSurface = ImplicitSurface is null ? new() : ImplicitSurface with { };
+        clone.HyperbolicHoneycomb = HyperbolicHoneycomb is null ? new() : HyperbolicHoneycomb with { };
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.Kobayashi = Kobayashi is null ? new() : Kobayashi with { };
@@ -521,6 +524,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.HyperbolicHoneycomb => new(
+            "Гиперболические соты", "Соты в шаре Пуанкаре · 3D",
+            "Четыре регулярных разбиения гиперболического пространства. Кубы, додекаэдры и икосаэдры уменьшаются к границе шара; геодезические рёбра, прозрачные грани, срезы и гиперболические перемещения.",
+            "Fractal3DHyperbolicHoneycomb", "hyperbolic-honeycomb"),
         Fractal3DKind.ImplicitSurface => new(
             "Лаборатория поверхностей F(x,y,z) = 0", "Поверхности из формул · 3D",
             "Сфера, тор, алгебраические скульптуры и самопересечения из вещественной формулы. Параметры a/b/c, уровень, область построения, срезы и средняя кривизна.",
@@ -662,6 +669,13 @@ public static class Fractal3DCatalog
 
     public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
+        if (kind == Fractal3DKind.HyperbolicHoneycomb)
+        {
+            if (mode == Fractal3DColoringMode.OrbitTrap) return "По гиперболическому радиусу";
+            if (mode == Fractal3DColoringMode.IterationIndex) return "По числу отражений";
+            if (mode == Fractal3DColoringMode.CrossTrap) return "По расстоянию до зеркала";
+            if (mode == Fractal3DColoringMode.Escape) return "По расстоянию до ребра";
+        }
         if (kind == Fractal3DKind.ImplicitSurface && mode == Fractal3DColoringMode.OrbitTrap) return "По средней кривизне";
         if (kind == Fractal3DKind.Hopf)
         {
@@ -762,6 +776,17 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.HyperbolicHoneycomb:
+                state.CameraDistance = 3.1;
+                state.CameraYaw = 24; state.CameraPitch = 15;
+                state.MaxSteps = 512; state.Detail = .45; state.Iterations = 64;
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.ColoringMode = Fractal3DColoringMode.OrbitTrap;
+                state.Palette = Fractal3DPalettes.Get("Медь и патина");
+                state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.SoftShadows = false; state.AmbientOcclusion = false;
+                state.Ssaa = 2;
+                break;
             case Fractal3DKind.ImplicitSurface:
                 state.CameraDistance = 3.8;
                 state.CameraYaw = 28; state.CameraPitch = 28;
@@ -1086,6 +1111,18 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.HyperbolicHoneycomb =>
+        [
+            Preset(kind, "Додекаэдры {5,3,4} · медная сеть", _ => { }),
+            Preset(kind, "Кубы {4,3,5} · пять вокруг ребра", s => s.HyperbolicHoneycomb = new() { Tessellation = HyperbolicHoneycombKind.Cubic435 }),
+            Preset(kind, "Додекаэдры {5,3,5} · плотное переплетение", s => s.HyperbolicHoneycomb = new() { Tessellation = HyperbolicHoneycombKind.Dodecahedral535, Depth = 2 }),
+            Preset(kind, "Икосаэдры {3,5,3} · треугольные грани", s => { s.HyperbolicHoneycomb = new() { Tessellation = HyperbolicHoneycombKind.Icosahedral353 }; s.Palette = Fractal3DPalettes.Get("Лёд"); }),
+            Preset(kind, "Прозрачные додекаэдры", s => s.HyperbolicHoneycomb = new() { ShowFaces = true, FaceOpacity = .12, Depth = 2 }),
+            Preset(kind, "Срез гиперболического города", s => s.HyperbolicHoneycomb = new() { ShowFaces = true, FaceOpacity = .25, CutAxis = 3, CutPosition = 0 }),
+            Preset(kind, "Смещённый наблюдатель", s => s.HyperbolicHoneycomb = new() { ObserverX = .5, ObserverY = .2, Depth = 3 }),
+            Preset(kind, "Внутри центральной ячейки", s => { s.CameraDistance = .18; s.CameraYaw = 15; s.CameraPitch = 5;
+                s.HyperbolicHoneycomb = new() { ShowFaces = true, FaceOpacity = .08, Depth = 2 }; })
+        ],
         Fractal3DKind.ImplicitSurface =>
         [
             Preset(kind, "Тор · большое и малое кольца", _ => { }),
