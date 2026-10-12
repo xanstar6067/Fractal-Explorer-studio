@@ -38,7 +38,8 @@ public enum Fractal3DKind
     Lenia3D,
     Kobayashi3D,
     Lyapunov3D,
-    Excitable3D
+    Excitable3D,
+    PeriodicSurfaces
 }
 
 public enum Hybrid3DOrder
@@ -323,6 +324,7 @@ public sealed class Fractal3DState
     public TerrainSettings Terrain { get; set; } = new();
     public LSystem3DSettings LSystem { get; set; } = new();
     public HopfSettings Hopf { get; set; } = new();
+    public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
 
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
@@ -413,6 +415,7 @@ public sealed class Fractal3DState
         clone.Lichtenberg = Lichtenberg is null ? new() : Lichtenberg with { };
         clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.Hopf = Hopf?.Copy() ?? new();
+        clone.PeriodicSurface = PeriodicSurface is null ? new() : PeriodicSurface with { };
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.Kobayashi = Kobayashi is null ? new() : Kobayashi with { };
@@ -515,6 +518,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.PeriodicSurfaces => new(
+            "Гироид и периодические поверхности", "Периодические поверхности · 3D",
+            "Гироид, Schwarz P и Schwarz D: тригонометрические приближения минимальных поверхностей. Переплетённые лабиринты, пористые стенки и каналы; период, уровень, растяжение по осям и срезы.",
+            "Fractal3DPeriodicSurfaces", "periodic-surfaces"),
         Fractal3DKind.Lenia3D => new(
             "Lenia 3D · искусственная жизнь", "Lenia · 3D",
             "Непрерывный клеточный автомат: сферическое ядро чувствует соседей, а правило роста рождает пульсации, вращение и движение. Пять трёхмерных видов, поиск форм, срезы и точное продолжение.",
@@ -747,6 +754,16 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.PeriodicSurfaces:
+                state.CameraDistance = 4.4;
+                state.CameraYaw = 32; state.CameraPitch = 24;
+                state.MaxSteps = 384;
+                state.Detail = .35;
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.SurfaceColor = Color.FromRgb(93, 183, 189);
+                state.SoftShadows = false;
+                state.Ssaa = 2;
+                break;
             case Fractal3DKind.Lyapunov3D:
                 state.CameraDistance = 4.2;
                 state.CameraYaw = 35; state.CameraPitch = 22;
@@ -1053,6 +1070,23 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.PeriodicSurfaces =>
+        [
+            Preset(kind, "Гироид · переплетённые лабиринты", _ => { }),
+            Preset(kind, "Schwarz P · кубические каналы", s => s.PeriodicSurface = new() { Family = PeriodicSurfaceFamily.SchwarzP, Thickness = .45 }),
+            Preset(kind, "Schwarz D · алмазная сеть", s => s.PeriodicSurface = new() { Family = PeriodicSurfaceFamily.SchwarzD, Thickness = .2 }),
+            Preset(kind, "Гироид · срез", s => s.PeriodicSurface = new() { CutAxis = 3, CutPosition = .1 }),
+            Preset(kind, "Гироид · вытянутые тоннели", s => s.PeriodicSurface = new() { StretchY = 1.7, Period = 1.4, Thickness = .4 }),
+            Preset(kind, "Schwarz P · поверхность без толщины", s => s.PeriodicSurface = new() { Family = PeriodicSurfaceFamily.SchwarzP, Region = PeriodicSurfaceRegion.Surface, Period = 2 }),
+            Preset(kind, "Гироид · один лабиринт", s => s.PeriodicSurface = new() { Region = PeriodicSurfaceRegion.Positive, Level = .2, CutAxis = 3 }),
+            Preset(kind, "Гироид · внутри тоннеля", s => {
+                s.PeriodicSurface = new() { Period = 2 };
+                s.CameraDistance = .18; s.CameraYaw = 0; s.CameraPitch = 0;
+                s.TargetX = .5; s.TargetY = .5; s.TargetZ = .18;
+                s.NavigationMode = Fractal3DNavigationMode.Game;
+                s.GameMovementSpeed = .2;
+            })
+        ],
         Fractal3DKind.Lyapunov3D =>
         [
             Preset(kind, "ABCCAAB · области устойчивости", _ => { }),

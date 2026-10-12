@@ -381,6 +381,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
+        if (state.Kind == Fractal3DKind.PeriodicSurfaces) state.PeriodicSurface.Validate();
         if (state.Kind == Fractal3DKind.Lyapunov3D) state.Lyapunov.Validate();
         if (state.Kind == Fractal3DKind.Lenia3D) state.Lenia.Validate();
         if (state.Kind == Fractal3DKind.Physarum3D) state.Physarum.Validate();
@@ -397,6 +398,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.PeriodicSurfaces => ((float)state.PeriodicSurface.Family, (float)state.PeriodicSurface.Level, (float)state.PeriodicSurface.Thickness),
             Fractal3DKind.Lyapunov3D => (state.Lyapunov.Size, .5f, (float)state.Lyapunov.ColorRange),
             Fractal3DKind.Hopf => ((float)state.Hopf.ClipRadius,
                 state.Hopf.OnlySelected ? 1 : state.Hopf.BasePoints().Count, HopfGeometry.Scale * HopfGeometry.Scale),
@@ -441,7 +443,10 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.Lyapunov3D
+            ShapeB = state.Kind == Fractal3DKind.PeriodicSurfaces
+                ? new Vector4((float)state.PeriodicSurface.StretchX, (float)state.PeriodicSurface.StretchY,
+                    (float)state.PeriodicSurface.StretchZ, (float)state.PeriodicSurface.Period)
+                : state.Kind == Fractal3DKind.Lyapunov3D
                 ? new Vector4(state.Lyapunov.CutAxis, (float)state.Lyapunov.CutPosition,
                     (int)state.Lyapunov.Region, (float)state.Lyapunov.BandWidth)
                 : state.Kind == Fractal3DKind.Kobayashi3D
@@ -471,7 +476,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
                     state.Kind == Fractal3DKind.Buddhabrot4D ? (float)state.Buddhabrot.Saturation :
                     state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
-            BoxInversion = state.Kind == Fractal3DKind.Lyapunov3D
+            BoxInversion = state.Kind == Fractal3DKind.PeriodicSurfaces
+                ? new Vector4(state.PeriodicSurface.CutAxis, (float)state.PeriodicSurface.CutPosition, (float)state.PeriodicSurface.Region, 0)
+                : state.Kind == Fractal3DKind.Lyapunov3D
                 ? new Vector4((float)state.Lyapunov.Level, state.Lyapunov.SliceOnly ? 1 : 0, 0, 0)
                 : state.Kind == Fractal3DKind.Kifs
                 ? new Vector4((float)(kifs.RotationX * Math.PI / 180), (float)(kifs.RotationY * Math.PI / 180),

@@ -12,7 +12,9 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 internal static class Fractal3DShader
 {
     public static string Build(Fractal3DKind kind) =>
-        $"#define FRACTAL_KIND {(int)kind}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n" + (kind == Fractal3DKind.Hopf
+        $"#define FRACTAL_KIND {(int)kind}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.PeriodicSurfaces
+            ? Source.Replace("float BoxDistance", PeriodicSurfaceShader.Source + "\nfloat BoxDistance")
+            : kind == Fractal3DKind.Hopf
             ? Source.Replace("float BoxDistance", HopfShader.Source + "\nfloat BoxDistance")
             : kind == Fractal3DKind.Terrain
             ? Source.Replace("float BoxDistance", TerrainShader.Source + "\nfloat BoxDistance")
@@ -185,6 +187,8 @@ internal static class Fractal3DShader
             return LMap(p, trap);
         #elif FRACTAL_KIND == HOPF_KIND
             return HopfMap(p, trap);
+        #elif FRACTAL_KIND == PERIODIC_KIND
+            return PeriodicMap(p, trap);
         #elif FRACTAL_KIND == 10
             float2 slope;
             float height = TerrainHeight(p.xz, slope);
@@ -649,6 +653,13 @@ internal static class Fractal3DShader
         float3 EstimateNormal(float3 p, float epsilon)
         {
             float2 k = float2(1.0, -1.0);
+        #if FRACTAL_KIND == PERIODIC_KIND
+            if (BoxInversion.z == 1.0)
+                return normalize(k.xyy * PeriodicField(p + k.xyy * epsilon) +
+                    k.yyx * PeriodicField(p + k.yyx * epsilon) +
+                    k.yxy * PeriodicField(p + k.yxy * epsilon) +
+                    k.xxx * PeriodicField(p + k.xxx * epsilon));
+        #endif
             float4 trap;
             return normalize(
                 k.xyy * Map(p + k.xyy * epsilon, trap) +
@@ -789,6 +800,9 @@ internal static class Fractal3DShader
             float4 trap;
             float home = Map(HomeCamera.xyz, trap);
             float here = Map(CameraPosition.xyz, trap);
+        #if FRACTAL_KIND == PERIODIC_KIND
+            here = abs(here);
+        #endif
             return clamp(2.0 * max(here, 0.0) / max(home, 1e-9), 1e-6, 1.0);
         }
 
@@ -991,6 +1005,8 @@ internal static class Fractal3DShader
             float radius = 1.732051;
         #elif FRACTAL_KIND == HOPF_KIND
             float radius = ShapeA.x;
+        #elif FRACTAL_KIND == PERIODIC_KIND
+            float radius = 1.7320508;
         #else
             float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
         #endif
@@ -1081,6 +1097,10 @@ internal static class Fractal3DShader
                 float4 stepTrap;
                 float3 samplePoint = rayOrigin + rayDirection * travelled;
                 float stepDistance = Map(samplePoint, stepTrap);
+            #if FRACTAL_KIND == PERIODIC_KIND
+                // A camera inside a filled region must trace its exit, not hit at distance zero.
+                stepDistance = abs(stepDistance);
+            #endif
                 epsilon = max(pixelRadius * travelled, 1e-7);
                 usedSteps = i + 1;
                 float ratio = stepDistance / epsilon;
@@ -1175,6 +1195,9 @@ internal static class Fractal3DShader
             if (dot(normal, rayDirection) > 0) normal = -normal;
         #else
             float3 normal = EstimateNormal(surfacePoint, max(epsilon, 1e-6));
+        #if FRACTAL_KIND == PERIODIC_KIND
+            if (dot(normal, rayDirection) > 0) normal = -normal;
+        #endif
         #endif
             float3 lightDirection = Light.xyz;
             float3 lightTint = LightColor.rgb;

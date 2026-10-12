@@ -160,6 +160,7 @@ public partial class Fractal3DWindow : Window
         Terrain = CaptureTerrain(),
         LSystem = Kind == Fractal3DKind.LSystem3D ? LSystemEditor.Capture() : new(),
         Hopf = Kind == Fractal3DKind.Hopf ? HopfEditor.Capture() : new(),
+        PeriodicSurface = CapturePeriodicSurface(),
         Kifs = CaptureKifs(),
         Dla = CaptureDla(),
         Lichtenberg = CaptureLichtenberg(),
@@ -336,6 +337,7 @@ public partial class Fractal3DWindow : Window
             HopfEditor.SetColoring(state);
         }
         LoadKifs(state.Kifs);
+        LoadPeriodicSurface(state.PeriodicSurface);
         LoadDla(state.Dla);
         LoadLichtenberg(state.Lichtenberg);
         LoadKobayashi(state.Kobayashi);
@@ -533,6 +535,16 @@ public partial class Fractal3DWindow : Window
         BoxPanel.Visibility = Collapse(Kind is Fractal3DKind.Mandelbox or Fractal3DKind.BulbBoxHybrid);
         HybridPanel.Visibility = Collapse(Kind == Fractal3DKind.BulbBoxHybrid);
         KifsPanel.Visibility = Collapse(Kind == Fractal3DKind.Kifs);
+        PeriodicPanel.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
+        if (Kind == Fractal3DKind.PeriodicSurfaces)
+        {
+            ControlsColumn.Width = new GridLength(395);
+            ShapeExpander.Header = "Поверхность и лабиринты";
+            IterationsLabel.Visibility = IterationsBox.Visibility = Visibility.Collapsed;
+            foreach (var mode in new[] { Fractal3DColoringMode.OrbitTrap, Fractal3DColoringMode.CrossTrap,
+                Fractal3DColoringMode.IterationIndex, Fractal3DColoringMode.Escape })
+                ((ComboBoxItem)ColoringModeBox.Items[(int)mode]).Visibility = Visibility.Collapsed;
+        }
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
         FlamePanel.Visibility = Collapse(Kind == Fractal3DKind.Flame3D);
@@ -551,7 +563,7 @@ public partial class Fractal3DWindow : Window
         MaxDistanceBox.Visibility = Collapse(Kind is Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.Excitable3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D);
         if (Kind == Fractal3DKind.Ifs3D)
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
-        BailoutPanel.Visibility = Collapse(
+        BailoutPanel.Visibility = Collapse(Kind != Fractal3DKind.PeriodicSurfaces &&
             Kind is not (Fractal3DKind.Hopf or Fractal3DKind.Kifs or Fractal3DKind.MengerSponge or Fractal3DKind.Vicsek or Fractal3DKind.CantorDust or Fractal3DKind.SierpinskiTetrahedron or Fractal3DKind.ApollonianPacking or Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.Kobayashi3D or Fractal3DKind.Excitable3D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Physarum3D or Fractal3DKind.Lenia3D or Fractal3DKind.Lyapunov3D));
     }
 

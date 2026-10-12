@@ -249,6 +249,7 @@ internal static class FractalCatalogHistory
         Add("2026-10-09T15:49:33+03:00", Fractal3DCatalog.LaunchKey(Fractal3DKind.Kobayashi3D));
         Add("2026-10-11T23:06:32+03:00", Fractal3DCatalog.LaunchKey(Fractal3DKind.Lyapunov3D));
         Add("2026-10-11T23:50:42+03:00", Fractal3DCatalog.LaunchKey(Fractal3DKind.Excitable3D));
+        Add("2026-10-12T16:04:48+03:00", Fractal3DCatalog.LaunchKey(Fractal3DKind.PeriodicSurfaces));
         return dates;
 
         void Add(string timestamp, params string[] launchKeys)

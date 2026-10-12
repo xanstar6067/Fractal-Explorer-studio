@@ -322,6 +322,17 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.PeriodicSurfaces)
+        {
+            var s = state.PeriodicSurface;
+            string family = s.Family switch { PeriodicSurfaceFamily.SchwarzP => "Schwarz P", PeriodicSurfaceFamily.SchwarzD => "Schwarz D", _ => "Гироид" };
+            string region = s.Region switch { PeriodicSurfaceRegion.Surface => "поверхность", PeriodicSurfaceRegion.Positive => "лабиринт F ≥ уровня",
+                PeriodicSurfaceRegion.Negative => "лабиринт F ≤ уровня", _ => $"стенки · толщина по F: {s.Thickness:G5}" };
+            return $"{Prefix(state.Timestamp)} · {family} · {region}\n" +
+                $"Период: {s.Period:G5} · Уровень: {s.Level:G5} · Растяжение: {s.StretchX:G4}; {s.StretchY:G4}; {s.StretchZ:G4}\n" +
+                (s.CutAxis > 0 ? $"Срез {"XYZ"[s.CutAxis - 1]} ≤ {s.CutPosition:G5}\n" : "") +
+                $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
+        }
         if (state.Kind == Fractal3DKind.Excitable3D)
         {
             var s = state.Excitable;

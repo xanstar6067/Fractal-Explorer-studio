@@ -72,6 +72,7 @@ internal static partial class Program
               reportedTotal && ShaderBytecodeCache.ActiveCompilationCount == 0 &&
               Excitable3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile("excitable3d-pixel")) &&
+              File.Exists(AppPaths.GetShaderCacheFile("fractal3d-PeriodicSurfaces-pixel")) &&
               Kobayashi3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile("kobayashi3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("lyapunov3d-pixel")) &&
