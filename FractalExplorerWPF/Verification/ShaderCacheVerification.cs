@@ -43,8 +43,11 @@ internal static partial class Program
         ShaderBytecodeCache.GetOrCompile(entry, FakeCompile);
         Check(compilations == 3, "A damaged cache file must be regenerated.");
 
+        ShaderBytecodeCache.GetOrCompile(entry with { SkipOptimization = true }, FakeCompile);
+        Check(compilations == 4, "Compiler flags must invalidate bytecode even with unchanged source.");
+
         ShaderBytecodeCache.Rebuild([entry], FakeCompile);
-        Check(compilations == 4 && Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length == 1,
+        Check(compilations == 5 && Directory.GetFiles(AppPaths.ShaderCacheDirectory, "*.cso").Length == 1,
             "Rebuild must replace the stored shader set.");
 
         VerifyParallelShaderRebuild();
@@ -73,6 +76,8 @@ internal static partial class Program
               Excitable3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile("excitable3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-PeriodicSurfaces-pixel")) &&
+              Fractal3DCatalog.GetPresets(Fractal3DKind.ImplicitSurface).All(s =>
+                  File.Exists(AppPaths.GetShaderCacheFile(Fractal3DRenderer.ImplicitPixelShaderEntry(s.ImplicitSurface).Key))) &&
               Kobayashi3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile("kobayashi3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("lyapunov3d-pixel")) &&

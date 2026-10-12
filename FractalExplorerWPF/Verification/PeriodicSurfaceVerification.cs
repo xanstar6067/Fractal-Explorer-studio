@@ -18,8 +18,8 @@ internal static partial class Program
         var kind = Fractal3DKind.PeriodicSurfaces;
         var item = FractalCatalog.Create().Single(t => t.LaunchKey == Fractal3DCatalog.LaunchKey(kind));
         Check(item.IsThreeDimensional && CatalogPreviewLoader.IsRendered(item), "Periodic surfaces need a GPU catalog preview.");
-        Check(FractalCatalog.Create().OrderByDescending(t => t.IntroducedAt).First().LaunchKey == item.LaunchKey,
-            "Periodic surfaces must lead new arrivals.");
+        Check(item.IntroducedAt is not null,
+            "Periodic surfaces must retain their introduction date.");
         var state = Fractal3DCatalog.CreateDefaultState(kind);
         Check(state.ColoringMode == Fractal3DColoringMode.Material, "The starting surface must use material coloring.");
         foreach (var invalid in new[] { state.PeriodicSurface with { Period = double.NaN },

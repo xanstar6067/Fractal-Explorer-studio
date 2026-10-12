@@ -824,6 +824,46 @@
                                 <TextBlock Text="Готовые виды используют CAD: левая кнопка вращает камеру. Для прогулки по тоннелям можно вручную выбрать игровую камеру в разделе «Навигация»." TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                             </StackPanel>
 
+                            <StackPanel x:Name="ImplicitPanel" Visibility="Collapsed">
+                                <TextBlock Text="F(x,y,z) = уровень" FontWeight="SemiBold" Margin="0,5"/>
+                                <TextBox x:Name="ImplicitFormulaBox" MinHeight="76" MaxHeight="160" MaxLength="2048" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" TextChanged="ImplicitFormula_OnChanged" KeyDown="ImplicitFormula_OnKeyDown"/>
+                                <Button x:Name="ImplicitApplyButton" Content="Построить поверхность" Click="ImplicitApply_OnClick" ToolTip="Применить формулу · Ctrl+Enter"/>
+                                <TextBlock x:Name="ImplicitFormulaStatus" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,8" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <Expander Header="Как записывать формулы" IsExpanded="False"><TextBlock TextWrapping="Wrap" FontSize="11" Text="x, y, z · параметры a, b, c · pi, e. Операции + − * / и целые степени ^ от −16 до 16. Функции sin, cos, abs, sqrt, exp, log, min, max. Пример: x^2+y^2+z^2-a^2. Можно вводить обе стороны равенства. Умножение: x*y; десятичная точка: 0.5. Неопределённые участки формулы пропускаются."/></Expander>
+                                <TextBlock Text="Параметр a" Style="{StaticResource FieldCaption}"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="ImplicitASlider" Minimum="-10" Maximum="10" Value="1" SmallChange="0.01" ValueChanged="Implicit_OnChanged" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="ImplicitABox" Grid.Column="1" Text="{Binding ElementName=ImplicitASlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextChanged="Implicit_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Text="Параметр b" Style="{StaticResource FieldCaption}"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="ImplicitBSlider" Minimum="-10" Maximum="10" Value="0.35" SmallChange="0.01" ValueChanged="Implicit_OnChanged" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="ImplicitBBox" Grid.Column="1" Text="{Binding ElementName=ImplicitBSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextChanged="Implicit_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Text="Параметр c" Style="{StaticResource FieldCaption}"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="ImplicitCSlider" Minimum="-10" Maximum="10" SmallChange="0.01" ValueChanged="Implicit_OnChanged" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="ImplicitCBox" Grid.Column="1" Text="{Binding ElementName=ImplicitCSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextChanged="Implicit_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Text="Уровень F (−100…100)" Style="{StaticResource FieldCaption}"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="ImplicitLevelSlider" Minimum="-100" Maximum="100" SmallChange="0.01" ValueChanged="Implicit_OnChanged" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="ImplicitLevelBox" Grid.Column="1" Text="{Binding ElementName=ImplicitLevelSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextChanged="Implicit_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Text="Область по всем осям: −R…R" Style="{StaticResource FieldCaption}"/>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="ImplicitExtentSlider" Minimum="0.1" Maximum="10" Value="1.6" SmallChange="0.01" ValueChanged="Implicit_OnChanged" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="ImplicitExtentBox" Grid.Column="1" Text="{Binding ElementName=ImplicitExtentSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextChanged="Implicit_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Text="Срез · оставить нижнюю часть" Style="{StaticResource FieldCaption}"/>
+                                <ComboBox x:Name="ImplicitCutBox" SelectedIndex="0" SelectionChanged="Implicit_OnChanged"><ComboBoxItem Content="Без среза"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/></ComboBox>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                                    <Slider x:Name="ImplicitCutPositionSlider" Minimum="-10" Maximum="10" SmallChange="0.01" ValueChanged="Implicit_OnChanged" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="ImplicitCutPositionBox" Grid.Column="1" Text="{Binding ElementName=ImplicitCutPositionSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextChanged="Implicit_OnChanged" numeric:NumericSpinner.IsEnabled="True"/>
+                                </Grid>
+                                <TextBlock Text="R и срез заданы в координатах формулы. Срез открывает поверхность без крышки. Для тонких деталей увеличьте «Шагов луча» и уменьшите «Детализацию». Кривизна выбирается в разделе окраски; в особых точках она не определена." FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                            </StackPanel>
+
                             <StackPanel x:Name="KifsPanel" Visibility="Collapsed">
                                 <CheckBox x:Name="KifsNearbyBox" Content="Вариации текущей формы" IsChecked="True" ToolTip="Выключите для случайного выбора семейства из готовых форм"/>
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>

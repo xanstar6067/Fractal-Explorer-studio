@@ -6,7 +6,7 @@ using System.Text;
 namespace FractalExplorerWPF.Infrastructure;
 
 /// <summary>Описание одного варианта шейдера; ключ должен быть уникальным для всех GPU-режимов.</summary>
-internal readonly record struct ShaderCacheEntry(string Key, string Source, string EntryPoint, string Profile);
+internal readonly record struct ShaderCacheEntry(string Key, string Source, string EntryPoint, string Profile, bool SkipOptimization = false);
 
 /// <summary>
 /// Единый дисковый кэш байткода Direct3D. Сигнатура учитывает исходник, точку входа и профиль;
@@ -100,7 +100,7 @@ internal static class ShaderBytecodeCache
     }
 
     private static byte[] Signature(ShaderCacheEntry entry) => SHA256.HashData(Encoding.UTF8.GetBytes(
-        $"D3DCompile-default-v1\0{entry.Key}\0{entry.EntryPoint}\0{entry.Profile}\0{entry.Source}"));
+        $"D3DCompile-default-v2\0{entry.Key}\0{entry.EntryPoint}\0{entry.Profile}\0{entry.SkipOptimization}\0{entry.Source}"));
 
     private static byte[]? TryRead(string path, byte[] signature)
     {

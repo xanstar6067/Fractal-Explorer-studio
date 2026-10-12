@@ -51,6 +51,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private readonly float[] _palette = new float[Fractal3DPalette.MaxColors * 4];
 
     private readonly Dictionary<Fractal3DKind, ID3D11PixelShader> _pixelShaders = [];
+    private string? _implicitFormula;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ShaderCacheEntry> ImplicitShaderEntries = new();
     private ID3D11Device? _device;
     private ID3D11DeviceContext? _context;
     private ID3D11VertexShader? _vertexShader;
@@ -173,7 +175,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             context.RSSetViewport(new Viewport(0, 0, 1, 1));
             context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
             context.VSSetShader(_vertexShader!);
-            context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
+            context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state));
             if (IsDensityVolume(state.Kind))
             {
                 context.PSSetShaderResource(0, volume!);
@@ -254,6 +256,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// </summary>
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
+        if (state.Kind == Fractal3DKind.ImplicitSurface)
+            return Math.Clamp(6_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.Terrain)
             return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.LSystem3D)
@@ -295,7 +299,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         context.VSSetShader(_vertexShader!);
         stages?.Report(Fractal3DRenderStage.PreparingShaders);
-        context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
+        context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state));
         if (IsDensityVolume(state.Kind))
         {
             context.PSSetShaderResource(0, volume!);
@@ -381,6 +385,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
+        if (state.Kind == Fractal3DKind.ImplicitSurface) state.ImplicitSurface.Validate();
         if (state.Kind == Fractal3DKind.PeriodicSurfaces) state.PeriodicSurface.Validate();
         if (state.Kind == Fractal3DKind.Lyapunov3D) state.Lyapunov.Validate();
         if (state.Kind == Fractal3DKind.Lenia3D) state.Lenia.Validate();
@@ -398,6 +403,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.ImplicitSurface => ((float)state.ImplicitSurface.Extent, (float)state.ImplicitSurface.Level, 0),
             Fractal3DKind.PeriodicSurfaces => ((float)state.PeriodicSurface.Family, (float)state.PeriodicSurface.Level, (float)state.PeriodicSurface.Thickness),
             Fractal3DKind.Lyapunov3D => (state.Lyapunov.Size, .5f, (float)state.Lyapunov.ColorRange),
             Fractal3DKind.Hopf => ((float)state.Hopf.ClipRadius,
@@ -443,7 +449,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.PeriodicSurfaces
+            ShapeB = state.Kind == Fractal3DKind.ImplicitSurface
+                ? new Vector4((float)state.ImplicitSurface.A, (float)state.ImplicitSurface.B, (float)state.ImplicitSurface.C, 0)
+                : state.Kind == Fractal3DKind.PeriodicSurfaces
                 ? new Vector4((float)state.PeriodicSurface.StretchX, (float)state.PeriodicSurface.StretchY,
                     (float)state.PeriodicSurface.StretchZ, (float)state.PeriodicSurface.Period)
                 : state.Kind == Fractal3DKind.Lyapunov3D
@@ -476,7 +484,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
                     state.Kind == Fractal3DKind.Buddhabrot4D ? (float)state.Buddhabrot.Saturation :
                     state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
-            BoxInversion = state.Kind == Fractal3DKind.PeriodicSurfaces
+            BoxInversion = state.Kind == Fractal3DKind.ImplicitSurface
+                ? new Vector4(state.ImplicitSurface.CutAxis, (float)(state.ImplicitSurface.CutPosition/state.ImplicitSurface.Extent), 0, 0)
+                : state.Kind == Fractal3DKind.PeriodicSurfaces
                 ? new Vector4(state.PeriodicSurface.CutAxis, (float)state.PeriodicSurface.CutPosition, (float)state.PeriodicSurface.Region, 0)
                 : state.Kind == Fractal3DKind.Lyapunov3D
                 ? new Vector4((float)state.Lyapunov.Level, state.Lyapunov.SliceOnly ? 1 : 0, 0, 0)
@@ -549,8 +559,18 @@ public sealed partial class Fractal3DRenderer : IDisposable
         return channel <= 0.04045f ? channel / 12.92f : MathF.Pow((channel + 0.055f) / 1.055f, 2.4f);
     }
 
-    private ID3D11PixelShader GetPixelShader(Fractal3DKind kind)
+    private ID3D11PixelShader GetPixelShader(Fractal3DState state)
     {
+        Fractal3DKind kind = state.Kind;
+        if (kind == Fractal3DKind.ImplicitSurface && _implicitFormula != state.ImplicitSurface.Formula)
+        {
+            // Keep one live formula shader per window; changing parameters uses only constants.
+            ReadOnlyMemory<byte> bytes = Compile(ImplicitPixelShaderEntry(state.ImplicitSurface));
+            var replacement = _device!.CreatePixelShader(bytes.Span);
+            if (_pixelShaders.Remove(kind, out var previous)) previous.Dispose();
+            _pixelShaders[kind] = replacement;
+            _implicitFormula = state.ImplicitSurface.Formula;
+        }
         if (_pixelShaders.TryGetValue(kind, out ID3D11PixelShader? shader)) return shader;
         ReadOnlyMemory<byte> bytecode = Compile(PixelShaderEntry(kind));
         shader = _device!.CreatePixelShader(bytecode.Span);
@@ -588,6 +608,15 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private static ShaderCacheEntry PixelShaderEntry(Fractal3DKind kind) =>
         new($"fractal3d-{kind}-pixel", Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
 
+    internal static ShaderCacheEntry ImplicitPixelShaderEntry(ImplicitSurfaceSettings settings)
+    {
+        var entry = new ShaderCacheEntry("implicit-surface-pixel-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(settings.Validate().Hlsl)))[..16],
+            Fractal3DShader.Build(Fractal3DKind.ImplicitSurface, settings), "PSMain", "ps_5_0", SkipOptimization: true);
+        ImplicitShaderEntries[entry.Key] = entry;
+        return entry;
+    }
+
     private static ShaderCacheEntry VertexShaderEntry() =>
         new("fractal3d-vertex", Fractal3DShader.Build(Fractal3DKind.Mandelbulb), "VSMain", "vs_5_0");
 
@@ -614,7 +643,11 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         var entries = new List<ShaderCacheEntry> { VertexShaderEntry() };
         foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
-            if (!IsDensityVolume(kind)) entries.Add(PixelShaderEntry(kind));
+            if (kind == Fractal3DKind.ImplicitSurface)
+                entries.AddRange(Fractal3DCatalog.GetPresets(kind).Select(s => ImplicitPixelShaderEntry(s.ImplicitSurface))
+                    .DistinctBy(e => e.Key));
+            else if (!IsDensityVolume(kind)) entries.Add(PixelShaderEntry(kind));
+        entries.AddRange(ImplicitShaderEntries.Values.Where(e => entries.All(existing => existing.Key != e.Key)).ToArray());
         entries.Add(IfsPixelShaderEntry());
         entries.Add(LyapunovPixelShaderEntry());
         entries.Add(Lyapunov3DComputeShader.CacheEntry);
@@ -649,7 +682,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         try
         {
-            return Compiler.Compile(entry.Source, entry.EntryPoint, "Fractal3D", entry.Profile);
+            return Compiler.Compile(entry.Source, entry.EntryPoint, "Fractal3D", entry.Profile,
+                entry.SkipOptimization ? ShaderFlags.SkipOptimization : ShaderFlags.None);
         }
         catch (Exception exception)
         {

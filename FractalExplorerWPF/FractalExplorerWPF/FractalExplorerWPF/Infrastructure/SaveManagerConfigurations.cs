@@ -322,6 +322,14 @@ public static class SaveManagerConfigurations
 
     private static string DescribeFractal3D(Fractal3DState state)
     {
+        if (state.Kind == Fractal3DKind.ImplicitSurface)
+        {
+            var s = state.ImplicitSurface;
+            return $"{Prefix(state.Timestamp)} · F(x,y,z) = {s.Level:G6}\n{s.Formula}\n" +
+                $"a: {s.A:G6} · b: {s.B:G6} · c: {s.C:G6} · Область: ±{s.Extent:G6}\n" +
+                (s.CutAxis is > 0 and <= 3 ? $"Срез {"XYZ"[s.CutAxis - 1]} ≤ {s.CutPosition:G6}\n" : "") +
+                $"Окраска: {Fractal3DCatalog.ColoringModeName(state.ColoringMode, state.Kind)} · Палитра: {state.ResolvePalette().Name}";
+        }
         if (state.Kind == Fractal3DKind.PeriodicSurfaces)
         {
             var s = state.PeriodicSurface;

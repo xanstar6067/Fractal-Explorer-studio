@@ -39,7 +39,8 @@ public enum Fractal3DKind
     Kobayashi3D,
     Lyapunov3D,
     Excitable3D,
-    PeriodicSurfaces
+    PeriodicSurfaces,
+    ImplicitSurface
 }
 
 public enum Hybrid3DOrder
@@ -325,6 +326,7 @@ public sealed class Fractal3DState
     public LSystem3DSettings LSystem { get; set; } = new();
     public HopfSettings Hopf { get; set; } = new();
     public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
+    public ImplicitSurfaceSettings ImplicitSurface { get; set; } = new();
 
     // ---- камера ----
     public double CameraYaw { get; set; } = 35;
@@ -416,6 +418,7 @@ public sealed class Fractal3DState
         clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.Hopf = Hopf?.Copy() ?? new();
         clone.PeriodicSurface = PeriodicSurface is null ? new() : PeriodicSurface with { };
+        clone.ImplicitSurface = ImplicitSurface is null ? new() : ImplicitSurface with { };
         clone.Flame = Flame?.Clone() ?? new();
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.Kobayashi = Kobayashi is null ? new() : Kobayashi with { };
@@ -518,6 +521,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.ImplicitSurface => new(
+            "Лаборатория поверхностей F(x,y,z) = 0", "Поверхности из формул · 3D",
+            "Сфера, тор, алгебраические скульптуры и самопересечения из вещественной формулы. Параметры a/b/c, уровень, область построения, срезы и средняя кривизна.",
+            "Fractal3DImplicitSurface", "implicit-surface"),
         Fractal3DKind.PeriodicSurfaces => new(
             "Гироид и периодические поверхности", "Периодические поверхности · 3D",
             "Гироид, Schwarz P и Schwarz D: тригонометрические приближения минимальных поверхностей. Переплетённые лабиринты, пористые стенки и каналы; период, уровень, растяжение по осям и срезы.",
@@ -655,6 +662,7 @@ public static class Fractal3DCatalog
 
     public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
+        if (kind == Fractal3DKind.ImplicitSurface && mode == Fractal3DColoringMode.OrbitTrap) return "По средней кривизне";
         if (kind == Fractal3DKind.Hopf)
         {
             if (mode == Fractal3DColoringMode.OrbitTrap) return "По долготе на базовой сфере";
@@ -754,6 +762,14 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.ImplicitSurface:
+                state.CameraDistance = 3.8;
+                state.CameraYaw = 28; state.CameraPitch = 28;
+                state.MaxSteps = 384; state.Detail = .35;
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.SurfaceColor = Color.FromRgb(93, 183, 189);
+                state.SoftShadows = false; state.Ssaa = 2;
+                break;
             case Fractal3DKind.PeriodicSurfaces:
                 state.CameraDistance = 4.4;
                 state.CameraYaw = 32; state.CameraPitch = 24;
@@ -1070,6 +1086,17 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.ImplicitSurface =>
+        [
+            Preset(kind, "Тор · большое и малое кольца", _ => { }),
+            Preset(kind, "Сфера · радиус a", s => s.ImplicitSurface = new() { Formula = "x^2+y^2+z^2-a^2", Extent = 1.3 }),
+            Preset(kind, "Эллипсоид · три полуоси", s => s.ImplicitSurface = new() { Formula = "(x/a)^2+(y/b)^2+(z/c)^2-1", A = 1, B = .65, C = .4, Extent = 1.2 }),
+            Preset(kind, "Сердце · алгебраическая скульптура", s => { s.ImplicitSurface = new() { Formula = "(x^2+2.25*y^2+z^2-1)^3-x^2*z^3-0.1125*y^2*z^3", Extent = 1.5 }; s.CameraPitch = 70; s.SurfaceColor = Color.FromRgb(216, 93, 131); }),
+            Preset(kind, "Римская поверхность · самопересечения", s => s.ImplicitSurface = new() { Formula = "x^2*y^2+y^2*z^2+z^2*x^2-a*x*y*z", Extent = .65 }),
+            Preset(kind, "Гироид · уровень c", s => s.ImplicitSurface = new() { Formula = "sin(a*x)*cos(a*y)+sin(a*z)*cos(a*x)+sin(a*y)*cos(a*z)-c", A = 3.141592653589793, Extent = 1 }),
+            Preset(kind, "Две сферы · расстояние a", s => s.ImplicitSurface = new() { Formula = "((x-a)^2+y^2+z^2-b^2)*((x+a)^2+y^2+z^2-b^2)", A = .55, B = .7, Extent = 1.5 }),
+            Preset(kind, "Тор · средняя кривизна", s => { s.ColoringMode = Fractal3DColoringMode.OrbitTrap; s.ColorRepeat = Fractal3DColorRepeat.Clamp; s.Palette = Fractal3DPalettes.Get("Спектр"); })
+        ],
         Fractal3DKind.PeriodicSurfaces =>
         [
             Preset(kind, "Гироид · переплетённые лабиринты", _ => { }),

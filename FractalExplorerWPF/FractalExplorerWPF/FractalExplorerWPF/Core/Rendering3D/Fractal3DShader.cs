@@ -11,8 +11,10 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 /// </summary>
 internal static class Fractal3DShader
 {
-    public static string Build(Fractal3DKind kind) =>
-        $"#define FRACTAL_KIND {(int)kind}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.PeriodicSurfaces
+    public static string Build(Fractal3DKind kind, ImplicitSurfaceSettings? implicitSurface = null) =>
+        $"#define FRACTAL_KIND {(int)kind}\n#define IMPLICIT_KIND {(int)Fractal3DKind.ImplicitSurface}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.ImplicitSurface
+            ? Source.Replace("float BoxDistance", ImplicitSurfaceShader.Build(implicitSurface ?? new()) + "\nfloat BoxDistance")
+            : kind == Fractal3DKind.PeriodicSurfaces
             ? Source.Replace("float BoxDistance", PeriodicSurfaceShader.Source + "\nfloat BoxDistance")
             : kind == Fractal3DKind.Hopf
             ? Source.Replace("float BoxDistance", HopfShader.Source + "\nfloat BoxDistance")
@@ -189,6 +191,8 @@ internal static class Fractal3DShader
             return HopfMap(p, trap);
         #elif FRACTAL_KIND == PERIODIC_KIND
             return PeriodicMap(p, trap);
+        #elif FRACTAL_KIND == IMPLICIT_KIND
+            return ImplicitMap(p, trap);
         #elif FRACTAL_KIND == 10
             float2 slope;
             float height = TerrainHeight(p.xz, slope);
@@ -652,6 +656,9 @@ internal static class Fractal3DShader
 
         float3 EstimateNormal(float3 p, float epsilon)
         {
+        #if FRACTAL_KIND == IMPLICIT_KIND
+            return ImplicitNormal(p, epsilon);
+        #endif
             float2 k = float2(1.0, -1.0);
         #if FRACTAL_KIND == PERIODIC_KIND
             if (BoxInversion.z == 1.0)
@@ -670,7 +677,10 @@ internal static class Fractal3DShader
 
         float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDistance, float sharpness)
         {
-        #if FRACTAL_KIND == 19
+        #if FRACTAL_KIND == IMPLICIT_KIND
+            float distance; int steps; float4 trap;
+            return TraceImplicit(origin+direction*minDistance,direction,maxDistance,distance,steps,trap) ? .2 : 1;
+        #elif FRACTAL_KIND == 19
             float distance; int steps; float4 trap;
             float3 axis = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
             float3 other = cross(direction, axis);
@@ -875,6 +885,8 @@ internal static class Fractal3DShader
             hit = TraceTerrain(origin, reflected, March.z, distance, steps);
         #elif FRACTAL_KIND == 19
             hit = TraceLSystem(origin, reflected, March.z, distance, steps, reflectedTrap);
+        #elif FRACTAL_KIND == IMPLICIT_KIND
+            hit = TraceImplicit(origin, reflected, March.z, distance, steps, reflectedTrap);
         #else
             int limit = min((int)March.x, 128);
             [loop]
@@ -1005,7 +1017,7 @@ internal static class Fractal3DShader
             float radius = 1.732051;
         #elif FRACTAL_KIND == HOPF_KIND
             float radius = ShapeA.x;
-        #elif FRACTAL_KIND == PERIODIC_KIND
+        #elif FRACTAL_KIND == PERIODIC_KIND || FRACTAL_KIND == IMPLICIT_KIND
             float radius = 1.7320508;
         #else
             float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
@@ -1080,6 +1092,12 @@ internal static class Fractal3DShader
             hit = TraceTerrain(rayOrigin, rayDirection, maxDistance, travelled, usedSteps);
             exhausted = false;
             epsilon = max(pixelRadius * travelled * 0.1, 1e-6);
+        #elif FRACTAL_KIND == IMPLICIT_KIND
+            hit = TraceImplicit(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
+            exhausted = false;
+            epsilon = max(pixelRadius * travelled * .15, 2e-6);
+            if(hit && volumetric)
+                proximity = .04/max(abs(dot(ImplicitNormal(rayOrigin+rayDirection*travelled,epsilon),rayDirection)),.1);
         #else
         #if FRACTAL_KIND == 19
             if (!volumetric || Probe.x > .5)
@@ -1195,7 +1213,7 @@ internal static class Fractal3DShader
             if (dot(normal, rayDirection) > 0) normal = -normal;
         #else
             float3 normal = EstimateNormal(surfacePoint, max(epsilon, 1e-6));
-        #if FRACTAL_KIND == PERIODIC_KIND
+        #if FRACTAL_KIND == PERIODIC_KIND || FRACTAL_KIND == IMPLICIT_KIND
             if (dot(normal, rayDirection) > 0) normal = -normal;
         #endif
         #endif
