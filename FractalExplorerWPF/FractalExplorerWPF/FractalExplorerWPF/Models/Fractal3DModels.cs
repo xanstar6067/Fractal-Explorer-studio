@@ -41,7 +41,8 @@ public enum Fractal3DKind
     Excitable3D,
     PeriodicSurfaces,
     ImplicitSurface,
-    HyperbolicHoneycomb
+    HyperbolicHoneycomb,
+    AbcFlow
 }
 
 public enum Hybrid3DOrder
@@ -325,6 +326,7 @@ public sealed class Fractal3DState
 
     public TerrainSettings Terrain { get; set; } = new();
     public LSystem3DSettings LSystem { get; set; } = new();
+    public AbcFlowSettings AbcFlow { get; set; } = new();
     public HopfSettings Hopf { get; set; } = new();
     public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
     public ImplicitSurfaceSettings ImplicitSurface { get; set; } = new();
@@ -418,6 +420,7 @@ public sealed class Fractal3DState
         clone.Dla = Dla?.Normalized() ?? new();
         clone.Lichtenberg = Lichtenberg is null ? new() : Lichtenberg with { };
         clone.LSystem = LSystem is null ? new() : LSystem with { };
+        clone.AbcFlow = AbcFlow is null ? new() : AbcFlow with { };
         clone.Hopf = Hopf?.Copy() ?? new();
         clone.PeriodicSurface = PeriodicSurface is null ? new() : PeriodicSurface with { };
         clone.ImplicitSurface = ImplicitSurface is null ? new() : ImplicitSurface with { };
@@ -524,6 +527,10 @@ public static class Fractal3DCatalog
 
     public static Fractal3DDefinition GetDefinition(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.AbcFlow => new(
+            "Поток ABC", "ABC · пространственный хаос",
+            "Периодическое поле Арнольда–Бельтрами–Чайлдресса: пространственные линии, движущиеся частицы, сечения Пуанкаре и конечновременная оценка расхождения. Коэффициенты A/B/C и группы начальных точек.",
+            "Fractal3DAbcFlow", "abc-flow"),
         Fractal3DKind.HyperbolicHoneycomb => new(
             "Гиперболические соты", "Соты в шаре Пуанкаре · 3D",
             "Четыре регулярных разбиения гиперболического пространства. Кубы, додекаэдры и икосаэдры уменьшаются к границе шара; геодезические рёбра, прозрачные грани, срезы и гиперболические перемещения.",
@@ -669,6 +676,13 @@ public static class Fractal3DCatalog
 
     public static string ColoringModeName(Fractal3DColoringMode mode, Fractal3DKind? kind = null)
     {
+        if (kind == Fractal3DKind.AbcFlow)
+        {
+            if (mode == Fractal3DColoringMode.OrbitTrap) return "По расхождению · оценка λ(t)";
+            if (mode == Fractal3DColoringMode.CrossTrap) return "По скорости потока";
+            if (mode == Fractal3DColoringMode.IterationIndex) return "По начальной точке";
+            if (mode == Fractal3DColoringMode.Escape) return "По времени вдоль линии";
+        }
         if (kind == Fractal3DKind.HyperbolicHoneycomb)
         {
             if (mode == Fractal3DColoringMode.OrbitTrap) return "По гиперболическому радиусу";
@@ -776,6 +790,14 @@ public static class Fractal3DCatalog
         };
         switch (kind)
         {
+            case Fractal3DKind.AbcFlow:
+                state.CameraDistance = 3.8; state.CameraYaw = 28; state.CameraPitch = 20;
+                state.ShadingStyle = Fractal3DShadingStyle.Studio;
+                state.ColoringMode = Fractal3DColoringMode.IterationIndex;
+                state.Palette = Fractal3DPalettes.Get("Спектр"); state.ColorRepeat = Fractal3DColorRepeat.Clamp;
+                state.SoftShadows = false; state.AmbientOcclusion = false; state.Ssaa = 2;
+                state.MaxSteps = 256; state.Detail = .3;
+                break;
             case Fractal3DKind.HyperbolicHoneycomb:
                 state.CameraDistance = 3.1;
                 state.CameraYaw = 24; state.CameraPitch = 15;
@@ -1111,6 +1133,15 @@ public static class Fractal3DCatalog
     /// <summary>Готовые виды режима; они же — точки интереса менеджера сохранений.</summary>
     public static IReadOnlyList<Fractal3DState> GetPresets(Fractal3DKind kind) => kind switch
     {
+        Fractal3DKind.AbcFlow =>
+        [
+            Preset(kind, "Симметричный поток · A = B = C", _ => { }),
+            Preset(kind, "Кольцо начальных точек", s => s.AbcFlow = new() { Group = AbcSeedGroup.Ring, SeedCount = 16, Spread = 1.2, B = .7, C = .43 }),
+            Preset(kind, "Соседние траектории · расхождение", s => { s.AbcFlow = new() { Group = AbcSeedGroup.Neighbours, Spread = .003, SeedCount = 8, Samples = 1536 }; s.ColoringMode = Fractal3DColoringMode.OrbitTrap; }),
+            Preset(kind, "Упорядоченный поток · B = C = 0", s => s.AbcFlow = new() { B = 0, C = 0, SeedCount = 16, Group = AbcSeedGroup.Plane, Spread = 3 }),
+            Preset(kind, "Сечение Пуанкаре · z = 0", s => { s.AbcFlow = new() { SectionOnly = true, SeedCount = 24, Samples = 2048, Thickness = .012 }; s.CameraYaw = 0; s.CameraPitch = 0; }),
+            Preset(kind, "Частицы без следа", s => s.AbcFlow = new() { ShowTrails = false, SeedCount = 32, Thickness = .015 })
+        ],
         Fractal3DKind.HyperbolicHoneycomb =>
         [
             Preset(kind, "Додекаэдры {5,3,4} · медная сеть", _ => { }),

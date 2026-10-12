@@ -163,6 +163,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             EnsureApollonianTree(state);
             EnsureLSystem(state, token);
             EnsureHopf(state, token);
+            EnsureAbcFlow(state, token);
             EnsureHyperbolic(state);
             if (state.Kind == Fractal3DKind.LSystem3D)
             {
@@ -265,6 +266,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
             return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.LSystem3D)
             return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
+        if (state.Kind == Fractal3DKind.AbcFlow)
+            return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
         if (state.Kind == Fractal3DKind.Hopf)
             return Math.Clamp(24_000 / Math.Max(width, 1), 1, height);
         if (height <= 8) return height;
@@ -288,6 +291,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         EnsureApollonianTree(state);
         EnsureLSystem(state, token);
         EnsureHopf(state, token);
+        EnsureAbcFlow(state, token);
         EnsureHyperbolic(state);
         if (state.Kind == Fractal3DKind.LSystem3D)
         {
@@ -400,6 +404,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         if (state.Kind == Fractal3DKind.GrayScott3D) state.GrayScott.Validate();
         if (state.Kind == Fractal3DKind.Turing3D) state.Turing.Validate();
         if (state.Kind == Fractal3DKind.CahnHilliard3D) state.CahnHilliard.Validate();
+        if (state.Kind == Fractal3DKind.AbcFlow) state.AbcFlow.Validate();
         if (state.Kind == Fractal3DKind.Hopf) state.Hopf.Validate();
         KifsSettings kifs = (state.Kifs ?? new()).Normalized();
         Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
@@ -408,6 +413,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
         (float shapeX, float shapeY, float shapeZ) = state.Kind switch
         {
+            Fractal3DKind.AbcFlow => ((float)state.AbcFlow.Phase, state.AbcFlow.ShowTrails ? 1 : 0, state.AbcFlow.ShowParticles ? 1 : 0),
             Fractal3DKind.HyperbolicHoneycomb => ((float)state.HyperbolicHoneycomb.EdgeRadius, (float)state.HyperbolicHoneycomb.FaceThickness, 0),
             Fractal3DKind.ImplicitSurface => ((float)state.ImplicitSurface.Extent, (float)state.ImplicitSurface.Level, 0),
             Fractal3DKind.PeriodicSurfaces => ((float)state.PeriodicSurface.Family, (float)state.PeriodicSurface.Level, (float)state.PeriodicSurface.Thickness),
@@ -455,7 +461,11 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
             ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.HyperbolicHoneycomb
+            ShapeB = state.Kind == Fractal3DKind.AbcFlow
+                ? new Vector4(state.AbcFlow.Samples, state.AbcFlow.SeedCount, (float)state.AbcFlow.LyapunovRange,
+                    (float)Math.Sqrt(Math.Pow(Math.Abs(state.AbcFlow.A) + Math.Abs(state.AbcFlow.C), 2) +
+                        Math.Pow(Math.Abs(state.AbcFlow.A) + Math.Abs(state.AbcFlow.B), 2) + Math.Pow(Math.Abs(state.AbcFlow.B) + Math.Abs(state.AbcFlow.C), 2)))
+                : state.Kind == Fractal3DKind.HyperbolicHoneycomb
                 ? new Vector4((float)state.HyperbolicHoneycomb.ObserverX, (float)state.HyperbolicHoneycomb.ObserverY,
                     (float)state.HyperbolicHoneycomb.ObserverZ, (float)state.HyperbolicHoneycomb.FaceOpacity)
                 : state.Kind == Fractal3DKind.ImplicitSurface
@@ -663,6 +673,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(IfsPixelShaderEntry());
         entries.Add(LyapunovPixelShaderEntry());
         entries.Add(Lyapunov3DComputeShader.CacheEntry);
+        entries.Add(AbcFlowComputeShader.CacheEntry);
         entries.Add(FlamePixelShaderEntry());
         entries.Add(BuddhabrotPixelShaderEntry());
         entries.Add(DlaPixelShaderEntry());
@@ -797,6 +808,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeTerrainResources();
         DisposeLSystemResources();
         DisposeHopfResources();
+        DisposeAbcFlow();
         _hyperbolicConstants?.Dispose();
         _apollonianTreeBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();

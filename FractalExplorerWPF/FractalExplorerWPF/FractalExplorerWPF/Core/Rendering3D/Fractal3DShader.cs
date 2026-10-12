@@ -12,7 +12,7 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 internal static class Fractal3DShader
 {
     public static string Build(Fractal3DKind kind, ImplicitSurfaceSettings? implicitSurface = null) =>
-        $"#define FRACTAL_KIND {(int)kind}\n#define HYPERBOLIC_KIND {(int)Fractal3DKind.HyperbolicHoneycomb}\n#define IMPLICIT_KIND {(int)Fractal3DKind.ImplicitSurface}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.HyperbolicHoneycomb
+        $"#define FRACTAL_KIND {(int)kind}\n#define ABC_KIND {(int)Fractal3DKind.AbcFlow}\n#define HYPERBOLIC_KIND {(int)Fractal3DKind.HyperbolicHoneycomb}\n#define IMPLICIT_KIND {(int)Fractal3DKind.ImplicitSurface}\n#define HOPF_KIND {(int)Fractal3DKind.Hopf}\n#define PERIODIC_KIND {(int)Fractal3DKind.PeriodicSurfaces}\n" + (kind == Fractal3DKind.HyperbolicHoneycomb
             ? Source.Replace("float BoxDistance", HyperbolicHoneycombShader.Geometry + "\nfloat BoxDistance")
                 .Replace("float4 PSMain", HyperbolicHoneycombShader.Rendering + "\nfloat4 PSMain")
             : kind == Fractal3DKind.ImplicitSurface
@@ -23,6 +23,8 @@ internal static class Fractal3DShader
             ? Source.Replace("float BoxDistance", HopfShader.Source + "\nfloat BoxDistance")
             : kind == Fractal3DKind.Terrain
             ? Source.Replace("float BoxDistance", TerrainShader.Source + "\nfloat BoxDistance")
+            : kind == Fractal3DKind.AbcFlow
+                ? Source.Replace("float BoxDistance", AbcFlowShader.Source + "\nfloat BoxDistance")
             : kind == Fractal3DKind.LSystem3D
                 ? Source.Replace("float BoxDistance", LSystem3DShader.Source + "\nfloat BoxDistance") : Source);
 
@@ -188,7 +190,7 @@ internal static class Fractal3DShader
             float trapAxis = 1e20;
             float trapIndex = 0.0;
 
-        #if FRACTAL_KIND == 19
+        #if (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
             return LMap(p, trap);
         #elif FRACTAL_KIND == HOPF_KIND
             return HopfMap(p, trap);
@@ -685,7 +687,7 @@ internal static class Fractal3DShader
         #if FRACTAL_KIND == IMPLICIT_KIND
             float distance; int steps; float4 trap;
             return TraceImplicit(origin+direction*minDistance,direction,maxDistance,distance,steps,trap) ? .2 : 1;
-        #elif FRACTAL_KIND == 19
+        #elif (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
             float distance; int steps; float4 trap;
             float3 axis = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
             float3 other = cross(direction, axis);
@@ -888,7 +890,7 @@ internal static class Fractal3DShader
             bool hit = false;
         #if FRACTAL_KIND == 10
             hit = TraceTerrain(origin, reflected, March.z, distance, steps);
-        #elif FRACTAL_KIND == 19
+        #elif (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
             hit = TraceLSystem(origin, reflected, March.z, distance, steps, reflectedTrap);
         #elif FRACTAL_KIND == IMPLICIT_KIND
             hit = TraceImplicit(origin, reflected, March.z, distance, steps, reflectedTrap);
@@ -1022,8 +1024,11 @@ internal static class Fractal3DShader
             float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
         #elif FRACTAL_KIND == 6
             float radius = 1.112373;
-        #elif FRACTAL_KIND == 19
+        #elif (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
             float radius = 1.732051;
+        #if FRACTAL_KIND == ABC_KIND
+            radius += .12; // largest particle radius beyond a periodic corner
+        #endif
         #elif FRACTAL_KIND == HOPF_KIND
             float radius = ShapeA.x;
         #elif FRACTAL_KIND == PERIODIC_KIND || FRACTAL_KIND == IMPLICIT_KIND
@@ -1108,7 +1113,7 @@ internal static class Fractal3DShader
             if(hit && volumetric)
                 proximity = .04/max(abs(dot(ImplicitNormal(rayOrigin+rayDirection*travelled,epsilon),rayDirection)),.1);
         #else
-        #if FRACTAL_KIND == 19
+        #if (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
             if (!volumetric || Probe.x > .5)
             {
                 hit = TraceLSystem(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
@@ -1158,7 +1163,7 @@ internal static class Fractal3DShader
                     break;
                 }
             }
-        #if FRACTAL_KIND == 19
+        #if (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
             }
         #endif
         #endif

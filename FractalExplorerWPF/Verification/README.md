@@ -1,3 +1,5 @@
+Поток ABC: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- abc-flow [папка PNG]`. Численные и WPF-проверки описаны в [ABC_FLOW.md](../ABC_FLOW.md). Ручная проверка: открыть «Поток ABC» в пространственных системах, изменить A/B/C и начальную группу, запустить и остановить частицы, выбрать плоскость Пуанкаре и направление пересечений, переключить окраску на расхождение, сохранить и загрузить вид.
+
 # Проверка превью сохранений WPF
 
 Гиперболические соты: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- hyperbolic-honeycomb [папка PNG]`.
