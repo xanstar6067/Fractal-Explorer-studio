@@ -198,9 +198,9 @@ internal static partial class Program
         var volume = new Fractal3DWindow(Fractal3DKind.Turing3D);
         try
         {
-            Field<ComboBox>(Field<TuringReactionEditor>(volume, "TuringReactionEditor"), "ModelBox").SelectedIndex = (int)TuringReactionModel.Brusselator;
-            await WaitForWindowIdleAsync(() => Field<bool>(volume, "_turingBusy"), TimeSpan.FromSeconds(45));
-            Check(Field<Turing3DSettings>(volume, "_turingSettings").Reaction.Model == TuringReactionModel.Brusselator && Field<StackPanel>(volume, "TuringMcCabePanel").Visibility == Visibility.Collapsed, "3D model selection uses the existing Turing panel.");
+            Field<ComboBox>(SimulationEditor<Turing3DEditor>(volume).TuringReactionEditor, "ModelBox").SelectedIndex = (int)TuringReactionModel.Brusselator;
+            await WaitForWindowIdleAsync(() => TuringLive(volume).Busy, TimeSpan.FromSeconds(45));
+            Check(TuringLive(volume).Settings.Reaction.Model == TuringReactionModel.Brusselator && SimulationEditor<Turing3DEditor>(volume).TuringMcCabePanel.Visibility == Visibility.Collapsed, "3D model selection uses the existing Turing panel.");
         }
         finally { volume.Close(); }
     }

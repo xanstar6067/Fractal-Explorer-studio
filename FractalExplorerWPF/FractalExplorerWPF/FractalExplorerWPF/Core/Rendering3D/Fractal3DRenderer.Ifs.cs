@@ -67,18 +67,12 @@ public sealed partial class Fractal3DRenderer
         _ifsSampler ??= _device!.CreateSamplerState(
             new SamplerDescription(Filter.MinMagMipLinear, TextureAddressMode.Clamp));
 
-    /// <summary>Объём для трассировки: Gray–Scott 3D и узоры Тьюринга 3D живут на ГП, остальные строятся на ЦП и загружаются.</summary>
+    /// <summary>Объём для трассировки: Ляпунов и моделирования живут на ГП, остальные строятся на ЦП и загружаются.</summary>
     private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token,
         IProgress<int>? progress = null)
     {
         if (state.Kind == Fractal3DKind.Lyapunov3D) return LyapunovVolumeView(state, token, progress);
-        if (state.Kind == Fractal3DKind.Lenia3D) return LeniaVolumeView(state, token);
-        if (state.Kind == Fractal3DKind.Physarum3D) return PhysarumVolumeView(state, token);
-        if (state.Kind == Fractal3DKind.Kobayashi3D) return KobayashiVolumeView(state, token);
-        if (state.Kind == Fractal3DKind.Excitable3D) return ExcitableVolumeView(state, token);
-        if (state.Kind == Fractal3DKind.GrayScott3D) return GrayScottVolumeView(state, token);
-        if (state.Kind == Fractal3DKind.Turing3D) return TuringVolumeView(state, token);
-        if (state.Kind == Fractal3DKind.CahnHilliard3D) return CahnHilliardVolumeView(state, token);
+        if (SimulationVolumeView(state, token) is { } simulation) return simulation;
         EnsureIfsVolume(state, token);
         return _ifsVolumeView!;
     }
@@ -263,19 +257,13 @@ public sealed partial class Fractal3DRenderer
         LichtenbergDisplayedField = null;
         _grayScottPixelShader?.Dispose();
         _kobayashiPixelShader?.Dispose();
-        DisposeKobayashiPreview();
-        DisposeExcitablePreview();
         _excitablePixelShader?.Dispose(); _excitablePixelShader = null;
-        DisposeGrayScottPreview();
         _turingPixelShader?.Dispose();
-        DisposeTuringPreview();
         _cahnHilliardPixelShader?.Dispose();
-        DisposeCahnHilliardPreview();
         _leniaPixelShader?.Dispose();
-        DisposeLeniaPreview();
         DisposeLyapunov();
         _physarumPixelShader?.Dispose();
-        DisposePhysarumPreview();
+        DisposeSimulationPreviews();
         _dlaCluster = null;
         _ifsSampler?.Dispose();
         _ifsVolumeState = null;

@@ -38,7 +38,7 @@ public sealed class Physarum3DField
     }
 }
 
-public sealed record Physarum3DSettings
+public sealed record Physarum3DSettings : IGpuSimulationSettings
 {
     public int Size { get; init; } = 128;
     public int AgentCount { get; init; } = 16384;

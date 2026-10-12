@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -87,14 +88,13 @@ internal static partial class Program
         var root = (FrameworkElement)window.Content;
         root.Measure(new Size(1180,800)); root.Arrange(new Rect(0,0,1180,800)); root.UpdateLayout();
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        T Get<T>(string name) => (T)typeof(Fractal3DWindow).GetField(name, flags)!.GetValue(window)!;
-        void Click(string name) => ((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Task Search(bool variation) => (Task)typeof(Fractal3DWindow).GetMethod("RunPhysarumSearchAsync", flags)!.Invoke(window, [variation])!;
+        void Click(string name) => ((Button)FindAny(window, name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Task Search(bool variation) => (Task)InvokeEditor(SimulationEditor<Physarum3DEditor>(window), "RunSearchAsync", variation)!;
         async Task Display()
         {
             var watch = Stopwatch.StartNew();
-            while (Get<bool>("_physarumBusy") && watch.Elapsed.TotalSeconds < 60) await Task.Delay(10);
-            Check(!Get<bool>("_physarumBusy"), "Window simulation finishes.");
+            while (PhysarumLive(window).Busy && watch.Elapsed.TotalSeconds < 60) await Task.Delay(10);
+            Check(!PhysarumLive(window).Busy, "Window simulation finishes.");
             var m = typeof(Fractal3DWindow).GetMethod("RenderFrameAsync", flags)!;
             await (Task)m.Invoke(window, [Enum.Parse(m.GetParameters()[0].ParameterType, "Full")])!;
         }
@@ -104,25 +104,25 @@ internal static partial class Program
             var state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Physarum3D); state.Physarum = settings;
             window.LoadState(state); await Display();
             var initial = window.CaptureState("before").Physarum;
-            ((TextBox)window.FindName("PhysarumSensorBox")).Text = "invalid draft";
+            ((TextBox)FindAny(window, "PhysarumSensorBox")).Text = "invalid draft";
             await Search(true); await Display();
-            Check(Get<List<Physarum3DSettings>>("_physarumSearchHistory").Count == 1, "Search uses applied parameters, despite invalid drafts.");
-            Check(((Button)window.FindName("PhysarumSearchUndoButton")).IsEnabled, "Successful search enables undo.");
+            Check(EditorField<List<Physarum3DSettings>>(SimulationEditor<Physarum3DEditor>(window), "_searchHistory").Count == 1, "Search uses applied parameters, despite invalid drafts.");
+            Check(((Button)FindAny(window, "PhysarumSearchUndoButton")).IsEnabled, "Successful search enables undo.");
             Click("PhysarumSearchUndoButton"); await Display();
             var restored = window.CaptureState("undo").Physarum;
             Check(restored.Field!.Trail.SequenceEqual(initial.Field!.Trail) && restored.Field.AgentState.SequenceEqual(initial.Field.AgentState) &&
                 restored.Field.Step == initial.Field.Step && restored.SensorDistance == initial.SensorDistance && restored.CutAxis == initial.CutAxis,
                 "Undo restores exact shown trail, headings, time, parameters and slice.");
             var searching = Search(false);
-            Check(!((Button)window.FindName("PhysarumPlayButton")).IsEnabled && ((Button)window.FindName("CancelButton")).IsEnabled, "Search disables evolution and enables general cancellation.");
+            Check(!((Button)FindAny(window, "SimulationPlayButton")).IsEnabled && ((Button)FindAny(window, "CancelButton")).IsEnabled, "Search disables evolution and enables general cancellation.");
             Click("CancelButton"); await searching; await Display();
             Check(window.CaptureState("cancel").Physarum.Field!.Trail.SequenceEqual(initial.Field.Trail), "Cancellation preserves shown field.");
             searching = Search(false);
             window.LoadState(state); await searching; await Display();
-            Check(Get<List<Physarum3DSettings>>("_physarumSearchHistory").Count == 0 && window.CaptureState("load").Physarum.Seed == settings.Seed,
+            Check(EditorField<List<Physarum3DSettings>>(SimulationEditor<Physarum3DEditor>(window), "_searchHistory").Count == 0 && window.CaptureState("load").Physarum.Seed == settings.Seed,
                 "A loaded state wins over an older search result.");
             searching = Search(false); window.Close(); await searching;
-            Check(Get<CancellationTokenSource?>("_physarumSearchCts") is null, "Closing cancels and releases search work.");
+            Check(EditorField<CancellationTokenSource?>(SimulationEditor<Physarum3DEditor>(window), "_searchCts") is null, "Closing cancels and releases search work.");
         }
         finally { window.Close(); }
     }

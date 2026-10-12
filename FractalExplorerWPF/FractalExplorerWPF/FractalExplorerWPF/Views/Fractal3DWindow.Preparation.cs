@@ -31,17 +31,6 @@ public partial class Fractal3DWindow
         overlay.Visibility = Visibility.Visible;
     }
 
-    private PreparationOverlay? SimulationPreparationOverlay => Kind switch
-    {
-        Fractal3DKind.Kobayashi3D => KobPreparationOverlay,
-        Fractal3DKind.Excitable3D => ExPreparing,
-        Fractal3DKind.GrayScott3D => GrayPreparationOverlay,
-        Fractal3DKind.Lenia3D => LeniaPreparationOverlay,
-        Fractal3DKind.Physarum3D => PhysarumPreparationOverlay,
-        Fractal3DKind.CahnHilliard3D => CahnPreparationOverlay,
-        Fractal3DKind.Turing3D => TuringPreparationOverlay,
-        _ => null
-    };
 
     private void ReportPreparationStage(Fractal3DRenderStage stage)
     {
@@ -71,7 +60,7 @@ public partial class Fractal3DWindow
     private void ShowPreparationError(string message)
     {
         if (_isClosing) return;
-        if (SimulationPreparationOverlay is { } overlay) overlay.Visibility = Visibility.Collapsed;
+        SimulationPreparationOverlay.Visibility = Visibility.Collapsed;
         if (CanvasImage.Source is not null)
         {
             InitialPreparationLayer.Visibility = Visibility.Collapsed;

@@ -5,6 +5,8 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using Microsoft.Win32;
 
+using static FractalExplorerWPF.Controls.PanelFields;
+
 namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow

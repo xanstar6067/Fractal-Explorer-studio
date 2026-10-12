@@ -99,6 +99,6 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 
 Код: `Models/Lenia3DSettings.cs`, `Infrastructure/Lenia3DSeedLibrary.cs`,
 `Core/Rendering3D/Lenia3DMath.cs`, `Lenia3DGpuSimulation.cs`, `Lenia3DComputeShader.cs`,
-`Lenia3DShader.cs`, `Lenia3DRandomizer.cs`, `Fractal3DRenderer.Lenia.cs`,
-`Infrastructure/Serialization/Lenia3DFieldConverter.cs`, `Views/Fractal3DWindow.Lenia.cs`
-и `Fractal3DWindow.LeniaSearch.cs`.
+`Lenia3DShader.cs`, `Lenia3DRandomizer.cs`, `Fractal3DRenderer.Simulations.cs`,
+`Infrastructure/Serialization/Lenia3DFieldConverter.cs` и панель `Controls/Lenia3DEditor.xaml`
+(живой цикл — общий `Controls/Fractal3DLiveSimulation.cs`).

@@ -8,6 +8,7 @@ using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -216,12 +217,10 @@ internal static partial class Program
         finally { window.Close(); }
 
         var window3D = new Fractal3DWindow(Fractal3DKind.GrayScott3D);
-        object? Invoke3D(string name, params object[] p) => typeof(Fractal3DWindow).GetMethod(name, flags)!.Invoke(window3D, p);
-        T Field3D<T>(string name) => (T)typeof(Fractal3DWindow).GetField(name, flags)!.GetValue(window3D)!;
         async Task Settle()
         {
             var watch = Stopwatch.StartNew();
-            while (Field3D<bool>("_grayBusy") && watch.ElapsedMilliseconds < 30000) await Task.Delay(10);
+            while (GrayLive(window3D).Busy && watch.ElapsedMilliseconds < 30000) await Task.Delay(10);
             var method = typeof(Fractal3DWindow).GetMethod("RenderFrameAsync", flags)!;
             await (Task)method.Invoke(window3D, [Enum.Parse(method.GetParameters()[0].ParameterType, "Full")])!;
         }
@@ -229,13 +228,13 @@ internal static partial class Program
         {
             await Settle();
             var before = window3D.CaptureState("before").GrayScott;
-            await (Task)Invoke3D("RunGraySearchAsync", false)!; await Settle();
+            await (Task)InvokeEditor(SimulationEditor<GrayScott3DEditor>(window3D), "RunSearchAsync", false)!; await Settle();
             var found = window3D.CaptureState("found").GrayScott;
-            string status = ((TextBlock)window3D.FindName("GraySearchStatus")).Text;
+            string status = ((TextBlock)FindAny(window3D, "GraySearchStatus")).Text;
             Check((found.Feed, found.Kill) != (before.Feed, before.Kill) && found.Size == before.Size && found.Field!.Step == found.InitialSteps &&
-                ((Slider)window3D.FindName("GrayThresholdSlider")).Value == found.Threshold && ((Button)window3D.FindName("GraySearchUndoButton")).IsEnabled,
+                ((Slider)FindAny(window3D, "GrayThresholdSlider")).Value == found.Threshold && ((Button)FindAny(window3D, "GraySearchUndoButton")).IsEnabled,
                 $"A 3D find must restart from its seed with the chosen surface level: {status}");
-            Invoke3D("GraySearchUndo_OnClick", window3D, new RoutedEventArgs()); await Settle();
+            InvokeEditor(SimulationEditor<GrayScott3DEditor>(window3D), "GraySearchUndo_OnClick", window3D, new RoutedEventArgs()); await Settle();
             var restored = window3D.CaptureState("restored").GrayScott;
             Check(restored.Feed == before.Feed && restored.Kill == before.Kill && restored.Field!.Step == before.Field!.Step &&
                 restored.Field.Concentrations.SequenceEqual(before.Field.Concentrations), "3D undo must restore the exact previous volume.");

@@ -33,7 +33,7 @@ public sealed class GrayScott3DField
     }
 }
 
-public sealed record GrayScott3DSettings
+public sealed record GrayScott3DSettings : IGpuSimulationSettings
 {
     public int Size { get; init; } = 64;
     public double Feed { get; init; } = .030;

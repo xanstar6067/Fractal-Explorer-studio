@@ -11,6 +11,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -150,37 +151,36 @@ internal static partial class Program
         var window=new Fractal3DWindow(Fractal3DKind.Lenia3D);var root=(FrameworkElement)window.Content;
         root.Measure(new Size(1180,800));root.Arrange(new Rect(0,0,1180,800));root.UpdateLayout();
         const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
-        T Get<T>(string name)=>(T)typeof(Fractal3DWindow).GetField(name,flags)!.GetValue(window)!;
-        void Click(string name)=>((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Task Search(bool variation)=>(Task)typeof(Fractal3DWindow).GetMethod("RunLeniaSearchAsync",flags)!.Invoke(window,[variation])!;
+        void Click(string name)=>((Button)FindAny(window, name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Task Search(bool variation)=>(Task)InvokeEditor(SimulationEditor<Lenia3DEditor>(window), "RunSearchAsync", variation)!;
         async Task Display()
         {
-            var watch=Stopwatch.StartNew();while(Get<bool>("_leniaBusy")&&watch.Elapsed.TotalSeconds<60) await Task.Delay(10);
-            Check(!Get<bool>("_leniaBusy"),"Lenia simulation finishes.");
+            var watch=Stopwatch.StartNew();while(LeniaLive(window).Busy&&watch.Elapsed.TotalSeconds<60) await Task.Delay(10);
+            Check(!LeniaLive(window).Busy,"Lenia simulation finishes.");
             var m=typeof(Fractal3DWindow).GetMethod("RenderFrameAsync",flags)!;
             await(Task)m.Invoke(window,[Enum.Parse(m.GetParameters()[0].ParameterType,"Full")])!;
         }
         try
         {
-            await Display(); Check(!Get<bool>("_leniaPreparing")&&!Get<bool>("_leniaRunning"),"First shown frame ends preparation on pause.");
+            await Display(); Check(!LeniaLive(window).Preparing&&!LeniaLive(window).Running,"First shown frame ends preparation on pause.");
             window.LoadState(sample);await Display();var before=window.CaptureState("before").Lenia;
-            ((TextBox)window.FindName("LeniaRadiusBox")).Text="invalid draft";
-            ((Slider)window.FindName("LeniaLevelSlider")).Value=.3;
+            ((TextBox)FindAny(window, "LeniaRadiusBox")).Text="invalid draft";
+            ((Slider)FindAny(window, "LeniaLevelSlider")).Value=.3;
             Check(window.CaptureState("draft").Lenia.Field!.Cells.SequenceEqual(before.Field!.Cells),"Unapplied draft and threshold don't alter field.");
-            Click("LeniaStepButton");await Display();
+            Click("SimulationStepButton");await Display();
             Check(window.CaptureState("step").Lenia.Field!.Step==before.Field.Step+2,"One frame grows exactly two steps.");
             window.LoadState(sample);await Display();await Search(true);await Display();
-            Check(Get<List<Lenia3DSettings>>("_leniaSearchHistory").Count==1,"Search applies settings and records exact history.");
+            Check(EditorField<List<Lenia3DSettings>>(SimulationEditor<Lenia3DEditor>(window), "_searchHistory").Count==1,"Search applies settings and records exact history.");
             Click("LeniaSearchUndoButton");await Display();
             Check(window.CaptureState("undo").Lenia.Field!.Cells.SequenceEqual(before.Field.Cells),"Undo returns the exact shown cells.");
             var task=Search(false);Click("CancelButton");await task;
             Check(window.CaptureState("cancel").Lenia.Field!.Cells.SequenceEqual(before.Field.Cells),"Cancel preserves shown field.");
             task=Search(false);window.LoadState(sample);await task;await Display();
             Check(window.CaptureState("load").Lenia.Field!.Cells.SequenceEqual(before.Field.Cells),"Loaded state wins over stale search.");
-            Check(!((TextBlock)window.FindName("LeniaSearchStatus")).Text.StartsWith("Ищем"),"Loaded state clears stale search status.");
+            Check(!((TextBlock)FindAny(window, "LeniaSearchStatus")).Text.StartsWith("Ищем"),"Loaded state clears stale search status.");
             if(output is not null){var image=new RenderTargetBitmap(1180,800,96,96,PixelFormats.Pbgra32);image.Render(root);PhysarumSavePng(image,Path.Combine(output,"window.png"));}
             task=Search(false);window.Close();await task;
-            Check(Get<CancellationTokenSource?>("_leniaSearchCts") is null,"Closing cancels search.");
+            Check(EditorField<CancellationTokenSource?>(SimulationEditor<Lenia3DEditor>(window), "_searchCts") is null,"Closing cancels search.");
         }
         finally{window.Close();}
     }

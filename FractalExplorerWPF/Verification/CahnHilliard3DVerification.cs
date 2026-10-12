@@ -13,6 +13,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -259,7 +260,6 @@ internal static partial class Program
 
     private static async Task MeasureCahnWindowAsync()
     {
-        const BindingFlags flags = BindingFlags.Instance|BindingFlags.NonPublic;
         var styles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
         if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == styles))
             Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = styles });
@@ -268,7 +268,7 @@ internal static partial class Program
         {
             var window = new Fractal3DWindow(Fractal3DKind.CahnHilliard3D)
             { WindowStartupLocation = WindowStartupLocation.Manual, Left = -30000, Top = -30000, ShowInTaskbar = false };
-            CahnHilliard3DVolume? Shown() => (CahnHilliard3DVolume?)typeof(Fractal3DWindow).GetField("_cahnShown",flags)!.GetValue(window);
+            CahnHilliard3DVolume? Shown() => CahnLive(window).Shown;
             try
             {
                 var state = Fractal3DCatalog.CreateDefaultState(Fractal3DKind.CahnHilliard3D);
@@ -278,7 +278,7 @@ internal static partial class Program
                 while (Shown() is null && preparation.Elapsed.TotalSeconds < 30) await Task.Delay(20);
                 Check(Shown() is not null,"The hidden WPF benchmark must prepare its first frame.");
                 long before = Shown()!.Step;
-                ((Button)window.FindName("CahnPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 int frames = 0; long lastStep = before;
                 var watch = Stopwatch.StartNew();
                 while (watch.Elapsed.TotalSeconds < 4)
@@ -286,7 +286,7 @@ internal static partial class Program
                     long step = Shown()!.Step; if (step != lastStep) { frames++; lastStep = step; }
                     await Task.Delay(1);
                 }
-                typeof(Fractal3DWindow).GetMethod("PauseCahnHilliard",flags)!.Invoke(window,[]);
+                CahnLive(window).Pause();
                 var bitmap = window.CanvasImage.Source as BitmapSource;
                 Console.WriteLine($"WPF {size}³: {frames/watch.Elapsed.TotalSeconds:F1} presented FPS, 4 steps/frame, {bitmap?.PixelWidth}×{bitmap?.PixelHeight} pixels; prep {preparation.Elapsed.TotalSeconds-watch.Elapsed.TotalSeconds:F2}s; offscreen window including composition and WritePixels.");
                 Check(frames > 2 && lastStep > before,"The live WPF loop must present evolving frames.");
@@ -304,28 +304,27 @@ internal static partial class Program
         var root = (FrameworkElement)window.Content;
         root.Measure(new Size(1180,800)); root.Arrange(new Rect(0,0,1180,800)); root.UpdateLayout();
         const BindingFlags flags = BindingFlags.Instance|BindingFlags.NonPublic;
-        T Get<T>(string name) => (T)typeof(Fractal3DWindow).GetField(name,flags)!.GetValue(window)!;
-        async Task Idle() { var w = Stopwatch.StartNew(); while (Get<bool>("_cahnBusy") && w.Elapsed.TotalSeconds < 60) await Task.Delay(10); Check(!Get<bool>("_cahnBusy"),"Simulation must finish."); }
+        async Task Idle() { var w = Stopwatch.StartNew(); while (CahnLive(window).Busy && w.Elapsed.TotalSeconds < 60) await Task.Delay(10); Check(!CahnLive(window).Busy,"Simulation must finish."); }
         async Task Display() { var m = typeof(Fractal3DWindow).GetMethod("RenderFrameAsync",flags)!; await (Task)m.Invoke(window,[Enum.Parse(m.GetParameters()[0].ParameterType,"Full")])!; }
         try
         {
             await Idle(); await Display();
-            Check(!Get<bool>("_cahnPreparing") && Get<CahnHilliard3DVolume>("_cahnShown").Step == 450,"First frame must finish preparation on pause.");
+            Check(!CahnLive(window).Preparing && CahnLive(window).Shown!.Step == 450,"First frame must finish preparation on pause.");
             window.LoadState(state); await Idle(); await Display();
             var before = window.CaptureState("before").CahnHilliard.Field!;
             Check(CahnDifference(before,state.CahnHilliard.Field!) == 0,"Loading must restore exact concentrations.");
-            Check(((FrameworkElement)window.FindName("IterationsBox")).Visibility == Visibility.Collapsed,"Unrelated iteration controls must be hidden.");
-            ((Slider)window.FindName("CahnLevelSlider")).Value = .2;
-            ((TextBox)window.FindName("CahnMeanBox")).Text = "invalid";
+            Check(((FrameworkElement)FindAny(window, "IterationsBox")).Visibility == Visibility.Collapsed,"Unrelated iteration controls must be hidden.");
+            ((Slider)FindAny(window, "CahnLevelSlider")).Value = .2;
+            ((TextBox)FindAny(window, "CahnMeanBox")).Text = "invalid";
             Check(window.CaptureState("draft").CahnHilliard.Level == .2 && CahnDifference(before,window.CaptureState("draft").CahnHilliard.Field!) == 0,
                 "View changes and unapplied drafts must preserve the exact displayed field.");
-            ((Button)window.FindName("CahnStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            ((Button)FindAny(window, "SimulationStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             Check(window.CaptureState("pending").CahnHilliard.Field!.Step == before.Step,"Saves must keep the displayed frame while the next frame is pending.");
             await Display(); Check(window.CaptureState("after").CahnHilliard.Field!.Step == before.Step+4,"One frame must advance selected steps.");
             window.LoadState(Fractal3DCatalog.CreateDefaultState(Fractal3DKind.CahnHilliard3D));
-            typeof(Fractal3DWindow).GetMethod("CahnStopPreparation_OnClick",flags)!.Invoke(window,[window,new RoutedEventArgs()]);
+            typeof(Fractal3DWindow).GetMethod("SimulationStopPreparation_OnClick", flags)!.Invoke(window,[window,new RoutedEventArgs()]);
             await Idle(); await Display();
-            Check(!Get<bool>("_cahnPreparing") && !Get<bool>("_cahnRunning") && window.CaptureState("partial").CahnHilliard.Field is not null,
+            Check(!CahnLive(window).Preparing && !CahnLive(window).Running && window.CaptureState("partial").CahnHilliard.Field is not null,
                 "Stopping preparation must publish the reached field on pause.");
             window.LoadState(state); await Idle(); await Display();
             if (output is not null)

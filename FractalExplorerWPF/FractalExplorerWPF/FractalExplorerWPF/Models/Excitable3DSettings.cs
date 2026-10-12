@@ -28,7 +28,7 @@ public sealed class Excitable3DField
     }
 }
 
-public sealed record Excitable3DSettings
+public sealed record Excitable3DSettings : IGpuSimulationSettings
 {
     public Excitable3DModel Model { get; init; }
     public int Size { get; init; } = 64;

@@ -1,0 +1,57 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.CahnHilliard3DEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="∂c/∂t = M ∇²(c³ − c − κ ∇²c)" TextWrapping="Wrap" Margin="0,4,0,8"/>
+        <TextBlock x:Name="CahnDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси"/>
+        <ComboBox x:Name="CahnSizeBox" SelectedIndex="1">
+            <ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="64³ · стандарт"/><ComboBoxItem Content="128³ · подробно"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Средний состав c (−0,55…0,55)"/>
+        <TextBox x:Name="CahnMeanBox" Text="0" c:NumericSpinner.IsEnabled="True" ToolTip="0 — смесь 50/50; −0,4 — 30/70. Средний состав сохраняется при развитии."/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шум начальной смеси (0,001–0,2)"/>
+        <TextBox x:Name="CahnNoiseBox" Text="0.08" c:NumericSpinner.IsEnabled="True"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Межфазная энергия κ (0,5–8)"/>
+        <TextBox x:Name="CahnKappaBox" Text="1" c:NumericSpinner.IsEnabled="True" ToolTip="Больше κ — толще границы и крупнее домены. Шаг сетки равен 1."/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,4,0">
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Подвижность M"/>
+                <TextBox x:Name="CahnMobilityBox" Text="1" c:NumericSpinner.IsEnabled="True"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt"/>
+                <TextBox x:Name="CahnDtBox" Text="1" c:NumericSpinner.IsEnabled="True" ToolTip="0,01–2; M·Δt ≤ 2. Меньше шаг — точнее динамика."/>
+            </StackPanel>
+        </Grid>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальная смесь"/>
+        <ComboBox x:Name="CahnSeedBox" SelectedIndex="0">
+            <ComboBoxItem Content="Шум · спинодальный распад"/>
+            <ComboBoxItem Content="Гироидная затравка"/><ComboBoxItem Content="Слоистая затравка"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
+        <TextBox x:Name="CahnRandomBox" Text="42" c:NumericSpinner.IsEnabled="True" c:NumericSpinner.IsInteger="True"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–5000)"/>
+        <TextBox x:Name="CahnWarmupBox" Text="450" c:NumericSpinner.IsEnabled="True" c:NumericSpinner.IsInteger="True"/>
+        <Button Content="Применить и начать заново" Click="CahnRestart_OnClick"/>
+        <TextBlock Text="Границы замкнуты по трём осям. После подготовки смесь на паузе. Пробел — продолжить или остановить укрупнение доменов." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+        <Slider x:Name="CahnSpeedSlider" Minimum="1" Maximum="64" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
+        <TextBlock Text="{Binding ElementName=CahnSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности c"/>
+        <Slider x:Name="CahnLevelSlider" Minimum="-0.9" Maximum="0.9" Value="0" ValueChanged="CahnView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=CahnLevelSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <CheckBox x:Name="CahnInvertBox" Content="Показать вторую фазу" Checked="CahnView_OnChanged" Unchecked="CahnView_OnChanged"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+        <ComboBox x:Name="CahnCutBox" SelectionChanged="CahnView_OnChanged">
+            <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+        </ComboBox>
+        <Slider x:Name="CahnCutSlider" Minimum="-1" Maximum="1" Value="0.55" ValueChanged="CahnView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=CahnCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+    </StackPanel>
+</UserControl>

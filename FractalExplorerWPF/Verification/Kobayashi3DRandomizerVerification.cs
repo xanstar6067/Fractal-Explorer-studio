@@ -10,6 +10,7 @@ using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -127,13 +128,12 @@ internal static partial class Program
         var window=new Fractal3DWindow(Fractal3DKind.Kobayashi3D);var root=(FrameworkElement)window.Content;
         root.Measure(new Size(1180,800));root.Arrange(new Rect(0,0,1180,800));root.UpdateLayout();
         const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
-        T Get<T>(string name)=>(T)typeof(Fractal3DWindow).GetField(name,flags)!.GetValue(window)!;
-        void Click(string name)=>((Button)window.FindName(name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Task Search(bool variation)=>(Task)typeof(Fractal3DWindow).GetMethod("RunKobSearchAsync",flags)!.Invoke(window,[variation])!;
+        void Click(string name)=>((Button)FindAny(window, name)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Task Search(bool variation)=>(Task)InvokeEditor(SimulationEditor<Kobayashi3DEditor>(window), "RunSearchAsync", variation)!;
         async Task Display()
         {
-            var watch=Stopwatch.StartNew();while(Get<bool>("_kobBusy") && watch.Elapsed.TotalSeconds<120)await Task.Delay(10);
-            Check(!Get<bool>("_kobBusy"),"Window simulation must finish.");
+            var watch=Stopwatch.StartNew();while(KobLive(window).Busy && watch.Elapsed.TotalSeconds<120)await Task.Delay(10);
+            Check(!KobLive(window).Busy,"Window simulation must finish.");
             var m=typeof(Fractal3DWindow).GetMethod("RenderFrameAsync",flags)!;
             await (Task)m.Invoke(window,[Enum.Parse(m.GetParameters()[0].ParameterType,"Full")])!;
         }
@@ -141,10 +141,10 @@ internal static partial class Program
         {
             await Display();var state=Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Kobayashi3D);state.Kobayashi=settings;
             window.LoadState(state);await Display();var beforeView=window.CaptureState("before");var initial=beforeView.Kobayashi;
-            ((TextBox)window.FindName("KobColdBox")).Text="invalid draft";
+            ((TextBox)FindAny(window, "KobColdBox")).Text="invalid draft";
             await Search(true);await Display();
-            Check(Get<List<(Kobayashi3DSettings Settings, Fractal3DPose Pose)>>("_kobSearchHistory").Count==1,"Search must use applied parameters despite invalid drafts.");
-            Check(((Button)window.FindName("KobSearchUndoButton")).IsEnabled,"Successful search must enable undo.");
+            Check(EditorField<List<(Kobayashi3DSettings Settings, Fractal3DPose Pose)>>(SimulationEditor<Kobayashi3DEditor>(window), "_searchHistory").Count==1,"Search must use applied parameters despite invalid drafts.");
+            Check(((Button)FindAny(window, "KobSearchUndoButton")).IsEnabled,"Successful search must enable undo.");
             var foundView=window.CaptureState("found");var found=foundView.Kobayashi;
             Check(foundView.CameraDistance>beforeView.CameraDistance,"Fitting must make room for a large found crystal.");
             Check(found.Field is not null && found.Field.Step==found.WarmupSteps,"Loading a search result must not grow it again.");
@@ -160,14 +160,14 @@ internal static partial class Program
                 restored.Undercooling==initial.Undercooling && restored.SeedRadius==initial.SeedRadius && restored.CutAxis==initial.CutAxis,
                 "Undo must restore exact phase, temperature, time, seed geometry and view.");
             var searching=Search(false);
-            Check(!((Button)window.FindName("KobPlayButton")).IsEnabled && ((Button)window.FindName("CancelButton")).IsEnabled,"Search must disable evolution and enable general cancellation.");
+            Check(!((Button)FindAny(window, "SimulationPlayButton")).IsEnabled && ((Button)FindAny(window, "CancelButton")).IsEnabled,"Search must disable evolution and enable general cancellation.");
             Click("CancelButton");await searching;await Display();
             Check(KobDifference(window.CaptureState("cancel").Kobayashi.Field!,initial.Field!)==0,"Cancellation must preserve the shown crystal.");
             searching=Search(false);window.LoadState(state);await searching;await Display();
-            Check(Get<List<(Kobayashi3DSettings Settings, Fractal3DPose Pose)>>("_kobSearchHistory").Count==0 &&
+            Check(EditorField<List<(Kobayashi3DSettings Settings, Fractal3DPose Pose)>>(SimulationEditor<Kobayashi3DEditor>(window), "_searchHistory").Count==0 &&
                 KobDifference(window.CaptureState("load").Kobayashi.Field!,settings.Field!)==0,"Loading must win over an older search result.");
             searching=Search(false);window.Close();await searching;
-            Check(Get<CancellationTokenSource?>("_kobSearchCts") is null,"Closing must cancel and release search work.");
+            Check(EditorField<CancellationTokenSource?>(SimulationEditor<Kobayashi3DEditor>(window), "_searchCts") is null,"Closing must cancel and release search work.");
         }
         finally{window.Close();}
     }

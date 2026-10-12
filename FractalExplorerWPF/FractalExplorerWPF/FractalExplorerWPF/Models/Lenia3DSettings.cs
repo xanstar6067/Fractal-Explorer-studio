@@ -28,7 +28,7 @@ public sealed class Lenia3DField
     }
 }
 
-public sealed record Lenia3DSettings
+public sealed record Lenia3DSettings : IGpuSimulationSettings
 {
     public int Size { get; init; } = 64;
     public double Radius { get; init; } = 18;

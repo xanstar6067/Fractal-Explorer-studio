@@ -40,7 +40,8 @@ internal static partial class Program
         }
         finally { waitingWindow.Close(); }
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        var simulationFields = new[] { "_kobBusy", "_exBusy", "_grayBusy", "_turingBusy", "_cahnBusy", "_leniaBusy", "_physarumBusy" };
+        bool SimulationBusy(Fractal3DWindow window) =>
+            typeof(Fractal3DWindow).GetField("_simulation", flags)!.GetValue(window) is IFractal3DSimulationMode { IsBusy: true };
         foreach (var kind in Enum.GetValues<Fractal3DKind>())
         {
             var catalogWindow = new Fractal3DWindow(kind);
@@ -48,9 +49,9 @@ internal static partial class Program
                 $"{kind} must have a loading screen before any frame can be shown.");
             catalogWindow.Close();
             var timeout = System.Diagnostics.Stopwatch.StartNew();
-            while (simulationFields.Any(field => (bool)typeof(Fractal3DWindow).GetField(field, flags)!.GetValue(catalogWindow)!) && timeout.ElapsedMilliseconds < 60000)
+            while (SimulationBusy(catalogWindow) && timeout.ElapsedMilliseconds < 60000)
                 await Task.Delay(10);
-            Check(!simulationFields.Any(field => (bool)typeof(Fractal3DWindow).GetField(field, flags)!.GetValue(catalogWindow)!),
+            Check(!SimulationBusy(catalogWindow),
                 $"{kind} must release its preparation work when closed.");
         }
 

@@ -6,6 +6,8 @@ using System.Windows.Threading;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Models;
 
+using static FractalExplorerWPF.Controls.PanelFields;
+
 namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow

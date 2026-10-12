@@ -600,8 +600,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         return shader;
     }
 
-    private static bool IsDensityVolume(Fractal3DKind kind) =>
-        kind is Fractal3DKind.Excitable3D or Fractal3DKind.Lyapunov3D or Fractal3DKind.Kobayashi3D or Fractal3DKind.Lenia3D or Fractal3DKind.Physarum3D or Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D or Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D;
+    private static bool IsDensityVolume(Fractal3DKind kind) => Fractal3DCatalog.IsDensityVolume(kind);
 
     private static ShaderCacheEntry LyapunovPixelShaderEntry() =>
         new("lyapunov3d-pixel", Lyapunov3DShader.Source, "PSMain", "ps_5_0");

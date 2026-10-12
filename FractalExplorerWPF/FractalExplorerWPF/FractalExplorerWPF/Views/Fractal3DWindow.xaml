@@ -8,22 +8,23 @@
         MinWidth="960" MinHeight="600" WindowStartupLocation="CenterOwner"
         KeyDown="Window_OnKeyDown" Closing="Window_OnClosing">
     <Window.Resources>
-        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/>
-        </Style>
-        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/>
-        </Style>
-        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-            <Setter Property="Margin" Value="0,4,0,4"/>
-        </Style>
-        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
-            <Setter Property="Margin" Value="0,6,0,2"/>
-        </Style>
-        <Style x:Key="FieldCaption" TargetType="TextBlock">
-            <Setter Property="Margin" Value="0,4,0,0"/>
-            <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="MinHeight" Value="34"/><Setter Property="Margin" Value="0,4"/>
+            </Style>
+            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="Margin" Value="0,4,0,4"/><Setter Property="Padding" Value="6,3"/>
+            </Style>
+            <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                <Setter Property="Margin" Value="0,4,0,4"/>
+            </Style>
+            <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                <Setter Property="Margin" Value="0,6,0,2"/>
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
@@ -183,440 +184,8 @@
                                 <CheckBox x:Name="LyapunovSliceBox" Content="Только цветная плоскость среза" Checked="LyapunovView_OnChanged" Unchecked="LyapunovView_OnChanged" Margin="0,6"/>
                                 <TextBlock Text="Для прозрачного объёма выберите стиль «Плотность» в разделе окраски. Срез показывает λ независимо от выбранной области." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                             </StackPanel>
-                            <StackPanel x:Name="LeniaPanel" Visibility="Collapsed">
-                                <TextBlock Text="Клетки чувствуют плотность соседей через сферическое ядро. Правило роста рождает движение и пульсации." TextWrapping="Wrap" Margin="0,4,0,8"/>
-                                <TextBlock x:Name="LeniaDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <Expander Header="Поиск форм" IsExpanded="True"><StackPanel>
-                                    <Button x:Name="LeniaSearchButton" Content="Найти живую форму" Click="LeniaSearch_OnClick"/>
-                                    <Button x:Name="LeniaVariationButton" Content="Вариация текущей" Click="LeniaVariation_OnClick"/>
-                                    <Button x:Name="LeniaSearchUndoButton" Content="Вернуть предыдущую форму" Click="LeniaSearchUndo_OnClick" IsEnabled="False"/>
-                                    <ProgressBar x:Name="LeniaSearchProgress" Height="4" Margin="0,6" Minimum="0" Maximum="100" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="LeniaSearchStatus" Text="Подбор с проверкой выживания. Найденную форму можно продолжить или изменить." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                </StackPanel></Expander>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка объёма"/>
-                                <ComboBox x:Name="LeniaSizeBox" SelectedIndex="1"><ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="64³ · стандарт"/><ComboBoxItem Content="128³ · просторно"/></ComboBox>
-                                <Expander Header="Правило роста" IsExpanded="True"><StackPanel>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Центр роста μ (0,01–0,5)"/><TextBox x:Name="LeniaMeanBox" Text="0.17" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Ширина роста σ (0,002–0,15)"/><TextBox x:Name="LeniaWidthBox" Text="0.014" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Функция роста"/><ComboBox x:Name="LeniaGrowthBox" SelectedIndex="0"><ComboBoxItem Content="Полиномиальная · исходные виды"/><ComboBoxItem Content="Гауссова"/></ComboBox>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt (0,01–0,2)"/><TextBox x:Name="LeniaDtBox" Text="0.1" numeric:NumericSpinner.IsEnabled="True"/>
-                                </StackPanel></Expander>
-                                <Expander Header="Сферическое ядро"><StackPanel>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус · ячеек (2…N/2−1)"/><TextBox x:Name="LeniaRadiusBox" Text="18" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Число оболочек"/><ComboBox x:Name="LeniaShellCountBox" SelectedIndex="1"><ComboBoxItem Content="1"/><ComboBoxItem Content="2"/><ComboBoxItem Content="3"/><ComboBoxItem Content="4"/></ComboBox>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Веса β₁, β₂, β₃, β₄ (0–1)"/>
-                                    <UniformGrid Columns="2"><TextBox x:Name="LeniaBeta1Box" Text="1" numeric:NumericSpinner.IsEnabled="True"/><TextBox x:Name="LeniaBeta2Box" Text="0.416667" numeric:NumericSpinner.IsEnabled="True"/><TextBox x:Name="LeniaBeta3Box" Text="0" numeric:NumericSpinner.IsEnabled="True"/><TextBox x:Name="LeniaBeta4Box" Text="0" numeric:NumericSpinner.IsEnabled="True"/></UniformGrid>
-                                </StackPanel></Expander>
-                                <Expander Header="Затравка и подготовка"><StackPanel>
-                                    <ComboBox x:Name="LeniaSeedBox" SelectedIndex="0"><ComboBoxItem Content="Вращающийся куб"/><ComboBoxItem Content="Пульсирующая сфера"/><ComboBoxItem Content="Прыгающая пара"/><ComboBoxItem Content="Живой тор"/><ComboBoxItem Content="Вращающийся октаэдр"/><ComboBoxItem Content="Случайное облако"/><ComboBoxItem Content="Пустая среда"/></ComboBox>
-                                    <TextBlock Text="Для исходного вида выбирайте готовый пресет сверху: он задаёт и затравку, и правило." FontSize="11" TextWrapping="Wrap" Margin="0,4"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шум затравки (0–0,15)"/><TextBox x:Name="LeniaNoiseBox" Text="0" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/><TextBox x:Name="LeniaRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–3000)"/><TextBox x:Name="LeniaWarmupBox" Text="60" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                </StackPanel></Expander>
-                                <Button Content="Применить и начать заново" Click="LeniaRestart_OnClick"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/><Slider x:Name="LeniaSpeedSlider" Minimum="1" Maximum="32" Value="2" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Порог видимости"/><Slider x:Name="LeniaLevelSlider" Minimum="0.01" Maximum="0.9" Value="0.2" ValueChanged="LeniaView_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/><ComboBox x:Name="LeniaCutBox" SelectionChanged="LeniaView_OnChanged"><ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/></ComboBox>
-                                <Slider x:Name="LeniaCutSlider" Minimum="-1" Maximum="1" Value="0.05" ValueChanged="LeniaView_OnChanged"/>
-                                <TextBlock Text="Пробел — пауза/продолжение. Свечение и срез показывают внутренние полости. Сохранение запоминает каждую клетку." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                            </StackPanel>
-                            <StackPanel x:Name="PhysarumPanel" Visibility="Collapsed">
-                                <TextBlock Text="Агенты чувствуют след, выбирают путь и оставляют новые нити. Сеть непрерывно перестраивается." TextWrapping="Wrap" Margin="0,4,0,8"/>
-                                <TextBlock x:Name="PhysarumDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <Expander Header="Поиск интересных форм" IsExpanded="True" Margin="0,8,0,4"><StackPanel>
-                                    <Button x:Name="PhysarumSearchButton" Content="Найти интересную форму" Click="PhysarumSearch_OnClick"/>
-                                    <Button x:Name="PhysarumVariationButton" Content="Вариация текущей" Click="PhysarumVariation_OnClick"/>
-                                    <Button x:Name="PhysarumSearchUndoButton" Content="Вернуть предыдущую сеть" Click="PhysarumSearchUndo_OnClick" IsEnabled="False"/>
-                                    <ProgressBar x:Name="PhysarumSearchProgress" Minimum="0" Maximum="100" Height="4" Margin="0,6,0,6" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="PhysarumSearchStatus" Text="10 быстрых проб и подбор яркости. Вариация меняет параметры рядом с текущими." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                </StackPanel></Expander>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка объёма"/>
-                                <ComboBox x:Name="PhysarumSizeBox" SelectedIndex="3">
-                                    <ComboBoxItem Content="48³ · быстро"/><ComboBoxItem Content="64³"/><ComboBoxItem Content="96³ · стандарт"/><ComboBoxItem Content="128³ · подробно"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Число агентов (1024–262144)"/>
-                                <TextBox x:Name="PhysarumCountBox" Text="16384" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное распределение"/>
-                                <ComboBox x:Name="PhysarumSeedBox" SelectedIndex="0">
-                                    <ComboBoxItem Content="Облако"/><ComboBoxItem Content="Оболочка"/><ComboBoxItem Content="Тор"/><ComboBoxItem Content="Две звезды"/>
-                                </ComboBox>
-                                <Expander Header="Чувства и движение" IsExpanded="True"><StackPanel>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Дальность чувств · ячеек (1–16)"/>
-                                    <TextBox x:Name="PhysarumSensorBox" Text="2" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Угол обзора · градусов (5–85)"/>
-                                    <TextBox x:Name="PhysarumAngleBox" Text="40" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Поворот · градусов (1–70)"/>
-                                    <TextBox x:Name="PhysarumTurnBox" Text="22" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Скорость · ячеек за шаг (0,1–2)"/>
-                                    <TextBox x:Name="PhysarumMoveBox" Text="0.8" numeric:NumericSpinner.IsEnabled="True"/>
-                                </StackPanel></Expander>
-                                <Expander Header="Память следа"><StackPanel>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Сила следа (0,1–8)"/>
-                                    <TextBox x:Name="PhysarumDepositBox" Text="2" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Размывание (0–1)"/>
-                                    <TextBox x:Name="PhysarumDiffusionBox" Text="0.12" numeric:NumericSpinner.IsEnabled="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Испарение за шаг (0,001–0,2)"/>
-                                    <TextBox x:Name="PhysarumDecayBox" Text="0.025" numeric:NumericSpinner.IsEnabled="True"/>
-                                </StackPanel></Expander>
-                                <Expander Header="Подготовка и воспроизводимость"><StackPanel>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
-                                    <TextBox x:Name="PhysarumRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–2000)"/>
-                                    <TextBox x:Name="PhysarumWarmupBox" Text="80" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                </StackPanel></Expander>
-                                <Button Content="Применить и начать заново" Click="PhysarumRestart_OnClick"/>
-                                <Button Content="Только новая затравка" Click="PhysarumRandom_OnClick"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
-                                <Slider x:Name="PhysarumSpeedSlider" Minimum="1" Maximum="32" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Яркость нитей"/>
-                                <Slider x:Name="PhysarumExposureSlider" Minimum="0.05" Maximum="4" Value="0.12" ValueChanged="PhysarumView_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Порог видимости"/>
-                                <Slider x:Name="PhysarumLevelSlider" Minimum="0.01" Maximum="0.9" Value="0.35" ValueChanged="PhysarumView_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
-                                <ComboBox x:Name="PhysarumCutBox" SelectionChanged="PhysarumView_OnChanged">
-                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
-                                </ComboBox>
-                                <Slider x:Name="PhysarumCutSlider" Minimum="-1" Maximum="1" Value="0.5" ValueChanged="PhysarumView_OnChanged"/>
-                                <TextBlock Text="Пробел — пауза/продолжение. Свечение показывает сеть насквозь. Сохранение запоминает след и каждого агента." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                            </StackPanel>
-                            <StackPanel x:Name="CahnPanel" Visibility="Collapsed">
-                                <TextBlock Text="∂c/∂t = M ∇²(c³ − c − κ ∇²c)" TextWrapping="Wrap" Margin="0,4,0,8"/>
-                                <TextBlock x:Name="CahnDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси"/>
-                                <ComboBox x:Name="CahnSizeBox" SelectedIndex="1">
-                                    <ComboBoxItem Content="32³ · быстро"/><ComboBoxItem Content="64³ · стандарт"/><ComboBoxItem Content="128³ · подробно"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Средний состав c (−0,55…0,55)"/>
-                                <TextBox x:Name="CahnMeanBox" Text="0" numeric:NumericSpinner.IsEnabled="True" ToolTip="0 — смесь 50/50; −0,4 — 30/70. Средний состав сохраняется при развитии."/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шум начальной смеси (0,001–0,2)"/>
-                                <TextBox x:Name="CahnNoiseBox" Text="0.08" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Межфазная энергия κ (0,5–8)"/>
-                                <TextBox x:Name="CahnKappaBox" Text="1" numeric:NumericSpinner.IsEnabled="True" ToolTip="Больше κ — толще границы и крупнее домены. Шаг сетки равен 1."/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <StackPanel Margin="0,0,4,0">
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Подвижность M"/>
-                                        <TextBox x:Name="CahnMobilityBox" Text="1" numeric:NumericSpinner.IsEnabled="True"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt"/>
-                                        <TextBox x:Name="CahnDtBox" Text="1" numeric:NumericSpinner.IsEnabled="True" ToolTip="0,01–2; M·Δt ≤ 2. Меньше шаг — точнее динамика."/>
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Начальная смесь"/>
-                                <ComboBox x:Name="CahnSeedBox" SelectedIndex="0">
-                                    <ComboBoxItem Content="Шум · спинодальный распад"/>
-                                    <ComboBoxItem Content="Гироидная затравка"/><ComboBoxItem Content="Слоистая затравка"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
-                                <TextBox x:Name="CahnRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–5000)"/>
-                                <TextBox x:Name="CahnWarmupBox" Text="450" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <Button Content="Применить и начать заново" Click="CahnRestart_OnClick"/>
-                                <TextBlock Text="Границы замкнуты по трём осям. После подготовки смесь на паузе. Пробел — продолжить или остановить укрупнение доменов." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
-                                <Slider x:Name="CahnSpeedSlider" Minimum="1" Maximum="64" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                                <TextBlock Text="{Binding ElementName=CahnSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности c"/>
-                                <Slider x:Name="CahnLevelSlider" Minimum="-0.9" Maximum="0.9" Value="0" ValueChanged="CahnView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=CahnLevelSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
-                                <CheckBox x:Name="CahnInvertBox" Content="Показать вторую фазу" Checked="CahnView_OnChanged" Unchecked="CahnView_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
-                                <ComboBox x:Name="CahnCutBox" SelectionChanged="CahnView_OnChanged">
-                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
-                                </ComboBox>
-                                <Slider x:Name="CahnCutSlider" Minimum="-1" Maximum="1" Value="0.55" ValueChanged="CahnView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=CahnCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
-                            </StackPanel>
-                            <StackPanel x:Name="KobPanel" Visibility="Collapsed">
-                                <Button x:Name="KobSearchButton" Content="Найти интересную форму" Click="KobSearch_OnClick"/>
-                                <Button x:Name="KobVariationButton" Content="Вариация текущей" Click="KobVariation_OnClick"/>
-                                <Button x:Name="KobSearchUndoButton" Content="Вернуть предыдущий кристалл" Click="KobSearchUndo_OnClick" IsEnabled="False"/>
-                                <CheckBox x:Name="KobSearchFitBox" Content="Вписывать найденную форму в кадр" IsChecked="True" Margin="0,6"/>
-                                <ProgressBar x:Name="KobSearchProgress" Minimum="0" Maximum="100" Height="4" Margin="0,6,0,6" Visibility="Collapsed"/>
-                                <TextBlock x:Name="KobSearchStatus" Text="Поиск проверяет рост и форму. Вариация меняет параметры рядом с текущими. Сохраняются четыре предыдущих кристалла." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Text="φ — твёрдая фаза · T — температура расплава" TextWrapping="Wrap" Margin="0,4,0,8"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
-                                <TextBlock x:Name="KobDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>
-                                <TextBox x:Name="KobSizeBox" Text="64" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Толщина границы (0,5–2)"/>
-                                <TextBox x:Name="KobWidthBox" Text=".6" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Анизотропия (−0,06…0,06)"/>
-                                <TextBox x:Name="KobAnisotropyBox" Text=".055" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Подвижность фазы (0,1–4)"/>
-                                <TextBox x:Name="KobMobilityBox" Text="1" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Теплопроводность (0,1–4)"/>
-                                <TextBox x:Name="KobDiffusionBox" Text=".5" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Скрытая теплота (0–3)"/>
-                                <TextBox x:Name="KobHeatBox" Text="1.8" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Переохлаждение (0,05–1,5)"/>
-                                <TextBox x:Name="KobColdBox" Text=".5" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шум границы (0–0,1)"/>
-                                <TextBox x:Name="KobNoiseBox" Text=".02" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени (0,001–0,1)"/>
-                                <TextBox x:Name="KobDtBox" Text=".04" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов подготовки (0–20000)"/>
-                                <TextBox x:Name="KobWarmupBox" Text="6000" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <TextBlock Text="Положительная анизотропия: шесть осевых ветвей; отрицательная: восемь диагональных. Ноль — изотропная среда." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock x:Name="KobDtText" FontSize="11" TextWrapping="Wrap"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Затравка"/>
-                                <ComboBox x:Name="KobSeedBox">
-                                    <ComboBoxItem Content="Одна сфера"/><ComboBoxItem Content="Восемь сфер"/>
-                                    <ComboBoxItem Content="Кольцо"/><ComboBoxItem Content="Чистая среда"/>
-                                    <ComboBoxItem Content="Случайные зародыши"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус зародышей (доля сетки: 0,035–0,16)"/>
-                                <TextBox x:Name="KobSeedRadiusBox" Text=".075" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Разброс / радиус кольца (0–0,3)"/>
-                                <TextBox x:Name="KobSeedSpreadBox" Text=".18" numeric:NumericSpinner.IsEnabled="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Число случайных зародышей (1–8)"/>
-                                <TextBox x:Name="KobSeedCountBox" Text="4" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число (расположение и шум)"/>
-                                <TextBox x:Name="KobRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <Button Content="Применить и начать заново" Click="KobRestart_OnClick"/>
-                                <TextBlock Text="Стенки теплоизолированы. Кристалл развивается до выбранной стадии и встаёт на паузу. Пробел — продолжить рост." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
-                                <Slider x:Name="KobSpeedSlider" Minimum="1" Maximum="256" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                                <TextBlock Text="{Binding ElementName=KobSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень твёрдой фазы φ"/>
-                                <Slider x:Name="KobThresholdSlider" Minimum="0.05" Maximum="0.95" Value="0.5" ValueChanged="KobView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=KobThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
-                                <ComboBox x:Name="KobCutBox" SelectionChanged="KobView_OnChanged">
-                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
-                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
-                                </ComboBox>
-                                <Slider x:Name="KobCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="KobView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=KobCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус сферической кисти"/>
-                                <Slider x:Name="KobBrushSlider" Minimum="0.02" Maximum="0.2" Value="0.08"/>
-                                <Button x:Name="KobBrushButton" Content="Добавить затравку в центре" Click="KobBrush_OnClick"/>
-                                <TextBlock Text="Shift + щелчок: новая затравка на срезе. Окраска «По температуре» показывает нагрев при кристаллизации; «Плотность» — облако твёрдой фазы." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                            </StackPanel>
-                            <StackPanel x:Name="ExPanel" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Модель возбудимой среды"/>
-                                <ComboBox x:Name="ExModelBox" SelectionChanged="ExModel_OnChanged">
-                                    <ComboBoxItem Content="Баркли"/><ComboBoxItem Content="Oregonator · Белоусов–Жаботинский"/>
-                                    <ComboBoxItem Content="FitzHugh–Nagumo"/><ComboBoxItem Content="Aliev–Panfilov"/>
-                                </ComboBox>
-                                <TextBlock x:Name="ExEquationText" TextWrapping="Wrap" FontSize="11" Margin="0,4,0,8"/>
-                                <TextBlock x:Name="ExDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>
-                                <TextBox x:Name="ExSizeBox" Text="64" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <StackPanel Margin="0,0,4,0">
-                                        <TextBlock x:Name="ExALabel" Style="{StaticResource FieldCaption}" Text="a"/><TextBox x:Name="ExABox" Text="0.75"/>
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Диффузия U"/><TextBox x:Name="ExDuBox" Text="1"/>
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt"/><TextBox x:Name="ExDtBox" Text="0.005"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock x:Name="ExBLabel" Style="{StaticResource FieldCaption}" Text="b"/><TextBox x:Name="ExBBox" Text="0.06"/>
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Диффузия V"/><TextBox x:Name="ExDvBox" Text="0"/>
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг сетки Δx"/><TextBox x:Name="ExSpacingBox" Text="0.75"/>
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Разделение времён ε"/><TextBox x:Name="ExEpsilonBox" Text="0.02"/>
-                                <StackPanel x:Name="ExMuPanel" Visibility="Collapsed">
-                                    <TextBlock Style="{StaticResource FieldCaption}" Text="Восстановление μ₁ / μ₂"/>
-                                    <TextBox x:Name="ExMu1Box" Text="0.2"/><TextBox x:Name="ExMu2Box" Text="0.3"/>
-                                </StackPanel>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Границы"/>
-                                <ComboBox x:Name="ExBoundaryBox"><ComboBoxItem Content="Непроницаемые стенки"/><ComboBoxItem Content="Периодические"/></ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Затравка"/>
-                                <ComboBox x:Name="ExSeedBox">
-                                    <ComboBoxItem Content="Прямой свиток"/><ComboBoxItem Content="Вихревое кольцо"/><ComboBoxItem Content="Перекрещённые свитки"/><ComboBoxItem Content="Сферическая волна"/><ComboBoxItem Content="Покоящаяся среда"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаги подготовки (0–20 000)"/>
-                                <TextBox x:Name="ExWarmupBox" Text="1200"/>
-                                <Button Content="Применить и начать заново" Click="ExRestart_OnClick"/>
-                                <TextBlock Text="Новый свиток сначала проходит подготовку и встаёт на паузу. Пробел — пауза и продолжение. Модель и уравнение применяются кнопкой." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
-                                <Slider x:Name="ExSpeedSlider" Minimum="1" Maximum="256" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                                <TextBlock Text="{Binding ElementName=ExSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Показывать"/>
-                                <ComboBox x:Name="ExViewBox" SelectionChanged="ExView_OnChanged"><ComboBoxItem Content="Фронты волн"/><ComboBoxItem Content="Вихревые нити"/><ComboBoxItem Content="Волны и нити"/></ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности"/>
-                                <Slider x:Name="ExThresholdSlider" Minimum="0.05" Maximum="0.95" Value="0.5" ValueChanged="ExView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=ExThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
-                                <ComboBox x:Name="ExCutBox" SelectionChanged="ExView_OnChanged">
-                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
-                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
-                                </ComboBox>
-                                <Slider x:Name="ExCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="ExView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=ExCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус сферической кисти"/>
-                                <Slider x:Name="ExBrushSlider" Minimum="0.02" Maximum="0.2" Value="0.08"/>
-                                <Button x:Name="ExBrushButton" Content="Добавить затравку в центре" Click="ExBrush_OnClick"/>
-                                <TextBlock Text="Shift + щелчок: сферическая затравка на выбранном срезе. Кисть возбуждает U, сохраняя V. «Плотность» показывает прозрачные волны; окраска «По фазе» различает стадии цикла." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                            </StackPanel>
-                            <StackPanel x:Name="GrayPanel" Visibility="Collapsed">
-                                <TextBlock Text="U + 2V → 3V · реакция внутри объёма" TextWrapping="Wrap" Margin="0,4,0,8"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
-                                <TextBlock x:Name="GrayDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>
-                                <TextBox x:Name="GraySizeBox" Text="64" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <StackPanel Margin="0,0,4,0">
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Подача F"/>
-                                        <TextBox x:Name="GrayFeedBox" Text="0.030" numeric:NumericSpinner.IsEnabled="True"/>
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Диффузия U"/>
-                                        <TextBox x:Name="GrayDuBox" Text="0.12" numeric:NumericSpinner.IsEnabled="True"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Убыль K"/>
-                                        <TextBox x:Name="GrayKillBox" Text="0.062" numeric:NumericSpinner.IsEnabled="True"/>
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Диффузия V"/>
-                                        <TextBox x:Name="GrayDvBox" Text="0.06" numeric:NumericSpinner.IsEnabled="True"/>
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Затравка"/>
-                                <ComboBox x:Name="GraySeedBox">
-                                    <ComboBoxItem Content="Восемь сфер"/><ComboBoxItem Content="Шум внутри куба"/>
-                                    <ComboBoxItem Content="Кольцо"/><ComboBoxItem Content="Чистая среда"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
-                                <TextBox x:Name="GrayRandomBox" Text="42" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                <Button Content="Применить и начать заново" Click="GrayRestart_OnClick"/>
-                                <TextBlock Text="Границы замкнуты по трём осям. Новый узор сначала развивается до стартовой стадии и встаёт на паузу. Пробел — пауза и продолжение." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Поиск узоров"/>
-                                <ComboBox x:Name="GraySearchTargetBox" SelectedIndex="0" AutomationProperties.Name="Что искать">
-                                    <ComboBoxItem Content="Любой узор"/><ComboBoxItem Content="Капли"/><ComboBoxItem Content="Каналы и мембраны"/>
-                                    <ComboBoxItem Content="Пористый объём"/><ComboBoxItem Content="Подвижный узор"/>
-                                </ComboBox>
-                                <UniformGrid Columns="2" Margin="0,5,0,0">
-                                    <Button x:Name="GraySearchButton" Margin="0,0,3,0" Content="Случайный узор" Click="GraySearchRandom_OnClick" ToolTip="Новые F/K, диффузия и затравка; каждый вариант проверяется пробным прогоном на ГП"/>
-                                    <Button x:Name="GrayVariationButton" Margin="3,0,0,0" Content="Вариация" Click="GraySearchVariation_OnClick" ToolTip="Немного сдвинуть F/K текущего узора, затравку оставить"/>
-                                </UniformGrid>
-                                <Button x:Name="GraySearchUndoButton" Margin="0,5,0,0" Content="Вернуть предыдущий" Click="GraySearchUndo_OnClick" IsEnabled="False" ToolTip="Вернуть поле и параметры до последнего найденного узора"/>
-                                <TextBlock x:Name="GraySearchStatus" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                                           Text="F и K выбираются в полосе, где живут узоры. Каждый вариант сначала проходит пробный прогон на видеокарте: угасшие и однородные объёмы отбрасываются, уровень поверхности подбирается сам."/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
-                                <Slider x:Name="GraySpeedSlider" Minimum="1" Maximum="256" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                                <TextBlock Text="{Binding ElementName=GraySpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности V"/>
-                                <Slider x:Name="GrayThresholdSlider" Minimum="0.01" Maximum="0.9" Value="0.18" ValueChanged="GrayView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=GrayThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
-                                <ComboBox x:Name="GrayCutBox" SelectionChanged="GrayView_OnChanged">
-                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
-                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
-                                </ComboBox>
-                                <Slider x:Name="GrayCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="GrayView_OnChanged"/>
-                                <TextBlock Text="{Binding ElementName=GrayCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус сферической кисти"/>
-                                <Slider x:Name="GrayBrushSlider" Minimum="0.02" Maximum="0.2" Value="0.08"/>
-                                <Button x:Name="GrayBrushButton" Content="Добавить затравку в центре" Click="GrayBrush_OnClick"/>
-                                <TextBlock Text="Shift + щелчок: сферическая затравка на выбранном срезе. Стиль «Плотность» показывает облако V; остальные стили — его поверхность." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                            </StackPanel>
-                            <StackPanel x:Name="TuringPanel" Visibility="Collapsed">
-                                <numeric:TuringReactionEditor x:Name="TuringReactionEditor" Changed="TuringReaction_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
-                                <TextBlock x:Name="TuringDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Форма объёма"/>
-                                <ComboBox x:Name="TuringRegionBox" SelectionChanged="TuringRule_OnChanged">
-                                    <ComboBoxItem Content="Весь куб"/><ComboBoxItem Content="Шар"/><ComboBoxItem Content="Сферическая оболочка"/>
-                                </ComboBox>
-                                <StackPanel x:Name="TuringShellPanel">
-                                    <TextBlock x:Name="TuringShellText" Style="{StaticResource FieldCaption}" Text="Толщина оболочки"/>
-                                    <Slider x:Name="TuringShellSlider" Minimum="0.05" Maximum="0.6" Value="0.2" ValueChanged="TuringRule_OnChanged"/>
-                                </StackPanel>
-                                <TextBlock x:Name="TuringDetailText" Style="{StaticResource FieldCaption}" Text="Размер деталей"/>
-                                <Slider x:Name="TuringDetailSlider" Minimum="0.25" Maximum="3" Value="1" ValueChanged="TuringRule_OnChanged"/>
-                                <StackPanel x:Name="TuringMcCabePanel">
-                                <TextBlock x:Name="TuringDepthText" Style="{StaticResource FieldCaption}" Text="Глубина структуры"/>
-                                <Slider x:Name="TuringDepthSlider" Minimum="1" Maximum="6" Value="4" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringDepth_OnChanged"/>
-                                </StackPanel>
-                                <TextBlock x:Name="TuringRateText" Style="{StaticResource FieldCaption}" Text="Отклик"/>
-                                <Slider x:Name="TuringRateSlider" Minimum="0.1" Maximum="3" Value="1" ValueChanged="TuringRule_OnChanged"/>
-                                <StackPanel x:Name="TuringMcCabeRatioPanel">
-                                <TextBlock x:Name="TuringRatioText" Style="{StaticResource FieldCaption}" Text="Радиус подавления"/>
-                                <Slider x:Name="TuringRatioSlider" Minimum="1.2" Maximum="4" Value="2" ValueChanged="TuringRule_OnChanged"/>
-                                </StackPanel>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Симметрия"/>
-                                <ComboBox x:Name="TuringSymmetryBox" SelectionChanged="TuringRule_OnChanged">
-                                    <ComboBoxItem Content="Без симметрии"/><ComboBoxItem Content="Лучи вокруг оси Y"/>
-                                    <ComboBoxItem Content="Тетраэдр"/><ComboBoxItem Content="Куб и октаэдр"/>
-                                    <ComboBoxItem Content="Икосаэдр и додекаэдр"/>
-                                </ComboBox>
-                                <StackPanel x:Name="TuringArmsPanel">
-                                    <TextBlock x:Name="TuringArmsText" Style="{StaticResource FieldCaption}" Text="Лучей"/>
-                                    <Slider x:Name="TuringArmsSlider" Minimum="1" Maximum="16" Value="6" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringRule_OnChanged"/>
-                                </StackPanel>
-                                <CheckBox x:Name="TuringMirrorBox" Content="Зеркальные отражения" Margin="0,6,0,0" Checked="TuringRule_OnChanged" Unchecked="TuringRule_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Грани куба"/>
-                                <ComboBox x:Name="TuringBoundaryBox" SelectionChanged="TuringRule_OnChanged">
-                                    <ComboBoxItem Content="Замкнуты (узор продолжается)"/><ComboBoxItem Content="Зеркальные"/>
-                                </ComboBox>
-                                <Expander x:Name="TuringScalesExpander" Header="Масштабы" IsExpanded="False" Margin="0,8,0,4">
-                                    <StackPanel>
-                                        <Grid Margin="0,2,0,2">
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="1" Text="Радиус (0,5–64)" FontSize="11" Margin="0,0,4,0"/>
-                                            <TextBlock Grid.Column="2" Text="Отклик (0,001–0,15)" FontSize="11"/>
-                                        </Grid>
-                                        <StackPanel x:Name="TuringLayersPanel"/>
-                                        <Button Content="Применить масштабы" Margin="0,4,0,0" Click="TuringLayersApply_OnClick"/>
-                                        <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                                                   Text="Радиусы активатора — в клетках сетки 128: смена сетки не меняет размер узора. «Глубина структуры» возвращает стандартный набор."/>
-                                    </StackPanel>
-                                </Expander>
-                                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"
-                                           Text="Форма, симметрия и масштабы действуют на текущее поле со следующего шага, время не сбрасывается."/>
-
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–160)"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox x:Name="TuringSizeBox" Text="96" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                    <Button Grid.Column="1" Margin="4,0,0,0" Padding="8,0" Content="Перенести поле" Click="TuringResize_OnClick"
-                                            ToolTip="Пересчитать текущее поле на новую сетку без сброса времени"/>
-                                </Grid>
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <StackPanel Margin="0,0,4,0">
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Случайное число"/>
-                                        <TextBox x:Name="TuringSeedBox" Text="1729" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное развитие"/>
-                                        <TextBox x:Name="TuringWarmupBox" Text="120" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True"
-                                                 ToolTip="Сколько шагов (0–2000) пройти перед показом нового поля"/>
-                                    </StackPanel>
-                                </Grid>
-                                <UniformGrid Columns="2" Margin="0,6,0,0">
-                                    <Button Margin="0,0,3,0" Content="Новый рисунок" Click="TuringNewDrawing_OnClick" ToolTip="Другое случайное поле с текущим правилом"/>
-                                    <Button Margin="3,0,0,0" Content="Начать заново" Click="TuringRestart_OnClick" ToolTip="Поле по указанным сетке и случайному числу"/>
-                                </UniformGrid>
-                                <TextBlock x:Name="TuringSpeedText" Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
-                                <Slider x:Name="TuringSpeedSlider" Minimum="1" Maximum="16" Value="2" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="TuringLabels_OnChanged"/>
-
-                                <TextBlock x:Name="TuringLevelText" Style="{StaticResource FieldCaption}" Text="Уровень поверхности"/>
-                                <Slider x:Name="TuringLevelSlider" Minimum="0.05" Maximum="0.95" Value="0.5" ValueChanged="TuringView_OnChanged"/>
-                                <CheckBox x:Name="TuringSheetBox" Content="Тонкая мембрана на уровне поверхности" Margin="0,6,0,0" Checked="TuringView_OnChanged" Unchecked="TuringView_OnChanged"
-                                          ToolTip="Показывать не заполненную фазу, а лист вокруг уровня: видны обе стороны лабиринта"/>
-                                <Slider x:Name="TuringSheetSlider" Minimum="0.02" Maximum="0.3" Value="0.08" ValueChanged="TuringView_OnChanged"/>
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
-                                <ComboBox x:Name="TuringCutBox" SelectionChanged="TuringView_OnChanged">
-                                    <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/>
-                                    <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
-                                </ComboBox>
-                                <Slider x:Name="TuringCutSlider" Minimum="-1" Maximum="1" Value="0" ValueChanged="TuringView_OnChanged"/>
-
-                                <TextBlock Style="{StaticResource FieldCaption}" Text="Сферическая кисть"/>
-                                <ComboBox x:Name="TuringBrushBox" SelectionChanged="TuringLabels_OnChanged">
-                                    <ComboBoxItem Content="Заполнить"/><ComboBoxItem Content="Вырезать"/><ComboBoxItem Content="Шум"/>
-                                </ComboBox>
-                                <TextBlock x:Name="TuringBrushRadiusText" Style="{StaticResource FieldCaption}" Text="Радиус"/>
-                                <Slider x:Name="TuringBrushRadiusSlider" Minimum="0.02" Maximum="0.3" Value="0.08" ValueChanged="TuringLabels_OnChanged"/>
-                                <TextBlock x:Name="TuringBrushStrengthText" Style="{StaticResource FieldCaption}" Text="Сила"/>
-                                <Slider x:Name="TuringBrushStrengthSlider" Minimum="0.05" Maximum="1" Value="0.7" ValueChanged="TuringLabels_OnChanged"/>
-                                <Button x:Name="TuringBrushButton" Content="Мазок в центре" Click="TuringBrush_OnClick"/>
-                                <TextBlock Text="Shift + щелчок: мазок на выбранном срезе. Мазок повторяется по всей симметрии. Пробел — пауза и продолжение." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                            </StackPanel>
+                            <!-- Панель живого моделирования (Gray–Scott, Тьюринг, Lenia…) ставит окно по режиму. -->
+                            <ContentControl x:Name="SimulationEditorHost" Focusable="False"/>
                             <StackPanel x:Name="PowerPanel">
                                 <TextBlock x:Name="PowerLabel" Style="{StaticResource FieldCaption}" Text="Степень n"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
@@ -1395,85 +964,21 @@
                         <Button Content="{Binding ElementName=DlaPlayButton, Path=Content}" Click="DlaPlay_OnClick"/>
                     </StackPanel>
                 </Border>
-                <controls:PreparationOverlay x:Name="KobPreparationOverlay" Visibility="Collapsed"
-                                             Message="Выращивание кристалла…" ActionText="Остановить и показать"
-                                             ActionClick="KobStopPreparation_OnClick"/>
-                <Border x:Name="KobOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
+                <!-- Время и шаги живого моделирования (Gray–Scott, Тьюринг, Lenia…). -->
+                <Border x:Name="SimulationTransport" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock x:Name="KobTimeText" FontSize="11"/>
-                        <Button x:Name="KobPlayButton" Content="▶ Продолжить" Click="KobPlay_OnClick"/>
-                        <Button x:Name="KobStepButton" Content="Один кадр" Click="KobStep_OnClick"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="ExOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock x:Name="ExTimeText" FontSize="11"/>
-                        <Button x:Name="ExPlayButton" Content="▶ Продолжить" Click="ExPlay_OnClick"/>
-                        <Button x:Name="ExStepButton" Content="Один кадр" Click="ExStep_OnClick"/>
-                    </StackPanel>
-                </Border>
-                <controls:PreparationOverlay x:Name="ExPreparing" Visibility="Collapsed"
-                                             Message="Подготовка свитка…" ActionText="Остановить и показать"
-                                             ActionClick="CancelButton_OnClick"/>
-                <controls:PreparationOverlay x:Name="GrayPreparationOverlay" Visibility="Collapsed"
-                                             Message="Подготовка поля Gray–Scott 3D…" ActionClick="CancelButton_OnClick"/>
-                <Border x:Name="GrayOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock x:Name="GrayTimeText" FontSize="11"/>
-                        <Button x:Name="GrayPlayButton" Content="▶ Продолжить" Click="GrayPlay_OnClick"/>
-                        <Button x:Name="GrayStepButton" Content="Один кадр" Click="GrayStep_OnClick"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="PhysarumOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="8" Padding="10" Background="{DynamicResource Theme.PanelBackgroundBrush}" CornerRadius="8">
-                    <StackPanel>
-                        <TextBlock x:Name="PhysarumTimeText" FontSize="11"/>
-                        <Button x:Name="PhysarumPlayButton" Content="▶ Продолжить" Click="PhysarumPlay_OnClick"/>
-                        <Button x:Name="PhysarumStepButton" Content="Один кадр" Click="PhysarumStep_OnClick"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="LeniaOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="10" CornerRadius="8" Background="{DynamicResource Theme.PanelBackgroundBrush}">
-                    <StackPanel><TextBlock x:Name="LeniaTimeText" FontSize="11"/><Button x:Name="LeniaPlayButton" Content="▶ Продолжить" Click="LeniaPlay_OnClick"/><Button x:Name="LeniaStepButton" Content="Один кадр" Click="LeniaStep_OnClick"/></StackPanel>
-                </Border>
-                <Border x:Name="CahnOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock x:Name="CahnTimeText" FontSize="11"/>
-                        <Button x:Name="CahnPlayButton" Content="▶ Продолжить" Click="CahnPlay_OnClick"/>
-                        <Button x:Name="CahnStepButton" Content="Один кадр" Click="CahnStep_OnClick"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="TuringOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                        BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock x:Name="TuringTimeText" FontSize="11"/>
-                        <Button x:Name="TuringPlayButton" Content="▶ Продолжить" Click="TuringPlay_OnClick"/>
-                        <Button x:Name="TuringStepButton" Content="Один кадр" Click="TuringStep_OnClick"/>
+                        <TextBlock x:Name="SimulationTimeText" FontSize="11"/>
+                        <Button x:Name="SimulationPlayButton" Content="▶ Продолжить" Click="SimulationPlay_OnClick"/>
+                        <Button x:Name="SimulationStepButton" Content="Один кадр" Click="SimulationStep_OnClick"/>
                     </StackPanel>
                 </Border>
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->
                 <Canvas x:Name="AxisTriad" Width="64" Height="64" Margin="8"
                         HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
-                <controls:PreparationOverlay x:Name="PhysarumPreparationOverlay" Visibility="Collapsed"
-                                             Message="Плетение живой сети…" ActionText="Остановить и показать"
-                                             ActionClick="PhysarumStopPreparation_OnClick"/>
-                <controls:PreparationOverlay x:Name="LeniaPreparationOverlay" Visibility="Collapsed"
-                                             Message="Развитие Lenia…" ActionText="Остановить и показать"
-                                             ActionClick="LeniaStopPreparation_OnClick"/>
-                <controls:PreparationOverlay x:Name="CahnPreparationOverlay" Visibility="Collapsed"
-                                             Message="Подготовка спинодального распада…" ActionText="Остановить и показать"
-                                             ActionClick="CahnStopPreparation_OnClick"/>
-                <controls:PreparationOverlay x:Name="TuringPreparationOverlay" Visibility="Collapsed"
-                                             Message="Выращиваем начальный узор…" ActionText="Остановить и показать"
-                                             ActionClick="TuringStopPreparation_OnClick"/>
+                <controls:PreparationOverlay x:Name="SimulationPreparationOverlay" Visibility="Collapsed"
+                                             ActionText="Остановить и показать" ActionClick="SimulationStopPreparation_OnClick"/>
                 <!-- Общий экран первого кадра автоматически покрывает каждый новый 3D-режим.
                      Специализированная подготовка использует тот же контрол и имеет приоритет. -->
                 <Grid x:Name="InitialPreparationLayer">
@@ -1482,13 +987,7 @@
                         <controls:PreparationOverlay.Style>
                             <Style TargetType="controls:PreparationOverlay">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=KobPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=GrayPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=ExPreparing}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=PhysarumPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=LeniaPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=CahnPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
-                                    <DataTrigger Binding="{Binding Visibility, ElementName=TuringPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=SimulationPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </controls:PreparationOverlay.Style>

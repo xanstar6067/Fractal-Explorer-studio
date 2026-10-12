@@ -188,10 +188,8 @@ internal static class Program
 
         bool IsBusy() => GetMember(win, renderFlag) is true ||
             GetMember(win, "_frameRequested") is true ||
-            GetMember(win, "_exBusy") is true || GetMember(win, "_exPending") is not null ||
-            GetMember(win, "_grayBusy") is true || GetMember(win, "_grayPending") is not null ||
-            GetMember(win, "_turingBusy") is true || GetMember(win, "_turingPending") is not null ||
-            GetMember(win, "_cahnBusy") is true || GetMember(win, "_cahnPending") is not null || GetMember(win, "_cahnPreparing") is true ||
+            // Live GPU simulation of Fractal3DWindow: steps in flight or the first field not shown yet.
+            GetMember(win, "_simulation") is FractalExplorerWPF.Controls.IFractal3DSimulationMode { IsBusy: true } or FractalExplorerWPF.Controls.IFractal3DSimulationMode { IsPreparing: true } ||
             win is DynamicSystemWindow && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();

@@ -517,6 +517,49 @@ public static class Fractal3DCatalog
     public static bool IsBurningShip(Fractal3DKind kind) =>
         kind is Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia;
 
+    /// <summary>Кадр трассирует объём плотности (орбиты, облака, моделирования), а не поверхность по оценке расстояния.</summary>
+    public static bool IsDensityVolume(Fractal3DKind kind) =>
+        IsGpuSimulation(kind) || kind is Fractal3DKind.Lyapunov3D or Fractal3DKind.Ifs3D or Fractal3DKind.StrangeAttractor or
+            Fractal3DKind.Flame3D or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.Buddhabrot4D;
+
+    /// <summary>Живое моделирование на ГП с паузой, шагами и точным полем в сохранении.</summary>
+    public static bool IsGpuSimulation(Fractal3DKind kind) =>
+        kind is Fractal3DKind.GrayScott3D or Fractal3DKind.Turing3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Lenia3D or
+            Fractal3DKind.Physarum3D or Fractal3DKind.Kobayashi3D or Fractal3DKind.Excitable3D;
+
+    /// <summary>Общее поле «Итерации» (или число точек орбиты) имеет смысл для режима.</summary>
+    public static bool UsesIterations(Fractal3DKind kind) =>
+        !IsGpuSimulation(kind) && kind is not (Fractal3DKind.Lyapunov3D or Fractal3DKind.AbcFlow or Fractal3DKind.Hopf or
+            Fractal3DKind.Terrain or Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D or Fractal3DKind.LSystem3D or
+            Fractal3DKind.Buddhabrot4D or Fractal3DKind.HyperbolicHoneycomb or Fractal3DKind.ImplicitSurface or
+            Fractal3DKind.PeriodicSurfaces);
+
+    /// <summary>Формула с радиусом вылета: итерация убегает на бесконечность.</summary>
+    public static bool UsesBailout(Fractal3DKind kind) =>
+        kind is Fractal3DKind.Mandelbulb or Fractal3DKind.Juliabulb or Fractal3DKind.Mandelbox or Fractal3DKind.QuaternionJulia or
+            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia or Fractal3DKind.BulbBoxHybrid or Fractal3DKind.Phoenix;
+
+    /// <summary>
+    /// Источник цвета имеет смысл для режима: у объёмов плотности нет орбит и убегания, у моделирований
+    /// источники орбитальной ловушки и осей переназначены на величины поля.
+    /// </summary>
+    public static bool HasColoringMode(Fractal3DColoringMode mode, Fractal3DKind kind)
+    {
+        if (mode is not (Fractal3DColoringMode.OrbitTrap or Fractal3DColoringMode.CrossTrap or
+            Fractal3DColoringMode.IterationIndex or Fractal3DColoringMode.Escape)) return true;
+        return kind switch
+        {
+            Fractal3DKind.Ifs3D or Fractal3DKind.Terrain or Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D or
+                Fractal3DKind.Buddhabrot4D or Fractal3DKind.PeriodicSurfaces => false,
+            Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D => mode == Fractal3DColoringMode.IterationIndex,
+            Fractal3DKind.GrayScott3D or Fractal3DKind.CahnHilliard3D or Fractal3DKind.Lenia3D or Fractal3DKind.Physarum3D or
+                Fractal3DKind.Kobayashi3D or Fractal3DKind.LSystem3D or Fractal3DKind.ImplicitSurface => mode == Fractal3DColoringMode.OrbitTrap,
+            Fractal3DKind.Excitable3D or Fractal3DKind.Turing3D => mode is Fractal3DColoringMode.OrbitTrap or Fractal3DColoringMode.CrossTrap,
+            Fractal3DKind.Hopf => mode != Fractal3DColoringMode.Escape,
+            _ => true
+        };
+    }
+
     public static string BurningShipFormulaName(BurningShip3DFormula formula) => formula switch
     {
         BurningShip3DFormula.QuaternionFullFold => "Кватернион · три отражения",
@@ -707,7 +750,10 @@ public static class Fractal3DCatalog
         if (kind == Fractal3DKind.Excitable3D && mode == Fractal3DColoringMode.OrbitTrap) return "По фазе";
         if (kind == Fractal3DKind.Excitable3D && mode == Fractal3DColoringMode.CrossTrap) return "По возбуждению U";
         if (kind == Fractal3DKind.Kobayashi3D && mode == Fractal3DColoringMode.OrbitTrap) return "По температуре";
-        if (kind == Fractal3DKind.Lenia3D && mode == Fractal3DColoringMode.OrbitTrap) return "Плотность клеток";
+        if (kind == Fractal3DKind.Lenia3D && mode == Fractal3DColoringMode.OrbitTrap) return "По плотности клеток";
+        if (kind == Fractal3DKind.Physarum3D && mode == Fractal3DColoringMode.OrbitTrap) return "По плотности нитей";
+        if (kind == Fractal3DKind.GrayScott3D && mode == Fractal3DColoringMode.OrbitTrap) return "По концентрации V";
+        if (kind == Fractal3DKind.LSystem3D && mode == Fractal3DColoringMode.OrbitTrap) return "По L-системе";
         if (kind == Fractal3DKind.CahnHilliard3D && mode == Fractal3DColoringMode.OrbitTrap)
             return "По составу смеси";
         if ((kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D) && mode == Fractal3DColoringMode.IterationIndex)

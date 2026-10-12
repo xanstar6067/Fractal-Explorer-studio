@@ -11,6 +11,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -151,12 +152,11 @@ internal static partial class Program
         var root=(FrameworkElement)window.Content;
         root.Measure(new Size(1180,800)); root.Arrange(new Rect(0,0,1180,800)); root.UpdateLayout();
         const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
-        T Get<T>(string name)=>(T)typeof(Fractal3DWindow).GetField(name,flags)!.GetValue(window)!;
         async Task Idle()
         {
             var watch=Stopwatch.StartNew();
-            while(Get<bool>("_physarumBusy") && watch.Elapsed.TotalSeconds<60) await Task.Delay(10);
-            Check(!Get<bool>("_physarumBusy"),"Physarum GPU work must finish.");
+            while(PhysarumLive(window).Busy && watch.Elapsed.TotalSeconds<60) await Task.Delay(10);
+            Check(!PhysarumLive(window).Busy,"Physarum GPU work must finish.");
         }
         async Task Display()
         {
@@ -166,21 +166,21 @@ internal static partial class Program
         try
         {
             await Idle(); await Display();
-            Check(!Get<bool>("_physarumPreparing") && Get<Physarum3DVolume>("_physarumShown").Step==80,"First frame finishes preparation on pause.");
+            Check(!PhysarumLive(window).Preparing && PhysarumLive(window).Shown!.Step==80,"First frame finishes preparation on pause.");
             window.LoadState(state); await Idle(); await Display();
             var before=window.CaptureState("before").Physarum.Field!;
             Check(before.AgentState.SequenceEqual(state.Physarum.Field!.AgentState),"Window loads exact checkpoint.");
-            Check(((FrameworkElement)window.FindName("PhysarumPanel")).Visibility==Visibility.Visible && ((FrameworkElement)window.FindName("IterationsBox")).Visibility==Visibility.Collapsed,"Dedicated panel hides unrelated controls.");
-            ((TextBox)window.FindName("PhysarumSensorBox")).Text="invalid";
-            ((Slider)window.FindName("PhysarumExposureSlider")).Value=.8;
+            Check((SimulationEditor<Physarum3DEditor>(window)).Visibility==Visibility.Visible && ((FrameworkElement)FindAny(window, "IterationsBox")).Visibility==Visibility.Collapsed,"Dedicated panel hides unrelated controls.");
+            ((TextBox)FindAny(window, "PhysarumSensorBox")).Text="invalid";
+            ((Slider)FindAny(window, "PhysarumExposureSlider")).Value=.8;
             Check(window.CaptureState("draft").Physarum.Field!.Trail.SequenceEqual(before.Trail),"Unapplied parameters and brightness preserve the field.");
-            ((Button)window.FindName("PhysarumStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            ((Button)FindAny(window, "SimulationStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             Check(window.CaptureState("pending").Physarum.Field!.Step==before.Step,"Save captures shown frame during pending work.");
             await Display(); Check(window.CaptureState("after").Physarum.Field!.Step==before.Step+4,"One frame advances four steps.");
             window.LoadState(Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Physarum3D));
-            typeof(Fractal3DWindow).GetMethod("PhysarumStopPreparation_OnClick",flags)!.Invoke(window,[window,new RoutedEventArgs()]);
+            typeof(Fractal3DWindow).GetMethod("SimulationStopPreparation_OnClick", flags)!.Invoke(window,[window,new RoutedEventArgs()]);
             await Idle(); await Display();
-            Check(!Get<bool>("_physarumPreparing") && !Get<bool>("_physarumRunning") && window.CaptureState("partial").Physarum.Field is not null,"Stopping publishes a consistent partial field.");
+            Check(!PhysarumLive(window).Preparing && !PhysarumLive(window).Running && window.CaptureState("partial").Physarum.Field is not null,"Stopping publishes a consistent partial field.");
             window.LoadState(state); await Idle(); await Display();
             if(output is not null)
             {

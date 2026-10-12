@@ -28,7 +28,7 @@ public sealed class Kobayashi3DField
 }
 
 /// <summary>Kobayashi kinetics with cubic 3D gradient energy; cell spacing is one.</summary>
-public sealed record Kobayashi3DSettings
+public sealed record Kobayashi3DSettings : IGpuSimulationSettings
 {
     public int Size { get; init; } = 64;
     public double InterfaceWidth { get; init; } = .6;

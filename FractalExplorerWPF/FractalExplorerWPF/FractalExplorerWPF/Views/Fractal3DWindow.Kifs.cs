@@ -8,6 +8,8 @@ using FractalExplorerWPF.Models;
 using Point = System.Windows.Point;
 using Brush = System.Windows.Media.Brush;
 
+using static FractalExplorerWPF.Controls.PanelFields;
+
 namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow

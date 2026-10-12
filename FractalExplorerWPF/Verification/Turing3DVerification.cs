@@ -13,6 +13,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -366,18 +367,16 @@ internal static partial class Program
             Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = theme });
         var window = new Fractal3DWindow(Fractal3DKind.Turing3D);
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        object? Invoke(string name) => typeof(Fractal3DWindow).GetMethod(name, flags)!.Invoke(window, []);
-        T Field<T>(string name) => (T)typeof(Fractal3DWindow).GetField(name, flags)!.GetValue(window)!;
-        Turing3DVolume? Shown() => (Turing3DVolume?)typeof(Fractal3DWindow).GetField("_turingShown", flags)!.GetValue(window);
-        Turing3DVolume? Pending() => (Turing3DVolume?)typeof(Fractal3DWindow).GetField("_turingPending", flags)!.GetValue(window);
-        T Control<T>(string name) where T : class => (T)window.FindName(name);
+        Turing3DVolume? Shown() => TuringLive(window).Shown;
+        Turing3DVolume? Pending() => TuringLive(window).Pending;
+        T Control<T>(string name) where T : class => (T)FindAny(window, name);
         void Click(string name) => Control<Button>(name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        void StopPreparation() => ((Button)Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").FindName("ActionButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        void StopPreparation() => ((Button)Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").FindName("ActionButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         async Task Idle()
         {
             var watch = Stopwatch.StartNew();
-            while (Field<bool>("_turingBusy") && watch.ElapsedMilliseconds < 60000) await Task.Delay(10);
-            Check(!Field<bool>("_turingBusy"), "Background simulation must finish or cancel.");
+            while (TuringLive(window).Busy && watch.ElapsedMilliseconds < 60000) await Task.Delay(10);
+            Check(!TuringLive(window).Busy, "Background simulation must finish or cancel.");
         }
         async Task Display()
         {
@@ -387,54 +386,54 @@ internal static partial class Program
         async Task Settle() { await Idle(); await Display(); if (Pending() is not null) { await Idle(); await Display(); } }
         try
         {
-            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                !Control<Border>("ControlsHost").IsEnabled && !Control<Button>("TuringPlayButton").IsEnabled,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Visible &&
+                !Control<Border>("ControlsHost").IsEnabled && !Control<Button>("SimulationPlayButton").IsEnabled,
                 "Opening must immediately show preparation and block conflicting actions.");
             await Idle();
-            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Progress == 90,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Progress == 90,
                 "Preparation must remain visible until the first frame is displayed.");
             await Display();
             Check(Shown() is { Step: > 0 } && Pending() is null, "Opening the window must prepare and show the first preset on the GPU.");
-            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Collapsed &&
-                Control<Border>("ControlsHost").IsEnabled && Control<Button>("TuringPlayButton").IsEnabled,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Collapsed &&
+                Control<Border>("ControlsHost").IsEnabled && Control<Button>("SimulationPlayButton").IsEnabled,
                 "Displaying the prepared frame must restore controls.");
 
             var interrupted = state.Clone();
             interrupted.Turing = interrupted.Turing with { Size = 32, WarmupSteps = 2000, Field = null, Live = null };
             window.LoadState(interrupted);
             var preparationWatch = Stopwatch.StartNew();
-            while (Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Progress == 0 && Field<bool>("_turingBusy") &&
+            while (Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Progress == 0 && TuringLive(window).Busy &&
                 preparationWatch.ElapsedMilliseconds < 10000) await Task.Delay(1);
-            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Progress is > 0 and < 90,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Progress is > 0 and < 90,
                 "Warmup must report actual step progress while computation continues.");
             StopPreparation();
-            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Message == "Завершаем текущий шаг…" &&
-                !Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").IsActionEnabled,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Message == "Завершаем текущий шаг…" &&
+                !Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").IsActionEnabled,
                 "Stopping preparation must explain that the current step is finishing.");
             await Settle();
             var partial = window.CaptureState("partial").Turing.Field!;
-            Check(partial.Step is > 0 and < 2000 && !Field<bool>("_turingRunning") &&
-                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
+            Check(partial.Step is > 0 and < 2000 && !TuringLive(window).Running &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Collapsed,
                 "Stopping must display the partial field on pause and close preparation.");
-            Click("TuringStepButton"); await Settle();
+            Click("SimulationStepButton"); await Settle();
             Check(window.CaptureState("continued").Turing.Field!.Step == partial.Step + (int)Control<Slider>("TuringSpeedSlider").Value &&
-                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Collapsed,
                 "A stopped preparation must remain usable; ordinary steps must not open the overlay.");
 
             window.LoadState(interrupted);
             StopPreparation();
             window.LoadState(state);
-            Check(Shown() is null && Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Message == "Восстанавливаем поле…" &&
-                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").IsActionEnabled,
+            Check(Shown() is null && Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Message == "Восстанавливаем поле…" &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").IsActionEnabled,
                 "A new load during cancellation must replace the old preparation and discard its live frame.");
             await Settle();
             var loaded = window.CaptureState("ui").Turing;
             Check(Shown() is not null && loaded.Live is null && MaxFieldDifference(loaded.Field!, state.Turing.Field!) == 0 &&
                 loaded.Field!.Step == state.Turing.Field!.Step && loaded.SameRule(state.Turing), "WPF loading must preserve the exact field and rule on pause.");
-            Check(Control<FrameworkElement>("TuringPanel").Visibility == Visibility.Visible &&
-                Control<FrameworkElement>("GrayPanel").Visibility == Visibility.Collapsed &&
+            Check(SimulationEditor<Turing3DEditor>(window).Visibility == Visibility.Visible &&
+                FindAny(window, "GraySizeBox") is null &&
                 Control<FrameworkElement>("IterationsBox").Visibility == Visibility.Collapsed &&
                 Control<FrameworkElement>("BailoutPanel").Visibility == Visibility.Collapsed,
                 "The window must show pattern controls rather than unrelated fractal fields.");
@@ -442,7 +441,7 @@ internal static partial class Program
             Control<Slider>("TuringLevelSlider").Value = .42;
             Control<CheckBox>("TuringSheetBox").IsChecked = true;
             var viewed = window.CaptureState("ui").Turing;
-            Check(viewed.Level == .42 && viewed.SheetThickness > 0 && viewed.Field!.Step == state.Turing.Field.Step,
+            Check(viewed.Level == .42 && viewed.SheetThickness > 0 && viewed.Field!.Step == state.Turing.Field!.Step,
                 "View changes must preserve the simulation time and field.");
             Control<CheckBox>("TuringSheetBox").IsChecked = false;
             Control<TextBox>("TuringSeedBox").Text = "invalid";
@@ -453,17 +452,17 @@ internal static partial class Program
             root.Measure(new Size(1180, 800)); root.Arrange(new Rect(0, 0, 1180, 800)); root.UpdateLayout();
 
             var beforeStep = window.CaptureState("before").Turing.Field!;
-            Click("TuringStepButton");
+            Click("SimulationStepButton");
             await Idle();
             Check(Pending() is not null && window.CaptureState("during").Turing.Field!.Step == beforeStep.Step,
                 "Saves must retain the displayed field until the computed frame is shown.");
             await Display();
             int speed = (int)Control<Slider>("TuringSpeedSlider").Value;
-            Check(window.CaptureState("after").Turing.Field!.Step == beforeStep.Step + speed && !Field<bool>("_turingRunning"),
+            Check(window.CaptureState("after").Turing.Field!.Step == beforeStep.Step + speed && !TuringLive(window).Running,
                 "One frame must advance exactly the selected number of steps and stay paused.");
-            Click("TuringPlayButton");
-            Invoke("PauseTuring"); await Idle();
-            Check(!Field<bool>("_turingRunning"), "Pausing during computation must stop the live simulation.");
+            Click("SimulationPlayButton");
+            TuringLive(window).Pause(); await Idle();
+            Check(!TuringLive(window).Running, "Pausing during computation must stop the live simulation.");
             if (Pending() is not null) await Display();
             Check(Pending() is null, "Steps submitted before a pause must be published and shown.");
 
@@ -475,7 +474,7 @@ internal static partial class Program
             var afterRule = window.CaptureState("rule-after").Turing;
             Check(afterRule.Symmetry == Turing3DSymmetry.Octahedral && afterRule.Mirror && MaxFieldDifference(afterRule.Field!, beforeRule.Field!) == 0,
                 "Changing the rule must keep the shown field and time.");
-            Click("TuringStepButton"); await Settle();
+            Click("SimulationStepButton"); await Settle();
             var symmetric = window.CaptureState("rule-step").Turing;
             Check(symmetric.Field!.Step == beforeRule.Field!.Step + speed &&
                 SymmetryError(symmetric.Field, Turing3DSymmetryGroup.Build(Turing3DSymmetry.Octahedral, 1, true)) < 2e-5,
@@ -490,9 +489,9 @@ internal static partial class Program
 
             // Grid transfer keeps the time.
             Control<TextBox>("TuringSizeBox").Text = "64";
-            typeof(Fractal3DWindow).GetMethod("TuringResize_OnClick", flags)!.Invoke(window, [window, new RoutedEventArgs()]);
-            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Message == "Переносим поле…",
+            InvokeEditor(SimulationEditor<Turing3DEditor>(window), "TuringResize_OnClick", window, new RoutedEventArgs());
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("SimulationPreparationOverlay").Message == "Переносим поле…",
                 "Grid transfer must show preparation too.");
             await Settle();
             var moved = window.CaptureState("resized").Turing;
@@ -501,7 +500,7 @@ internal static partial class Program
             var saved = window.CaptureState("Saved live frame");
             store.Save(saved);
             var reloaded = store.Load().Single(s => s.SaveName == "Saved live frame");
-            Check(MaxFieldDifference(reloaded.Turing.Field!, moved.Field) == 0 && reloaded.Turing.Field!.Step == moved.Field.Step &&
+            Check(MaxFieldDifference(reloaded.Turing.Field!, moved.Field!) == 0 && reloaded.Turing.Field!.Step == moved.Field!.Step &&
                 reloaded.Turing.SameRule(moved), "Saving from the window must store the exact displayed GPU field and rule.");
 
             window.LoadState(state); await Settle();

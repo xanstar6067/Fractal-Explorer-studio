@@ -112,7 +112,7 @@ public sealed class Turing3DField
 /// Изменение параметров эволюции действует на текущее поле со следующего шага; <see cref="Field"/> —
 /// контрольная точка, с которой начато моделирование (null — случайное поле по <see cref="Seed"/>).
 /// </summary>
-public sealed record Turing3DSettings
+public sealed record Turing3DSettings : IGpuSimulationSettings
 {
     public const int MaxLayers = 6;
     /// <summary>Радиусы заданы в клетках этой сетки: смена сетки не меняет размера узора в кубе.</summary>

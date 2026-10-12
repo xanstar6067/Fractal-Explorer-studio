@@ -34,7 +34,7 @@ public sealed class CahnHilliard3DField
     }
 }
 
-public sealed record CahnHilliard3DSettings
+public sealed record CahnHilliard3DSettings : IGpuSimulationSettings
 {
     public int Size { get; init; } = 64;
     public double Mean { get; init; }

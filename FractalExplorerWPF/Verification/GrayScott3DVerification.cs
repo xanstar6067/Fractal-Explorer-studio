@@ -11,6 +11,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -203,15 +204,13 @@ internal static partial class Program
             Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = theme });
         var window = new Fractal3DWindow(kind);
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        object? Invoke(string name, params object[] parameters) => typeof(Fractal3DWindow).GetMethod(name, flags)!.Invoke(window, parameters);
-        T Field<T>(string name) => (T)typeof(Fractal3DWindow).GetField(name, flags)!.GetValue(window)!;
-        GrayScott3DVolume? Shown() => (GrayScott3DVolume?)typeof(Fractal3DWindow).GetField("_grayShown", flags)!.GetValue(window);
-        GrayScott3DVolume? Pending() => (GrayScott3DVolume?)typeof(Fractal3DWindow).GetField("_grayPending", flags)!.GetValue(window);
+        GrayScott3DVolume? Shown() => GrayLive(window).Shown;
+        GrayScott3DVolume? Pending() => GrayLive(window).Pending;
         async Task Idle()
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            while (Field<bool>("_grayBusy") && watch.ElapsedMilliseconds < 30000) await Task.Delay(10);
-            Check(!Field<bool>("_grayBusy"), "Background simulation must finish or cancel.");
+            while (GrayLive(window).Busy && watch.ElapsedMilliseconds < 30000) await Task.Delay(10);
+            Check(!GrayLive(window).Busy, "Background simulation must finish or cancel.");
         }
         async Task Display()
         {
@@ -220,8 +219,8 @@ internal static partial class Program
         }
         try
         {
-            Check(window.FindName("GrayBackendBox") is null, "The 3D window must not offer a CPU computation backend.");
-            var preparationOverlay = (FractalExplorerWPF.Controls.PreparationOverlay)window.FindName("GrayPreparationOverlay");
+            Check(FindAny(window, "GrayBackendBox") is null, "The 3D window must not offer a CPU computation backend.");
+            var preparationOverlay = (FractalExplorerWPF.Controls.PreparationOverlay)FindAny(window, "SimulationPreparationOverlay");
             Check(preparationOverlay.Visibility == Visibility.Visible, "Gray–Scott must explain its initial simulation in the shared loading template.");
             await Idle();
             Check(preparationOverlay.Visibility == Visibility.Visible && preparationOverlay.Progress == 90,
@@ -235,42 +234,42 @@ internal static partial class Program
             var loaded = window.CaptureState("ui").GrayScott;
             Check(Shown() is not null && loaded.Live is null && MaxDifference(loaded.Field!, state.GrayScott.Field!) == 0 &&
                 loaded.Field!.Step == state.GrayScott.Field!.Step, "WPF loading must preserve the exact field on pause.");
-            Check(((FrameworkElement)window.FindName("GrayPanel")).Visibility == Visibility.Visible &&
-                ((FrameworkElement)window.FindName("IterationsBox")).Visibility == Visibility.Collapsed &&
-                ((FrameworkElement)window.FindName("BailoutPanel")).Visibility == Visibility.Collapsed,
+            Check((SimulationEditor<GrayScott3DEditor>(window)).Visibility == Visibility.Visible &&
+                ((FrameworkElement)FindAny(window, "IterationsBox")).Visibility == Visibility.Collapsed &&
+                ((FrameworkElement)FindAny(window, "BailoutPanel")).Visibility == Visibility.Collapsed,
                 "The window must show chemical controls rather than unrelated fractal fields.");
-            ((Slider)window.FindName("GrayThresholdSlider")).Value = .22;
+            ((Slider)FindAny(window, "GrayThresholdSlider")).Value = .22;
             Check(window.CaptureState("ui").GrayScott.Threshold == .22 && window.CaptureState("ui").GrayScott.Field!.Step == state.GrayScott.Field!.Step,
                 "View changes must preserve the simulation time and concentrations.");
-            ((TextBox)window.FindName("GrayFeedBox")).Text = "invalid";
+            ((TextBox)FindAny(window, "GrayFeedBox")).Text = "invalid";
             Check(window.CaptureState("draft").GrayScott.Feed == state.GrayScott.Feed, "Unapplied equation drafts must not corrupt saves or camera frames.");
             var rootForTest = (FrameworkElement)window.Content;
             rootForTest.Measure(new Size(960, 600)); rootForTest.Arrange(new Rect(0, 0, 960, 600)); rootForTest.UpdateLayout();
             var beforeStep = window.CaptureState("before").GrayScott.Field!;
-            ((Button)window.FindName("GrayStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((Button)FindAny(window, "SimulationStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Idle();
             Check(Pending() is not null && window.CaptureState("during").GrayScott.Field!.Step == beforeStep.Step,
                 "Saves must retain the displayed field until the computed frame is shown.");
             await Display();
-            Check(window.CaptureState("after").GrayScott.Field!.Step == beforeStep.Step + 16 && !Field<bool>("_grayRunning"),
+            Check(window.CaptureState("after").GrayScott.Field!.Step == beforeStep.Step + 16 && !GrayLive(window).Running,
                 "One frame must advance exactly the selected number of steps and stay paused.");
-            ((Button)window.FindName("GrayPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Invoke("PauseGrayScott"); await Idle();
-            Check(!Field<bool>("_grayRunning"), "Pausing during computation must terminate the live simulation.");
+            ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GrayLive(window).Pause(); await Idle();
+            Check(!GrayLive(window).Running, "Pausing during computation must terminate the live simulation.");
             if (Pending() is not null) await Display();
             Check(Pending() is null, "Steps submitted before a pause must be published and shown.");
-            ((Button)window.FindName("GrayPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Invoke("PauseGrayScott");
-            ((Button)window.FindName("GrayPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GrayLive(window).Pause();
+            ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Idle();
-            Check(Field<bool>("_grayRunning") && Pending() is not null,
+            Check(GrayLive(window).Running && Pending() is not null,
                 "Rapid pause/resume during a canceled batch must resume computation.");
-            Invoke("PauseGrayScott"); await Display(); await Idle();
+            GrayLive(window).Pause(); await Display(); await Idle();
             if (Pending() is not null) await Display();
 
             // The brush edits the GPU field in place without advancing time.
             var beforeBrush = window.CaptureState("brush-before").GrayScott.Field!;
-            ((Button)window.FindName("GrayBrushButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((Button)FindAny(window, "GrayBrushButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Idle(); await Display();
             var afterBrush = window.CaptureState("brush-after").GrayScott.Field!;
             Check(afterBrush.Step == beforeBrush.Step && MaxDifference(afterBrush, beforeBrush) > .01,

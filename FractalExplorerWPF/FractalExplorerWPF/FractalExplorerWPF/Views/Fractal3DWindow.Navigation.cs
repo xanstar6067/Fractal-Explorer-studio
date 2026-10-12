@@ -13,6 +13,8 @@ using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
 
+using static FractalExplorerWPF.Controls.PanelFields;
+
 namespace FractalExplorerWPF.Views;
 
 /// <summary>
@@ -292,8 +294,8 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (_turingPreparing) { e.Handled = true; return; }
-        if (TryKobBrush(e) || TryExBrush(e) || TryGrayBrush(e) || TryTuringBrush(e)) return;
+        if (_simulation?.IsInputLocked == true) { e.Handled = true; return; }
+        if (_simulation?.TryBrush(e) == true) return;
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
             CanvasHost.Focus();
@@ -328,7 +330,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (_turingPreparing) { e.Handled = true; return; }
+        if (_simulation?.IsInputLocked == true) { e.Handled = true; return; }
         if (IsInteracting) return;
         CanvasHost.Focus();
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
@@ -359,7 +361,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (_turingPreparing) { e.Handled = true; return; }
+        if (_simulation?.IsInputLocked == true) { e.Handled = true; return; }
         if (e.ChangedButton != MouseButton.Middle) return;
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
@@ -578,7 +580,7 @@ public partial class Fractal3DWindow
 
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (_turingPreparing) { e.Handled = true; return; }
+        if (_simulation?.IsInputLocked == true) { e.Handled = true; return; }
         if (SelectedNavigationMode == Fractal3DNavigationMode.Game)
         {
             e.Handled = true;

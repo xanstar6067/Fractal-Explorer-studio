@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using FractalExplorerWPF.Models;
 
+using static FractalExplorerWPF.Controls.PanelFields;
+
 namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow

@@ -2,6 +2,8 @@ using System.Windows;
 using System.Windows.Controls;
 using FractalExplorerWPF.Models;
 
+using static FractalExplorerWPF.Controls.PanelFields;
+
 namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow

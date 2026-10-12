@@ -8,6 +8,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -183,13 +184,11 @@ internal static partial class Program
         if(!Application.Current.Resources.MergedDictionaries.Any(d=>d.Source==theme)) Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=theme});
         var window=new Fractal3DWindow(Fractal3DKind.Excitable3D);
         const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
-        T Field<T>(string name)=>(T)typeof(Fractal3DWindow).GetField(name,flags)!.GetValue(window)!;
-        object? Call(string name,params object[] parameters)=>typeof(Fractal3DWindow).GetMethod(name,flags)!.Invoke(window,parameters);
         async Task Display()
         {
             var watch=System.Diagnostics.Stopwatch.StartNew();
-            while(Field<bool>("_exBusy") && watch.ElapsedMilliseconds<30000) await Task.Delay(10);
-            Check(!Field<bool>("_exBusy"),"Window must finish preparation or cancel.");
+            while(ExLive(window).Busy && watch.ElapsedMilliseconds<30000) await Task.Delay(10);
+            Check(!ExLive(window).Busy,"Window must finish preparation or cancel.");
             var method=typeof(Fractal3DWindow).GetMethod("RenderFrameAsync",flags)!;
             await (Task)method.Invoke(window,[Enum.Parse(method.GetParameters()[0].ParameterType,"Full")])!;
         }
@@ -198,30 +197,30 @@ internal static partial class Program
             await Display(); window.LoadState(state); await Display();
             var loaded=window.CaptureState("loaded").Excitable;
             Check(loaded.Field!.Concentrations.SequenceEqual(state.Excitable.Field!.Concentrations),"WPF must show the exact loaded checkpoint on pause.");
-            Check(((FrameworkElement)window.FindName("ExPanel")).Visibility==Visibility.Visible && ((FrameworkElement)window.FindName("IterationsBox")).Visibility==Visibility.Collapsed,"Only relevant simulation controls must be visible.");
+            Check((SimulationEditor<Excitable3DEditor>(window)).Visibility==Visibility.Visible && ((FrameworkElement)FindAny(window, "IterationsBox")).Visibility==Visibility.Collapsed,"Only relevant simulation controls must be visible.");
             foreach(var model in Enum.GetValues<Excitable3DModel>())
             {
-                ((ComboBox)window.FindName("ExModelBox")).SelectedIndex=(int)model;
+                ((ComboBox)FindAny(window, "ExModelBox")).SelectedIndex=(int)model;
                 Check(window.CaptureState("draft").Excitable.Model==state.Excitable.Model,"Model drafts must leave the shown equation intact until Apply.");
             }
-            ((ComboBox)window.FindName("ExModelBox")).SelectedIndex=0;
-            ((TextBox)window.FindName("ExABox")).Text="invalid";
-            Call("ExRestart_OnClick",window,new RoutedEventArgs());
+            ((ComboBox)FindAny(window, "ExModelBox")).SelectedIndex=0;
+            ((TextBox)FindAny(window, "ExABox")).Text="invalid";
+            InvokeEditor(SimulationEditor<Excitable3DEditor>(window), "ExRestart_OnClick", window, new RoutedEventArgs());
             Check(window.CaptureState("invalid").Excitable.Field!.Concentrations.SequenceEqual(loaded.Field.Concentrations),"Invalid Apply must preserve the shown field.");
-            Call("ExStep_OnClick",window,new RoutedEventArgs()); await Display();
+            ExLive(window).StepOnce(); await Display();
             Check(window.CaptureState("step").Excitable.Field!.Step==loaded.Field.Step+loaded.StepsPerFrame,"One frame must advance the displayed snapshot exactly once.");
             var before=window.CaptureState("before").Excitable.Field!;
-            Call("QueueExBrush",.5,.5,.5); await Display();
+            InvokeEditor(SimulationEditor<Excitable3DEditor>(window), "Brush",.5,.5,.5); await Display();
             Check(window.CaptureState("brush").Excitable.Field!.Step==before.Step,"Brush must not advance time.");
-            ((ComboBox)window.FindName("ExViewBox")).SelectedIndex=1;
+            ((ComboBox)FindAny(window, "ExViewBox")).SelectedIndex=1;
             Check(window.CaptureState("filaments").Excitable.View==Excitable3DView.Filaments,"Filament view must reach the shared render state.");
             window.LoadState(Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Excitable3D));
-            Call("PauseExcitable"); await Display();
-            Check(window.CaptureState("partial").Excitable.Field is not null && !Field<bool>("_exRunning"),"Stopping preparation must publish a usable partial field on pause.");
+            ExLive(window).Pause(); await Display();
+            Check(window.CaptureState("partial").Excitable.Field is not null && !ExLive(window).Running,"Stopping preparation must publish a usable partial field on pause.");
             // A second load while an old task is in flight must win.
             window.LoadState(state); window.LoadState(state); await Display();
             Check(window.CaptureState("reload").Excitable.Field!.Concentrations.SequenceEqual(state.Excitable.Field!.Concentrations),"A stale work result must never replace the new load.");
         }
-        finally { Call("CloseExcitable"); window.Close(); }
+        finally { ExLive(window).Close(); window.Close(); }
     }
 }

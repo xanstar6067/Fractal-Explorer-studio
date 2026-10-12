@@ -11,6 +11,7 @@ using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
 using FractalExplorerWPF.Models;
 using FractalExplorerWPF.Views;
+using FractalExplorerWPF.Controls;
 
 internal static partial class Program
 {
@@ -130,15 +131,13 @@ internal static partial class Program
             Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = theme });
         var window = new Fractal3DWindow(kind);
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        object? Invoke(string name, params object[] parameters) => typeof(Fractal3DWindow).GetMethod(name, flags)!.Invoke(window, parameters);
-        T Field<T>(string name) => (T)typeof(Fractal3DWindow).GetField(name, flags)!.GetValue(window)!;
-        Kobayashi3DVolume? Shown() => (Kobayashi3DVolume?)typeof(Fractal3DWindow).GetField("_kobShown", flags)!.GetValue(window);
-        Kobayashi3DVolume? Pending() => (Kobayashi3DVolume?)typeof(Fractal3DWindow).GetField("_kobPending", flags)!.GetValue(window);
+        Kobayashi3DVolume? Shown() => KobLive(window).Shown;
+        Kobayashi3DVolume? Pending() => KobLive(window).Pending;
         async Task Idle()
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            while (Field<bool>("_kobBusy") && watch.ElapsedMilliseconds < 120000) await Task.Delay(10);
-            Check(!Field<bool>("_kobBusy"), "Background simulation must finish or cancel.");
+            while (KobLive(window).Busy && watch.ElapsedMilliseconds < 120000) await Task.Delay(10);
+            Check(!KobLive(window).Busy, "Background simulation must finish or cancel.");
         }
         async Task Display()
         {
@@ -147,7 +146,7 @@ internal static partial class Program
         }
         try
         {
-            Check(window.FindName("KobBackendBox") is null, "The 3D window must not offer a CPU computation backend.");
+            Check(FindAny(window, "KobBackendBox") is null, "The 3D window must not offer a CPU computation backend.");
             await Idle(); await Display();
             Check(Shown() is { Step: > 0 } && Pending() is null, "Opening the window must prepare and show the first preset on the GPU.");
             window.LoadState(state);
@@ -156,42 +155,42 @@ internal static partial class Program
             var loaded = window.CaptureState("ui").Kobayashi;
             Check(Shown() is not null && loaded.Live is null && KobDifference(loaded.Field!, state.Kobayashi.Field!) == 0 &&
                 loaded.Field!.Step == state.Kobayashi.Field!.Step, "WPF loading must preserve the exact field on pause.");
-            Check(((FrameworkElement)window.FindName("KobPanel")).Visibility == Visibility.Visible &&
-                ((FrameworkElement)window.FindName("IterationsBox")).Visibility == Visibility.Collapsed &&
-                ((FrameworkElement)window.FindName("BailoutPanel")).Visibility == Visibility.Collapsed,
+            Check((SimulationEditor<Kobayashi3DEditor>(window)).Visibility == Visibility.Visible &&
+                ((FrameworkElement)FindAny(window, "IterationsBox")).Visibility == Visibility.Collapsed &&
+                ((FrameworkElement)FindAny(window, "BailoutPanel")).Visibility == Visibility.Collapsed,
                 "The window must show chemical controls rather than unrelated fractal fields.");
-            ((Slider)window.FindName("KobThresholdSlider")).Value = .22;
+            ((Slider)FindAny(window, "KobThresholdSlider")).Value = .22;
             Check(window.CaptureState("ui").Kobayashi.Threshold == .22 && window.CaptureState("ui").Kobayashi.Field!.Step == state.Kobayashi.Field!.Step,
                 "View changes must preserve the simulation time and concentrations.");
-            ((TextBox)window.FindName("KobColdBox")).Text = "invalid";
+            ((TextBox)FindAny(window, "KobColdBox")).Text = "invalid";
             Check(window.CaptureState("draft").Kobayashi.Undercooling == state.Kobayashi.Undercooling, "Unapplied equation drafts must not corrupt saves or camera frames.");
             var rootForTest = (FrameworkElement)window.Content;
             rootForTest.Measure(new Size(960, 600)); rootForTest.Arrange(new Rect(0, 0, 960, 600)); rootForTest.UpdateLayout();
             var beforeStep = window.CaptureState("before").Kobayashi.Field!;
-            ((Button)window.FindName("KobStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((Button)FindAny(window, "SimulationStepButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Idle();
             Check(Pending() is not null && window.CaptureState("during").Kobayashi.Field!.Step == beforeStep.Step,
                 "Saves must retain the displayed field until the computed frame is shown.");
             await Display();
-            Check(window.CaptureState("after").Kobayashi.Field!.Step == beforeStep.Step + 32 && !Field<bool>("_kobRunning"),
+            Check(window.CaptureState("after").Kobayashi.Field!.Step == beforeStep.Step + 32 && !KobLive(window).Running,
                 "One frame must advance exactly the selected number of steps and stay paused.");
-            ((Button)window.FindName("KobPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Invoke("PauseKobayashi"); await Idle();
-            Check(!Field<bool>("_kobRunning"), "Pausing during computation must terminate the live simulation.");
+            ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            KobLive(window).Pause(); await Idle();
+            Check(!KobLive(window).Running, "Pausing during computation must terminate the live simulation.");
             if (Pending() is not null) await Display();
             Check(Pending() is null, "Steps submitted before a pause must be published and shown.");
-            ((Button)window.FindName("KobPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Invoke("PauseKobayashi");
-            ((Button)window.FindName("KobPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            KobLive(window).Pause();
+            ((Button)FindAny(window, "SimulationPlayButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Idle();
-            Check(Field<bool>("_kobRunning") && Pending() is not null,
+            Check(KobLive(window).Running && Pending() is not null,
                 "Rapid pause/resume during a canceled batch must resume computation.");
-            Invoke("PauseKobayashi"); await Display(); await Idle();
+            KobLive(window).Pause(); await Display(); await Idle();
             if (Pending() is not null) await Display();
 
             // The brush edits the GPU field in place without advancing time.
             var beforeBrush = window.CaptureState("brush-before").Kobayashi.Field!;
-            Invoke("QueueKobBrush", .8, .5, .5);
+            InvokeEditor(SimulationEditor<Kobayashi3DEditor>(window), "Brush", .8, .5, .5);
             await Idle(); await Display();
             var afterBrush = window.CaptureState("brush-after").Kobayashi.Field!;
             Check(afterBrush.Step == beforeBrush.Step && KobDifference(afterBrush, beforeBrush) > .00001,

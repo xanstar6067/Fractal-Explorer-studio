@@ -1,8 +1,5 @@
-using System.Runtime.InteropServices;
 using FractalExplorerWPF.Core.Rendering;
-using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
-using Vortice.D3DCompiler;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
@@ -10,105 +7,60 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 
 /// <summary>
 /// Опубликованный кадр моделирования: объём поля и карты масштабов для рендера и точная копия
-/// поля для сохранения. Билет неизменяем; данные слота живут на ГП до следующей публикации в него.
+/// поля для сохранения.
 /// </summary>
-public sealed record Turing3DVolume(Turing3DGpuSimulation Source, long Version, long Step, int Size, int Slot);
+public sealed record Turing3DVolume(Turing3DGpuSimulation Source, long Version, long Step, int Size, int Slot)
+    : IGpuVolumeTicket<Turing3DGpuSimulation>;
 
 /// <summary>
-/// Многомасштабные узоры Тьюринга в кубе целиком на ГП. Поле не покидает видеокарту:
-/// <see cref="Publish"/> пишет текстуру, которую рендер того же <see cref="Direct3DDeviceHost"/>
-/// читает напрямую, а в оперативную память поле попадает только по запросу — для сохранения.
-/// Слотов публикации два: новый кадр пишется мимо показанного. Шаги подаются только целиком,
-/// поэтому отмена между порциями оставляет согласованное поле.
-/// Методы без суффикса <c>Locked</c> сами встают в очередь устройства; с суффиксом — вызываются
-/// под уже взятым <see cref="Direct3DDeviceHost.Gate"/> (подготовка превью внутри рендера).
+/// Многомасштабные узоры Тьюринга и классические двухкомпонентные реакции в кубе целиком на ГП;
+/// общий цикл подачи шагов, слотов публикации и чтения поля —
+/// <see cref="GpuVolumeSimulation{TSettings, TField, TVolume}"/>.
 /// </summary>
-public sealed class Turing3DGpuSimulation : IDisposable
+public sealed class Turing3DGpuSimulation : GpuVolumeSimulation<Turing3DSettings, Turing3DField, Turing3DVolume>
 {
-    private const double FenceTimeoutSeconds = 30;
     /// <summary>Наибольшая группа — икосаэдр с отражениями (120); запас до предела замыкания.</summary>
     private const int MaxGroupSize = 240;
 
-    private readonly Direct3DDeviceHost _host;
-    private readonly Dictionary<string, ID3D11ComputeShader> _shaders = [];
-    private readonly ID3D11Query[] _fences = new ID3D11Query[2];
-    private readonly bool[] _fencePending = new bool[2];
-    private readonly Slot?[] _slots = new Slot?[2];
-    private readonly long[] _slotVersions = new long[2];
-    private readonly float[] _parameters = new float[48];
-    private ID3D11Buffer _constants = null!;
-    private ID3D11Buffer? _staging;
-    private GpuBuffer? _value, _scale, _nextValue, _nextScale, _activator, _inhibitor, _work, _temporary;
-    private GpuBuffer? _u, _v, _nextU, _nextV;
-    private GpuBuffer? _best, _range0, _range1, _group;
+    private readonly Slot?[] _slots = new Slot?[SlotCount];
+    private GpuStructuredBuffer? _value, _scale, _nextValue, _nextScale, _activator, _inhibitor, _work, _temporary;
+    private GpuStructuredBuffer? _u, _v, _nextU, _nextV;
+    private GpuStructuredBuffer? _best, _range0, _range1, _group;
     private IReadOnlyList<(int Layer, int Radius, int Inhibitor, double Amount)> _layers = [];
-    private int _groupSize = 1, _fenceIndex, _lastSlot = 1;
-    private long _step, _version;
-    private bool _disposed;
+    private int _groupSize = 1;
 
     public Turing3DGpuSimulation(Direct3DDeviceHost host, Turing3DSettings settings) : this(host, settings, false) { }
 
     private Turing3DGpuSimulation(Direct3DDeviceHost host, Turing3DSettings settings, bool gateHeld)
-    {
-        settings.Validate();
-        _host = host.AddRef();
-        bool entered = false, created = false;
-        try
-        {
-            if (!gateHeld) { _host.Gate.Wait(); entered = true; }
-            ID3D11Device device = _host.Device;
-            foreach (var entry in Turing3DComputeShader.CacheEntries)
-                _shaders[entry.EntryPoint] = device.CreateComputeShader(ShaderBytecodeCache.GetOrCompile(entry,
-                    e => Compiler.Compile(e.Source, e.EntryPoint, "Turing3D", e.Profile)).Span);
-            _constants = device.CreateBuffer(new BufferDescription { ByteWidth = 192, Usage = ResourceUsage.Dynamic,
-                BindFlags = BindFlags.ConstantBuffer, CPUAccessFlags = CpuAccessFlags.Write });
-            for (int i = 0; i < _fences.Length; i++)
-                _fences[i] = device.CreateQuery(new QueryDescription(QueryType.Event, QueryFlags.None));
-            _group = new GpuBuffer(device, MaxGroupSize * 4, 16);
-            ResetLocked(settings);
-            created = true;
-        }
-        finally
-        {
-            if (!created) DisposeResources();
-            if (entered) _host.Gate.Release();
-            // The last reference destroys the device together with its gate: only after the gate is free.
-            if (!created) _host.Release();
-        }
-    }
+        : base(host, Turing3DComputeShader.CacheEntries, "Turing3D", "узора Тьюринга 3D", 48) =>
+        Initialize(settings, gateHeld);
 
     /// <summary>Для рендера, который уже держит очередь устройства.</summary>
     internal static Turing3DGpuSimulation CreateLocked(Direct3DDeviceHost host, Turing3DSettings settings) =>
         new(host, settings, true);
 
-    internal bool Uses(Direct3DDeviceHost host) => ReferenceEquals(_host, host);
-
-    /// <summary>Действующее правило; <c>Field</c> всегда null — поле живёт на ГП.</summary>
-    public Turing3DSettings Settings { get; private set; } = new();
-    public string DeviceName => "ГП · " + _host.AdapterName;
-    public int Size => Settings.Size;
-    public long Step => Volatile.Read(ref _step);
     /// <summary>Число элементов группы симметрии, по которым повторяются шаг и кисть.</summary>
     public int SymmetryOrder => _groupSize;
 
-    /// <summary>Новое поле — сохранённое или случайное по числу генератора — и правило к нему.</summary>
-    public void Reset(Turing3DSettings settings)
+    private protected override double FenceTimeoutSeconds => 30;
+    private protected override string TimeoutMessage => "ГП не завершил шаги узора Тьюринга 3D. Попробуйте уменьшить сетку.";
+    private protected override bool ViewRequiresCurrentFrame => false;
+
+    /// <summary>Порция подачи: шаг дорог, поэтому на крупной сетке — по одному, на мелкой — до 16.</summary>
+    private protected override int StepsPerSubmit
     {
-        settings.Validate();
-        _host.Gate.Wait();
-        try { ResetLocked(settings); }
-        finally { _host.Gate.Release(); }
+        get { long n = Size; return (int)Math.Clamp(6_000_000 / (n * n * n * Math.Max(_layers.Count, 1)), 1, 16); }
     }
 
-    internal void ResetLocked(Turing3DSettings settings)
+    private protected override void CreateResourcesLocked() => _group = new(Host.Device, MaxGroupSize * 4, 16);
+
+    /// <summary>Новое поле — сохранённое или случайное по числу генератора — и правило к нему.</summary>
+    private protected override void ResetCoreLocked(Turing3DSettings settings)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        settings.Validate();
         int size = settings.Size;
         if (_value is null || Settings.Size != size) AllocateFields(size);
         ConfigureLocked(settings);
-        Array.Clear(_slotVersions);
-        ID3D11DeviceContext context = _host.Context;
+        ID3D11DeviceContext context = Host.Context;
         if (settings.Field is { } field)
         {
             context.UpdateSubresource(field.Values, _value!.Buffer);
@@ -116,7 +68,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
             if (settings.Reaction.IsClassical) {
                 context.UpdateSubresource(field.UValues, _u!.Buffer); context.UpdateSubresource(field.VValues, _v!.Buffer);
             }
-            _step = field.Step;
+            CurrentStep = field.Step;
         }
         else if (settings.Reaction.IsClassical)
         {
@@ -127,7 +79,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
                 v[i] = (float)(equilibrium.V * (1 + .05 * (random.NextDouble() * 2 - 1)));
             }
             context.UpdateSubresource(u, _u!.Buffer); context.UpdateSubresource(v, _v!.Buffer);
-            SymmetrizeReactionLocked(); ReactionDisplayLocked(); _step = 0;
+            SymmetrizeReactionLocked(); ReactionDisplayLocked(); CurrentStep = 0;
         }
         else
         {
@@ -138,7 +90,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
             context.UpdateSubresource(noise, _nextValue!.Buffer);
             context.UpdateSubresource(new float[count], _nextScale!.Buffer);
             FinishStepLocked();
-            _step = 0;
+            CurrentStep = 0;
         }
     }
 
@@ -146,15 +98,15 @@ public sealed class Turing3DGpuSimulation : IDisposable
     public void Configure(Turing3DSettings settings)
     {
         settings.Validate();
-        _host.Gate.Wait();
+        Host.Gate.Wait();
         try
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ThrowIfDisposed();
             if (settings.Reaction.Model != Settings.Reaction.Model) throw new ArgumentException("Смена модели требует нового поля.");
             if (settings.Size != Settings.Size) throw new ArgumentException("Смена сетки требует переноса поля.");
             ConfigureLocked(settings);
         }
-        finally { _host.Gate.Release(); }
+        finally { Host.Gate.Release(); }
     }
 
     private void ConfigureLocked(Turing3DSettings settings)
@@ -166,83 +118,37 @@ public sealed class Turing3DGpuSimulation : IDisposable
         // UpdateSubresource fills the whole buffer, so the source array must cover all of it.
         var packed = new float[MaxGroupSize * 16];
         Turing3DSymmetryGroup.Pack(group).CopyTo(packed, 0);
-        _host.Context.UpdateSubresource(packed, _group!.Buffer);
+        Host.Context.UpdateSubresource(packed, _group!.Buffer);
         // Display value of each scale: its rank among the enabled ones, spread over the palette.
         int enabled = _layers.Count;
-        for (int i = 0; i < 8; i++) _parameters[20 + i] = 0;
+        for (int i = 0; i < 8; i++) Parameters[20 + i] = 0;
         for (int rank = 0; rank < enabled; rank++)
-            _parameters[20 + _layers[rank].Layer] = enabled > 1 ? rank / (float)(enabled - 1) : .5f;
-    }
-
-    /// <summary>
-    /// Ставит шаги в очередь ГП порциями и не держит устройство между ними: полосы кадра идут
-    /// вперемежку. Ждёт не конца работы, а предпоследней порции. Отмена прекращает подачу новых
-    /// порций; уже поданные шаги — целые шаги. Возвращает число поданных шагов.
-    /// </summary>
-    public int Advance(int steps, CancellationToken token, IProgress<int>? progress = null)
-    {
-        if (steps < 0) throw new ArgumentOutOfRangeException(nameof(steps));
-        int done = 0;
-        while (done < steps && !token.IsCancellationRequested)
-        {
-            int count = Math.Min(StepsPerSubmit, steps - done);
-            if (!TryEnter(token)) break;
-            try { SubmitStepsLocked(count); }
-            finally { _host.Gate.Release(); }
-            done += count;
-            WaitForFence(_fenceIndex ^ 1, token, holdingGate: false);
-            progress?.Report(done);
-        }
-        return done;
-    }
-
-    /// <summary>Подготовка под взятой очередью: отмена бросает исключение, поле остаётся целым.</summary>
-    internal void AdvanceLocked(int steps, CancellationToken token)
-    {
-        for (int done = 0; done < steps;)
-        {
-            token.ThrowIfCancellationRequested();
-            int count = Math.Min(StepsPerSubmit, steps - done);
-            SubmitStepsLocked(count);
-            done += count;
-            WaitForFence(_fenceIndex ^ 1, token, holdingGate: true);
-        }
-        token.ThrowIfCancellationRequested();
+            Parameters[20 + _layers[rank].Layer] = enabled > 1 ? rank / (float)(enabled - 1) : .5f;
     }
 
     /// <summary>Сферический мазок в долях ребра, повторённый по группе симметрии; время не идёт.</summary>
     public void Paint(double x, double y, double z, double radius, double strength, TuringBrush brush)
     {
         ValidateBrush(x, y, z, radius, strength);
-        _host.Gate.Wait();
+        Host.Gate.Wait();
         try
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ThrowIfDisposed();
             Set(0, Size, 0, (int)Settings.Boundary, 0);
             Set(1, 0, 0, 0, _groupSize);
             Set(2, (float)x, (float)y, (float)z, (float)radius);
-            Set(3, (float)strength, (int)brush, BitConverter.Int32BitsToSingle(Settings.Seed), BitConverter.Int32BitsToSingle(unchecked((int)_step)));
+            Set(3, (float)strength, (int)brush, BitConverter.Int32BitsToSingle(Settings.Seed), BitConverter.Int32BitsToSingle(unchecked((int)CurrentStep)));
             SetReactionParameters();
             DispatchVolume("Paint", outA: Settings.Reaction.IsClassical ? _u : _value);
             if (Settings.Reaction.IsClassical) ReactionDisplayLocked();
         }
-        finally { _host.Gate.Release(); }
+        finally { Host.Gate.Release(); }
     }
 
-    /// <summary>Публикует текущее поле для рендера и сохранения, не трогая слот кадра <paramref name="keep"/>.</summary>
-    public Turing3DVolume Publish(Turing3DVolume? keep = null)
+    private protected override void PublishToSlotLocked(int index)
     {
-        _host.Gate.Wait();
-        try { return PublishLocked(keep); }
-        finally { _host.Gate.Release(); }
-    }
-
-    internal Turing3DVolume PublishLocked(Turing3DVolume? keep = null)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        int index = IsCurrent(keep) ? keep!.Slot ^ 1 : _lastSlot ^ 1;
         Slot slot = _slots[index]!;
-        ID3D11DeviceContext context = _host.Context;
+        ID3D11DeviceContext context = Host.Context;
         context.CopyResource(slot.Value.Buffer, _value!.Buffer);
         context.CopyResource(slot.Scale.Buffer, _scale!.Buffer);
         if (Settings.Reaction.IsClassical) {
@@ -251,97 +157,36 @@ public sealed class Turing3DGpuSimulation : IDisposable
         slot.Model = Settings.Reaction.Model;
         SetReactionParameters();
         Set(0, Size, 0, 0, 0);
-        DispatchVolume("Publish", a: slot.Value, b: slot.Scale, display: slot.DisplayWrite);
-        _version++;
-        _slotVersions[index] = _version;
-        _lastSlot = index;
-        return new(this, _version, _step, Size, index);
+        DispatchVolume("Publish", a: slot.Value, b: slot.Scale, display: slot.Display.WriteView);
     }
 
-    private bool IsCurrent(Turing3DVolume? volume) =>
-        volume is not null && ReferenceEquals(volume.Source, this) && volume.Size == Size &&
-        _slotVersions[volume.Slot] == volume.Version;
+    private protected override Turing3DVolume CreateVolume(long version, int slot) => new(this, version, CurrentStep, Size, slot);
 
-    /// <summary>Текстура опубликованного кадра (поле и масштаб); вызывается рендером под очередью устройства.</summary>
-    internal ID3D11ShaderResourceView ViewLocked(Turing3DVolume volume)
+    /// <summary>Текстура опубликованного кадра (поле и масштаб).</summary>
+    private protected override ID3D11ShaderResourceView DisplayView(int slot) => _slots[slot]!.Display.View;
+
+    private protected override Turing3DField ReadSlotLocked(Turing3DVolume volume)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!ReferenceEquals(volume.Source, this)) throw new ArgumentException("Кадр другого моделирования.");
-        return _slots[volume.Slot]!.DisplayView;
+        Slot slot = _slots[volume.Slot]!;
+        return ReadLocked(slot.Value, slot.Scale, volume.Step, slot.Model, slot.U, slot.V);
     }
 
-    /// <summary>Точное поле опубликованного кадра — контрольная точка для сохранения.</summary>
-    public Turing3DField ReadCheckpoint(Turing3DVolume volume)
-    {
-        if (!ReferenceEquals(volume.Source, this)) throw new ArgumentException("Кадр другого моделирования.");
-        _host.Gate.Wait();
-        try
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!IsCurrent(volume)) throw new InvalidOperationException("Кадр узора Тьюринга 3D уже заменён более новым.");
-            Slot slot = _slots[volume.Slot]!;
-            return ReadLocked(slot.Value, slot.Scale, volume.Step, slot.Model, slot.U, slot.V);
-        }
-        finally { _host.Gate.Release(); }
-    }
+    private protected override Turing3DField ReadCurrentLocked() =>
+        ReadLocked(_value!, _scale!, CurrentStep, Settings.Reaction.Model, _u!, _v!);
 
-    /// <summary>Текущее поле, включая ещё не опубликованные шаги.</summary>
-    public Turing3DField ReadCurrent()
+    private Turing3DField ReadLocked(GpuStructuredBuffer value, GpuStructuredBuffer scale, long step, TuringReactionModel model,
+        GpuStructuredBuffer u, GpuStructuredBuffer v)
     {
-        _host.Gate.Wait();
-        try { ObjectDisposedException.ThrowIf(_disposed, this); return ReadLocked(_value!, _scale!, _step, Settings.Reaction.Model, _u!, _v!); }
-        finally { _host.Gate.Release(); }
-    }
-
-    private Turing3DField ReadLocked(GpuBuffer value, GpuBuffer scale, long step, TuringReactionModel model, GpuBuffer u, GpuBuffer v)
-    {
-        float[] values = ReadFloats(value);
-        float[] scales = ReadFloats(scale);
+        float[] values = ReadFloatsLocked(value.Buffer);
+        float[] scales = ReadFloatsLocked(scale.Buffer);
         var map = new byte[scales.Length];
         for (int i = 0; i < map.Length; i++) map[i] = (byte)scales[i];
-        return new(Size, step, values, map, true, model, model == TuringReactionModel.McCabe ? [] : ReadFloats(u), model == TuringReactionModel.McCabe ? [] : ReadFloats(v));
-    }
-
-    private float[] ReadFloats(GpuBuffer source)
-    {
-        int bytes = source.Count * 4;
-        if (_staging is null || _staging.Description.ByteWidth != bytes)
-        {
-            _staging?.Dispose();
-            _staging = _host.Device.CreateBuffer(new BufferDescription
-                { ByteWidth = (uint)bytes, Usage = ResourceUsage.Staging, CPUAccessFlags = CpuAccessFlags.Read });
-        }
-        ID3D11DeviceContext context = _host.Context;
-        context.CopyResource(_staging, source.Buffer);
-        var mapped = context.Map(_staging, MapMode.Read);
-        var values = new float[source.Count];
-        try { Marshal.Copy(mapped.DataPointer, values, 0, values.Length); }
-        finally { context.Unmap(_staging, 0); }
-        return values;
-    }
-
-    /// <summary>Порция подачи: шаг дорог, поэтому на крупной сетке — по одному, на мелкой — до 16.</summary>
-    private int StepsPerSubmit
-    {
-        get { long n = Size; return (int)Math.Clamp(6_000_000 / (n * n * n * Math.Max(_layers.Count, 1)), 1, 16); }
-    }
-
-    private void SubmitStepsLocked(int count)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        for (int i = 0; i < count; i++)
-        {
-            EvolveLocked();
-            _step++;
-        }
-        _fenceIndex ^= 1;
-        _host.Context.End(_fences[_fenceIndex]);
-        _fencePending[_fenceIndex] = true;
-        _host.Context.Flush();
+        return new(Size, step, values, map, true, model, model == TuringReactionModel.McCabe ? [] : ReadFloatsLocked(u.Buffer),
+            model == TuringReactionModel.McCabe ? [] : ReadFloatsLocked(v.Buffer));
     }
 
     /// <summary>Один целый шаг: масштабы по очереди, затем сложение, симметрия и нормировка.</summary>
-    private void EvolveLocked()
+    private protected override void StepLocked()
     {
         if (Settings.Reaction.IsClassical) { EvolveReactionLocked(); return; }
         bool first = true;
@@ -382,7 +227,7 @@ public sealed class Turing3DGpuSimulation : IDisposable
         Set(0, Size, 0, 0, 0);
         Set(4, cells, 0, 0, 0);
         Dispatch("Reduce", (uint)groups, 1, 1, a: _value, outD: _range0);
-        int remaining = groups; GpuBuffer range = _range0!, other = _range1!;
+        int remaining = groups; GpuStructuredBuffer range = _range0!, other = _range1!;
         while (remaining > 1)
         {
             Set(4, remaining, 1, 0, 0);
@@ -395,23 +240,23 @@ public sealed class Turing3DGpuSimulation : IDisposable
 
     /// <summary>
     /// Три квадратных окна (приближение гауссова окружения, как в 2D) по трём осям: один проход
-    /// на ось, все окна — внутри проход. Результат оказывается в <paramref name="target"/>:
+    /// на ось, все окна — внутри прохода. Результат оказывается в <paramref name="target"/>:
     /// проходы чередуют его с общим временным буфером, и при нечётном их числе они меняются
     /// ролями без копирования. Источник не перезаписывается, пока не прочитан целиком.
     /// </summary>
-    private void Smooth(GpuBuffer source, ref GpuBuffer? target, int radius)
+    private void Smooth(GpuStructuredBuffer source, ref GpuStructuredBuffer? target, int radius)
     {
         int[] boxes = TuringSimulation.GaussianBoxWidths(radius * .75).Select(width => width / 2).ToArray();
         if (boxes.All(box => box == 0))
         {
-            if (!ReferenceEquals(source, target)) _host.Context.CopyResource(target!.Buffer, source.Buffer);
+            if (!ReferenceEquals(source, target)) Host.Context.CopyResource(target!.Buffer, source.Buffer);
             return;
         }
-        GpuBuffer current = source;
+        GpuStructuredBuffer current = source;
         uint n = (uint)Size;
         for (int axis = 0; axis < 3; axis++)
         {
-            GpuBuffer next = ReferenceEquals(current, _temporary) ? target! : _temporary!;
+            GpuStructuredBuffer next = ReferenceEquals(current, _temporary) ? target! : _temporary!;
             Set(0, Size, 0, (int)Settings.Boundary, axis);
             Set(7, boxes[0], boxes[1], boxes[2], 0);
             Dispatch("Blur", n, n, 1, a: current, outA: next);
@@ -450,9 +295,9 @@ public sealed class Turing3DGpuSimulation : IDisposable
         for (int sub = 0; sub < integration.Count; sub++)
         {
             SetReactionParameters();
-            _parameters[35] = (float)integration.Dt;
-            _parameters[36] = (float)(Settings.Reaction.DiffusionU * integration.DiffusionScale);
-            _parameters[37] = (float)(Settings.Reaction.DiffusionV * integration.DiffusionScale);
+            Parameters[35] = (float)integration.Dt;
+            Parameters[36] = (float)(Settings.Reaction.DiffusionU * integration.DiffusionScale);
+            Parameters[37] = (float)(Settings.Reaction.DiffusionV * integration.DiffusionScale);
             Set(0, Size, 0, (int)Settings.Boundary, 0);
             DispatchVolume("ReactionStep", a: _u, b: _v, outA: _nextU, outB: _nextV);
             (_u, _nextU) = (_nextU, _u); (_v, _nextV) = (_nextV, _v);
@@ -463,19 +308,20 @@ public sealed class Turing3DGpuSimulation : IDisposable
 
     private void Set(int index, float x, float y, float z, float w)
     {
-        _parameters[index * 4] = x; _parameters[index * 4 + 1] = y;
-        _parameters[index * 4 + 2] = z; _parameters[index * 4 + 3] = w;
+        Parameters[index * 4] = x; Parameters[index * 4 + 1] = y;
+        Parameters[index * 4 + 2] = z; Parameters[index * 4 + 3] = w;
     }
 
-    private void DispatchCells(string entry, GpuBuffer? a = null, GpuBuffer? b = null, GpuBuffer? c = null, GpuBuffer? d = null,
-        GpuBuffer? outA = null, GpuBuffer? outB = null, GpuBuffer? outD = null)
+    private void DispatchCells(string entry, GpuStructuredBuffer? a = null, GpuStructuredBuffer? b = null,
+        GpuStructuredBuffer? c = null, GpuStructuredBuffer? d = null,
+        GpuStructuredBuffer? outA = null, GpuStructuredBuffer? outB = null, GpuStructuredBuffer? outD = null)
     {
         long cells = (long)Size * Size * Size;
         Dispatch(entry, (uint)((cells + Turing3DComputeShader.CellGroup - 1) / Turing3DComputeShader.CellGroup), 1, 1, a, b, c, d, outA, outB, outD);
     }
 
-    private void DispatchVolume(string entry, GpuBuffer? a = null, GpuBuffer? b = null,
-        GpuBuffer? outA = null, GpuBuffer? outB = null, ID3D11UnorderedAccessView? display = null)
+    private void DispatchVolume(string entry, GpuStructuredBuffer? a = null, GpuStructuredBuffer? b = null,
+        GpuStructuredBuffer? outA = null, GpuStructuredBuffer? outB = null, ID3D11UnorderedAccessView? display = null)
     {
         uint n = (uint)Size;
         Dispatch(entry, (n + Turing3DComputeShader.VolumeX - 1) / Turing3DComputeShader.VolumeX,
@@ -483,15 +329,13 @@ public sealed class Turing3DGpuSimulation : IDisposable
             (n + Turing3DComputeShader.VolumeZ - 1) / Turing3DComputeShader.VolumeZ, a, b, null, null, outA, outB, null, display);
     }
 
-    private void Dispatch(string entry, uint x, uint y, uint z, GpuBuffer? a = null, GpuBuffer? b = null, GpuBuffer? c = null,
-        GpuBuffer? d = null, GpuBuffer? outA = null, GpuBuffer? outB = null, GpuBuffer? outD = null, ID3D11UnorderedAccessView? display = null)
+    private void Dispatch(string entry, uint x, uint y, uint z, GpuStructuredBuffer? a = null, GpuStructuredBuffer? b = null,
+        GpuStructuredBuffer? c = null, GpuStructuredBuffer? d = null, GpuStructuredBuffer? outA = null,
+        GpuStructuredBuffer? outB = null, GpuStructuredBuffer? outD = null, ID3D11UnorderedAccessView? display = null)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ID3D11DeviceContext context = _host.Context;
-        var mapped = context.Map(_constants, MapMode.WriteDiscard);
-        try { Marshal.Copy(_parameters, 0, mapped.DataPointer, _parameters.Length); }
-        finally { context.Unmap(_constants, 0); }
-        context.CSSetShader(_shaders[entry]); context.CSSetConstantBuffer(0, _constants);
+        // Parameters change between almost all passes, so they are uploaded every time.
+        ConstantsDirty = true;
+        ID3D11DeviceContext context = BindLocked(entry);
         context.CSSetShaderResource(0, a?.View!); context.CSSetShaderResource(1, b?.View!);
         context.CSSetShaderResource(2, c?.View!); context.CSSetShaderResource(3, d?.View!);
         context.CSSetShaderResource(4, _group!.View);
@@ -503,40 +347,10 @@ public sealed class Turing3DGpuSimulation : IDisposable
         for (uint slot = 0; slot < 4; slot++) context.CSSetUnorderedAccessView(slot, null!);
     }
 
-    private void WaitForFence(int index, CancellationToken token, bool holdingGate)
-    {
-        if (!_fencePending[index]) return;
-        var watch = System.Diagnostics.Stopwatch.StartNew();
-        var spinner = new SpinWait();
-        while (!token.IsCancellationRequested)
-        {
-            if (!holdingGate && !TryEnter(token)) return;
-            try
-            {
-                if (_disposed) return;
-                var result = _host.Context.GetData(_fences[index], IntPtr.Zero, 0, AsyncGetDataFlags.DoNotFlush);
-                result.CheckError();
-                if (result.Code == 0) { _fencePending[index] = false; return; }
-            }
-            finally { if (!holdingGate) _host.Gate.Release(); }
-            if (watch.Elapsed.TotalSeconds > FenceTimeoutSeconds)
-                throw new TimeoutException("ГП не завершил шаги узора Тьюринга 3D. Попробуйте уменьшить сетку.");
-            // Short waits spin: Sleep(1) may last a whole 15.6 ms scheduler tick.
-            if (watch.ElapsedMilliseconds < 2) spinner.SpinOnce(sleep1Threshold: -1);
-            else Thread.Sleep(1);
-        }
-    }
-
-    private bool TryEnter(CancellationToken token)
-    {
-        try { _host.Gate.Wait(token); return true; }
-        catch (OperationCanceledException) { return false; }
-    }
-
     private void AllocateFields(int size)
     {
         DisposeFields();
-        ID3D11Device device = _host.Device;
+        ID3D11Device device = Host.Device;
         int cells = size * size * size, groups = (cells + 255) / 256;
         _u = new(device, cells, 4); _v = new(device, cells, 4); _nextU = new(device, cells, 4); _nextV = new(device, cells, 4);
         _value = new(device, cells, 4); _scale = new(device, cells, 4);
@@ -555,45 +369,10 @@ public sealed class Turing3DGpuSimulation : IDisposable
             throw new ArgumentOutOfRangeException(nameof(radius));
     }
 
-    /// <summary>
-    /// Освобождение из окна. Ссылка на устройство отпускается после очереди: если окно уже
-    /// освободило рендер, эта ссылка последняя и уничтожает устройство вместе с его очередью.
-    /// </summary>
-    public void Dispose()
-    {
-        if (_disposed) return;
-        bool entered = _host.Gate.Wait(TimeSpan.FromSeconds(10));
-        try
-        {
-            if (_disposed) return;
-            _disposed = true;
-            DisposeResources();
-        }
-        finally { if (entered) _host.Gate.Release(); }
-        _host.Release();
-    }
-
-    /// <summary>
-    /// Освобождение под уже взятой очередью устройства (из рендера). Отпустить ссылку здесь можно:
-    /// рендер держит свою до конца своего освобождения, поэтому устройство и очередь остаются живы.
-    /// </summary>
-    internal void DisposeWhileLocked()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        DisposeResources();
-        _host.Release();
-    }
-
-    private void DisposeResources()
+    private protected override void DisposeResourcesCore()
     {
         DisposeFields();
         _group?.Dispose(); _group = null;
-        _staging?.Dispose(); _staging = null;
-        foreach (var shader in _shaders.Values) shader.Dispose();
-        _shaders.Clear();
-        foreach (var fence in _fences) fence?.Dispose();
-        _constants?.Dispose();
     }
 
     private void DisposeFields()
@@ -605,48 +384,24 @@ public sealed class Turing3DGpuSimulation : IDisposable
         for (int i = 0; i < _slots.Length; i++) { _slots[i]?.Dispose(); _slots[i] = null; }
     }
 
-    private sealed class GpuBuffer : IDisposable
-    {
-        public ID3D11Buffer Buffer { get; }
-        public ID3D11ShaderResourceView View { get; } = null!;
-        public ID3D11UnorderedAccessView WriteView { get; } = null!;
-        public int Count { get; }
-        public GpuBuffer(ID3D11Device device, int count, int stride)
-        {
-            Count = count;
-            Buffer = device.CreateBuffer(new BufferDescription { ByteWidth = checked((uint)(count * stride)),
-                Usage = ResourceUsage.Default, BindFlags = BindFlags.ShaderResource | BindFlags.UnorderedAccess,
-                MiscFlags = ResourceOptionFlags.BufferStructured, StructureByteStride = (uint)stride });
-            try { View = device.CreateShaderResourceView(Buffer); WriteView = device.CreateUnorderedAccessView(Buffer); }
-            catch { View?.Dispose(); Buffer.Dispose(); throw; }
-        }
-        public void Dispose() { WriteView.Dispose(); View.Dispose(); Buffer.Dispose(); }
-    }
-
     /// <summary>Опубликованный кадр: точные поле и карта масштабов и объём R32G32_Float для рендера.</summary>
     private sealed class Slot : IDisposable
     {
-        public TuringReactionModel Model { get; set; }
-        public GpuBuffer U { get; }
-        public GpuBuffer V { get; }
-        public GpuBuffer Value { get; }
-        public GpuBuffer Scale { get; }
-        public ID3D11Texture3D Display { get; }
-        public ID3D11ShaderResourceView DisplayView { get; }
-        public ID3D11UnorderedAccessView DisplayWrite { get; }
         public Slot(ID3D11Device device, int side)
         {
             int cells = side * side * side;
             U = new(device, cells, 4); V = new(device, cells, 4);
             Value = new(device, cells, 4); Scale = new(device, cells, 4);
-            Display = device.CreateTexture3D(new Texture3DDescription
-            {
-                Width = (uint)side, Height = (uint)side, Depth = (uint)side, MipLevels = 1, Format = Format.R32G32_Float,
-                Usage = ResourceUsage.Default, BindFlags = BindFlags.ShaderResource | BindFlags.UnorderedAccess
-            });
-            DisplayView = device.CreateShaderResourceView(Display);
-            DisplayWrite = device.CreateUnorderedAccessView(Display);
+            Display = new(device, side, Format.R32G32_Float);
         }
-        public void Dispose() { DisplayWrite.Dispose(); DisplayView.Dispose(); Display.Dispose(); Scale.Dispose(); Value.Dispose(); U.Dispose(); V.Dispose(); }
+
+        public TuringReactionModel Model { get; set; }
+        public GpuStructuredBuffer U { get; }
+        public GpuStructuredBuffer V { get; }
+        public GpuStructuredBuffer Value { get; }
+        public GpuStructuredBuffer Scale { get; }
+        public GpuVolumeTexture Display { get; }
+
+        public void Dispose() { Display.Dispose(); Scale.Dispose(); Value.Dispose(); U.Dispose(); V.Dispose(); }
     }
 }
