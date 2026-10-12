@@ -56,8 +56,8 @@ public partial class Fractal3DWindow
         LeniaSpeedSlider.Value = s.StepsPerFrame; LeniaLevelSlider.Value = s.Threshold;
         LeniaCutBox.SelectedIndex = s.CutAxis; LeniaCutSlider.Value = s.CutPosition;
         _leniaQueuedSteps = s.Field is null ? s.WarmupSteps : 0;
-        _leniaPreparing = true; LeniaPreparationProgress.Value = 0;
-        LeniaPreparationOverlay.Visibility = Visibility.Visible;
+        _leniaPreparing = true; LeniaPreparationOverlay.Progress = 0;
+        BeginSimulationPreparation(LeniaPreparationOverlay, "Подготовка Lenia…");
         UpdateLeniaLabels();
         _ = RunLeniaWorkAsync();
     }
@@ -152,8 +152,9 @@ public partial class Fractal3DWindow
         var progress = new Progress<int>(done =>
         {
             if (_isClosing || epoch != _leniaEpoch || !_leniaPreparing) return;
-            LeniaPreparationProgress.Value = steps > 0 ? 90.0*done/steps : 90;
-            LeniaPreparationText.Text = $"Lenia · {done:N0} / {steps:N0} шагов";
+            LeniaPreparationOverlay.IsIndeterminate = false;
+            LeniaPreparationOverlay.Progress = steps > 0 ? 90.0*done/steps : 90;
+            LeniaPreparationOverlay.Message = $"Lenia · {done:N0} / {steps:N0} шагов";
         });
         try
         {
@@ -179,6 +180,7 @@ public partial class Fractal3DWindow
             {
                 _leniaRunning = false; _leniaPreparing = false; LeniaPreparationOverlay.Visibility = Visibility.Collapsed;
                 _leniaDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
+                ShowPreparationError(exception.Message);
                 StatusText.Text = "Ошибка Lenia 3D: " + exception.Message;
             }
         }

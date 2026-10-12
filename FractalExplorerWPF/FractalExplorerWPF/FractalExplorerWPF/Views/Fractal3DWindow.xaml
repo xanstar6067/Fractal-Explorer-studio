@@ -1286,13 +1286,9 @@
                         <Button Content="{Binding ElementName=DlaPlayButton, Path=Content}" Click="DlaPlay_OnClick"/>
                     </StackPanel>
                 </Border>
-                <Border x:Name="KobPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="340">
-                        <TextBlock x:Name="KobPreparationText" Text="Выращивание кристалла…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/>
-                        <ProgressBar x:Name="KobPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
-                        <Button Content="Остановить и показать" Click="KobStopPreparation_OnClick"/>
-                    </StackPanel>
-                </Border>
+                <controls:PreparationOverlay x:Name="KobPreparationOverlay" Visibility="Collapsed"
+                                             Message="Выращивание кристалла…" ActionText="Остановить и показать"
+                                             ActionClick="KobStopPreparation_OnClick"/>
                 <Border x:Name="KobOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
@@ -1311,12 +1307,11 @@
                         <Button x:Name="ExStepButton" Content="Один кадр" Click="ExStep_OnClick"/>
                     </StackPanel>
                 </Border>
-                <Border x:Name="ExPreparing" Visibility="Collapsed" Background="{DynamicResource Theme.PanelBackgroundBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24" CornerRadius="10">
-                    <StackPanel Width="300"><TextBlock x:Name="ExPreparationText" Text="Подготовка свитка"/>
-                        <ProgressBar x:Name="ExPreparationBar" Minimum="0" Maximum="100" Height="10" Margin="0,10"/>
-                        <Button Content="Остановить и показать достигнутое" Click="CancelButton_OnClick"/>
-                    </StackPanel>
-                </Border>
+                <controls:PreparationOverlay x:Name="ExPreparing" Visibility="Collapsed"
+                                             Message="Подготовка свитка…" ActionText="Остановить и показать"
+                                             ActionClick="CancelButton_OnClick"/>
+                <controls:PreparationOverlay x:Name="GrayPreparationOverlay" Visibility="Collapsed"
+                                             Message="Подготовка поля Gray–Scott 3D…" ActionClick="CancelButton_OnClick"/>
                 <Border x:Name="GrayOverlay" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="12" Padding="10,6" CornerRadius="6" Background="{DynamicResource Theme.PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
@@ -1358,34 +1353,38 @@
                 <!-- Оси мира поверх кадра; в превью сохранения не попадают. -->
                 <Canvas x:Name="AxisTriad" Width="64" Height="64" Margin="8"
                         HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False"/>
-                <Border x:Name="PhysarumPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="330">
-                        <TextBlock x:Name="PhysarumPreparationText" Text="Плетение живой сети…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/>
-                        <ProgressBar x:Name="PhysarumPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
-                        <Button Content="Остановить и показать" Click="PhysarumStopPreparation_OnClick"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="LeniaPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="330"><TextBlock x:Name="LeniaPreparationText" Text="Развитие Lenia…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/><ProgressBar x:Name="LeniaPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/><Button Content="Остановить и показать" Click="LeniaStopPreparation_OnClick"/></StackPanel>
-                </Border>
-                <Border x:Name="CahnPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="430">
-                        <TextBlock x:Name="CahnPreparationText" Text="Подготовка спинодального распада…" Foreground="White" FontSize="17" TextWrapping="Wrap" TextAlignment="Center"/>
-                        <ProgressBar x:Name="CahnPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
-                        <Button Content="Остановить подготовку" Click="CahnStopPreparation_OnClick" Margin="20,14"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="TuringPreparationOverlay" Visibility="Collapsed" Background="#D90A0F16">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="300">
-                        <TextBlock x:Name="TuringPreparationText" Foreground="White" FontSize="17"
-                                   TextAlignment="Center" TextWrapping="Wrap" Text="Выращиваем начальный узор…"/>
-                        <ProgressBar x:Name="TuringPreparationProgress" Height="5" Margin="0,14" Minimum="0" Maximum="100"/>
-                        <TextBlock Foreground="#C2CDD6" FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
-                                   Text="После подготовки можно продолжить развитие или поставить его на паузу."/>
-                        <Button x:Name="TuringStopPreparationButton" Content="Остановить подготовку"
-                                Click="TuringStopPreparation_OnClick" Margin="20,14"/>
-                    </StackPanel>
-                </Border>
+                <controls:PreparationOverlay x:Name="PhysarumPreparationOverlay" Visibility="Collapsed"
+                                             Message="Плетение живой сети…" ActionText="Остановить и показать"
+                                             ActionClick="PhysarumStopPreparation_OnClick"/>
+                <controls:PreparationOverlay x:Name="LeniaPreparationOverlay" Visibility="Collapsed"
+                                             Message="Развитие Lenia…" ActionText="Остановить и показать"
+                                             ActionClick="LeniaStopPreparation_OnClick"/>
+                <controls:PreparationOverlay x:Name="CahnPreparationOverlay" Visibility="Collapsed"
+                                             Message="Подготовка спинодального распада…" ActionText="Остановить и показать"
+                                             ActionClick="CahnStopPreparation_OnClick"/>
+                <controls:PreparationOverlay x:Name="TuringPreparationOverlay" Visibility="Collapsed"
+                                             Message="Выращиваем начальный узор…" ActionText="Остановить и показать"
+                                             ActionClick="TuringStopPreparation_OnClick"/>
+                <!-- Общий экран первого кадра автоматически покрывает каждый новый 3D-режим.
+                     Специализированная подготовка использует тот же контрол и имеет приоритет. -->
+                <Grid x:Name="InitialPreparationLayer">
+                    <controls:PreparationOverlay x:Name="InitialPreparationOverlay" ActionText="Отменить"
+                                                 ActionClick="InitialPreparationCancel_OnClick" IsActionEnabled="{Binding IsEnabled, ElementName=CancelButton}">
+                        <controls:PreparationOverlay.Style>
+                            <Style TargetType="controls:PreparationOverlay">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=KobPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=GrayPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=ExPreparing}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=PhysarumPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=LeniaPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=CahnPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding Visibility, ElementName=TuringPreparationOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </controls:PreparationOverlay.Style>
+                    </controls:PreparationOverlay>
+                </Grid>
             </Grid>
         </Border>
 

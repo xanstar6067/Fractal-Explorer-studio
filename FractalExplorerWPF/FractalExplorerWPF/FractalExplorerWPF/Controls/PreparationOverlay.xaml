@@ -1,0 +1,82 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.PreparationOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Border Background="{DynamicResource Theme.PanelBackgroundBrush}">
+        <Border MaxWidth="440" Margin="24" Padding="24" CornerRadius="10"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="{Binding Heading, ElementName=Root}" FontSize="18" FontWeight="SemiBold"
+                           TextWrapping="Wrap" TextAlignment="Center"
+                           Foreground="{DynamicResource Theme.PrimaryTextBrush}"/>
+                <TextBlock Text="{Binding Message, ElementName=Root}" Margin="0,12,0,0"
+                           TextWrapping="Wrap" TextAlignment="Center"
+                           Foreground="{DynamicResource Theme.PrimaryTextBrush}"/>
+                <ProgressBar x:Name="Indicator" Value="{Binding Progress, ElementName=Root}" Minimum="0" Maximum="100"
+                             IsIndeterminate="{Binding IsIndeterminate, ElementName=Root}" Height="6" Margin="0,16">
+                    <ProgressBar.Style>
+                        <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+                            <Style.Triggers>
+                                <!-- Общий ProgressBar темы не анимирует IsIndeterminate.
+                                     В экране подготовки ожидание всегда видно как движение. -->
+                                <Trigger Property="IsIndeterminate" Value="True">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ProgressBar">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="3" ClipToBounds="True">
+                                                    <Grid ClipToBounds="True">
+                                                        <Border x:Name="WaitingSegment" Width="80" HorizontalAlignment="Left"
+                                                                Background="{TemplateBinding Foreground}" CornerRadius="3">
+                                                            <Border.RenderTransform><TranslateTransform/></Border.RenderTransform>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsIndeterminate" Value="True"/>
+                                                            <Condition Property="IsVisible" Value="True"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <MultiTrigger.EnterActions>
+                                                            <BeginStoryboard x:Name="WaitingAnimation">
+                                                                <Storyboard RepeatBehavior="Forever">
+                                                                    <DoubleAnimation Storyboard.TargetName="WaitingSegment"
+                                                                        Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                        From="-80" To="400" Duration="0:0:1.5"/>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </MultiTrigger.EnterActions>
+                                                        <MultiTrigger.ExitActions><RemoveStoryboard BeginStoryboardName="WaitingAnimation"/></MultiTrigger.ExitActions>
+                                                    </MultiTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsBusy, ElementName=Root}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ProgressBar.Style>
+                </ProgressBar>
+                <TextBlock Text="{Binding Detail, ElementName=Root}" FontSize="12"
+                           TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,12"
+                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                <Button x:Name="ActionButton" Content="{Binding ActionText, ElementName=Root}" Click="ActionButton_OnClick"
+                        IsEnabled="{Binding IsActionEnabled, ElementName=Root}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ActionText, ElementName=Root}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Border>
+</UserControl>

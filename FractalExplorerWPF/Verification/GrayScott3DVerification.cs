@@ -221,7 +221,13 @@ internal static partial class Program
         try
         {
             Check(window.FindName("GrayBackendBox") is null, "The 3D window must not offer a CPU computation backend.");
-            await Idle(); await Display();
+            var preparationOverlay = (FractalExplorerWPF.Controls.PreparationOverlay)window.FindName("GrayPreparationOverlay");
+            Check(preparationOverlay.Visibility == Visibility.Visible, "Gray–Scott must explain its initial simulation in the shared loading template.");
+            await Idle();
+            Check(preparationOverlay.Visibility == Visibility.Visible && preparationOverlay.Progress == 90,
+                "Preparation must remain visible between computing and displaying the first frame.");
+            await Display();
+            Check(preparationOverlay.Visibility == Visibility.Collapsed, "A displayed first frame must close the loading screen.");
             Check(Shown() is { Step: > 0 } && Pending() is null, "Opening the window must prepare and show the first preset on the GPU.");
             window.LoadState(state);
             Check(Shown() is null, "Loading must drop the previous live frame.");

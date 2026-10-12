@@ -19,6 +19,16 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 /// </summary>
 public readonly record struct Fractal3DPixels(byte[] Buffer, bool Completed);
 
+/// <summary>Этап работы кадра; UI сам выбирает текст и способ показа прогресса.</summary>
+public enum Fractal3DRenderStage
+{
+    WaitingForDevice,
+    PreparingDevice,
+    PreparingData,
+    PreparingShaders,
+    Rendering
+}
+
 /// <summary>
 /// Трассировка лучей по дистанционной оценке на GPU (Direct3D 11 через Vortice). Кадр считается
 /// горизонтальными полосами: так работает прогресс и отмена, а длинный экспорт не упирается в
@@ -98,7 +108,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// </summary>
     public async Task<Fractal3DPixels> RenderPixelsAsync(
         Fractal3DState state, int width, int height, byte[]? destination,
-        IProgress<int>? progress, CancellationToken token)
+        IProgress<int>? progress, CancellationToken token, IProgress<Fractal3DRenderStage>? stages = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         int safeWidth = Math.Max(1, width);
@@ -112,7 +122,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         // Задача запускается без токена: иначе отмена вернула бы отменённую задачу, и ожидание
         // снова стало бы исключением.
         bool completed = await Task.Run(
-            () => TryRenderPixels(snapshot, safeWidth, safeHeight, buffer, progress, token),
+            () => TryRenderPixels(snapshot, safeWidth, safeHeight, buffer, progress, token, stages),
             CancellationToken.None);
         return new Fractal3DPixels(buffer, completed);
     }
@@ -202,8 +212,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// </returns>
     private bool TryRenderPixels(
         Fractal3DState state, int width, int height, byte[] result,
-        IProgress<int>? progress, CancellationToken token)
+        IProgress<int>? progress, CancellationToken token, IProgress<Fractal3DRenderStage>? stages)
     {
+        stages?.Report(Fractal3DRenderStage.WaitingForDevice);
         int stripRows = ComputeStripRows(state, width, height);
         int strips = (height + stripRows - 1) / stripRows;
 
@@ -217,10 +228,11 @@ public sealed partial class Fractal3DRenderer : IDisposable
             try
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
+                if (index == 0) stages?.Report(Fractal3DRenderStage.PreparingDevice);
                 EnsureDevice();
                 EnsureSurface(width, stripRows);
                 int offsetY = index * stripRows;
-                RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token, progress);
+                RenderStrip(state, width, height, offsetY, Math.Min(stripRows, height - offsetY), result, token, progress, index == 0 ? stages : null);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -261,8 +273,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private void RenderStrip(
         Fractal3DState state, int width, int height, int offsetY, int rows, byte[] destination,
-        CancellationToken token, IProgress<int>? progress)
+        CancellationToken token, IProgress<int>? progress, IProgress<Fractal3DRenderStage>? stages)
     {
+        stages?.Report(Fractal3DRenderStage.PreparingData);
         ID3D11DeviceContext context = _context!;
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
@@ -281,6 +294,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         context.RSSetViewport(new Viewport(0, 0, width, _surfaceHeight));
         context.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         context.VSSetShader(_vertexShader!);
+        stages?.Report(Fractal3DRenderStage.PreparingShaders);
         context.PSSetShader(IsDensityVolume(state.Kind) ? GetIfsPixelShader(state.Kind) : GetPixelShader(state.Kind));
         if (IsDensityVolume(state.Kind))
         {
@@ -288,6 +302,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             context.PSSetSampler(0, GetIfsSampler());
         }
         context.PSSetConstantBuffer(0, _constantBuffer!);
+        stages?.Report(Fractal3DRenderStage.Rendering);
         context.Draw(3, 0);
 
         context.CopyResource(_stagingTexture!, _renderTarget!);

@@ -57,8 +57,8 @@ public partial class Fractal3DWindow
         PhysarumExposureSlider.Value = s.Exposure;
         PhysarumCutBox.SelectedIndex = s.CutAxis; PhysarumCutSlider.Value = s.CutPosition;
         _physarumQueuedSteps = s.Field is null ? s.WarmupSteps : 0;
-        _physarumPreparing = true; PhysarumPreparationProgress.Value = 0;
-        PhysarumPreparationOverlay.Visibility = Visibility.Visible;
+        _physarumPreparing = true; PhysarumPreparationOverlay.Progress = 0;
+        BeginSimulationPreparation(PhysarumPreparationOverlay, "Подготовка живой сети…");
         UpdatePhysarumLabels();
         _ = RunPhysarumWorkAsync();
     }
@@ -159,8 +159,9 @@ public partial class Fractal3DWindow
         var progress = new Progress<int>(done =>
         {
             if (_isClosing || epoch != _physarumEpoch || !_physarumPreparing) return;
-            PhysarumPreparationProgress.Value = steps > 0 ? 90.0*done/steps : 90;
-            PhysarumPreparationText.Text = $"Плетение сети · {done:N0} / {steps:N0} шагов";
+            PhysarumPreparationOverlay.IsIndeterminate = false;
+            PhysarumPreparationOverlay.Progress = steps > 0 ? 90.0*done/steps : 90;
+            PhysarumPreparationOverlay.Message = $"Плетение сети · {done:N0} / {steps:N0} шагов";
         });
         try
         {
@@ -186,6 +187,7 @@ public partial class Fractal3DWindow
             {
                 _physarumRunning = false; _physarumPreparing = false; PhysarumPreparationOverlay.Visibility = Visibility.Collapsed;
                 _physarumDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
+                ShowPreparationError(exception.Message);
                 StatusText.Text = "Ошибка Physarum 3D: " + exception.Message;
             }
         }

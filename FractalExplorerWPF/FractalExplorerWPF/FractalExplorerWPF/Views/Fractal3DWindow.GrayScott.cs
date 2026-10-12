@@ -53,6 +53,7 @@ public partial class Fractal3DWindow
         GraySpeedSlider.Value = s.StepsPerFrame; GrayThresholdSlider.Value = s.Threshold;
         GrayCutBox.SelectedIndex = s.CutAxis; GrayCutSlider.Value = s.CutPosition;
         _grayQueuedSteps = s.Field is null ? s.InitialSteps : 0;
+        BeginSimulationPreparation(GrayPreparationOverlay, "Подготовка поля Gray–Scott 3D…");
         UpdateGrayLabels();
         _ = RunGrayWorkAsync();
     }
@@ -175,8 +176,20 @@ public partial class Fractal3DWindow
                     keep = null;
                 }
                 if (brush is { } b) simulation!.Inject(b.X, b.Y, b.Z, b.Radius);
-                simulation!.Advance(steps, cts.Token);
-                return simulation.Publish(keep);
+                int done = 0;
+                while (done < steps && !cts.IsCancellationRequested)
+                {
+                    done += simulation!.Advance(Math.Min(128, steps - done), cts.Token);
+                    int completed = done;
+                    if (reset is not null && steps > 0) Dispatcher.BeginInvoke(() =>
+                    {
+                        if (epoch != _grayEpoch || _isClosing) return;
+                        GrayPreparationOverlay.IsIndeterminate = false;
+                        GrayPreparationOverlay.Progress = 90.0 * completed / steps;
+                        GrayPreparationOverlay.Message = $"Gray–Scott · {completed:N0} / {steps:N0} шагов";
+                    });
+                }
+                return simulation!.Publish(keep);
             });
             _grayDevice = simulation!.DeviceName;
             if (_isClosing || epoch != _grayEpoch) return;
@@ -189,6 +202,7 @@ public partial class Fractal3DWindow
             {
                 _grayRunning = false;
                 _grayDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
+                ShowPreparationError(exception.Message);
                 StatusText.Text = "Ошибка Gray–Scott 3D: " + exception.Message;
             }
         }
@@ -223,6 +237,7 @@ public partial class Fractal3DWindow
         if (Kind != Fractal3DKind.GrayScott3D || _isClosing || _suspended) return;
         if (_grayPending is not null && Equals(state.GrayScott.Live, _grayPending))
         { _grayShown = _grayPending; _grayPending = null; }
+        GrayPreparationOverlay.Visibility = Visibility.Collapsed;
         UpdateGrayLabels();
         if (_grayRunning && !_grayBusy && _grayPending is null)
         { _grayQueuedSteps = (int)GraySpeedSlider.Value; _ = RunGrayWorkAsync(); }

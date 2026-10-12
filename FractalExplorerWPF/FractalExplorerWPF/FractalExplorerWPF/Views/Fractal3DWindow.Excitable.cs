@@ -55,6 +55,7 @@ public partial class Fractal3DWindow
         ExWarmupBox.Text = s.WarmupSteps.ToString();
         ExSpeedSlider.Value = s.StepsPerFrame; ExThresholdSlider.Value = s.Threshold;
         ExCutBox.SelectedIndex = s.CutAxis; ExCutSlider.Value = s.CutPosition;
+        BeginSimulationPreparation(ExPreparing, "Подготовка свитка…");
         _exPreparationPercent = 0;
         _exQueuedSteps = s.Field is null ? s.InitialSteps : 0;
         UpdateExLabels();
@@ -93,8 +94,9 @@ public partial class Fractal3DWindow
         ExDeviceText.Text = _exDevice;
         ExPlayButton.IsEnabled = _exShown is not null;
         ExPreparing.Visibility = _exShown is null && (_exBusy || _exPending is not null) ? Visibility.Visible : Visibility.Collapsed;
-        ExPreparationBar.Value = _exPreparationPercent;
-        ExPreparationText.Text = $"Подготовка свитка · {_exPreparationPercent}%";
+        ExPreparing.Progress = .9 * _exPreparationPercent;
+        ExPreparing.IsIndeterminate = _exPreparationPercent == 0;
+        ExPreparing.Message = $"Подготовка свитка · {_exPreparationPercent}%";
         ExTimeText.Text += $" · t = {(_exShown?.Step ?? _exSettings.Field?.Step ?? 0) * _exSettings.TimeStep:F2}";
         ExCutSlider.IsEnabled = ExCutBox.SelectedIndex > 0;
         bool ready = !_exBusy && _exPending is null && _exShown is not null;
@@ -238,6 +240,7 @@ public partial class Fractal3DWindow
             {
                 _exRunning = false;
                 _exDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
+                ShowPreparationError(exception.Message);
                 StatusText.Text = "Ошибка расчёта среды 3D: " + exception.Message;
             }
         }

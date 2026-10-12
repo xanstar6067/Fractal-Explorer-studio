@@ -111,6 +111,7 @@ public partial class Fractal3DWindow : Window
         PresetBox.SelectedIndex = 0;
         _updatingUi = false;
 
+        BeginInitialPreparation();
         ApplyState(_presets[0]);
         Loaded += (_, _) =>
         {
@@ -271,6 +272,7 @@ public partial class Fractal3DWindow : Window
 
     private void ApplyState(Fractal3DState state)
     {
+        if (CanvasImage.Source is null) BeginInitialPreparation();
         _updatingUi = true;
         if (Kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D)
             PresetBox.SelectedIndex = _presets.ToList().FindIndex(preset => preset.SaveName == state.SaveName);
@@ -1085,6 +1087,7 @@ public partial class Fractal3DWindow : Window
         catch (Exception exception)
         {
             StatusText.Text = exception.Message;
+            ShowPreparationError(exception.Message);
             return;
         }
 
@@ -1101,16 +1104,20 @@ public partial class Fractal3DWindow : Window
 
         var watch = Stopwatch.StartNew();
         bool preparingLyapunov = Kind == Fractal3DKind.Lyapunov3D && _renderer.NeedsLyapunovField(state.Lyapunov);
+        if (CanvasImage.Source is null || preparingLyapunov) BeginInitialPreparation();
         SetRendering(true, preparingLyapunov ? "Расчёт объёма Ляпунова…" : quality == FrameQuality.Draft ? null : "Рендеринг...");
 
         void ReportProgress(int value)
         {
-            if (!ReferenceEquals(_renderCts, cts)) return;
+            if (_isClosing || cts.IsCancellationRequested || !ReferenceEquals(_renderCts, cts)) return;
             RenderProgress.Value = value;
-            if (_turingPreparing && Equals(state.Turing.Live, _turingPreparationFrame))
-                TuringPreparationProgress.Value = 90 + value * .1;
-            if (_cahnPreparing && IsCurrentCahnFrame(state))
-                CahnPreparationProgress.Value = 90 + value * .1;
+            ReportInitialPreparationProgress(value, preparingLyapunov);
+            if (SimulationPreparationOverlay is { Visibility: Visibility.Visible } overlay)
+            {
+                overlay.IsIndeterminate = false;
+                overlay.Progress = 90 + value * .1;
+                overlay.Message = "Рендеринг первого кадра…";
+            }
         }
 
         try
@@ -1138,12 +1145,18 @@ public partial class Fractal3DWindow : Window
                 bool draft = quality == FrameQuality.Draft;
                 Fractal3DState frameState = draft && moving ? ApplyMotionQuality(state) : state;
                 simplified = !ReferenceEquals(frameState, state);
-                IProgress<int>? progress = draft && !_turingPreparing && !preparingLyapunov
+                IProgress<int>? progress = draft && !_turingPreparing && !preparingLyapunov && InitialPreparationLayer.Visibility != Visibility.Visible && SimulationPreparationOverlay?.Visibility != Visibility.Visible
                     ? null
                     : new Progress<int>(ReportProgress);
 
+                IProgress<Fractal3DRenderStage>? stages = InitialPreparationLayer.Visibility == Visibility.Visible
+                    ? new Progress<Fractal3DRenderStage>(stage =>
+                    {
+                        if (!_isClosing && !cts.IsCancellationRequested && ReferenceEquals(_renderCts, cts))
+                            ReportPreparationStage(stage);
+                    }) : null;
                 Fractal3DPixels frame = await _renderer.RenderPixelsAsync(
-                    frameState, width, height, draft ? _draftBuffer : _fullBuffer, progress, cts.Token);
+                    frameState, width, height, draft ? _draftBuffer : _fullBuffer, progress, cts.Token, stages);
                 byte[] buffer = frame.Buffer;
 
                 WriteableBitmap target;
@@ -1162,7 +1175,11 @@ public partial class Fractal3DWindow : Window
 
                 // Кадр уступил место движению камеры: показывать половину нечего, следующий уже
                 // в очереди. Это обычный ход, поэтому ни исключения, ни сообщения здесь нет.
-                if (!frame.Completed) return;
+                if (!frame.Completed || cts.IsCancellationRequested)
+                {
+                    if (!_frameRequested) ShowPreparationError("Подготовка отменена");
+                    return;
+                }
                 if (!IsCurrentLyapunovFrame(state) || !IsCurrentKobFrame(state) || !IsCurrentExFrame(state) || !IsCurrentGrayFrame(state) || !IsCurrentTuringFrame(state) || !IsCurrentPhysarumFrame(state) || !IsCurrentLeniaFrame(state) || !IsCurrentCahnFrame(state) || !IsCurrentLichtenbergFrame(state)) return;
 
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
@@ -1184,6 +1201,7 @@ public partial class Fractal3DWindow : Window
                 }
             }
 
+            InitialPreparationLayer.Visibility = Visibility.Collapsed;
             OnDlaFrameDisplayed(state);
             OnLichtenbergFrameDisplayed(state);
             OnKobFrameDisplayed(state);
@@ -1205,7 +1223,11 @@ public partial class Fractal3DWindow : Window
         catch (OperationCanceledException)
         {
             // Прерванное ради движения уточнение — рабочий ход, а не событие для пользователя.
-            if (!_frameRequested) StatusText.Text = "Рендер отменён";
+            if (!_frameRequested)
+            {
+                StatusText.Text = "Рендер отменён";
+                ShowPreparationError("Подготовка отменена");
+            }
         }
         catch (Exception exception)
         {
@@ -1242,6 +1264,7 @@ public partial class Fractal3DWindow : Window
                 _dlaRequestedCount = _dlaCount;
                 UpdateDlaLabels();
             }
+            ShowPreparationError("Не удалось подготовить изображение: " + exception.Message);
             StatusText.Text = "Ошибка рендера";
             CrashLogger.Log("Fractal3DWindow.RenderFrameAsync", exception);
             if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.ShowError(exception.Message);

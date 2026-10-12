@@ -372,6 +372,7 @@ internal static partial class Program
         Turing3DVolume? Pending() => (Turing3DVolume?)typeof(Fractal3DWindow).GetField("_turingPending", flags)!.GetValue(window);
         T Control<T>(string name) where T : class => (T)window.FindName(name);
         void Click(string name) => Control<Button>(name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        void StopPreparation() => ((Button)Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").FindName("ActionButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         async Task Idle()
         {
             var watch = Stopwatch.StartNew();
@@ -386,16 +387,16 @@ internal static partial class Program
         async Task Settle() { await Idle(); await Display(); if (Pending() is not null) { await Idle(); await Display(); } }
         try
         {
-            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
                 !Control<Border>("ControlsHost").IsEnabled && !Control<Button>("TuringPlayButton").IsEnabled,
                 "Opening must immediately show preparation and block conflicting actions.");
             await Idle();
-            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                Control<ProgressBar>("TuringPreparationProgress").Value == 90,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Progress == 90,
                 "Preparation must remain visible until the first frame is displayed.");
             await Display();
             Check(Shown() is { Step: > 0 } && Pending() is null, "Opening the window must prepare and show the first preset on the GPU.");
-            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Collapsed &&
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Collapsed &&
                 Control<Border>("ControlsHost").IsEnabled && Control<Button>("TuringPlayButton").IsEnabled,
                 "Displaying the prepared frame must restore controls.");
 
@@ -403,30 +404,30 @@ internal static partial class Program
             interrupted.Turing = interrupted.Turing with { Size = 32, WarmupSteps = 2000, Field = null, Live = null };
             window.LoadState(interrupted);
             var preparationWatch = Stopwatch.StartNew();
-            while (Control<ProgressBar>("TuringPreparationProgress").Value == 0 && Field<bool>("_turingBusy") &&
+            while (Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Progress == 0 && Field<bool>("_turingBusy") &&
                 preparationWatch.ElapsedMilliseconds < 10000) await Task.Delay(1);
-            Check(Control<ProgressBar>("TuringPreparationProgress").Value is > 0 and < 90,
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Progress is > 0 and < 90,
                 "Warmup must report actual step progress while computation continues.");
-            Click("TuringStopPreparationButton");
-            Check(Control<TextBlock>("TuringPreparationText").Text == "Завершаем текущий шаг…" &&
-                !Control<Button>("TuringStopPreparationButton").IsEnabled,
+            StopPreparation();
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Message == "Завершаем текущий шаг…" &&
+                !Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").IsActionEnabled,
                 "Stopping preparation must explain that the current step is finishing.");
             await Settle();
             var partial = window.CaptureState("partial").Turing.Field!;
             Check(partial.Step is > 0 and < 2000 && !Field<bool>("_turingRunning") &&
-                Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
                 "Stopping must display the partial field on pause and close preparation.");
             Click("TuringStepButton"); await Settle();
             Check(window.CaptureState("continued").Turing.Field!.Step == partial.Step + (int)Control<Slider>("TuringSpeedSlider").Value &&
-                Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Collapsed,
                 "A stopped preparation must remain usable; ordinary steps must not open the overlay.");
 
             window.LoadState(interrupted);
-            Click("TuringStopPreparationButton");
+            StopPreparation();
             window.LoadState(state);
-            Check(Shown() is null && Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                Control<TextBlock>("TuringPreparationText").Text == "Восстанавливаем поле…" &&
-                Control<Button>("TuringStopPreparationButton").IsEnabled,
+            Check(Shown() is null && Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Message == "Восстанавливаем поле…" &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").IsActionEnabled,
                 "A new load during cancellation must replace the old preparation and discard its live frame.");
             await Settle();
             var loaded = window.CaptureState("ui").Turing;
@@ -490,8 +491,8 @@ internal static partial class Program
             // Grid transfer keeps the time.
             Control<TextBox>("TuringSizeBox").Text = "64";
             typeof(Fractal3DWindow).GetMethod("TuringResize_OnClick", flags)!.Invoke(window, [window, new RoutedEventArgs()]);
-            Check(Control<Border>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
-                Control<TextBlock>("TuringPreparationText").Text == "Переносим поле…",
+            Check(Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Visibility == Visibility.Visible &&
+                Control<FractalExplorerWPF.Controls.PreparationOverlay>("TuringPreparationOverlay").Message == "Переносим поле…",
                 "Grid transfer must show preparation too.");
             await Settle();
             var moved = window.CaptureState("resized").Turing;
@@ -520,7 +521,7 @@ internal static partial class Program
                     var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
                     SaveTuring3DPng(bitmap, Path.Combine(output, $"preparation-{size.Width}.png"));
                 }
-                Click("TuringStopPreparationButton"); await Settle();
+                StopPreparation(); await Settle();
             }
         }
         finally { window.Close(); }

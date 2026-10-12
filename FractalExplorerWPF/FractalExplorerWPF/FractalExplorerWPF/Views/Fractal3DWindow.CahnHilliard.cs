@@ -52,8 +52,8 @@ public partial class Fractal3DWindow
         CahnSpeedSlider.Value = s.StepsPerFrame; CahnLevelSlider.Value = s.Level;
         CahnInvertBox.IsChecked = s.Invert; CahnCutBox.SelectedIndex = s.CutAxis; CahnCutSlider.Value = s.CutPosition;
         _cahnQueuedSteps = s.Field is null ? s.WarmupSteps : 0;
-        _cahnPreparing = true; CahnPreparationProgress.Value = 0;
-        CahnPreparationOverlay.Visibility = Visibility.Visible;
+        _cahnPreparing = true; CahnPreparationOverlay.Progress = 0;
+        BeginSimulationPreparation(CahnPreparationOverlay, "Подготовка спинодального распада…");
         UpdateCahnLabels();
         _ = RunCahnWorkAsync();
     }
@@ -142,8 +142,9 @@ public partial class Fractal3DWindow
         var progress = new Progress<int>(done =>
         {
             if (_isClosing || epoch != _cahnEpoch || !_cahnPreparing) return;
-            CahnPreparationProgress.Value = steps > 0 ? 90.0*done/steps : 90;
-            CahnPreparationText.Text = $"Спинодальный распад · {done:N0} / {steps:N0} шагов";
+            CahnPreparationOverlay.IsIndeterminate = false;
+            CahnPreparationOverlay.Progress = steps > 0 ? 90.0*done/steps : 90;
+            CahnPreparationOverlay.Message = $"Спинодальный распад · {done:N0} / {steps:N0} шагов";
         });
         try
         {
@@ -169,6 +170,7 @@ public partial class Fractal3DWindow
             {
                 _cahnRunning = false; _cahnPreparing = false; CahnPreparationOverlay.Visibility = Visibility.Collapsed;
                 _cahnDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
+                ShowPreparationError(exception.Message);
                 StatusText.Text = "Ошибка Кана–Хиллиарда 3D: " + exception.Message;
             }
         }

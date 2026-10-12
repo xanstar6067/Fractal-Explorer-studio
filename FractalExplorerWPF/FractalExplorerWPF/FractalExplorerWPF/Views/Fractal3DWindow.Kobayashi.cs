@@ -59,8 +59,8 @@ public partial class Fractal3DWindow
         KobSpeedSlider.Value = s.StepsPerFrame; KobThresholdSlider.Value = s.Threshold;
         KobCutBox.SelectedIndex = s.CutAxis; KobCutSlider.Value = s.CutPosition;
         _kobQueuedSteps = s.Field is null ? s.InitialSteps : 0;
-        KobPreparationOverlay.Visibility = Visibility.Visible;
-        KobPreparationProgress.Value = 0;
+        BeginSimulationPreparation(KobPreparationOverlay, "Подготовка кристалла…");
+        KobPreparationOverlay.Progress = 0;
         UpdateKobLabels();
         _ = RunKobWorkAsync();
     }
@@ -206,8 +206,9 @@ public partial class Fractal3DWindow
                     if (reset is not null && steps > 0) Dispatcher.BeginInvoke(() =>
                     {
                         if (epoch != _kobEpoch || _isClosing) return;
-                        KobPreparationProgress.Value = 100.0 * completed / steps;
-                        KobPreparationText.Text = $"Выращивание кристалла: {completed:N0} / {steps:N0} шагов";
+                        KobPreparationOverlay.IsIndeterminate = false;
+                        KobPreparationOverlay.Progress = 90.0 * completed / steps;
+                        KobPreparationOverlay.Message = $"Выращивание кристалла: {completed:N0} / {steps:N0} шагов";
                     });
                 }
                 return simulation!.Publish(keep);
@@ -224,6 +225,7 @@ public partial class Fractal3DWindow
                 _kobRunning = false;
                 KobPreparationOverlay.Visibility = Visibility.Collapsed;
                 _kobDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
+                ShowPreparationError(exception.Message);
                 StatusText.Text = "Ошибка Кобаяси 3D: " + exception.Message;
             }
         }

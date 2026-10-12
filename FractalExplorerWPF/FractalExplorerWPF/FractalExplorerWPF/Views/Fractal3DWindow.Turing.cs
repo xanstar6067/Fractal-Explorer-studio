@@ -182,18 +182,14 @@ public partial class Fractal3DWindow
     private void BeginTuringPreparation(string message)
     {
         _turingPreparing = true; _turingPreparationStopped = false; _turingPreparationFrame = null;
-        TuringPreparationText.Text = message;
-        TuringPreparationProgress.Value = 0;
-        TuringPreparationProgress.IsIndeterminate = true;
-        TuringStopPreparationButton.IsEnabled = true;
-        TuringPreparationOverlay.Visibility = Visibility.Visible;
+        BeginSimulationPreparation(TuringPreparationOverlay, message);
         ControlsHost.IsEnabled = false;
     }
 
     private void EndTuringPreparation()
     {
         _turingPreparing = false; _turingPreparationFrame = null;
-        TuringPreparationProgress.IsIndeterminate = false;
+        TuringPreparationOverlay.IsIndeterminate = false;
         TuringPreparationOverlay.Visibility = Visibility.Collapsed;
         ControlsHost.IsEnabled = true;
     }
@@ -206,8 +202,8 @@ public partial class Fractal3DWindow
         if (!_turingPreparing) return;
         _turingPreparationStopped = true; _turingRunning = false; _turingQueuedSteps = 0;
         _turingCts?.Cancel();
-        TuringPreparationText.Text = "Завершаем текущий шаг…";
-        TuringStopPreparationButton.IsEnabled = false;
+        TuringPreparationOverlay.Message = "Завершаем текущий шаг…";
+        TuringPreparationOverlay.IsActionEnabled = false;
         UpdateTuringLabels();
     }
 
@@ -355,8 +351,8 @@ public partial class Fractal3DWindow
         IProgress<int>? progress = preparing ? new Progress<int>(done =>
         {
             if (_isClosing || epoch != _turingEpoch || !_turingPreparing || _turingPreparationFrame is not null) return;
-            TuringPreparationProgress.IsIndeterminate = false;
-            TuringPreparationProgress.Value = steps == 0 ? 90 : 90.0 * done / steps;
+            TuringPreparationOverlay.IsIndeterminate = false;
+            TuringPreparationOverlay.Progress = steps == 0 ? 90 : 90.0 * done / steps;
         }) : null;
         var host = _renderer.DeviceHost;
         var simulation = _turingSimulation;
@@ -391,9 +387,9 @@ public partial class Fractal3DWindow
             if (preparing)
             {
                 _turingPreparationFrame = volume;
-                TuringPreparationProgress.IsIndeterminate = false;
-                TuringPreparationProgress.Value = 90;
-                if (!_turingPreparationStopped) TuringPreparationText.Text = "Отрисовываем начальный узор…";
+                TuringPreparationOverlay.IsIndeterminate = false;
+                TuringPreparationOverlay.Progress = 90;
+                if (!_turingPreparationStopped) TuringPreparationOverlay.Message = "Отрисовываем начальный узор…";
             }
             RequestFrame(FrameQuality.Draft);
         }
@@ -405,6 +401,7 @@ public partial class Fractal3DWindow
                 _turingDevice = "Сбой расчёта на ГП; показан последний кадр. " + exception.Message;
                 StatusText.Text = "Ошибка узоров Тьюринга 3D: " + exception.Message;
                 EndTuringPreparation();
+                ShowPreparationError(exception.Message);
             }
         }
         finally
