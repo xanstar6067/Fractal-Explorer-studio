@@ -1079,12 +1079,10 @@ public static class Fractal3DCatalog
             Preset(kind, "Гироид · вытянутые тоннели", s => s.PeriodicSurface = new() { StretchY = 1.7, Period = 1.4, Thickness = .4 }),
             Preset(kind, "Schwarz P · поверхность без толщины", s => s.PeriodicSurface = new() { Family = PeriodicSurfaceFamily.SchwarzP, Region = PeriodicSurfaceRegion.Surface, Period = 2 }),
             Preset(kind, "Гироид · один лабиринт", s => s.PeriodicSurface = new() { Region = PeriodicSurfaceRegion.Positive, Level = .2, CutAxis = 3 }),
-            Preset(kind, "Гироид · внутри тоннеля", s => {
+            Preset(kind, "Гироид · взгляд вдоль тоннеля", s => {
                 s.PeriodicSurface = new() { Period = 2 };
-                s.CameraDistance = .18; s.CameraYaw = 0; s.CameraPitch = 0;
-                s.TargetX = .5; s.TargetY = .5; s.TargetZ = .18;
-                s.NavigationMode = Fractal3DNavigationMode.Game;
-                s.GameMovementSpeed = .2;
+                s.CameraDistance = 4.4; s.CameraYaw = 0; s.CameraPitch = 0;
+                s.TargetX = .5; s.TargetY = .5; s.TargetZ = 0;
             })
         ],
         Fractal3DKind.Lyapunov3D =>

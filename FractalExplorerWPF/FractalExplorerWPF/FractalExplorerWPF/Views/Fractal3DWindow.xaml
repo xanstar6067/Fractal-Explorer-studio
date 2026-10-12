@@ -821,7 +821,7 @@
                                     <Slider x:Name="PeriodicCutPositionSlider" Minimum="-1" Maximum="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="Periodic_OnChanged"/>
                                     <TextBox Grid.Column="1" x:Name="PeriodicCutPositionBox" Text="{Binding ElementName=PeriodicCutPositionSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="Periodic_OnChanged"/>
                                 </Grid>
-                                <TextBlock Text="Для прогулки по тоннелям выберите игровую камеру в разделе «Навигация» или готовый вид «Внутри тоннеля»." TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                                <TextBlock Text="Готовые виды используют CAD: левая кнопка вращает камеру. Для прогулки по тоннелям можно вручную выбрать игровую камеру в разделе «Навигация»." TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                             </StackPanel>
 
                             <StackPanel x:Name="KifsPanel" Visibility="Collapsed">

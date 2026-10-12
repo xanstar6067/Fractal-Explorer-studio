@@ -188,6 +188,13 @@ internal static partial class Program
             Check(!((FrameworkElement)window.FindName("PeriodicThicknessPanel")).IsEnabled, "Thickness only applies to walls.");
             ((ComboBox)window.FindName("PeriodicCutBox")).SelectedIndex = 0;
             Check(!((Slider)window.FindName("PeriodicCutPositionSlider")).IsEnabled, "Cut position requires a selected axis.");
+            var presetsBox = (ComboBox)window.FindName("PresetBox");
+            presetsBox.SelectedIndex = 7;
+            var tunnelView = window.CaptureState("Tunnel preset");
+            Check(tunnelView.NavigationMode == Fractal3DNavigationMode.Cad,
+                "Selecting the tunnel preset must retain the normal left-button CAD rotation.");
+            double tunnelDistance = await renderer.ProbeDistanceAsync(tunnelView, 160, 160, 320, 320, CancellationToken.None);
+            Check(tunnelDistance > 2, "The tunnel preset must show the entrance from a distance, without a wall close to the camera.");
             window.LoadState(Fractal3DCatalog.CreateDefaultState(kind));
             var root = (FrameworkElement)window.Content;
             root.Measure(new Size(1240, 900)); root.Arrange(new Rect(0, 0, 1240, 900)); root.UpdateLayout();
