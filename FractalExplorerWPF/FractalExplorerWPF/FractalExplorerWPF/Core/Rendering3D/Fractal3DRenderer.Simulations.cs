@@ -37,6 +37,10 @@ public sealed partial class Fractal3DRenderer
         "свитковых волн 3D", Excitable3DGpuSimulation.CreateLocked, s => s.Live,
         s => s.Field is null ? s.InitialSteps : null, (a, b) => a.SameEvolution(b));
 
+    private readonly GpuSimulationPreview<GinzburgLandau3DSettings, GinzburgLandau3DField, GinzburgLandau3DVolume> _ginzburgLandauPreview = new(
+        "Гинзбурга–Ландау 3D", GinzburgLandau3DGpuSimulation.CreateLocked, s => s.Live,
+        s => s.Field is null ? s.WarmupSteps : null, (a, b) => a.SameEvolution(b));
+
     /// <summary>Объём моделирования для кадра или null, если режим не моделируется на ГП. Под очередью устройства.</summary>
     private ID3D11ShaderResourceView? SimulationVolumeView(Fractal3DState state, CancellationToken token) => state.Kind switch
     {
@@ -47,6 +51,7 @@ public sealed partial class Fractal3DRenderer
         Fractal3DKind.Physarum3D => _physarumPreview.View(_host, state.Physarum, token),
         Fractal3DKind.Kobayashi3D => _kobayashiPreview.View(_host, state.Kobayashi, token),
         Fractal3DKind.Excitable3D => _excitablePreview.View(_host, state.Excitable, token),
+        Fractal3DKind.GinzburgLandau3D => _ginzburgLandauPreview.View(_host, state.GinzburgLandau, token),
         _ => null
     };
 
@@ -59,5 +64,6 @@ public sealed partial class Fractal3DRenderer
         _physarumPreview.DisposeLocked();
         _kobayashiPreview.DisposeLocked();
         _excitablePreview.DisposeLocked();
+        _ginzburgLandauPreview.DisposeLocked();
     }
 }

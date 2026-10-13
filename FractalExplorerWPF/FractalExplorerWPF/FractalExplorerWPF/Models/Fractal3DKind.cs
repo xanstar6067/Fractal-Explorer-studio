@@ -37,7 +37,8 @@ public enum Fractal3DKind
     PeriodicSurfaces,
     ImplicitSurface,
     HyperbolicHoneycomb,
-    AbcFlow
+    AbcFlow,
+    GinzburgLandau3D
 }
 
 public sealed record Fractal3DDefinition(

@@ -75,6 +75,8 @@ internal static partial class Program
               reportedTotal && ShaderBytecodeCache.ActiveCompilationCount == 0 &&
               Excitable3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
               File.Exists(AppPaths.GetShaderCacheFile("excitable3d-pixel")) &&
+              GinzburgLandau3DComputeShader.CacheEntries.All(entry => File.Exists(AppPaths.GetShaderCacheFile(entry.Key))) &&
+              File.Exists(AppPaths.GetShaderCacheFile("ginzburg-landau3d-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-PeriodicSurfaces-pixel")) &&
               File.Exists(AppPaths.GetShaderCacheFile("fractal3d-HyperbolicHoneycomb-pixel")) &&
               Fractal3DCatalog.GetPresets(Fractal3DKind.ImplicitSurface).All(s =>

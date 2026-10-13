@@ -496,7 +496,7 @@ internal static class Program
 
             if (Fractal3DCatalog.TryParseLaunchKey(key, out Fractal3DKind fractal3DKind))
             {
-                // Включая AbcFlow, HyperbolicHoneycomb, ImplicitSurface, Terrain, LSystem3D, Buddhabrot4D, Hopf, Lichtenberg3D, Physarum3D, Lenia3D, Lyapunov3D, Excitable3D, PeriodicSurfaces и Kobayashi3D (fractal3d-kobayashi3-d):
+                // Включая GinzburgLandau3D (fractal3d-ginzburg-landau3-d), AbcFlow, HyperbolicHoneycomb, ImplicitSurface, Terrain, LSystem3D, Buddhabrot4D, Hopf, Lichtenberg3D, Physarum3D, Lenia3D, Lyapunov3D, Excitable3D, PeriodicSurfaces и Kobayashi3D (fractal3d-kobayashi3-d):
                 // параметры, пространственный редактор и экспорт встроены в окно.
                 // Кадр считает GPU. Общий менеджер палитр снимается
                 // один раз — на Мандельбульбе; предпросмотр фрактала в нём отключён (null), чтобы

@@ -24,6 +24,7 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
         Fractal3DKind.Physarum3D => new Physarum3DEditor(this).Simulation,
         Fractal3DKind.Kobayashi3D => new Kobayashi3DEditor(this).Simulation,
         Fractal3DKind.Excitable3D => new Excitable3DEditor(this).Simulation,
+        Fractal3DKind.GinzburgLandau3D => new GinzburgLandau3DEditor(this).Simulation,
         _ => null
     };
 

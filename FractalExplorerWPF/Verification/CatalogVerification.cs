@@ -365,26 +365,25 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).First().Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.AbcFlow), "ABC flow must lead new arrivals.");
-            Check(ViewItems(window)[1].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.HyperbolicHoneycomb), "Hyperbolic honeycombs retain their date.");
-            Check(ViewItems(window)[2].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.ImplicitSurface), "Implicit surface laboratory must lead new arrivals.");
-            Check(ViewItems(window)[3].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.PeriodicSurfaces), "Periodic surfaces must lead new arrivals.");
-            Check(ViewItems(window)[4].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Excitable3D), "Scroll waves must retain their introduction date.");
-            Check(ViewItems(window)[5].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Lyapunov3D), "Lyapunov must retain its introduction date.");
-            Check(ViewItems(window)[6].Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Kobayashi3D), "Kobayashi must retain its introduction date.");
-            Check(ViewItems(window).Skip(7).Take(94).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Fractal3DKind[] recent3D = [Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
+                Fractal3DKind.HyperbolicHoneycomb, Fractal3DKind.ImplicitSurface, Fractal3DKind.PeriodicSurfaces,
+                Fractal3DKind.Excitable3D, Fractal3DKind.Lyapunov3D, Fractal3DKind.Kobayashi3D];
+            Check(ViewItems(window).Take(recent3D.Length).Select(tile => tile.Item.LaunchKey)
+                    .SequenceEqual(recent3D.Select(Fractal3DCatalog.LaunchKey)),
+                "Ginzburg–Landau must lead new arrivals; existing 3D modes must retain their introduction dates.");
+            Check(ViewItems(window).Skip(recent3D.Length).Take(94).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 FoldedFormulaCatalog.All.SelectMany(d => new[] { d.Parameter.ToString(), d.Julia.ToString() }).Concat(new[] { "Hybrid", "JuliaHybrid" })),
                 "Newest must begin with 92 polynomial modes and the two hybrid constructors.");
-            Check(ViewItems(window).Skip(101).Take(6).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(ViewItems(window).Skip(recent3D.Length + 94).Take(6).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["CelticMandelbar", "CubicQuasiBurningShip", "CubicFlyingSquirrel", "JuliaCelticMandelbar", "JuliaCubicQuasiBurningShip", "JuliaCubicFlyingSquirrel"]),
                 "Newest must begin with the six new folded quadratic/cubic modes.");
-            Check(ViewItems(window).Skip(107).Take(8).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(ViewItems(window).Skip(recent3D.Length + 100).Take(8).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["PerpendicularMandelbrot", "PerpendicularBurningShip", "PerpendicularCeltic", "PerpendicularBuffalo", "JuliaPerpendicularMandelbrot", "JuliaPerpendicularBurningShip", "JuliaPerpendicularCeltic", "JuliaPerpendicularBuffalo"]),
                 "The eight perpendicular modes must lead new arrivals.");
-            Check(ViewItems(window).Skip(115).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(ViewItems(window).Skip(recent3D.Length + 108).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["JuliaGeneralized", "JuliaTricorn", "JuliaBuffalo", "JuliaCeltic", "JuliaSimonobrot"]),
                 "The previous Julia modes must retain their chronology after the perpendicular modes.");
-            Check(ViewItems(window).Skip(120).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+            Check(ViewItems(window).Skip(recent3D.Length + 113).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lenia3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Physarum3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lichtenberg3D),

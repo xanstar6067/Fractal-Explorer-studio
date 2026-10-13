@@ -205,3 +205,7 @@ Celtic Mandelbar, Cubic Quasi Burning Ship, Flying Squirrel и три соотв
 Новые полиномиальные режимы степени 3–5 автоматически входят в обход каталога.
 `--only=Hybrid` и `--only=JuliaHybrid` снимают конструктор последовательности;
 у Жюлиа также снимается карта выбора C. Редактор встроен в `MandelbrotWindow`.
+
+Гинзбург–Ландау 3D. Новый пункт `Fractal3D:GinzburgLandau3D` снимается общим обходом каталога вместе со встроенной
+панелью `GinzburgLandau3DEditor`; отдельное окно редактора не создаётся.
+Фильтр: `--only=Fractal3D:GinzburgLandau3D`; имя PNG — `fractal3d-ginzburg-landau3-d`.

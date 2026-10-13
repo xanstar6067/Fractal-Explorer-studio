@@ -15,6 +15,7 @@ public sealed partial class Fractal3DRenderer
     private ID3D11PixelShader? _dlaPixelShader;
     private ID3D11PixelShader? _kobayashiPixelShader;
     private ID3D11PixelShader? _excitablePixelShader;
+    private ID3D11PixelShader? _ginzburgLandauPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
     private ID3D11PixelShader? _leniaPixelShader;
     private ID3D11PixelShader? _physarumPixelShader;
@@ -44,6 +45,8 @@ public sealed partial class Fractal3DRenderer
             return _kobayashiPixelShader ??= _device!.CreatePixelShader(Compile(KobayashiPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Excitable3D)
             return _excitablePixelShader ??= _device!.CreatePixelShader(Compile(ExcitablePixelShaderEntry()).Span);
+        if (kind == Fractal3DKind.GinzburgLandau3D)
+            return _ginzburgLandauPixelShader ??= _device!.CreatePixelShader(Compile(GinzburgLandauPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.GrayScott3D)
             return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.CahnHilliard3D)
@@ -196,6 +199,8 @@ public sealed partial class Fractal3DRenderer
             return first.Kobayashi.Live == second.Kobayashi.Live && first.Kobayashi.SameEvolution(second.Kobayashi);
         if (first.Kind == Fractal3DKind.Excitable3D)
             return first.Excitable.Live == second.Excitable.Live && first.Excitable.SameEvolution(second.Excitable);
+        if (first.Kind == Fractal3DKind.GinzburgLandau3D)
+            return first.GinzburgLandau.Live == second.GinzburgLandau.Live && first.GinzburgLandau.SameEvolution(second.GinzburgLandau);
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
         if (first.Kind == Fractal3DKind.Lenia3D)
@@ -258,6 +263,7 @@ public sealed partial class Fractal3DRenderer
         _grayScottPixelShader?.Dispose();
         _kobayashiPixelShader?.Dispose();
         _excitablePixelShader?.Dispose(); _excitablePixelShader = null;
+        _ginzburgLandauPixelShader?.Dispose(); _ginzburgLandauPixelShader = null;
         _turingPixelShader?.Dispose();
         _cahnHilliardPixelShader?.Dispose();
         _leniaPixelShader?.Dispose();

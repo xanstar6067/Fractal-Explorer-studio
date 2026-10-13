@@ -50,6 +50,7 @@ public sealed class Fractal3DState
     public Buddhabrot4DSettings Buddhabrot { get; set; } = new();
     public Kobayashi3DSettings Kobayashi { get; set; } = new();
     public Excitable3DSettings Excitable { get; set; } = new();
+    public GinzburgLandau3DSettings GinzburgLandau { get; set; } = new();
     public GrayScott3DSettings GrayScott { get; set; } = new();
     public Turing3DSettings Turing { get; set; } = new();
     public CahnHilliard3DSettings CahnHilliard { get; set; } = new();
@@ -168,6 +169,7 @@ public sealed class Fractal3DState
         clone.Buddhabrot = Buddhabrot is null ? new() : Buddhabrot with { };
         clone.Kobayashi = Kobayashi is null ? new() : Kobayashi with { };
         clone.Excitable = Excitable is null ? new() : Excitable with { };
+        clone.GinzburgLandau = GinzburgLandau is null ? new() : GinzburgLandau with { };
         clone.GrayScott = GrayScott is null ? new() : GrayScott with { };
         clone.Turing = Turing is null ? new() : Turing with { };
         clone.Lenia = Lenia is null ? new() : Lenia with { };
