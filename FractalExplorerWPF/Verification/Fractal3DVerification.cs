@@ -140,7 +140,10 @@ internal static partial class Program
                 // The clean chemical medium is an intentional blank canvas for the 3D brush.
                 if (kind == Fractal3DKind.GrayScott3D && preset.GrayScott.SeedShape == GrayScott3DSeed.Empty) continue;
                 byte[] pixels = await Fractal3DFrameAsync(renderer, preset);
-                Check(HasFractal3DStructure(pixels),
+                // Вихревые нити — одномерный объект: у прямого свитка это одна тонкая нить, которая
+                // пересекает десятую-шестую часть строк кадра. Кадр из одного фона не меняет ни одной.
+                bool filaments = kind == Fractal3DKind.Excitable3D && preset.Excitable.View == Excitable3DView.Filaments;
+                Check(HasFractal3DStructure(pixels, minimumVaryingRows: filaments ? Fractal3DProbeHeight / 10 : null),
                     $"{kind} «{preset.SaveName}»: the frame shows only the background.");
             }
         }
@@ -1011,9 +1014,10 @@ internal static partial class Program
 
     /// <summary>
     /// Фон кадра — вертикальный градиент, поэтому его строки почти однотонны по горизонтали.
-    /// Считаем, что фрактал попал в кадр, если заметная часть строк меняется вдоль себя.
+    /// Считаем, что фрактал попал в кадр, если заметная часть строк (по умолчанию четверть) меняется вдоль себя.
     /// </summary>
-    private static bool HasFractal3DStructure(byte[] pixels, int width = Fractal3DProbeWidth, int height = Fractal3DProbeHeight)
+    private static bool HasFractal3DStructure(byte[] pixels, int width = Fractal3DProbeWidth, int height = Fractal3DProbeHeight,
+        int? minimumVaryingRows = null)
     {
         int stride = width * 4;
         int varyingRows = 0;
@@ -1029,6 +1033,6 @@ internal static partial class Program
             }
             if (maximum - minimum > 12) varyingRows++;
         }
-        return varyingRows >= height / 4;
+        return varyingRows >= (minimumVaryingRows ?? height / 4);
     }
 }

@@ -258,25 +258,13 @@ public sealed partial class Fractal3DRenderer : IDisposable
     /// </summary>
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
-        if (state.Kind == Fractal3DKind.HyperbolicHoneycomb)
-            return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
-        if (state.Kind == Fractal3DKind.ImplicitSurface)
-            return Math.Clamp(6_000 / Math.Max(width, 1), 1, height);
-        if (state.Kind == Fractal3DKind.Terrain)
-            return Math.Clamp(30_000 / Math.Max(width, 1), 1, height);
-        if (state.Kind == Fractal3DKind.LSystem3D)
-            return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
-        if (state.Kind == Fractal3DKind.AbcFlow)
-            return Math.Clamp(12_000 / Math.Max(width, 1), 1, height);
-        if (state.Kind == Fractal3DKind.Hopf)
-            return Math.Clamp(24_000 / Math.Max(width, 1), 1, height);
+        Fractal3DMode mode = Fractal3DCatalog.Mode(state.Kind);
+        if (mode.StripPixelBudget is int pixels)
+            return Math.Clamp(pixels / Math.Max(width, 1), 1, height);
         if (height <= 8) return height;
-        if (IsDensityVolume(state.Kind))
+        if (mode.IsDensityVolume)
             return Math.Clamp(120_000 / Math.Max(width, 1), 8, height);
-        double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0);
-        // Поиск ближайшей сферы обходит дерево, а не одну формулу: полосы короче,
-        // чтобы экспорт не занимал GPU дольше сторожевого таймера драйвера.
-        if (state.Kind == Fractal3DKind.ApollonianPacking) cost *= 5;
+        double cost = Math.Max(0.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0) * mode.StripCostFactor;
         int budget = (int)Math.Clamp(BaseStripBudget / cost, 40_000, 2_000_000);
         return Math.Clamp(budget / Math.Max(width, 1), 8, height);
     }
@@ -393,60 +381,12 @@ public sealed partial class Fractal3DRenderer : IDisposable
 
     private static FrameConstants BuildConstants(Fractal3DState state, int width, int height, int offsetY)
     {
-        if (state.Kind == Fractal3DKind.HyperbolicHoneycomb) state.HyperbolicHoneycomb.Validate();
-        if (state.Kind == Fractal3DKind.ImplicitSurface) state.ImplicitSurface.Validate();
-        if (state.Kind == Fractal3DKind.PeriodicSurfaces) state.PeriodicSurface.Validate();
-        if (state.Kind == Fractal3DKind.Lyapunov3D) state.Lyapunov.Validate();
-        if (state.Kind == Fractal3DKind.Lenia3D) state.Lenia.Validate();
-        if (state.Kind == Fractal3DKind.Physarum3D) state.Physarum.Validate();
-        if (state.Kind == Fractal3DKind.Kobayashi3D) state.Kobayashi.Validate();
-        if (state.Kind == Fractal3DKind.Excitable3D) state.Excitable.Validate();
-        if (state.Kind == Fractal3DKind.GrayScott3D) state.GrayScott.Validate();
-        if (state.Kind == Fractal3DKind.Turing3D) state.Turing.Validate();
-        if (state.Kind == Fractal3DKind.CahnHilliard3D) state.CahnHilliard.Validate();
-        if (state.Kind == Fractal3DKind.AbcFlow) state.AbcFlow.Validate();
-        if (state.Kind == Fractal3DKind.Hopf) state.Hopf.Validate();
-        KifsSettings kifs = (state.Kifs ?? new()).Normalized();
+        Fractal3DMode mode = Fractal3DCatalog.Mode(state.Kind);
+        mode.Validate(state);
         Fractal3DCameraBasis camera = Fractal3DCamera.Build(state);
         Vector3 light = Fractal3DCamera.LightDirection(state);
         Fractal3DPalette palette = state.ResolvePalette();
-
-        (float shapeX, float shapeY, float shapeZ) = state.Kind switch
-        {
-            Fractal3DKind.AbcFlow => ((float)state.AbcFlow.Phase, state.AbcFlow.ShowTrails ? 1 : 0, state.AbcFlow.ShowParticles ? 1 : 0),
-            Fractal3DKind.HyperbolicHoneycomb => ((float)state.HyperbolicHoneycomb.EdgeRadius, (float)state.HyperbolicHoneycomb.FaceThickness, 0),
-            Fractal3DKind.ImplicitSurface => ((float)state.ImplicitSurface.Extent, (float)state.ImplicitSurface.Level, 0),
-            Fractal3DKind.PeriodicSurfaces => ((float)state.PeriodicSurface.Family, (float)state.PeriodicSurface.Level, (float)state.PeriodicSurface.Thickness),
-            Fractal3DKind.Lyapunov3D => (state.Lyapunov.Size, .5f, (float)state.Lyapunov.ColorRange),
-            Fractal3DKind.Hopf => ((float)state.Hopf.ClipRadius,
-                state.Hopf.OnlySelected ? 1 : state.Hopf.BasePoints().Count, HopfGeometry.Scale * HopfGeometry.Scale),
-            Fractal3DKind.CahnHilliard3D => (state.CahnHilliard.Size, (float)(.5+.5*(state.CahnHilliard.Invert ? -state.CahnHilliard.Level : state.CahnHilliard.Level)), 0),
-            Fractal3DKind.Lenia3D => (state.Lenia.Size, (float)state.Lenia.Threshold, 0),
-            Fractal3DKind.Physarum3D => (state.Physarum.Size, (float)state.Physarum.Threshold, 0),
-            Fractal3DKind.Kobayashi3D => (state.Kobayashi.Size, (float)state.Kobayashi.Threshold, 0),
-            Fractal3DKind.Excitable3D => (state.Excitable.Size, (float)state.Excitable.Threshold, 0),
-            Fractal3DKind.GrayScott3D => (state.GrayScott.Size, (float)state.GrayScott.Threshold, 0),
-            Fractal3DKind.Turing3D => (state.Turing.Size, (float)state.Turing.Level, (float)state.Turing.SheetThickness),
-            Fractal3DKind.LSystem3D => ((float)state.LSystem.Growth, (float)state.LSystem.ColorSource, 0),
-            Fractal3DKind.Kifs => ((float)kifs.Scale, (float)kifs.Symmetry, kifs.Sectors),
-            Fractal3DKind.Flame3D => ((float)state.Flame.Exposure, (float)state.Flame.Gamma, (float)state.Flame.Density),
-            Fractal3DKind.Buddhabrot4D => ((float)state.Buddhabrot.Exposure, (float)state.Buddhabrot.Gamma, (float)state.Buddhabrot.Density),
-            Fractal3DKind.Terrain => ((float)state.Terrain.Size, (float)state.Terrain.Height, state.Terrain.Resolution),
-            Fractal3DKind.Mandelbox => (
-                (float)state.BoxScale,
-                (float)(state.BoxMinRadius * state.BoxMinRadius),
-                (float)state.BoxFoldingLimit),
-            Fractal3DKind.BulbBoxHybrid => (
-                (float)state.Power,
-                (float)(state.BoxMinRadius * state.BoxMinRadius),
-                (float)state.BoxFoldingLimit),
-            Fractal3DKind.SierpinskiTetrahedron => ((float)state.SierpinskiScale, 0f, 0f),
-            Fractal3DKind.Vicsek or Fractal3DKind.CantorDust => ((float)state.CubeThickness, 0f, 0f),
-            Fractal3DKind.BurningShip or Fractal3DKind.BurningShipJulia =>
-                ((float)state.Power, (float)state.BurningShipFormula, 0f),
-            Fractal3DKind.Phoenix => ((float)state.Power, state.PhoenixSecondaryPower, 0f),
-            _ => ((float)state.Power, 0f, 0f)
-        };
+        Fractal3DShapeConstants shape = mode.ShapeConstants(state);
 
         return new FrameConstants
         {
@@ -460,68 +400,14 @@ public sealed partial class Fractal3DRenderer : IDisposable
                 (float)Math.Clamp(state.Detail, 0.05, 8),
                 (float)Math.Clamp(state.MaxDistance, 1, 1000),
                 Math.Clamp(state.Iterations, 1, 64)),
-            ShapeA = new Vector4(shapeX, shapeY, shapeZ, (float)Math.Max(state.Bailout, 1.0001)),
-            ShapeB = state.Kind == Fractal3DKind.AbcFlow
-                ? new Vector4(state.AbcFlow.Samples, state.AbcFlow.SeedCount, (float)state.AbcFlow.LyapunovRange,
-                    (float)Math.Sqrt(Math.Pow(Math.Abs(state.AbcFlow.A) + Math.Abs(state.AbcFlow.C), 2) +
-                        Math.Pow(Math.Abs(state.AbcFlow.A) + Math.Abs(state.AbcFlow.B), 2) + Math.Pow(Math.Abs(state.AbcFlow.B) + Math.Abs(state.AbcFlow.C), 2)))
-                : state.Kind == Fractal3DKind.HyperbolicHoneycomb
-                ? new Vector4((float)state.HyperbolicHoneycomb.ObserverX, (float)state.HyperbolicHoneycomb.ObserverY,
-                    (float)state.HyperbolicHoneycomb.ObserverZ, (float)state.HyperbolicHoneycomb.FaceOpacity)
-                : state.Kind == Fractal3DKind.ImplicitSurface
-                ? new Vector4((float)state.ImplicitSurface.A, (float)state.ImplicitSurface.B, (float)state.ImplicitSurface.C, 0)
-                : state.Kind == Fractal3DKind.PeriodicSurfaces
-                ? new Vector4((float)state.PeriodicSurface.StretchX, (float)state.PeriodicSurface.StretchY,
-                    (float)state.PeriodicSurface.StretchZ, (float)state.PeriodicSurface.Period)
-                : state.Kind == Fractal3DKind.Lyapunov3D
-                ? new Vector4(state.Lyapunov.CutAxis, (float)state.Lyapunov.CutPosition,
-                    (int)state.Lyapunov.Region, (float)state.Lyapunov.BandWidth)
-                : state.Kind == Fractal3DKind.Kobayashi3D
-                ? new Vector4(state.Kobayashi.CutAxis, (float)state.Kobayashi.CutPosition, (float)state.Kobayashi.Undercooling, (float)Math.Max(state.Kobayashi.LatentHeat, .1))
-                : state.Kind == Fractal3DKind.Lenia3D
-                ? new Vector4(state.Lenia.CutAxis, (float)state.Lenia.CutPosition, 0, 0)
-                : state.Kind == Fractal3DKind.Physarum3D
-                ? new Vector4(state.Physarum.CutAxis, (float)state.Physarum.CutPosition, (float)state.Physarum.Exposure, 0)
-                : state.Kind == Fractal3DKind.Excitable3D
-                ? new Vector4(state.Excitable.CutAxis, (float)state.Excitable.CutPosition, (float)state.Excitable.View, 0)
-                : state.Kind == Fractal3DKind.GrayScott3D
-                ? new Vector4(state.GrayScott.CutAxis, (float)state.GrayScott.CutPosition, 0, 0)
-                : state.Kind == Fractal3DKind.CahnHilliard3D
-                ? new Vector4(state.CahnHilliard.CutAxis, (float)state.CahnHilliard.CutPosition, state.CahnHilliard.Invert ? 1 : 0, 0)
-                : state.Kind == Fractal3DKind.Turing3D
-                ? new Vector4(state.Turing.CutAxis, (float)state.Turing.CutPosition, (int)state.Turing.Region, (float)state.Turing.ShellThickness)
-                : state.Kind == Fractal3DKind.Kifs
-                ? new Vector4((float)kifs.OffsetX, (float)kifs.OffsetY, (float)kifs.OffsetZ, (float)kifs.Radius)
-                : state.Kind == Fractal3DKind.BulbBoxHybrid
-                ? new Vector4((float)state.BoxScale, (float)Math.Clamp(state.HybridMix, 0, 1),
-                    Math.Clamp(state.HybridBulbSteps, 1, 6), Math.Clamp(state.HybridBoxSteps, 1, 6))
-                : new Vector4((float)state.JuliaCX, (float)state.JuliaCY, (float)state.JuliaCZ, (float)state.JuliaCW),
+            ShapeA = new Vector4(shape.ShapeA, (float)Math.Max(state.Bailout, 1.0001)),
+            ShapeB = shape.ShapeB,
             ShapeC = new Vector4(
                 (float)state.QuaternionSlice,
                 (float)Math.Clamp(state.ColorScale, 0.01, 100),
                 (float)state.ColorOffset,
-                state.Kind == Fractal3DKind.Flame3D ? (float)state.Flame.Vibrancy :
-                    state.Kind == Fractal3DKind.Buddhabrot4D ? (float)state.Buddhabrot.Saturation :
-                    state.Kind == Fractal3DKind.BulbBoxHybrid ? (float)state.HybridOrder : 0),
-            BoxInversion = state.Kind == Fractal3DKind.HyperbolicHoneycomb
-                ? new Vector4(state.HyperbolicHoneycomb.CutAxis, (float)state.HyperbolicHoneycomb.CutPosition,
-                    state.HyperbolicHoneycomb.ShowEdges ? 1 : 0, state.HyperbolicHoneycomb.ShowFaces ? 1 : 0)
-                : state.Kind == Fractal3DKind.ImplicitSurface
-                ? new Vector4(state.ImplicitSurface.CutAxis, (float)(state.ImplicitSurface.CutPosition/state.ImplicitSurface.Extent), 0, 0)
-                : state.Kind == Fractal3DKind.PeriodicSurfaces
-                ? new Vector4(state.PeriodicSurface.CutAxis, (float)state.PeriodicSurface.CutPosition, (float)state.PeriodicSurface.Region, 0)
-                : state.Kind == Fractal3DKind.Lyapunov3D
-                ? new Vector4((float)state.Lyapunov.Level, state.Lyapunov.SliceOnly ? 1 : 0, 0, 0)
-                : state.Kind == Fractal3DKind.Kifs
-                ? new Vector4((float)(kifs.RotationX * Math.PI / 180), (float)(kifs.RotationY * Math.PI / 180),
-                    (float)(kifs.RotationZ * Math.PI / 180), (float)kifs.Seed)
-                : new Vector4(
-                state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryX :
-                    (float)(Enum.IsDefined(state.BoxInversionShape) ? state.BoxInversionShape : BoxInversionShape.Sphere),
-                state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryY :
-                    (float)Math.Clamp(state.BoxInversionStretch, 0.5, 2),
-                state.Kind == Fractal3DKind.Phoenix ? (float)state.PhoenixMemoryZ :
-                    (float)Math.Clamp(state.BoxInversionPower, 2, 16), 0),
+                shape.ShapeCW),
+            BoxInversion = shape.BoxInversion,
             Light = new Vector4(light, (float)Math.Clamp(state.Specular, 0, 4)),
             Surface = ToLinear(state.SurfaceColor, (float)Math.Clamp(state.AoStrength, 0, 1)),
             BackgroundTop = ToLinear(state.BackgroundTop),

@@ -47,6 +47,7 @@ public partial class Fractal3DWindow : Window
     private readonly Fractal3DRenderer _renderer = new();
     private readonly Fractal3DSaveStore _saveStore;
     private readonly Fractal3DPaletteManager _paletteManager;
+    private readonly Fractal3DMode _mode;
     private readonly Fractal3DDefinition _definition;
     private readonly IReadOnlyList<Fractal3DState> _presets;
 
@@ -100,7 +101,8 @@ public partial class Fractal3DWindow : Window
         _paletteManager = kind == Fractal3DKind.Ifs3D
             ? new Ifs3DPaletteManager()
             : new Fractal3DPaletteManager();
-        _definition = Fractal3DCatalog.GetDefinition(kind);
+        _mode = Fractal3DCatalog.Mode(kind);
+        _definition = _mode.Definition;
         _saveStore = new Fractal3DSaveStore(kind);
         _presets = Fractal3DCatalog.GetPresets(kind);
         _simulation = CreateSimulation();
@@ -153,11 +155,7 @@ public partial class Fractal3DWindow : Window
         SaveName = saveName,
         Timestamp = DateTime.Now,
         Kind = Kind,
-        Iterations = ReadInt(IterationsBox,
-            Kind == Fractal3DKind.ApollonianPacking ? "Поколения сфер" : "Итерации",
-            Kind == Fractal3DKind.Ifs3D ? 10_000 : Kind is Fractal3DKind.StrangeAttractor or Fractal3DKind.Flame3D ? 50_000 : 1,
-            Kind == Fractal3DKind.ApollonianPacking ? ApollonianSpherePacking.MaxGeneration :
-            Kind is Fractal3DKind.Ifs3D or Fractal3DKind.Flame3D ? 10_000_000 : Kind == Fractal3DKind.StrangeAttractor ? 5_000_000 : 64),
+        Iterations = (int)ReadField(IterationsBox, _mode.IterationsField),
         Flame = CaptureFlame(),
         Buddhabrot = Kind == Fractal3DKind.Buddhabrot4D ? BuddhabrotEditor.Capture() : new(),
         IfsTransforms = CaptureIfsTransforms(),
@@ -173,10 +171,7 @@ public partial class Fractal3DWindow : Window
         Dla = CaptureDla(),
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
-        Power = Fractal3DCatalog.IsBurningShip(Kind) || Kind == Fractal3DKind.Phoenix
-            ? ReadInt(PowerBox, "Степень", 2, Kind == Fractal3DKind.Phoenix ? 6 : 16)
-            : ReadDouble(PowerBox, "Степень", Kind == Fractal3DKind.BulbBoxHybrid ? 2 : -32,
-                Kind == Fractal3DKind.BulbBoxHybrid ? 12 : 32),
+        Power = ReadField(PowerBox, _mode.PowerField),
         BurningShipFormula = SelectedBurningShipFormula,
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
@@ -389,14 +384,14 @@ public partial class Fractal3DWindow : Window
 
     private void ConfigureKindLayout()
     {
-        // Источники цвета: подписи и доступность — в каталоге режимов, общем с менеджером сохранений.
+        // Источники цвета: подписи и доступность задаёт класс режима, общий с менеджером сохранений.
         foreach (Fractal3DColoringMode mode in Enum.GetValues<Fractal3DColoringMode>())
         {
             var item = (ComboBoxItem)ColoringModeBox.Items[(int)mode];
-            item.Content = Fractal3DCatalog.ColoringModeName(mode, Kind);
-            item.Visibility = Collapse(Fractal3DCatalog.HasColoringMode(mode, Kind));
+            item.Content = _mode.ColoringModeName(mode);
+            item.Visibility = Collapse(_mode.HasColoringMode(mode));
         }
-        if (ShapeHeader(Kind) is { } header) ShapeExpander.Header = header;
+        if (_mode.ShapeHeader is { } header) ShapeExpander.Header = header;
         ShapeExpander.Visibility = Collapse(Kind is not (Fractal3DKind.AbcFlow or Fractal3DKind.Hopf or
             Fractal3DKind.LSystem3D or Fractal3DKind.Lichtenberg3D));
         // Режимы со своим редактором формул или геометрии получают панель пошире.
@@ -404,16 +399,12 @@ public partial class Fractal3DWindow : Window
             Fractal3DKind.ImplicitSurface or Fractal3DKind.PeriodicSurfaces)
             ControlsColumn.Width = new GridLength(395);
 
-        IterationsLabel.Text = Kind == Fractal3DKind.ApollonianPacking
-            ? "Поколения сфер (1–5)"
-            : Kind == Fractal3DKind.Flame3D ? "Точки Flame (50 000–10 000 000)"
-            : Kind == Fractal3DKind.Ifs3D ? "Точки орбиты (10 000–10 000 000)"
-            : Kind == Fractal3DKind.StrangeAttractor ? "Точки траектории (50 000–5 000 000)" : "Итерации";
-        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(Fractal3DCatalog.UsesIterations(Kind));
-        bool volume = Fractal3DCatalog.IsDensityVolume(Kind);
+        IterationsLabel.Text = _mode.IterationsField.Label;
+        IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(_mode.UsesIterations);
+        bool volume = _mode.IsDensityVolume;
         RayQualityGrid.Visibility = Collapse(!volume && Kind != Fractal3DKind.Terrain);
         MaxDistanceLabel.Visibility = MaxDistanceBox.Visibility = Collapse(volume);
-        BailoutPanel.Visibility = Collapse(Fractal3DCatalog.UsesBailout(Kind));
+        BailoutPanel.Visibility = Collapse(_mode.UsesBailout);
 
         if (Kind == Fractal3DKind.Terrain)
             foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
@@ -429,13 +420,11 @@ public partial class Fractal3DWindow : Window
             PaletteManagerButton.ToolTip = "Отдельный редактор палитр конструктора объёмных IFS";
 
         // Параметры формы, общие для нескольких формул.
-        PowerPanel.Visibility = Collapse(Fractal3DCatalog.UsesPower(Kind));
+        PowerPanel.Visibility = Collapse(_mode.UsesPower);
         PhoenixPowerPanel.Visibility = PhoenixMemoryPanel.Visibility = Collapse(Kind == Fractal3DKind.Phoenix);
         BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
-        PowerLabel.Text = Kind == Fractal3DKind.Phoenix ? "Основная степень p (целая, 2–6)" :
-            Fractal3DCatalog.IsBurningShip(Kind) ? "Степень n (целая, 2–16)" :
-            Kind == Fractal3DKind.BulbBoxHybrid ? "Степень Мандельбульба (2–12)" : "Степень n";
-        JuliaPanel.Visibility = Collapse(Fractal3DCatalog.UsesJuliaConstant(Kind));
+        PowerLabel.Text = _mode.PowerField.Label;
+        JuliaPanel.Visibility = Collapse(_mode.UsesJuliaConstant);
         if (Kind == Fractal3DKind.Phoenix)
             ((TextBlock)JuliaPanel.Children[0]).Text = "Константа C₁ (вещественная; i; j)";
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);
@@ -465,24 +454,10 @@ public partial class Fractal3DWindow : Window
         AttractorPanel.Visibility = Collapse(Kind == Fractal3DKind.StrangeAttractor);
     }
 
-    /// <summary>Заголовок блока «Форма», если режим называет его по-своему.</summary>
-    private static string? ShapeHeader(Fractal3DKind kind) => kind switch
-    {
-        Fractal3DKind.Lyapunov3D => "Параметры и экспонента",
-        Fractal3DKind.Lenia3D => "Lenia · правило жизни",
-        Fractal3DKind.Physarum3D => "Агенты и живая сеть",
-        Fractal3DKind.CahnHilliard3D => "Смесь и эволюция",
-        Fractal3DKind.Kobayashi3D => "Кристалл и температура",
-        Fractal3DKind.Excitable3D => "Среда и свитковые волны",
-        Fractal3DKind.GrayScott3D => "Среда и эволюция",
-        Fractal3DKind.Turing3D => "Узор и эволюция",
-        Fractal3DKind.Buddhabrot4D => "Проекция и орбиты",
-        Fractal3DKind.Dla3D => "Рост и затравка",
-        Fractal3DKind.HyperbolicHoneycomb => "Ячейки и гиперболическое пространство",
-        Fractal3DKind.ImplicitSurface => "Формула и область построения",
-        Fractal3DKind.PeriodicSurfaces => "Поверхность и лабиринты",
-        _ => null
-    };
+    /// <summary>Общее числовое поле формы с подписью и диапазоном, которые задаёт режим.</summary>
+    private static double ReadField(TextBox box, Fractal3DField field) => field.IsInteger
+        ? ReadInt(box, field.Name, (int)field.Minimum, (int)field.Maximum)
+        : ReadDouble(box, field.Name, field.Minimum, field.Maximum);
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
