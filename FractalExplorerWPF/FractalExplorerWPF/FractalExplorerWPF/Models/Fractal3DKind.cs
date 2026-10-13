@@ -38,7 +38,8 @@ public enum Fractal3DKind
     ImplicitSurface,
     HyperbolicHoneycomb,
     AbcFlow,
-    GinzburgLandau3D
+    GinzburgLandau3D,
+    SwiftHohenberg3D
 }
 
 public sealed record Fractal3DDefinition(

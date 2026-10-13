@@ -1,3 +1,5 @@
+Свифт–Хоэнберг 3D (`Fractal3D:SwiftHohenberg3D`, `fractal3d-swift-hohenberg3-d`) входит в общий обход каталога с панелью `SwiftHohenberg3DEditor`. Для одного снимка: `--only=Fractal3D:SwiftHohenberg3D`.
+
 Поток ABC (`Fractal3D:AbcFlow`, `fractal3d-abc-flow`) автоматически входит в обход каталога; редактор встроен в общее 3D-окно. Для одного снимка: `--only=Fractal3D:AbcFlow`.
 
 Гиперболические соты (`Fractal3D:HyperbolicHoneycomb`, `fractal3d-hyperbolic-honeycomb`) автоматически входят в обход каталога; редактор встроен в общее 3D-окно. Для одного снимка: `--only=Fractal3D:HyperbolicHoneycomb`.

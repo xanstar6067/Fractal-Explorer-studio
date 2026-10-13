@@ -1,0 +1,60 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.SwiftHohenberg3DEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources><ResourceDictionary Source="Fractal3DPanelStyles.xaml"/></UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="∂ₜφ = rφ − (q₀²+∇²)²φ + bφ² − φ³" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,6"/>
+        <TextBlock Text="Периодические границы. Предпочтительная длина волны λ₀ = 2π/q₀. Среднее поле может изменяться." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock x:Name="ShDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси"/>
+        <ComboBox x:Name="ShSizeBox"><ComboBoxItem Content="32"/><ComboBoxItem Content="64"/><ComboBoxItem Content="128"/></ComboBox>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,4,0">
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Неустойчивость r"/><TextBox x:Name="ShRBox" Text="0.35"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Волновое число q₀"/><TextBox x:Name="ShQBox" Text="1"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt"/><TextBox x:Name="ShDtBox" Text="0.05"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Асимметрия b"/><TextBox x:Name="ShBBox" Text="0"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг сетки Δx"/><TextBox x:Name="ShSpacingBox" Text="1"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Начальный шум"/><TextBox x:Name="ShNoiseBox" Text="0.12"/>
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="Размер области N·Δx. Для выбранной длины волны требуется q₀·Δx ≤ 1,2; шаг времени 0,002–0,05." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное поле"/>
+        <ComboBox x:Name="ShSeedBox">
+            <ComboBoxItem Content="Шум"/><ComboBoxItem Content="Параллельные слои"/><ComboBoxItem Content="Наклонные слои"/>
+            <ComboBoxItem Content="Шестигранные колонны"/><ComboBoxItem Content="Пространственная решётка"/>
+            <ComboBoxItem Content="Локальная затравка"/><ComboBoxItem Content="Однородное поле"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное число"/><TextBox x:Name="ShSeedNumberBox" Text="937"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шаги подготовки (0–5 000)"/><TextBox x:Name="ShWarmupBox" Text="500"/>
+        <Button Content="Применить и начать заново" Click="ShRestart_OnClick"/>
+        <TextBlock Text="После подготовки поле встаёт на паузу. Пробел — продолжить или остановить. Уравнение и затравка применяются кнопкой." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+        <Slider x:Name="ShSpeedSlider" Minimum="1" Maximum="64" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
+        <TextBlock Text="{Binding ElementName=ShSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Показывать"/>
+        <ComboBox x:Name="ShViewBox" SelectionChanged="ShView_OnChanged">
+            <ComboBoxItem Content="Положительная фаза"/><ComboBoxItem Content="Отрицательная фаза"/><ComboBoxItem Content="Границы фаз φ ≈ 0"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб поля для отображения"/>
+        <Slider x:Name="ShRangeSlider" Minimum="0.5" Maximum="3" Value="1.5" ValueChanged="ShView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=ShRangeSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности"/>
+        <Slider x:Name="ShThresholdSlider" Minimum="0.02" Maximum="0.95" Value="0.15" ValueChanged="ShView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=ShThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+        <ComboBox x:Name="ShCutBox" SelectionChanged="ShView_OnChanged">
+            <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+        </ComboBox>
+        <Slider x:Name="ShCutSlider" Minimum="-1" Maximum="1" Value="0.45" ValueChanged="ShView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=ShCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Сферическая кисть"/>
+        <ComboBox x:Name="ShBrushBox" SelectedIndex="0"><ComboBoxItem Content="Положительная затравка"/><ComboBoxItem Content="Отрицательная затравка"/><ComboBoxItem Content="Погасить поле"/></ComboBox>
+        <Slider x:Name="ShBrushSlider" Minimum="0.04" Maximum="0.2" Value="0.1"/>
+        <Button x:Name="ShBrushButton" Content="Кисть в центре" Click="ShBrush_OnClick"/>
+        <TextBlock Text="Shift + щелчок: кисть на выбранном срезе. Затравка сглаживается до разрешения поля и оборачивается через границы. Срез, фаза, палитра и масштаб отображения не меняют уравнение." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

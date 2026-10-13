@@ -365,12 +365,12 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Fractal3DKind[] recent3D = [Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
+            Fractal3DKind[] recent3D = [Fractal3DKind.SwiftHohenberg3D, Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
                 Fractal3DKind.HyperbolicHoneycomb, Fractal3DKind.ImplicitSurface, Fractal3DKind.PeriodicSurfaces,
                 Fractal3DKind.Excitable3D, Fractal3DKind.Lyapunov3D, Fractal3DKind.Kobayashi3D];
             Check(ViewItems(window).Take(recent3D.Length).Select(tile => tile.Item.LaunchKey)
                     .SequenceEqual(recent3D.Select(Fractal3DCatalog.LaunchKey)),
-                "Ginzburg–Landau must lead new arrivals; existing 3D modes must retain their introduction dates.");
+                "Swift–Hohenberg must lead new arrivals; existing 3D modes must retain their introduction dates.");
             Check(ViewItems(window).Skip(recent3D.Length).Take(94).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 FoldedFormulaCatalog.All.SelectMany(d => new[] { d.Parameter.ToString(), d.Julia.ToString() }).Concat(new[] { "Hybrid", "JuliaHybrid" })),
                 "Newest must begin with 92 polynomial modes and the two hybrid constructors.");
