@@ -1,3 +1,5 @@
+Фазовое поле кристалла 3D (`Fractal3D:PhaseFieldCrystal3D`, `fractal3d-phase-field-crystal3-d`) снимается общим обходом с панелью `PhaseFieldCrystal3DEditor`; фильтр `--only=Fractal3D:PhaseFieldCrystal3D`.
+
 Свифт–Хоэнберг 3D (`Fractal3D:SwiftHohenberg3D`, `fractal3d-swift-hohenberg3-d`) входит в общий обход каталога с панелью `SwiftHohenberg3DEditor`. Для одного снимка: `--only=Fractal3D:SwiftHohenberg3D`.
 
 Поток ABC (`Fractal3D:AbcFlow`, `fractal3d-abc-flow`) автоматически входит в обход каталога; редактор встроен в общее 3D-окно. Для одного снимка: `--only=Fractal3D:AbcFlow`.

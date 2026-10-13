@@ -509,6 +509,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private static ShaderCacheEntry SwiftHohenbergPixelShaderEntry() =>
         new("swift-hohenberg3d-pixel", SwiftHohenberg3DShader.Source, "PSMain", "ps_5_0");
 
+    private static ShaderCacheEntry PhaseFieldCrystalPixelShaderEntry() =>
+        new("phase-field-crystal3d-pixel", PhaseFieldCrystal3DShader.Source, "PSMain", "ps_5_0");
+
     private static ShaderCacheEntry GrayScottPixelShaderEntry() =>
         new("gray-scott3d-pixel", GrayScott3DShader.Source, "PSMain", "ps_5_0");
 
@@ -582,6 +585,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.AddRange(GinzburgLandau3DComputeShader.CacheEntries);
         entries.Add(SwiftHohenbergPixelShaderEntry());
         entries.AddRange(SwiftHohenberg3DComputeShader.CacheEntries);
+        entries.Add(PhaseFieldCrystalPixelShaderEntry());
+        entries.AddRange(PhaseFieldCrystal3DComputeShader.CacheEntries);
         entries.Add(GrayScottPixelShaderEntry());
         entries.Add(TuringPixelShaderEntry());
         entries.Add(CahnHilliardPixelShaderEntry());

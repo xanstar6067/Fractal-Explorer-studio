@@ -45,6 +45,10 @@ public sealed partial class Fractal3DRenderer
         "Свифта–Хоэнберга 3D", SwiftHohenberg3DGpuSimulation.CreateLocked, s => s.Live,
         s => s.Field is null ? s.WarmupSteps : null, (a, b) => a.SameEvolution(b));
 
+    private readonly GpuSimulationPreview<PhaseFieldCrystal3DSettings, PhaseFieldCrystal3DField, PhaseFieldCrystal3DVolume> _phaseFieldCrystalPreview = new(
+        "фазового поля кристалла 3D", PhaseFieldCrystal3DGpuSimulation.CreateLocked, s => s.Live,
+        s => s.Field is null ? s.WarmupSteps : null, (a, b) => a.SameEvolution(b));
+
     /// <summary>Объём моделирования для кадра или null, если режим не моделируется на ГП. Под очередью устройства.</summary>
     private ID3D11ShaderResourceView? SimulationVolumeView(Fractal3DState state, CancellationToken token) => state.Kind switch
     {
@@ -57,6 +61,7 @@ public sealed partial class Fractal3DRenderer
         Fractal3DKind.Excitable3D => _excitablePreview.View(_host, state.Excitable, token),
         Fractal3DKind.GinzburgLandau3D => _ginzburgLandauPreview.View(_host, state.GinzburgLandau, token),
         Fractal3DKind.SwiftHohenberg3D => _swiftHohenbergPreview.View(_host, state.SwiftHohenberg, token),
+        Fractal3DKind.PhaseFieldCrystal3D => _phaseFieldCrystalPreview.View(_host, state.PhaseFieldCrystal, token),
         _ => null
     };
 
@@ -71,5 +76,6 @@ public sealed partial class Fractal3DRenderer
         _excitablePreview.DisposeLocked();
         _ginzburgLandauPreview.DisposeLocked();
         _swiftHohenbergPreview.DisposeLocked();
+        _phaseFieldCrystalPreview.DisposeLocked();
     }
 }

@@ -2,6 +2,12 @@
 
 # Проверка превью сохранений WPF
 
+Фазовое поле кристалла 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- phase-field-crystal3d [папка PNG]`.
+Независимый прямой DFT, убывание энергии и сохранение средней плотности, аналитические гармоники
+на сетках 32/64/128 и обеих реализациях БПФ, сходимость амплитуды, гауссова RMS-модуляция,
+кисть, сохранения и продолжение, восемь видов, срезы, стили, зонд и скрытое WPF-окно.
+Модель и ручная проверка — [PHASE_FIELD_CRYSTAL3D.md](../PHASE_FIELD_CRYSTAL3D.md).
+
 Свифт–Хоэнберг 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- swift-hohenberg3d [папка PNG]`.
 Независимый прямой DFT в double, аналитические гармоники для обеих реализаций БПФ и сеток 32/64/128,
 нейтральная мода, сходимость по времени, свободная энергия, спектральная полоса, изменение среднего,

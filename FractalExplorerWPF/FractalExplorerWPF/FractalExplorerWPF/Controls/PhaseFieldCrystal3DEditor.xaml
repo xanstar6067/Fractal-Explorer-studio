@@ -1,0 +1,61 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.PhaseFieldCrystal3DEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources><ResourceDictionary Source="Fractal3DPanelStyles.xaml"/></UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="∂ₜψ = M∇²[(−ε+(q₀²+∇²)²)ψ + ψ³]" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,6"/>
+        <TextBlock Text="Периодический куб. Средняя плотность сохраняется при шагах и работе кистью. Размер области N·Δx." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock x:Name="PfcDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси"/>
+        <ComboBox x:Name="PfcSizeBox"><ComboBoxItem Content="32"/><ComboBoxItem Content="64"/><ComboBoxItem Content="128"/></ComboBox>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,4,0">
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Переохлаждение ε"/><TextBox x:Name="PfcEpsilonBox" Text="0.35"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Волновое число q₀"/><TextBox x:Name="PfcQBox" Text="1"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Подвижность M"/><TextBox x:Name="PfcMobilityBox" Text="1"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Средняя плотность ψ̄"/><TextBox x:Name="PfcMeanBox" Text="-0.22"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг сетки Δx"/><TextBox x:Name="PfcSpacingBox" Text="1"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Шаг времени Δt"/><TextBox x:Name="PfcDtBox" Text="0.025"/>
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="Требуется M·Δt ≤ 0,03 и q₀·Δx ≤ 1,2. Пики поля изображают периодическую плотность кристалла; ψ — безразмерное знаковое поле." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальная структура"/>
+        <ComboBox x:Name="PfcSeedBox">
+            <ComboBoxItem Content="ОЦК · монокристалл"/><ComboBoxItem Content="Одно кристаллическое ядро"/>
+            <ComboBoxItem Content="Два зерна с разной ориентацией"/><ComboBoxItem Content="Граница зёрен"/>
+            <ComboBoxItem Content="Шум в жидкости"/><ComboBoxItem Content="Слои"/>
+            <ComboBoxItem Content="Колонны"/><ComboBoxItem Content="Однородная жидкость"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальный шум"/><TextBox x:Name="PfcNoiseBox" Text="0.005"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное число"/><TextBox x:Name="PfcSeedNumberBox" Text="937"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шаги подготовки (0–6 000)"/><TextBox x:Name="PfcWarmupBox" Text="800"/>
+        <Button Content="Применить и начать заново" Click="PfcRestart_OnClick"/>
+        <TextBlock Text="После подготовки поле встаёт на паузу. Пробел — продолжить или остановить. Изменение средней плотности применяется с перезапуском." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Шагов на кадр"/>
+        <Slider x:Name="PfcSpeedSlider" Minimum="1" Maximum="64" Value="4" TickFrequency="1" IsSnapToTickEnabled="True"/>
+        <TextBlock Text="{Binding ElementName=PfcSpeedSlider, Path=Value, StringFormat={}{0:F0}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Показывать"/>
+        <ComboBox x:Name="PfcViewBox" SelectionChanged="PfcView_OnChanged">
+            <ComboBoxItem Content="Пики плотности"/><ComboBoxItem Content="Впадины плотности"/><ComboBoxItem Content="Местная модуляция · оболочка"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб отображения"/>
+        <Slider x:Name="PfcRangeSlider" Minimum="0.5" Maximum="3" Value="1.5" ValueChanged="PfcView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=PfcRangeSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Уровень поверхности"/>
+        <Slider x:Name="PfcThresholdSlider" Minimum="0.02" Maximum="0.95" Value="0.35" ValueChanged="PfcView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=PfcThresholdSlider, Path=Value, StringFormat={}{0:F3}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Срез объёма"/>
+        <ComboBox x:Name="PfcCutBox" SelectionChanged="PfcView_OnChanged">
+            <ComboBoxItem Content="Целый объём"/><ComboBoxItem Content="По X"/><ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+        </ComboBox>
+        <Slider x:Name="PfcCutSlider" Minimum="-1" Maximum="1" Value="0.45" ValueChanged="PfcView_OnChanged"/>
+        <TextBlock Text="{Binding ElementName=PfcCutSlider, Path=Value, StringFormat={}{0:F2}}" HorizontalAlignment="Right"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Сферическая кисть"/>
+        <ComboBox x:Name="PfcBrushBox" SelectedIndex="0"><ComboBoxItem Content="Кристаллическая затравка"/><ComboBoxItem Content="Расплавить локально"/></ComboBox>
+        <Slider x:Name="PfcBrushSlider" Minimum="0.08" Maximum="0.25" Value="0.16"/>
+        <Button x:Name="PfcBrushButton" Content="Кисть в центре" Click="PfcBrush_OnClick"/>
+        <TextBlock Text="Shift + щелчок: кисть на выбранном срезе. Она перераспределяет плотность, сохраняя среднее. Местная модуляция — сглаженная величина колебаний поля, а не точный классификатор дефектов." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

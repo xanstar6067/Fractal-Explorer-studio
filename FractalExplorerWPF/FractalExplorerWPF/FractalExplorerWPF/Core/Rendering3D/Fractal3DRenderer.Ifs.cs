@@ -17,6 +17,7 @@ public sealed partial class Fractal3DRenderer
     private ID3D11PixelShader? _excitablePixelShader;
     private ID3D11PixelShader? _ginzburgLandauPixelShader;
     private ID3D11PixelShader? _swiftHohenbergPixelShader;
+    private ID3D11PixelShader? _phaseFieldCrystalPixelShader;
     private ID3D11PixelShader? _grayScottPixelShader;
     private ID3D11PixelShader? _leniaPixelShader;
     private ID3D11PixelShader? _physarumPixelShader;
@@ -50,6 +51,8 @@ public sealed partial class Fractal3DRenderer
             return _ginzburgLandauPixelShader ??= _device!.CreatePixelShader(Compile(GinzburgLandauPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.SwiftHohenberg3D)
             return _swiftHohenbergPixelShader ??= _device!.CreatePixelShader(Compile(SwiftHohenbergPixelShaderEntry()).Span);
+        if (kind == Fractal3DKind.PhaseFieldCrystal3D)
+            return _phaseFieldCrystalPixelShader ??= _device!.CreatePixelShader(Compile(PhaseFieldCrystalPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.GrayScott3D)
             return _grayScottPixelShader ??= _device!.CreatePixelShader(Compile(GrayScottPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.CahnHilliard3D)
@@ -206,6 +209,8 @@ public sealed partial class Fractal3DRenderer
             return first.GinzburgLandau.Live == second.GinzburgLandau.Live && first.GinzburgLandau.SameEvolution(second.GinzburgLandau);
         if (first.Kind == Fractal3DKind.SwiftHohenberg3D)
             return first.SwiftHohenberg.Live == second.SwiftHohenberg.Live && first.SwiftHohenberg.SameEvolution(second.SwiftHohenberg);
+        if (first.Kind == Fractal3DKind.PhaseFieldCrystal3D)
+            return first.PhaseFieldCrystal.Live == second.PhaseFieldCrystal.Live && first.PhaseFieldCrystal.SameEvolution(second.PhaseFieldCrystal);
         if (first.Kind == Fractal3DKind.GrayScott3D)
             return first.GrayScott.Live == second.GrayScott.Live && first.GrayScott.SameEvolution(second.GrayScott);
         if (first.Kind == Fractal3DKind.Lenia3D)
@@ -270,6 +275,7 @@ public sealed partial class Fractal3DRenderer
         _excitablePixelShader?.Dispose(); _excitablePixelShader = null;
         _ginzburgLandauPixelShader?.Dispose(); _ginzburgLandauPixelShader = null;
         _swiftHohenbergPixelShader?.Dispose(); _swiftHohenbergPixelShader = null;
+        _phaseFieldCrystalPixelShader?.Dispose(); _phaseFieldCrystalPixelShader = null;
         _turingPixelShader?.Dispose();
         _cahnHilliardPixelShader?.Dispose();
         _leniaPixelShader?.Dispose();
