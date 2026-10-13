@@ -31,7 +31,6 @@ public partial class MathematicalLaboratoryWindow : Window
     private bool _panning;
     private bool _drawing;
     private bool _controlsVisible = true;
-    private bool _fullScreen;
     private Point _pointerStart;
     private LaboratoryPoint _worldStart;
     private double _viewCenterX;
@@ -47,8 +46,7 @@ public partial class MathematicalLaboratoryWindow : Window
     private int _animationStep;
     private bool _hasRenderedFrame;
     private int _lastModeIndex = -1;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public MathematicalLaboratoryWindow(MathematicalLaboratoryKind kind)
     {
@@ -716,24 +714,7 @@ public partial class MathematicalLaboratoryWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || e.Key == Key.Escape && _fullScreen) ToggleFullScreen();
-    }
-
-    private void ToggleFullScreen()
-    {
-        if (!_fullScreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _fullScreen = !_fullScreen;
+        _fullscreen.HandleKey(this, e.Key);
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

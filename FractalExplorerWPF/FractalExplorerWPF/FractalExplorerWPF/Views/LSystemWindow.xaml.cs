@@ -37,9 +37,7 @@ public partial class LSystemWindow : Window
     private bool _isAnimating;
     private bool _isPanning;
     private bool _controlsVisible = true;
-    private bool _isFullscreen;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
     private Point _lastPanPoint;
     private double _viewZoom = 1;
     private double _panX;
@@ -795,27 +793,10 @@ public partial class LSystemWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen)
+        if (e.Key == Key.F11 || e.Key == Key.Escape && _fullscreen.IsActive)
         {
-            ToggleFullscreen();
+            _fullscreen.Toggle(this);
         }
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
     }
 
     private void Window_OnClosing(object? sender, CancelEventArgs e)

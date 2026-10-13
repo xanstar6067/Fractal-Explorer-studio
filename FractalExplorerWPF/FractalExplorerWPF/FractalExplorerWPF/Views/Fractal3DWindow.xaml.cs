@@ -54,7 +54,6 @@ public partial class Fractal3DWindow : Window
     private bool _isRendering;
     private bool _updatingUi = true;
     private bool _controlsVisible = true;
-    private bool _isFullscreen;
     private bool _isClosing;
 
     private bool _loopAttached;
@@ -92,8 +91,7 @@ public partial class Fractal3DWindow : Window
 
     /// <summary>Живое моделирование на ГП (Gray–Scott, Тьюринг, Lenia…) или null для остальных режимов.</summary>
     private readonly IFractal3DSimulationMode? _simulation;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public Fractal3DWindow(Fractal3DKind kind)
     {
@@ -1240,27 +1238,10 @@ public partial class Fractal3DWindow : Window
             LichtenbergPlay_OnClick(sender, e); e.Handled = true; return;
         }
         if (HandleGameKeyDown(e)) return;
-        if (e.Key == Key.F11 || (e.Key == Key.Escape && _isFullscreen))
+        if (e.Key == Key.F11 || (e.Key == Key.Escape && _fullscreen.IsActive))
         {
-            ToggleFullscreen();
+            _fullscreen.Toggle(this);
         }
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

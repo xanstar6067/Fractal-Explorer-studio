@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using FractalExplorerWPF.Controls;
+using FractalExplorerWPF.Core.NewtonMath;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
@@ -19,35 +20,20 @@ public partial class DomainColoringWindow : Window
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DomainColoringSaveStore _saveStore = new();
     private readonly DomainColoringPaletteManager _paletteManager = new();
-    private readonly TransformGroup _previewTransform = new();
-    private readonly ScaleTransform _previewScale = new(1, 1);
-    private readonly TranslateTransform _previewTranslation = new();
+    private readonly DoubleDeepZoomViewport _viewport =
+        new(DomainColoringRenderer.BaseScale, 1e-12, 1e12, double.PositiveInfinity);
     private CancellationTokenSource? _renderCts;
     private TiledRenderSession? _activeSession;
     private bool _isRendering;
-    private bool _panning;
-    private bool _isFullscreen;
     private bool _controlsVisible = true;
-    private bool _hasRenderedFrame;
     private bool _updatingControls;
-    private Point _lastPanPoint;
-    private double _centerX;
-    private double _centerY;
-    private double _zoom = 1;
-    private double _renderedCenterX;
-    private double _renderedCenterY;
-    private double _renderedZoom = 1;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public DomainColoringWindow()
     {
         InitializeComponent();
         _updatingControls = true;
-        _previewTransform.Children.Add(_previewScale);
-        _previewTransform.Children.Add(_previewTranslation);
-        StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
-        StablePreviewImage.RenderTransform = _previewTransform;
+        _viewport.AttachPreview(StablePreviewImage, CanvasHost);
         _renderTimer.Tick += RenderTimer_OnTick;
 
         FormulaBox.Text = "(z^3-1)/(z^3+1)";
@@ -63,9 +49,7 @@ public partial class DomainColoringWindow : Window
         InvalidColorSelector.SelectedColor = Colors.White;
         ShowAxesBox.IsChecked = false;
         SsaaBox.SelectedIndex = 0;
-        for (int count = 1; count <= Environment.ProcessorCount; count++) ThreadsBox.Items.Add(count);
-        ThreadsBox.Items.Add("Auto");
-        ThreadsBox.SelectedItem = "Auto";
+        RenderThreadsBox.Fill(ThreadsBox);
         UpdateColoringControls();
         _updatingControls = false;
 
@@ -79,9 +63,9 @@ public partial class DomainColoringWindow : Window
             SaveName = name,
             Timestamp = DateTime.Now,
             Formula = FormulaBox.Text.Trim(),
-            CenterX = _centerX,
-            CenterY = _centerY,
-            Zoom = _zoom,
+            CenterX = _viewport.CenterX,
+            CenterY = _viewport.CenterY,
+            Zoom = _viewport.Zoom.ToDouble(),
             ColoringMode = (DomainColoringMode)Math.Clamp(ColoringModeBox.SelectedIndex, 0,
                 (int)DomainColoringMode.ArgumentOnly),
             HueCycles = ReadDouble(HueCyclesBox.Text, "обороты оттенка", 0.05, 32),
@@ -103,9 +87,8 @@ public partial class DomainColoringWindow : Window
         _renderTimer.Stop();
         _updatingControls = true;
 
-        _centerX = double.IsFinite(state.CenterX) ? state.CenterX : 0;
-        _centerY = double.IsFinite(state.CenterY) ? state.CenterY : 0;
-        _zoom = double.IsFinite(state.Zoom) ? Math.Clamp(state.Zoom, 1e-12, 1e12) : 1;
+        _viewport.Restore(double.IsFinite(state.CenterX) ? state.CenterX : 0,
+            double.IsFinite(state.CenterY) ? state.CenterY : 0, null, null, state.Zoom);
         string formula = string.IsNullOrWhiteSpace(state.Formula) ? "z" : state.Formula.Trim();
         PresetBox.SelectedIndex = FindPresetIndex(formula);
         FormulaBox.Text = formula;
@@ -119,7 +102,7 @@ public partial class DomainColoringWindow : Window
         SaturationBox.Text = Format(ClampFinite(state.Saturation, 0, 1, 0.9));
         ShowAxesBox.IsChecked = state.ShowAxes;
         InvalidColorSelector.SelectedColor = state.InvalidColor;
-        ZoomBox.Text = Format(_zoom);
+        ZoomBox.Text = Format(_viewport.Zoom.ToDouble());
         _paletteManager.ActivePalette = state.Palette.Clone($"Загружено: {state.SaveName}");
 
         UpdateColoringControls();
@@ -200,7 +183,7 @@ public partial class DomainColoringWindow : Window
     private void ZoomBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
         if (_updatingControls || !TryReadDouble(ZoomBox.Text, out double zoom) || zoom <= 0) return;
-        _zoom = Math.Clamp(zoom, 1e-12, 1e12);
+        _viewport.SetZoom(zoom);
         UpdatePreviewTransform();
         ScheduleRender();
     }
@@ -210,9 +193,7 @@ public partial class DomainColoringWindow : Window
 
     private void ResetViewButton_OnClick(object sender, RoutedEventArgs e)
     {
-        _centerX = 0;
-        _centerY = 0;
-        _zoom = 1;
+        _viewport.Reset(0, 0, FloatExp.One);
         SetZoomText();
         UpdatePreviewTransform();
         ScheduleRender();
@@ -284,10 +265,7 @@ public partial class DomainColoringWindow : Window
         if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
             StablePreviewImage.Source = baked;
-            _renderedCenterX = _centerX;
-            _renderedCenterY = _centerY;
-            _renderedZoom = _zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered();
             UpdatePreviewTransform();
         }
         CanvasImage.Source = null;
@@ -355,10 +333,7 @@ public partial class DomainColoringWindow : Window
 
             StablePreviewImage.Source = session.Snapshot();
             CanvasImage.Source = null;
-            _renderedCenterX = state.CenterX;
-            _renderedCenterY = state.CenterY;
-            _renderedZoom = state.Zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered(state.CenterX, state.CenterY, null, null, state.Zoom);
             UpdatePreviewTransform();
             StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; f(z) = {renderer.ParsedFormula}.";
         }
@@ -383,7 +358,7 @@ public partial class DomainColoringWindow : Window
         }
     }
 
-    private async Task<BitmapSource> RenderBitmapAsync(
+    private Task<BitmapSource> RenderBitmapAsync(
         DomainColoringState state,
         int width,
         int height,
@@ -391,27 +366,14 @@ public partial class DomainColoringWindow : Window
         CancellationToken token,
         IProgress<int>? progress)
     {
-        int factor = Math.Clamp(ssaa, 1, 4);
-        int renderWidth = checked(width * factor);
-        int renderHeight = checked(height * factor);
-        int stride = checked(renderWidth * 4);
-        byte[] pixels = new byte[checked(stride * renderHeight)];
         var renderer = new DomainColoringRenderer(state);
+        // Элементы окна принадлежат UI-потоку: число потоков читается до расчёта.
         int threads = GetThreadCount();
-        await Task.Run(() => renderer.Render(pixels, renderWidth, renderHeight, stride, threads, token,
-            value => progress?.Report(factor == 1 ? value : value * 90 / 100)), token);
-        BitmapSource source = BitmapSource.Create(renderWidth, renderHeight, 96, 96,
-            PixelFormats.Bgra32, null, pixels, stride);
-        source.Freeze();
-        return factor == 1 || token.IsCancellationRequested
-            ? source
-            : await Task.Run(() => BitmapResampler.ResizeLanczos3(source, width, height, token,
-                value => progress?.Report(value)), token);
+        return SsaaBitmapRenderer.RenderAsync(width, height, ssaa, 4, (pixels, renderWidth, renderHeight, stride, report) =>
+            renderer.Render(pixels, renderWidth, renderHeight, stride, threads, token, report), token, progress);
     }
 
-    private int GetThreadCount() => ThreadsBox.SelectedItem?.ToString() == "Auto"
-        ? Environment.ProcessorCount
-        : Math.Max(1, Convert.ToInt32(ThreadsBox.SelectedItem, CultureInfo.InvariantCulture));
+    private int GetThreadCount() => RenderThreadsBox.Read(ThreadsBox);
 
     private void SetRendering(bool value, string? status = null)
     {
@@ -430,12 +392,8 @@ public partial class DomainColoringWindow : Window
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         CommitAndBakePreview();
-        Point mouse = e.GetPosition(CanvasHost);
-        (double x, double y) = ScreenToWorld(mouse);
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.2 : 1 / 1.2), 1e-12, 1e12);
-        (double nextX, double nextY) = ScreenToWorld(mouse);
-        _centerX += x - nextX;
-        _centerY += y - nextY;
+        _viewport.ZoomAt(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight,
+            _viewport.WheelFactor(e.Delta));
         SetZoomText();
         UpdatePreviewTransform();
         ScheduleRender();
@@ -445,8 +403,7 @@ public partial class DomainColoringWindow : Window
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         CommitAndBakePreview();
-        _panning = true;
-        _lastPanPoint = e.GetPosition(CanvasHost);
+        _viewport.BeginPan(e.GetPosition(CanvasHost));
         CanvasHost.CaptureMouse();
         Mouse.OverrideCursor = Cursors.SizeAll;
     }
@@ -454,50 +411,25 @@ public partial class DomainColoringWindow : Window
     private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
     {
         Point current = e.GetPosition(CanvasHost);
-        (double x, double y) = ScreenToWorld(current);
+        (double x, double y) = _viewport.ScreenToWorld(current, CanvasHost.ActualWidth, CanvasHost.ActualHeight);
         CoordinateText.Text = $"z = {x:G7} {(y < 0 ? '−' : '+')} {Math.Abs(y):G7}i";
-        if (!_panning) return;
-
-        (double beforeX, double beforeY) = ScreenToWorld(_lastPanPoint);
-        _centerX += beforeX - x;
-        _centerY += beforeY - y;
-        _lastPanPoint = current;
-        UpdatePreviewTransform();
+        if (_viewport.PanTo(current, CanvasHost.ActualWidth)) UpdatePreviewTransform();
     }
 
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_panning) return;
-        _panning = false;
+        if (!_viewport.EndPan()) return;
         CanvasHost.ReleaseMouseCapture();
         Mouse.OverrideCursor = null;
         ScheduleRender();
     }
 
-    private (double X, double Y) ScreenToWorld(Point point)
-    {
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double scale = DomainColoringRenderer.BaseScale / _zoom;
-        return (_centerX + (point.X - width / 2) * scale / width,
-            _centerY + (Math.Max(1, CanvasHost.ActualHeight) / 2 - point.Y) * scale / width);
-    }
-
-    private void UpdatePreviewTransform()
-    {
-        if (!_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0 || CanvasHost.ActualWidth <= 0) return;
-        double scale = _zoom / _renderedZoom;
-        double currentScale = DomainColoringRenderer.BaseScale / _zoom;
-        double width = CanvasHost.ActualWidth;
-        _previewScale.ScaleX = scale;
-        _previewScale.ScaleY = scale;
-        _previewTranslation.X = (_renderedCenterX - _centerX) / currentScale * width;
-        _previewTranslation.Y = (_centerY - _renderedCenterY) / currentScale * width;
-    }
+    private void UpdatePreviewTransform() => _viewport.UpdatePreview();
 
     private void SetZoomText()
     {
         _updatingControls = true;
-        ZoomBox.Text = _zoom.ToString("G8", CultureInfo.InvariantCulture);
+        ZoomBox.Text = _viewport.Zoom.ToDouble().ToString("G8", CultureInfo.InvariantCulture);
         _updatingControls = false;
     }
 
@@ -510,24 +442,7 @@ public partial class DomainColoringWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen();
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
+        _fullscreen.HandleKey(this, e.Key);
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

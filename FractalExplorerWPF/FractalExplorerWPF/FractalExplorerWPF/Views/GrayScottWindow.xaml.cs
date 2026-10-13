@@ -46,9 +46,7 @@ public partial class GrayScottWindow : Window
     private bool _syncing;
     private bool _painting;
     private bool _controlsVisible = true;
-    private bool _fullScreen;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public GrayScottWindow()
     {
@@ -670,27 +668,10 @@ public partial class GrayScottWindow : Window
             SetRunning(!_running);
             e.Handled = true;
         }
-        else if (e.Key == Key.F11 || e.Key == Key.Escape && _fullScreen)
+        else if (e.Key == Key.F11 || e.Key == Key.Escape && _fullscreen.IsActive)
         {
-            ToggleFullScreen();
+            _fullscreen.Toggle(this);
         }
-    }
-
-    private void ToggleFullScreen()
-    {
-        if (!_fullScreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _fullScreen = !_fullScreen;
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

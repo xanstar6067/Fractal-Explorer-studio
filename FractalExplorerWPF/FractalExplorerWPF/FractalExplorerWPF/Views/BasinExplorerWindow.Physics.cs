@@ -294,7 +294,7 @@ public partial class BasinExplorerWindow
             BasinForceCenter c = _forceCenters[i];
             var position = new Complex(c.X, c.Y);
             Point screen = PlaneToScreen(position);
-            double radius = c.CaptureRadius * Math.Max(1, CanvasHost.ActualWidth) * _zoom / BaseScale;
+            double radius = c.CaptureRadius * Math.Max(1, CanvasHost.ActualWidth) * _viewport.Zoom.ToDouble() / BaseScale;
             if (radius < 1e6)
             {
                 var ring = new Ellipse { Width = 2 * radius, Height = 2 * radius, Stroke = new SolidColorBrush(colors[i]),

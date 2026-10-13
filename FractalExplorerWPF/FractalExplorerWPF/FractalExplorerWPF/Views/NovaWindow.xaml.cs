@@ -26,32 +26,18 @@ public partial class NovaWindow : Window
     private readonly DispatcherTimer _mapTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly NovaPaletteManager _paletteManager = new();
     private readonly NovaSaveStore _saveStore;
-    private readonly TransformGroup _previewTransform = new();
-    private readonly ScaleTransform _previewScale = new(1, 1);
-    private readonly TranslateTransform _previewTranslation = new();
+    private readonly DecimalDeepZoomViewport _viewport = new((double)BaseScale, MinZoom, MaxZoom, DeepZoomThreshold);
     private CancellationTokenSource? _renderCts;
     private CancellationTokenSource? _mapCts;
     private TiledRenderSession? _activeSession;
-    private bool _isRendering, _panning, _isFullscreen, _controlsVisible = true, _hasRenderedFrame;
+    private bool _isRendering, _controlsVisible = true;
 
     /// <summary>
     /// Окно само заполняет поле зума после колеса. Без этого флага обработчик изменения текста
-    /// тут же прочитал бы округлённое до восьми цифр значение обратно в <see cref="_zoom"/> —
+    /// тут же прочитал бы округлённое до восьми цифр значение обратно в зум вида —
     /// уже после того, как по прежнему зуму посчитан сдвиг центра.
     /// </summary>
     private bool _updatingControls;
-    private Point _lastPanPoint;
-    private decimal _centerX, _centerY;
-    private double _zoom = 1;
-
-    /// <summary>
-    /// Центр области в произвольной точности. Ведётся начиная с
-    /// <see cref="DeepZoomThreshold"/>, когда decimal (28 знаков) перестаёт различать соседние
-    /// пиксели; ниже порога источником истины остаются <see cref="_centerX"/>/<see cref="_centerY"/>.
-    /// </summary>
-    private BigFloat _centerXExact, _centerYExact;
-    private BigFloat _renderedCenterXExact, _renderedCenterYExact;
-    private bool _deepZoomEngaged;
 
     /// <summary>
     /// Зум, начиная с которого окно ведёт центр в <see cref="BigFloat"/>. Совпадает с порогом
@@ -83,9 +69,7 @@ public partial class NovaWindow : Window
     private const double MaxZoom = 1e50;
 
     private const double MinZoom = 0.000000000000001;
-    private double _renderedZoom = 1;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public NovaWindow(NovaVariant variant)
     {
@@ -95,17 +79,13 @@ public partial class NovaWindow : Window
         Title = variant == NovaVariant.Julia ? "Фрактал Nova Julia" : "Фрактал Nova Mandelbrot";
         HeaderText.Text = variant == NovaVariant.Julia ? "Параметры Nova Julia" : "Параметры Nova Mandelbrot";
         JuliaParametersPanel.Visibility = JuliaMapPanel.Visibility = variant == NovaVariant.Julia ? Visibility.Visible : Visibility.Collapsed;
-        _previewTransform.Children.Add(_previewScale);
-        _previewTransform.Children.Add(_previewTranslation);
-        StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
-        StablePreviewImage.RenderTransform = _previewTransform;
+        _viewport.AttachPreview(StablePreviewImage, CanvasHost);
         _renderTimer.Tick += (_, _) => { _renderTimer.Stop(); _ = RenderPreviewAsync(); };
         _mapTimer.Tick += (_, _) => { _mapTimer.Stop(); _ = RenderJuliaMapAsync(); };
         PRealBox.Text = "3"; PImaginaryBox.Text = "0"; Z0RealBox.Text = "1"; Z0ImaginaryBox.Text = "0";
         CRealBox.Text = "0"; CImaginaryBox.Text = "1"; MBox.Text = "1"; IterationsBox.Text = "100";
         ThresholdBox.Text = "10"; ZoomBox.Text = "1"; ColoringBox.SelectedIndex = 1; SsaaBox.SelectedIndex = 0;
-        for (int count = 1; count <= Environment.ProcessorCount; count++) ThreadsBox.Items.Add(count);
-        ThreadsBox.Items.Add("Auto"); ThreadsBox.SelectedItem = "Auto";
+        RenderThreadsBox.Fill(ThreadsBox);
         Loaded += (_, _) => { ScheduleRender(); ScheduleMapRender(); };
     }
 
@@ -120,15 +100,13 @@ public partial class NovaWindow : Window
         if (!TryRead(MBox.Text, out decimal m) || m is < 0.1m or > 5m) throw new InvalidOperationException("Релаксация m должна быть от 0,1 до 5.");
         if (!int.TryParse(IterationsBox.Text, out int iterations) || iterations is < 10 or > 100_000) throw new InvalidOperationException("Итерации должны быть от 10 до 100000.");
         if (!TryRead(ThresholdBox.Text, out decimal threshold) || threshold is < 2 or > 1000) throw new InvalidOperationException("Порог должен быть от 2 до 1000.");
+        (decimal centerX, decimal centerY, string? exactX, string? exactY) = _viewport.CaptureCenter();
         return new NovaState
         {
             SaveName = name, Timestamp = DateTime.Now, Variant = _variant,
             FractalType = _variant == NovaVariant.Julia ? "NovaJulia" : "NovaMandelbrot",
-            CenterX = _deepZoomEngaged ? _centerXExact.ToDecimalClamped() : _centerX,
-            CenterY = _deepZoomEngaged ? _centerYExact.ToDecimalClamped() : _centerY,
-            CenterXExact = _deepZoomEngaged ? _centerXExact.ToInvariantString() : null,
-            CenterYExact = _deepZoomEngaged ? _centerYExact.ToInvariantString() : null,
-            Zoom = _zoom, Threshold = threshold, Iterations = iterations,
+            CenterX = centerX, CenterY = centerY, CenterXExact = exactX, CenterYExact = exactY,
+            Zoom = _viewport.Zoom.ToDouble(), Threshold = threshold, Iterations = iterations,
             PReal = pRe, PImaginary = pIm, Z0Real = zRe, Z0Imaginary = zIm, M = m, CReal = cRe, CImaginary = cIm,
             UseSmoothColoring = ColoringBox.SelectedIndex == 1,
             Palette = _paletteManager.ActivePalette.Clone(_paletteManager.ActivePalette.Name)
@@ -137,12 +115,12 @@ public partial class NovaWindow : Window
 
     public void LoadState(NovaState state)
     {
-        _renderCts?.Cancel(); _centerX = state.CenterX; _centerY = state.CenterY; _zoom = Math.Clamp(state.Zoom, MinZoom, MaxZoom);
-        RestoreCenter(state);
+        _renderCts?.Cancel();
+        _viewport.Restore(state.CenterX, state.CenterY, state.CenterXExact, state.CenterYExact, state.Zoom);
         PRealBox.Text = Format(state.PReal); PImaginaryBox.Text = Format(state.PImaginary); Z0RealBox.Text = Format(state.Z0Real); Z0ImaginaryBox.Text = Format(state.Z0Imaginary);
         CRealBox.Text = Format(state.CReal); CImaginaryBox.Text = Format(state.CImaginary); MBox.Text = Format(state.M);
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture); ThresholdBox.Text = Format(state.Threshold);
-        _updatingControls = true; ZoomBox.Text = FormatZoom(_zoom); _updatingControls = false;
+        _updatingControls = true; ZoomBox.Text = FormatZoom(_viewport.Zoom.ToDouble()); _updatingControls = false;
         ColoringBox.SelectedIndex = state.UseSmoothColoring ? 1 : 0; _paletteManager.ActivePalette = state.Palette.Clone($"Загружено: {state.SaveName}");
         UpdatePreviewTransform(); ScheduleRender(); ScheduleMapRender();
     }
@@ -161,8 +139,7 @@ public partial class NovaWindow : Window
         if (_updatingControls) return;
         if (!double.TryParse(ZoomBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double zoom) &&
             !double.TryParse(ZoomBox.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out zoom)) return;
-        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
-        SyncDeepZoomState();
+        _viewport.SetZoom(zoom);
         UpdatePreviewTransform();
         ScheduleRender();
     }
@@ -193,10 +170,7 @@ public partial class NovaWindow : Window
         if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
             StablePreviewImage.Source = baked;
-            _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
-            _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
-            _renderedZoom = _zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered();
             UpdatePreviewTransform();
         }
         CanvasImage.Source = null;
@@ -234,13 +208,8 @@ public partial class NovaWindow : Window
             if (token.IsCancellationRequested) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; return; }
             session.Flush();
             StablePreviewImage.Source = session.Snapshot(); CanvasImage.Source = null;
-            _renderedCenterXExact = state.CenterXExact is { Length: > 0 } renderedX
-                ? BigFloat.Parse(renderedX)
-                : BigFloat.FromDecimal(state.CenterX);
-            _renderedCenterYExact = state.CenterYExact is { Length: > 0 } renderedY
-                ? BigFloat.Parse(renderedY)
-                : BigFloat.FromDecimal(state.CenterY);
-            _renderedZoom = state.Zoom; _hasRenderedFrame = true; UpdatePreviewTransform();
+            _viewport.MarkRendered(state.CenterX, state.CenterY, state.CenterXExact, state.CenterYExact, state.Zoom);
+            UpdatePreviewTransform();
             StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек. Стратегия: {strategy}.";
         }
         catch (OperationCanceledException) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; }
@@ -317,138 +286,38 @@ public partial class NovaWindow : Window
         });
     }
 
-    private async Task<BitmapSource> RenderBitmapAsync(NovaState state, int width, int height, int ssaa, CancellationToken token, IProgress<int>? progress)
+    private Task<BitmapSource> RenderBitmapAsync(NovaState state, int width, int height, int ssaa, CancellationToken token, IProgress<int>? progress)
     {
-        int factor = Math.Clamp(ssaa, 1, 4), rw = checked(width * factor), rh = checked(height * factor), stride = checked(rw * 4), threads = GetThreadCount();
-        byte[] pixels = new byte[checked(stride * rh)]; await Task.Run(() => NovaRenderer.Render(state, pixels, rw, rh, stride, threads, token, v => progress?.Report(factor == 1 ? v : v * 90 / 100)));
-        BitmapSource source = BitmapSource.Create(rw, rh, 96, 96, PixelFormats.Bgra32, null, pixels, stride); source.Freeze();
-        return factor == 1 || token.IsCancellationRequested ? source : await Task.Run(() => BitmapResampler.ResizeLanczos3(source, width, height, token, v => progress?.Report(v)));
+        // Элементы окна принадлежат UI-потоку: число потоков читается до расчёта.
+        int threads = GetThreadCount();
+        return SsaaBitmapRenderer.RenderAsync(width, height, ssaa, 4, (pixels, renderWidth, renderHeight, stride, report) =>
+            NovaRenderer.Render(state, pixels, renderWidth, renderHeight, stride, threads, token, report), token, progress);
     }
 
-    private int GetThreadCount() => ThreadsBox.SelectedItem?.ToString() == "Auto" ? Environment.ProcessorCount : Math.Max(1, Convert.ToInt32(ThreadsBox.SelectedItem, CultureInfo.InvariantCulture));
+    private int GetThreadCount() => RenderThreadsBox.Read(ThreadsBox);
     private void SetRendering(bool value, string? status = null) { _isRendering = value; CancelButton.IsEnabled = value; if (!value) RenderProgress.Value = 0; if (status is not null) StatusText.Text = status; }
     private void CanvasHost_OnSizeChanged(object sender, SizeChangedEventArgs e) { UpdatePreviewTransform(); ScheduleRender(); }
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         // Запекаем до изменения зума: снимок должен соответствовать прежнему виду.
         CommitAndBakePreview();
-        Point mouse = e.GetPosition(CanvasHost);
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double fractionX = mouse.X / width - 0.5;
-        double fractionY = Math.Max(1, CanvasHost.ActualHeight) / 2 - mouse.Y;
-
-        double previousZoom = _zoom;
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.2 : 1 / 1.2), MinZoom, MaxZoom);
-
-        // Точка под курсором остаётся на месте. Прежняя формула «мир до минус мир после»,
-        // записанная через разность ширин области: сам сдвиг мал и укладывается в double, а
-        // ApplyCenterShift кладёт его в BigFloat-центр на глубине и в decimal на мелком зуме.
-        double viewWidthDelta = (double)BaseScale / previousZoom - (double)BaseScale / _zoom;
-        SyncDeepZoomState();
-        ApplyCenterShift(fractionX * viewWidthDelta, fractionY / width * viewWidthDelta);
-
+        _viewport.ZoomAt(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight,
+            _viewport.WheelFactor(e.Delta));
         UpdatePreviewTransform();
-        _updatingControls = true; ZoomBox.Text = FormatZoom(_zoom); _updatingControls = false;
+        _updatingControls = true; ZoomBox.Text = FormatZoom(_viewport.Zoom.ToDouble()); _updatingControls = false;
         ScheduleRender();
+        e.Handled = true;
     }
-    private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e) { CommitAndBakePreview(); _panning = true; _lastPanPoint = e.GetPosition(CanvasHost); CanvasHost.CaptureMouse(); Mouse.OverrideCursor = Cursors.SizeAll; }
+    private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e) { CommitAndBakePreview(); _viewport.BeginPan(e.GetPosition(CanvasHost)); CanvasHost.CaptureMouse(); Mouse.OverrideCursor = Cursors.SizeAll; }
     private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_panning) return;
-        Point current = e.GetPosition(CanvasHost);
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double viewWidth = (double)BaseScale / _zoom;
-        ApplyCenterShift((_lastPanPoint.X - current.X) / width * viewWidth,
-            (current.Y - _lastPanPoint.Y) / width * viewWidth);
-        _lastPanPoint = current;
-        UpdatePreviewTransform();
+        if (_viewport.PanTo(e.GetPosition(CanvasHost), CanvasHost.ActualWidth)) UpdatePreviewTransform();
     }
-    private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e) { if (!_panning) return; _panning = false; CanvasHost.ReleaseMouseCapture(); Mouse.OverrideCursor = null; ScheduleRender(); }
+    private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e) { if (!_viewport.EndPan()) return; CanvasHost.ReleaseMouseCapture(); Mouse.OverrideCursor = null; ScheduleRender(); }
 
-    /// <summary>
-    /// Прибавляет к центру небольшой сдвиг в мировых координатах. На глубине сдвиг уходит в
-    /// BigFloat-центр (decimal-приближение обновляется следом), на мелком зуме — в decimal.
-    /// </summary>
-    private void ApplyCenterShift(double shiftX, double shiftY)
-    {
-        if (_deepZoomEngaged)
-        {
-            _centerXExact += BigFloat.FromDouble(shiftX);
-            _centerYExact += BigFloat.FromDouble(shiftY);
-            _centerX = _centerXExact.ToDecimalClamped();
-            _centerY = _centerYExact.ToDecimalClamped();
-        }
-        else
-        {
-            _centerX += (decimal)shiftX;
-            _centerY += (decimal)shiftY;
-        }
-    }
-
-    /// <summary>
-    /// Заводит или глушит ведение центра в BigFloat по текущему зуму. Вверх через порог центр
-    /// переносится из decimal, вниз decimal снова становится источником истины.
-    /// </summary>
-    private void SyncDeepZoomState()
-    {
-        bool shouldEngage = _zoom >= DeepZoomThreshold;
-        if (shouldEngage && !_deepZoomEngaged)
-        {
-            _centerXExact = BigFloat.FromDecimal(_centerX);
-            _centerYExact = BigFloat.FromDecimal(_centerY);
-            _deepZoomEngaged = true;
-        }
-        else if (!shouldEngage && _deepZoomEngaged)
-        {
-            _centerX = _centerXExact.ToDecimalClamped();
-            _centerY = _centerYExact.ToDecimalClamped();
-            _deepZoomEngaged = false;
-        }
-    }
-
-    /// <summary>
-    /// Восстанавливает центр из сохранения. Строки произвольной точности есть только у
-    /// глубоких сохранений; когда они есть, decimal-поля пересобираются из них, а не наоборот.
-    /// </summary>
-    private void RestoreCenter(NovaState state)
-    {
-        _deepZoomEngaged = false;
-        if (state.CenterXExact is { Length: > 0 } exactX && state.CenterYExact is { Length: > 0 } exactY)
-        {
-            try
-            {
-                _centerXExact = BigFloat.Parse(exactX);
-                _centerYExact = BigFloat.Parse(exactY);
-                _deepZoomEngaged = _zoom >= DeepZoomThreshold;
-                if (_deepZoomEngaged)
-                {
-                    _centerX = _centerXExact.ToDecimalClamped();
-                    _centerY = _centerYExact.ToDecimalClamped();
-                    return;
-                }
-            }
-            catch (FormatException)
-            {
-                // Повреждённая строка — остаётся decimal-приближение из того же сохранения.
-            }
-        }
-        SyncDeepZoomState();
-    }
-
-    private void UpdatePreviewTransform()
-    {
-        if (!_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0 || CanvasHost.ActualWidth <= 0) return;
-        double width = CanvasHost.ActualWidth;
-        double currentScale = (double)BaseScale / _zoom;
-        BigFloat currentCenterX = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
-        BigFloat currentCenterY = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
-        _previewScale.ScaleX = _previewScale.ScaleY = _zoom / _renderedZoom;
-        _previewTranslation.X = (_renderedCenterXExact - currentCenterX).ToDouble() / currentScale * width;
-        _previewTranslation.Y = (currentCenterY - _renderedCenterYExact).ToDouble() / currentScale * width;
-    }
+    private void UpdatePreviewTransform() => _viewport.UpdatePreview();
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e) => FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost, ToggleControlsButton, 300, ScheduleRender);
-    private void Window_OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen(); }
-    private void ToggleFullscreen() { if (!_isFullscreen) { _previousWindowStyle = WindowStyle; _previousWindowState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; } else { WindowStyle = _previousWindowStyle; WindowState = _previousWindowState; } _isFullscreen = !_isFullscreen; }
+    private void Window_OnKeyDown(object sender, KeyEventArgs e) { _fullscreen.HandleKey(this, e.Key); }
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _mapTimer.Stop(); _activeSession?.End(); _renderCts?.Cancel(); _mapCts?.Cancel(); _renderCts?.Dispose(); _mapCts?.Dispose(); }
     private static bool TryRead(string text, out decimal value) => decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || decimal.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
     private static string Format(decimal value) => value.ToString("G15", CultureInfo.InvariantCulture);

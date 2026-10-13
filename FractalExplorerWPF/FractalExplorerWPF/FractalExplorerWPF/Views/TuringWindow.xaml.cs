@@ -37,15 +37,14 @@ public partial class TuringWindow : Window
     private CancellationTokenSource? _cts;
     private Task _workerIdle = Task.CompletedTask, _resetIdle = Task.CompletedTask;
     private bool _syncing = true, _closed, _busy, _resetting, _running, _painting, _panning, _shapePending;
-    private bool _controlsVisible = true, _fullScreen;
+    private bool _controlsVisible = true;
     private bool _qualityPending, _qualityResume;
     private volatile bool _stopPreparation;
     private int _generation, _appearanceVersion, _frameCount, _qualityVersion;
     private double _measuredFps;
     private Point _panStart;
     private Point? _lastStroke;
-    private WindowStyle _previousStyle;
-    private WindowState _previousState;
+    private readonly FullscreenToggle _fullscreen = new();
     private sealed record StrokePoint(double X, double Y, double Radius, double Strength, TuringBrush Brush);
 
     public TuringWindow()
@@ -646,11 +645,9 @@ public partial class TuringWindow : Window
         else if (e.Key == Key.Right && StepButton.IsEnabled && Keyboard.Modifiers == ModifierKeys.None) { Step_OnClick(sender, e); e.Handled = true; }
         else if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control) { Undo_OnClick(sender, e); e.Handled = true; }
         else if (e.Key == Key.Home) { Fit_OnClick(sender, e); e.Handled = true; }
-        else if (e.Key == Key.F11 || e.Key == Key.Escape && _fullScreen)
+        else if (e.Key == Key.F11 || e.Key == Key.Escape && _fullscreen.IsActive)
         {
-            if (!_fullScreen) { _previousStyle = WindowStyle; _previousState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; }
-            else { WindowStyle = _previousStyle; WindowState = _previousState; }
-            _fullScreen = !_fullScreen; e.Handled = true;
+            _fullscreen.Toggle(this); e.Handled = true;
         }
     }
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

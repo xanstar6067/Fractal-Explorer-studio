@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -31,21 +30,18 @@ public partial class DynamicSystemWindow : Window
     private readonly Dictionary<string, StackPanel> _fieldPanels = [];
     private readonly Dictionary<string, TextBlock> _fieldLabels = [];
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(400) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
-    private readonly ConcurrentQueue<DynamicTileRenderEvent> _visualizationEvents = new();
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
     private DynamicSystemState _state;
     private List<DynamicPalette> _palettes = [];
     private CancellationTokenSource? _cts;
-    private WriteableBitmap? _progressiveBitmap;
-    private bool _rendering, _syncing, _panning, _controls = true, _fullscreen, _hasRenderedFrame;
+    private TiledRenderSession? _activeSession;
+    private bool _rendering, _syncing, _panning, _controls = true, _hasRenderedFrame;
     private Point _panStart;
     private double _renderedCenterX, _renderedCenterY, _renderedZoom = 1;
     private double _renderedAMin, _renderedAMax, _renderedBMin, _renderedBMax;
-    private WindowStyle _oldStyle;
-    private WindowState _oldState;
+    private readonly FullscreenToggle _fullscreen = new();
     private TextBlock? _attractorFormulaText;
     private StackPanel? _quadraticPanel;
     private TextBox? _quadraticCodeBox;
@@ -82,7 +78,6 @@ public partial class DynamicSystemWindow : Window
         Title = DisplayName(kind);
         BuildParameterPanel(); LoadPalettes(); SyncControls(); UpdateAttractorPresentation(); UpdateSwatches();
         _timer.Tick += (_, _) => { _timer.Stop(); _ = RenderAsync(); };
-        _visualizationTimer.Tick += (_, _) => FlushVisualizationEvents(false);
         Loaded += (_, _) => Schedule();
     }
 
@@ -458,7 +453,7 @@ public partial class DynamicSystemWindow : Window
         if (_rendering) { Schedule(); return; }
         DynamicSystemState state; try { state = CaptureState("preview"); } catch (Exception ex) { StatusText.Text=ex.Message; return; }
         _cts?.Cancel(); _cts?.Dispose(); _cts=new(); CancellationToken token=_cts.Token; _rendering=true; CancelButton.IsEnabled=true; RenderBadge.Visibility=Visibility.Visible; var watch=Stopwatch.StartNew();
-        WriteableBitmap? overlay=null;BitmapSource? image=null;
+        WriteableBitmap? overlay=null;BitmapSource? image=null;TiledRenderSession? session=null;
         try
         {
             RenderSurfaceMetrics surface=RenderSurfaceMetrics.Measure(CanvasSurface);DpiScale dpi=surface.Dpi;int width=surface.PixelWidth,height=surface.PixelHeight;
@@ -469,15 +464,17 @@ public partial class DynamicSystemWindow : Window
                 int factor=Math.Clamp(state.SsaaFactor,1,4);
                 int renderWidth=width*factor,renderHeight=height*factor;
                 overlay=ProgressiveRenderBitmap.CreateOverlay(renderWidth,renderHeight,dpi.PixelsPerInchX,dpi.PixelsPerInchY); CurrentImage.Source=overlay;
-                BeginVisualization(overlay,renderWidth,renderHeight);
-                tileStarted=tile=>_visualizationEvents.Enqueue(new(true,tile,null));
-                tileReady=(tile,data)=>_visualizationEvents.Enqueue(new(false,tile,data));
+                // Тайлы распределяет по потокам сам движок Ляпунова; сеанс переносит их на холст.
+                session=TiledRenderSession.Begin(overlay,0,RenderOverlay);
+                _activeSession=session;
+                tileStarted=session.ReportTileStarted;
+                tileReady=session.ReportTileCompleted;
             }
             var progress=new Progress<int>(p=>{if(token.IsCancellationRequested || !_rendering)return;ProgressBar.Value=p;ProgressText.Text=$"Рендер: {p}%";RenderBadgeText.Text=$"{p}%";});
             var frames = new Progress<BitmapSource>(frame => { if (!token.IsCancellationRequested && _rendering) CurrentImage.Source = frame; });
             image=await DynamicSystemRenderer.RenderAsync(state,width,height,ActivePalette,token,progress,tileReady,tileStarted:tileStarted,dpiX:dpi.PixelsPerInchX,dpiY:dpi.PixelsPerInchY,
                 frameReady: _kind == DynamicSystemKind.Hopalong ? frame => ((IProgress<BitmapSource>)frames).Report(frame) : null);
-            FlushVisualizationEvents(true);
+            session?.Flush();
             if(token.IsCancellationRequested){CurrentImage.Source=null;StatusText.Text="Рендер отменён";return;} StableImage.Source=image; CurrentImage.Source=null; RememberRenderedViewport(state); UpdatePreviewTransform(); ProgressBar.Value=100; ProgressText.Text="Готово"; StatusText.Text=$"Готово за {watch.Elapsed.TotalSeconds:F2} сек.";
         }
         catch(OperationCanceledException){CurrentImage.Source=null;StatusText.Text="Рендер отменён";}
@@ -620,68 +617,29 @@ public partial class DynamicSystemWindow : Window
     private void CanvasHost_OnMouseMove(object sender,MouseEventArgs e){if(!_panning)return;Point p=e.GetPosition(CanvasSurface);double dx=(p.X-_panStart.X)/Math.Max(1,CanvasSurface.ActualWidth),dy=(p.Y-_panStart.Y)/Math.Max(1,CanvasSurface.ActualHeight);if(_kind==DynamicSystemKind.Lyapunov){double aw=_state.AMax-_state.AMin,bh=_state.BMax-_state.BMin;_state.AMin-=dx*aw;_state.AMax-=dx*aw;_state.BMin+=dy*bh;_state.BMax+=dy*bh;}else{var span=ViewSpans(_state,CanvasSurface.ActualWidth,CanvasSurface.ActualHeight);_state.CenterX-=dx*span.X;_state.CenterY+=dy*span.Y;}_panStart=p;SyncControls();UpdatePreviewTransform();}
     private void CanvasHost_OnMouseLeftButtonUp(object sender,MouseButtonEventArgs e){if(!_panning)return;_panning=false;CanvasHost.ReleaseMouseCapture();Mouse.OverrideCursor=null;Schedule();}
 
-    private void BeginVisualization(WriteableBitmap bitmap,int renderWidth,int renderHeight)
-    {
-        while(_visualizationEvents.TryDequeue(out _)){}
-        _progressiveBitmap=bitmap;
-        RenderOverlay.BeginSession(renderWidth,renderHeight);
-        _visualizationTimer.Start();
-    }
-
-    private void FlushVisualizationEvents(bool drainAll)
-    {
-        if(_progressiveBitmap is not{}bitmap)return;
-        int processed=0;bool changed=false;
-        while((drainAll||processed<512)&&_visualizationEvents.TryDequeue(out DynamicTileRenderEvent visualEvent))
-        {
-            if(visualEvent.IsStart)RenderOverlay.StartTile(visualEvent.Tile);
-            else if(visualEvent.Pixels is not null&&ProgressiveRenderBitmap.WriteTile(bitmap,visualEvent.Tile,visualEvent.Pixels))RenderOverlay.CompleteTile(visualEvent.Tile);
-            processed++;changed=true;
-        }
-        if(changed)RenderOverlay.Refresh();
-    }
-
     private void EndVisualization()
     {
-        _visualizationTimer.Stop();
-        _progressiveBitmap=null;
-        while(_visualizationEvents.TryDequeue(out _)){}
-        RenderOverlay.EndSession();
+        _activeSession?.End();
+        _activeSession=null;
     }
 
     private void CommitAndBakePreview()
     {
         if (_kind == DynamicSystemKind.Hopalong) CancelHopalongSearch();
-        if(_kind!=DynamicSystemKind.Lyapunov||_progressiveBitmap is null)
-        {
-            _cts?.Cancel();
-            EndVisualization();
-            CurrentImage.Source=null;
-            return;
-        }
-
+        TiledRenderSession? session=_activeSession;
         _cts?.Cancel();
-        FlushVisualizationEvents(true);
-        RenderSurfaceMetrics surface=RenderSurfaceMetrics.Measure(ImageLayer);
-        try
+        if(_kind==DynamicSystemKind.Lyapunov&&session is not null)
         {
-            var baked=new RenderTargetBitmap(surface.PixelWidth,surface.PixelHeight,
-                surface.Dpi.PixelsPerInchX,surface.Dpi.PixelsPerInchY,PixelFormats.Pbgra32);
-            baked.Render(ImageLayer);
-            baked.Freeze();
-            StableImage.Source=baked;
-            RememberRenderedViewport(_state);
-            UpdatePreviewTransform();
+            session.Flush();
+            if(TiledRenderSession.TryCaptureLayer(ImageLayer) is {} baked)
+            {
+                StableImage.Source=baked;
+                RememberRenderedViewport(_state);
+                UpdatePreviewTransform();
+            }
         }
-        catch(InvalidOperationException)
-        {
-            // Layout can briefly be unavailable during minimization or a resize transition.
-        }
-        finally
-        {
-            CurrentImage.Source=null;
-            EndVisualization();
-        }
+        CurrentImage.Source=null;
+        EndVisualization();
     }
 
     private void RememberRenderedViewport(DynamicSystemState state)
@@ -716,7 +674,7 @@ public partial class DynamicSystemWindow : Window
         _previewTranslation.Y=(_state.CenterY-_renderedCenterY)/currentSpan.Y*height;
     }
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,250,Schedule);
-    private void Window_OnKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.F11||e.Key==Key.Escape&&_fullscreen){if(!_fullscreen){_oldStyle=WindowStyle;_oldState=WindowState;WindowStyle=WindowStyle.None;WindowState=WindowState.Maximized;}else{WindowStyle=_oldStyle;WindowState=_oldState;}_fullscreen=!_fullscreen;}}
+    private void Window_OnKeyDown(object sender,KeyEventArgs e){_fullscreen.HandleKey(this,e.Key);}
     private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){CancelIconSearch();CancelHopalongSearch();_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();}
 
     private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",DynamicSystemKind.Popcorn=>"Фрактал Popcorn Пиковера",DynamicSystemKind.Hopalong=>"Hopalong Мартина",_=>"Динамическая система"};
@@ -750,5 +708,4 @@ public partial class DynamicSystemWindow : Window
     {
         public override string ToString()=>Display;
     }
-    private readonly record struct DynamicTileRenderEvent(bool IsStart,MandelbrotRenderTile Tile,byte[]? Pixels);
 }

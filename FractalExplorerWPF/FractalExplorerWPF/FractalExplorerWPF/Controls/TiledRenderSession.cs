@@ -12,7 +12,9 @@ namespace FractalExplorerWPF.Controls;
 
 /// <summary>
 /// Прогрессивный тайловый рендер одного кадра двумерного окна. Рабочие потоки считают тайлы
-/// и складывают события в очередь; UI-поток по собственному таймеру переносит готовые тайлы в
+/// (свои — <see cref="RenderTilesAsync"/>, или потоки внешнего движка через
+/// <see cref="ReportTileStarted"/> и <see cref="ReportTileCompleted"/>) и складывают события в
+/// очередь; UI-поток по собственному таймеру переносит готовые тайлы в
 /// <see cref="Bitmap"/>, подсвечивает их на <see cref="RenderProgressOverlay"/> и двигает
 /// полосу прогресса.
 ///
@@ -98,21 +100,31 @@ public sealed class TiledRenderSession
                 while (queue.TryDequeue(out MandelbrotRenderTile tile))
                 {
                     if (token.IsCancellationRequested) return;
-                    _events.Enqueue(new TileEvent(true, tile, null));
+                    ReportTileStarted(tile);
                     byte[]? pixels = renderTile(tile, token);
                     if (pixels is null || token.IsCancellationRequested) return;
-                    _events.Enqueue(new TileEvent(false, tile, pixels));
+                    ReportTileCompleted(tile, pixels);
                 }
             })).ToArray();
         await Task.WhenAll(workers);
     }
 
+    /// <summary>Тайл взят в работу. Вызывается из любого потока.</summary>
+    public void ReportTileStarted(MandelbrotRenderTile tile) => _events.Enqueue(new TileEvent(true, tile, null));
+
+    /// <summary>Тайл готов: BGRA-пиксели его области. Вызывается из любого потока.</summary>
+    public void ReportTileCompleted(MandelbrotRenderTile tile, byte[] pixels) =>
+        _events.Enqueue(new TileEvent(false, tile, pixels));
+
     /// <summary>
-    /// Переносит накопленные события на холст и подсветку. Только из UI-потока.
+    /// Переносит накопленные события на холст и подсветку. Только из UI-потока. После
+    /// <see cref="End"/> ничего не делает: опоздавшие тайлы отменённого кадра не должны снова
+    /// зажечь подсветку.
     /// </summary>
     /// <param name="drainAll">Перенести всю очередь, а не порцию одного тика.</param>
     public void Flush(bool drainAll = true)
     {
+        if (_ended) return;
         int processed = 0;
         bool changed = false;
         while ((drainAll || processed < MaxEventsPerTick) && _events.TryDequeue(out TileEvent entry))

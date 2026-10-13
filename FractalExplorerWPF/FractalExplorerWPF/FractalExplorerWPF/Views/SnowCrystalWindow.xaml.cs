@@ -27,11 +27,10 @@ public partial class SnowCrystalWindow : Window
     private CancellationTokenSource? _cts;
     private Task _workerIdle = Task.CompletedTask;
     private bool _busy, _running, _syncing = true, _closed, _resetting;
-    private bool _controlsVisible = true, _panning, _fullScreen;
+    private bool _controlsVisible = true, _panning;
     private int _generation, _appearanceVersion;
     private Point _panStart;
-    private WindowStyle _previousStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public SnowCrystalWindow()
     {
@@ -348,11 +347,9 @@ public partial class SnowCrystalWindow : Window
     {
         if (e.Key == Key.Space && Keyboard.FocusedElement is not TextBox)
         { SetRunning(!_running); e.Handled = true; }
-        else if (e.Key == Key.F11 || e.Key == Key.Escape && _fullScreen)
+        else if (e.Key == Key.F11 || e.Key == Key.Escape && _fullscreen.IsActive)
         {
-            if (!_fullScreen) { _previousStyle = WindowStyle; _previousWindowState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; }
-            else { WindowStyle = _previousStyle; WindowState = _previousWindowState; }
-            _fullScreen = !_fullScreen;
+            _fullscreen.Toggle(this);
         }
     }
 

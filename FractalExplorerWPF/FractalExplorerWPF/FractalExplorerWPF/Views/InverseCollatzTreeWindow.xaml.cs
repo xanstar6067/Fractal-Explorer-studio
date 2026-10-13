@@ -43,11 +43,9 @@ public partial class InverseCollatzTreeWindow : Window
     private bool _isAnimating;
     private bool _isPanning;
     private bool _updatingControls;
-    private bool _isFullscreen;
     private bool _controlsVisible = true;
     private Point _lastPanPoint;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public InverseCollatzTreeWindow()
     {
@@ -595,24 +593,7 @@ public partial class InverseCollatzTreeWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen();
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
+        _fullscreen.HandleKey(this, e.Key);
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

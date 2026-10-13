@@ -34,9 +34,7 @@ internal static partial class Program
         string? compare = ReadOption(args, "--compare");
         string? outDirectory = ReadOption(args, "--out");
         if (outDirectory is not null) Directory.CreateDirectory(outDirectory);
-        var themeStyles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
-        if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == themeStyles))
-            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = themeStyles });
+        EnsureWindowThemeStyles();
 
         TiledPreviewCase[] cases =
         [
@@ -92,6 +90,16 @@ internal static partial class Program
                     ssaa.SelectedIndex = 1;
                     await CaptureTiledFrameAsync(window, $"{test.Name}/ssaa2", hashes, outDirectory);
                 }
+
+                // Экспорт: полный кадр текущего вида в SSAA 2× с уменьшением Lanczos-3 — тем же
+                // путём, каким его считает окно экспорта.
+                if (FindExportRenderer(window) is { } export)
+                {
+                    object state = CaptureWindowState(window);
+                    var exported = await (Task<BitmapSource>)export.Invoke(window,
+                        [state, 240, 160, 2, CancellationToken.None, null])!;
+                    RecordFrameHash(exported, $"{test.Name}/export-ssaa2", hashes, outDirectory);
+                }
             }
             finally
             {
@@ -124,11 +132,24 @@ internal static partial class Program
         Console.WriteLine($"PASS (tiled-preview): {hashes.Count} кадров в {cases.Length} окнах дорисованы.");
     }
 
+    /// <summary>Стили окон фракталов: без них разметка окна не находит свои ресурсы.</summary>
+    private static void EnsureWindowThemeStyles()
+    {
+        var themeStyles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
+        if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == themeStyles))
+            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = themeStyles });
+    }
+
     private static string? ReadOption(string[] args, string name)
     {
         int index = Array.IndexOf(args, name);
         return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
+
+    /// <summary>Рендер экспорта окна: <c>RenderBitmapAsync(состояние, ширина, высота, SSAA, токен, прогресс)</c>.</summary>
+    private static MethodInfo? FindExportRenderer(Window window) =>
+        window.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .FirstOrDefault(method => method.Name == "RenderBitmapAsync" && method.GetParameters().Length == 6);
 
     private static ComboBox? FindSsaaBox(Window window) =>
         window.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
@@ -185,12 +206,14 @@ internal static partial class Program
 
         // Изменение, запустившее рендер, сначала взводит таймер: даём ему сработать.
         await Task.Delay(50);
-        DateTime deadline = DateTime.UtcNow + TimeSpan.FromMinutes(3);
+        // Срок — защита от зависания, а не замер: на занятом процессоре тяжёлый кадр (маятник
+        // с SSAA 2×) идёт и несколько минут.
+        DateTime deadline = DateTime.UtcNow + TimeSpan.FromMinutes(10);
         ImageSource? settled = null;
         int stableChecks = 0;
         while (stableChecks < 4)
         {
-            Check(DateTime.UtcNow < deadline, $"{key}: кадр не дорисовался за три минуты.");
+            Check(DateTime.UtcNow < deadline, $"{key}: кадр не дорисовался за десять минут.");
             await Task.Delay(150);
             await DrainAsync();
             bool busy = ((DispatcherTimer)timerField.GetValue(window)!).IsEnabled || (bool)renderingField.GetValue(window)!;
@@ -204,7 +227,12 @@ internal static partial class Program
             stableChecks++;
         }
 
-        var bitmap = (BitmapSource)settled!;
+        RecordFrameHash((BitmapSource)settled!, key, hashes, outDirectory);
+    }
+
+    /// <summary>SHA-256 пикселей кадра в Bgra32; однотонный кадр — ошибка.</summary>
+    private static void RecordFrameHash(BitmapSource bitmap, string key, IDictionary<string, string> hashes, string? outDirectory)
+    {
         var bgra = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
         int stride = bgra.PixelWidth * 4;
         byte[] pixels = new byte[stride * bgra.PixelHeight];

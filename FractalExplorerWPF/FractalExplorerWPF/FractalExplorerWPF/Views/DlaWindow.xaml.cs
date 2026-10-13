@@ -27,7 +27,6 @@ public partial class DlaWindow : Window
     private bool _rendering;
     private bool _panning;
     private bool _controlsVisible = true;
-    private bool _fullScreen;
     private bool _hasStableFrame;
     private bool _syncing;
     private Point _panStart;
@@ -41,8 +40,7 @@ public partial class DlaWindow : Window
     private Color _endColor = Color.FromRgb(99, 102, 241);
     private Color _backgroundColor = Color.FromRgb(3, 7, 18);
     private string? _presetId;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public DlaWindow()
     {
@@ -498,24 +496,7 @@ public partial class DlaWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || e.Key == Key.Escape && _fullScreen) ToggleFullScreen();
-    }
-
-    private void ToggleFullScreen()
-    {
-        if (!_fullScreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _fullScreen = !_fullScreen;
+        _fullscreen.HandleKey(this, e.Key);
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

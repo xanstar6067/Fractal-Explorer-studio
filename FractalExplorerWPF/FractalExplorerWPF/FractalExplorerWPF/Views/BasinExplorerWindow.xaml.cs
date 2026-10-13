@@ -40,14 +40,10 @@ public partial class BasinExplorerWindow : Window
     private readonly BasinExplorerDefinition _definition;
     private readonly Random _random = new();
     private readonly IReadOnlyList<BasinExplorerState> _presets;
-    private readonly TransformGroup _previewTransform = new();
-    private readonly ScaleTransform _previewScale = new(1, 1);
-    private readonly TranslateTransform _previewTranslation = new();
+    private readonly DoubleDeepZoomViewport _viewport = new(BaseScale, MinZoom, MaxZoom, double.PositiveInfinity);
     private CancellationTokenSource? _renderCts;
     private TiledRenderSession? _activeSession;
     private bool _isRendering;
-    private bool _isPanning;
-    private bool _isFullscreen;
     private bool _controlsVisible = true;
 
     /// <summary>Подавляет обработчики изменений, пока окно само заполняет элементы управления.</summary>
@@ -56,16 +52,7 @@ public partial class BasinExplorerWindow : Window
     /// <summary>Параметр c изменён — перед рендером формулу нужно применить заново.</summary>
     private bool _formulaDirty;
 
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
-    private Point _lastPanPoint;
-    private double _centerX;
-    private double _centerY;
-    private double _zoom = 1;
-    private double _renderedCenterX;
-    private double _renderedCenterY;
-    private double _renderedZoom = 1;
-    private bool _hasRenderedFrame;
+    private readonly FullscreenToggle _fullscreen = new();
 
     /// <summary>Фильтр периода из загружаемого состояния — применяется, когда список циклов построен.</summary>
     private int? _pendingPeriodFilter;
@@ -87,14 +74,9 @@ public partial class BasinExplorerWindow : Window
         KindDescriptionText.Text = KindDescription(kind);
         NavigationHintText.Text = _definition.Hint;
 
-        _previewTransform.Children.Add(_previewScale);
-        _previewTransform.Children.Add(_previewTranslation);
-        StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
-        StablePreviewImage.RenderTransform = _previewTransform;
+        _viewport.AttachPreview(StablePreviewImage, CanvasHost);
         _renderTimer.Tick += RenderTimer_OnTick;
-        for (int count = 1; count <= Environment.ProcessorCount; count++) ThreadsBox.Items.Add(count);
-        ThreadsBox.Items.Add("Auto");
-        ThreadsBox.SelectedItem = "Auto";
+        RenderThreadsBox.Fill(ThreadsBox);
 
         ConfigureKindLayout();
         ConfigureExtendedOptions();
@@ -130,9 +112,9 @@ public partial class BasinExplorerWindow : Window
             Timestamp = DateTime.Now,
             Kind = Kind,
             MaxIterations = ReadInt(IterationsBox, "Итерации", 1, 100_000),
-            Zoom = _zoom,
-            CenterX = _centerX,
-            CenterY = _centerY,
+            Zoom = _viewport.Zoom.ToDouble(),
+            CenterX = _viewport.CenterX,
+            CenterY = _viewport.CenterY,
             ColoringMode = SelectedColoringMode,
             ShadingScale = ReadDouble(ShadingScaleBox, "Шкала яркости", 0.1, 1e6),
             MarkerMode = SelectedMarkerMode,
@@ -463,10 +445,8 @@ public partial class BasinExplorerWindow : Window
             ShadingScaleBox.Text = FormatNumber(Math.Clamp(state.ShadingScale, 0.1, 1e6));
             if (!SelectOption(MarkerModeBox, state.MarkerMode)) SelectOption(MarkerModeBox, BasinMarkerMode.Hidden);
 
-            double zoom = double.IsFinite(state.Zoom) && state.Zoom > 0 ? state.Zoom : 1;
-            _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
-            _centerX = double.IsFinite(state.CenterX) ? state.CenterX : 0;
-            _centerY = double.IsFinite(state.CenterY) ? state.CenterY : 0;
+            _viewport.Restore(double.IsFinite(state.CenterX) ? state.CenterX : 0,
+                double.IsFinite(state.CenterY) ? state.CenterY : 0, null, null, state.Zoom);
             SetZoomText();
         }
         finally
@@ -836,9 +816,9 @@ public partial class BasinExplorerWindow : Window
     {
         if (!PrepareAttractorSearch()) return;
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
-        _engine.CenterX = _centerX;
-        _engine.CenterY = _centerY;
-        _engine.Zoom = _zoom;
+        _engine.CenterX = _viewport.CenterX;
+        _engine.CenterY = _viewport.CenterY;
+        _engine.Zoom = _viewport.Zoom.ToDouble();
         int added;
         using (new WaitCursorScope()) added = _engine.DiscoverAttractorsInView(surface.PixelWidth, surface.PixelHeight);
         RefreshTargetsUi();
@@ -942,7 +922,7 @@ public partial class BasinExplorerWindow : Window
     {
         if (_updatingUi) return;
         if (!TryReadDouble(ZoomBox.Text.Trim(), out double zoom) || !(zoom > 0) || !double.IsFinite(zoom)) return;
-        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        _viewport.SetZoom(zoom);
         UpdatePreviewTransform();
         ScheduleRender();
     }
@@ -1059,7 +1039,7 @@ public partial class BasinExplorerWindow : Window
         if (!IsLoaded) return;
         _renderCts?.Cancel();
         _renderTimer.Stop();
-        if (_isPanning || _draggedCenter >= 0) return;
+        if (_viewport.IsPanning || _draggedCenter >= 0) return;
         _renderTimer.Start();
     }
 
@@ -1071,7 +1051,7 @@ public partial class BasinExplorerWindow : Window
 
     private async Task RenderPreviewAsync()
     {
-        if (_isPanning) return;
+        if (_viewport.IsPanning) return;
         if (_isRendering)
         {
             ScheduleRender();
@@ -1118,10 +1098,7 @@ public partial class BasinExplorerWindow : Window
 
             StablePreviewImage.Source = session.Snapshot();
             CanvasImage.Source = null;
-            _renderedCenterX = state.CenterX;
-            _renderedCenterY = state.CenterY;
-            _renderedZoom = state.Zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered(state.CenterX, state.CenterY, null, null, state.Zoom);
             UpdatePreviewTransform();
             session.End();
             _activeSession = null;
@@ -1157,10 +1134,7 @@ public partial class BasinExplorerWindow : Window
         if (TiledRenderSession.TryCaptureLayer(ImageLayer) is { } baked)
         {
             StablePreviewImage.Source = baked;
-            _renderedCenterX = _centerX;
-            _renderedCenterY = _centerY;
-            _renderedZoom = _zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered();
             UpdatePreviewTransform();
         }
 
@@ -1172,25 +1146,14 @@ public partial class BasinExplorerWindow : Window
     private async Task<BitmapSource> RenderBitmapAsync(BasinExplorerState state, int width, int height, int ssaaFactor,
         CancellationToken token, IProgress<int>? progress)
     {
-        int factor = Math.Clamp(ssaaFactor, 1, 4);
-        int renderWidth = checked(width * factor);
-        int renderHeight = checked(height * factor);
-        int stride = checked(renderWidth * 4);
-        byte[] buffer = new byte[checked(stride * renderHeight)];
         BasinExplorerEngine engine = await Task.Run(() => CreateEngine(state, token), token);
+        // Элементы окна принадлежат UI-потоку: число потоков читается до расчёта.
         int threads = GetThreadCount();
-        await Task.Run(() => engine.RenderToBuffer(buffer, renderWidth, renderHeight, stride, threads, token,
-            value => progress?.Report(factor == 1 ? value : value * 90 / 100)), token);
-
-        BitmapSource source = BitmapSource.Create(renderWidth, renderHeight, 96, 96, PixelFormats.Bgra32, null, buffer, stride);
-        source.Freeze();
-        if (factor == 1 || token.IsCancellationRequested) return source;
-        return await Task.Run(() => BitmapResampler.ResizeLanczos3(source, width, height, token, value => progress?.Report(value)));
+        return await SsaaBitmapRenderer.RenderAsync(width, height, ssaaFactor, 4, (pixels, renderWidth, renderHeight, stride, report) =>
+            engine.RenderToBuffer(pixels, renderWidth, renderHeight, stride, threads, token, report), token, progress);
     }
 
-    private int GetThreadCount() => ThreadsBox.SelectedItem?.ToString() == "Auto"
-        ? Environment.ProcessorCount
-        : Math.Max(1, Convert.ToInt32(ThreadsBox.SelectedItem, CultureInfo.InvariantCulture));
+    private int GetThreadCount() => RenderThreadsBox.Read(ThreadsBox);
 
     private int SelectedPreviewSsaaFactor => PreviewSsaaBox.SelectedItem is ComboBoxItem item &&
                                              int.TryParse(item.Tag?.ToString(), out int factor)
@@ -1218,32 +1181,13 @@ public partial class BasinExplorerWindow : Window
     private void CanvasHost_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         CommitAndBakePreview();
-        Point mouse = e.GetPosition(CanvasHost);
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double height = Math.Max(1, CanvasHost.ActualHeight);
-        double fractionX = mouse.X / width - 0.5;
-        double fractionY = height / 2 - mouse.Y;
-
-        double previousZoom = _zoom;
-        double step = WheelZoomStep;
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? step : 1 / step), MinZoom, MaxZoom);
-
-        // Точка под курсором остаётся на месте.
-        double viewWidthDelta = BaseScale / previousZoom - BaseScale / _zoom;
-        _centerX += fractionX * viewWidthDelta;
-        _centerY += fractionY / width * viewWidthDelta;
-
+        _viewport.ZoomAt(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight,
+            _viewport.WheelFactor(e.Delta));
         UpdatePreviewTransform();
         SetZoomText();
         ScheduleRender();
         e.Handled = true;
     }
-
-    /// <summary>Множитель зума на щелчок колеса: ×1.2, с Ctrl — ×10, с Shift — точные ×1.05.</summary>
-    private static double WheelZoomStep =>
-        (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 10.0
-        : (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? 1.05
-        : 1.2;
 
     private void SetZoomText()
     {
@@ -1251,7 +1195,7 @@ public partial class BasinExplorerWindow : Window
         _updatingUi = true;
         try
         {
-            ZoomBox.Text = _zoom.ToString("G8", CultureInfo.InvariantCulture);
+            ZoomBox.Text = _viewport.Zoom.ToDouble().ToString("G8", CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -1263,9 +1207,8 @@ public partial class BasinExplorerWindow : Window
     {
         if (HandleExtendedMouseDown(e)) return;
         _renderTimer.Stop();
-        _isPanning = true;
+        _viewport.BeginPan(e.GetPosition(CanvasHost));
         CommitAndBakePreview();
-        _lastPanPoint = e.GetPosition(CanvasHost);
         CanvasHost.CaptureMouse();
         Mouse.OverrideCursor = Cursors.SizeAll;
     }
@@ -1273,21 +1216,13 @@ public partial class BasinExplorerWindow : Window
     private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
     {
         if (MoveForceCenter(e)) return;
-        if (!_isPanning) return;
-        Point current = e.GetPosition(CanvasHost);
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double viewWidth = BaseScale / _zoom;
-        _centerX += (_lastPanPoint.X - current.X) / width * viewWidth;
-        _centerY += (current.Y - _lastPanPoint.Y) / width * viewWidth;
-        _lastPanPoint = current;
-        UpdatePreviewTransform();
+        if (_viewport.PanTo(e.GetPosition(CanvasHost), CanvasHost.ActualWidth)) UpdatePreviewTransform();
     }
 
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (EndForceCenterDrag()) return;
-        if (!_isPanning) return;
-        _isPanning = false;
+        if (!_viewport.EndPan()) return;
         CanvasHost.ReleaseMouseCapture();
         Mouse.OverrideCursor = null;
         ScheduleRender();
@@ -1300,7 +1235,7 @@ public partial class BasinExplorerWindow : Window
     private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (!_isPanning) ShowOrbitAt(e.GetPosition(CanvasHost));
+        if (!_viewport.IsPanning) ShowOrbitAt(e.GetPosition(CanvasHost));
     }
 
     private void ShowOrbitAt(Point canvasPoint)
@@ -1324,20 +1259,15 @@ public partial class BasinExplorerWindow : Window
         if (!UsesRoots) SeedBox.Text = FormatComplexInput(new Complex(planeX, planeY));
     }
 
-    private (double X, double Y) ScreenToPlane(Point point)
-    {
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double height = Math.Max(1, CanvasHost.ActualHeight);
-        double unitsPerDip = BaseScale / _zoom / width;
-        return (_centerX + (point.X - width / 2) * unitsPerDip, _centerY - (point.Y - height / 2) * unitsPerDip);
-    }
+    private (double X, double Y) ScreenToPlane(Point point) =>
+        _viewport.ScreenToWorld(point, CanvasHost.ActualWidth, CanvasHost.ActualHeight);
 
     private Point PlaneToScreen(Complex point)
     {
         double width = Math.Max(1, CanvasHost.ActualWidth);
         double height = Math.Max(1, CanvasHost.ActualHeight);
-        double dipsPerUnit = width / (BaseScale / _zoom);
-        return new Point(width / 2 + (point.Real - _centerX) * dipsPerUnit, height / 2 - (point.Imaginary - _centerY) * dipsPerUnit);
+        double dipsPerUnit = width / (BaseScale / _viewport.Zoom.ToDouble());
+        return new Point(width / 2 + (point.Real - _viewport.CenterX) * dipsPerUnit, height / 2 - (point.Imaginary - _viewport.CenterY) * dipsPerUnit);
     }
 
     private string DescribeOrbit(BasinExplorerEngine engine, BasinOrbitResult result, double planeX, double planeY)
@@ -1384,33 +1314,16 @@ public partial class BasinExplorerWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11) ToggleFullscreen();
+        if (e.Key == Key.F11) _fullscreen.Toggle(this);
         else if (e.Key == Key.Escape)
         {
-            if (_isFullscreen) ToggleFullscreen();
+            if (_fullscreen.IsActive) _fullscreen.Toggle(this);
             else if (_orbitTrace.Count > 0)
             {
                 _orbitTrace = [];
                 UpdateOverlay();
             }
         }
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -1424,17 +1337,7 @@ public partial class BasinExplorerWindow : Window
     private void UpdatePreviewTransform()
     {
         UpdateOverlay();
-        if (!_hasRenderedFrame || !(_renderedZoom > 0) || CanvasHost.ActualWidth <= 0) return;
-        double width = CanvasHost.ActualWidth;
-        double currentScale = BaseScale / _zoom;
-        double scale = _zoom / _renderedZoom;
-        double translationX = (_renderedCenterX - _centerX) / currentScale * width;
-        double translationY = (_centerY - _renderedCenterY) / currentScale * width;
-        if (!double.IsFinite(scale) || !double.IsFinite(translationX) || !double.IsFinite(translationY)) return;
-        _previewScale.ScaleX = scale;
-        _previewScale.ScaleY = scale;
-        _previewTranslation.X = translationX;
-        _previewTranslation.Y = translationY;
+        _viewport.UpdatePreview();
     }
 
     #endregion

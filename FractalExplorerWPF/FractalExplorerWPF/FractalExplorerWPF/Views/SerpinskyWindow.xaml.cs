@@ -30,10 +30,8 @@ public partial class SerpinskyWindow : Window
     private CancellationTokenSource? _renderCts;
     private bool _isRendering;
     private bool _isPanning;
-    private bool _isFullscreen;
     private bool _controlsVisible = true;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
     private Point _lastPanPoint;
     private double _centerX;
     private double _centerY;
@@ -65,12 +63,7 @@ public partial class SerpinskyWindow : Window
             IterationsLabel.Text = "Количество точек";
         }
 
-        for (int threadCount = 1; threadCount <= Environment.ProcessorCount; threadCount++)
-        {
-            ThreadsBox.Items.Add(threadCount);
-        }
-        ThreadsBox.Items.Add("Auto");
-        ThreadsBox.SelectedItem = "Auto";
+        RenderThreadsBox.Fill(ThreadsBox);
 
         Loaded += (_, _) => ScheduleRender();
     }
@@ -353,10 +346,7 @@ public partial class SerpinskyWindow : Window
         return Math.Clamp(value, minimum, maximum);
     }
 
-    private int GetThreadCount() =>
-        ThreadsBox.SelectedItem?.ToString() == "Auto"
-            ? Environment.ProcessorCount
-            : Math.Max(1, Convert.ToInt32(ThreadsBox.SelectedItem, CultureInfo.InvariantCulture));
+    private int GetThreadCount() => RenderThreadsBox.Read(ThreadsBox);
 
     private void SetRenderingState(bool rendering, string? status = null)
     {
@@ -508,29 +498,12 @@ public partial class SerpinskyWindow : Window
     {
         if (e.Key == Key.F11)
         {
-            ToggleFullscreen();
+            _fullscreen.Toggle(this);
         }
-        else if (e.Key == Key.Escape && _isFullscreen)
+        else if (e.Key == Key.Escape && _fullscreen.IsActive)
         {
-            ToggleFullscreen();
+            _fullscreen.Toggle(this);
         }
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

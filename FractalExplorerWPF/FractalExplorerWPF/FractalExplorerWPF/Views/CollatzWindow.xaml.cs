@@ -23,26 +23,10 @@ public partial class CollatzWindow : Window
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly CollatzPaletteManager _paletteManager = new();
     private readonly CollatzSaveStore _saveStore = new();
-    private readonly TransformGroup _previewTransform = new();
-    private readonly ScaleTransform _previewScale = new(1, 1);
-    private readonly TranslateTransform _previewTranslation = new();
+    private readonly DecimalDeepZoomViewport _viewport = new((double)BaseScale, MinZoom, MaxZoom, DeepZoomThreshold);
     private CancellationTokenSource? _renderCts;
     private TiledRenderSession? _activeSession;
-    private bool _isRendering, _panning, _isFullscreen, _controlsVisible = true, _hasRenderedFrame,
-        _updatingControls;
-    private Point _lastPanPoint;
-    private decimal _centerX, _centerY;
-    private double _zoom = 1;
-    private double _renderedZoom = 1;
-
-    // Ступень BigFloat: выше DeepZoomThreshold центр ведётся в произвольной точности, а
-    // _centerX/_centerY остаются ближайшим decimal — для показа и для старого формата
-    // сохранений. Центр отрисованного кадра нужен в той же точности, иначе разность
-    // «текущий центр − отрисованный» тонет в 28 цифрах и грубый предпросмотр перестаёт
-    // двигаться на глубине.
-    private BigFloat _centerXExact, _centerYExact;
-    private BigFloat _renderedCenterXExact, _renderedCenterYExact;
-    private bool _deepZoomEngaged;
+    private bool _isRendering, _controlsVisible = true, _updatingControls;
 
     /// <summary>Зум, с которого включается ступень BigFloat — тот же порог, что и у рендера.</summary>
     private const double DeepZoomThreshold = 1e10;
@@ -57,17 +41,13 @@ public partial class CollatzWindow : Window
     /// каждый шаг орбиты стоит десятки микросекунд.
     /// </summary>
     private const double MaxZoom = 1e50;
-    private WindowStyle _previousWindowStyle;
-    private WindowState _previousWindowState;
+    private readonly FullscreenToggle _fullscreen = new();
 
     public CollatzWindow()
     {
         InitializeComponent();
         _updatingControls = true;
-        _previewTransform.Children.Add(_previewScale);
-        _previewTransform.Children.Add(_previewTranslation);
-        StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
-        StablePreviewImage.RenderTransform = _previewTransform;
+        _viewport.AttachPreview(StablePreviewImage, CanvasHost);
         _renderTimer.Tick += RenderTimer_OnTick;
         IterationsBox.Text = "150";
         ThresholdBox.Text = "100";
@@ -89,9 +69,7 @@ public partial class CollatzWindow : Window
         InteriorFillModeBox.SelectedIndex = 0;
         CustomInteriorColorSelector.SelectedColor = Colors.Black;
         SsaaBox.SelectedIndex = 0;
-        for (int count = 1; count <= Environment.ProcessorCount; count++) ThreadsBox.Items.Add(count);
-        ThreadsBox.Items.Add("Auto");
-        ThreadsBox.SelectedItem = "Auto";
+        RenderThreadsBox.Fill(ThreadsBox);
         UpdateVariationControls();
         UpdateColoringControls();
         _updatingControls = false;
@@ -117,15 +95,16 @@ public partial class CollatzWindow : Window
         int maximumPeriod = ReadInt(MaximumPeriodBox.Text, "максимальный период", 1, 64);
         double densityExposure = ReadDouble(DensityExposureBox.Text, "экспозиция плотности", 0.1, 10);
         int densitySampleStep = ReadInt(DensitySampleStepBox.Text, "шаг начальных точек", 1, 8);
+        (decimal centerX, decimal centerY, string? exactX, string? exactY) = _viewport.CaptureCenter();
         return new CollatzState
         {
             SaveName = name,
             Timestamp = DateTime.Now,
-            CenterX = _deepZoomEngaged ? _centerXExact.ToDecimalClamped() : _centerX,
-            CenterY = _deepZoomEngaged ? _centerYExact.ToDecimalClamped() : _centerY,
-            CenterXExact = _deepZoomEngaged ? _centerXExact.ToInvariantString() : null,
-            CenterYExact = _deepZoomEngaged ? _centerYExact.ToInvariantString() : null,
-            Zoom = _zoom,
+            CenterX = centerX,
+            CenterY = centerY,
+            CenterXExact = exactX,
+            CenterYExact = exactY,
+            Zoom = _viewport.Zoom.ToDouble(),
             Threshold = threshold,
             Iterations = iterations,
             Variation = (CollatzVariation)Math.Clamp(VariationBox.SelectedIndex, 0,
@@ -155,34 +134,10 @@ public partial class CollatzWindow : Window
     {
         _renderCts?.Cancel();
         _updatingControls = true;
-        _centerX = state.CenterX;
-        _centerY = state.CenterY;
-        _zoom = Math.Clamp(state.Zoom, MinZoom, MaxZoom);
-        _deepZoomEngaged = false;
-        if (state.CenterXExact is { Length: > 0 } exactX && state.CenterYExact is { Length: > 0 } exactY)
-        {
-            try
-            {
-                _centerXExact = BigFloat.Parse(exactX);
-                _centerYExact = BigFloat.Parse(exactY);
-                _deepZoomEngaged = _zoom >= DeepZoomThreshold;
-                if (_deepZoomEngaged)
-                {
-                    _centerX = _centerXExact.ToDecimalClamped();
-                    _centerY = _centerYExact.ToDecimalClamped();
-                }
-            }
-            catch (FormatException)
-            {
-                // Испорченная строка центра не должна мешать открыть сохранение: остаётся
-                // decimal-центр, точности которого хватает примерно до 1e24.
-                _deepZoomEngaged = false;
-            }
-        }
-        if (!_deepZoomEngaged) SyncDeepZoomState();
+        _viewport.Restore(state.CenterX, state.CenterY, state.CenterXExact, state.CenterYExact, state.Zoom);
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
         ThresholdBox.Text = Format(state.Threshold);
-        ZoomBox.Text = FormatZoom(_zoom);
+        ZoomBox.Text = FormatZoom(_viewport.Zoom.ToDouble());
         PParameterBox.Text = Format(state.PParameter);
         QRealParameterBox.Text = Format(state.QRealParameter);
         QImaginaryParameterBox.Text = Format(state.QImaginaryParameter);
@@ -295,8 +250,8 @@ public partial class CollatzWindow : Window
     {
         if (_updatingControls || !TryReadDouble(ZoomBox.Text, out double zoom) ||
             !double.IsFinite(zoom) || zoom <= 0) return;
-        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
-        SyncDeepZoomState();
+        _viewport.SetZoom(zoom);
+        UpdatePreviewTransform();
         ScheduleRender();
     }
 
@@ -411,14 +366,7 @@ public partial class CollatzWindow : Window
             }
             StablePreviewImage.Source = completed;
             CanvasImage.Source = null;
-            _renderedCenterXExact = state.CenterXExact is { Length: > 0 } renderedX
-                ? BigFloat.Parse(renderedX)
-                : BigFloat.FromDecimal(state.CenterX);
-            _renderedCenterYExact = state.CenterYExact is { Length: > 0 } renderedY
-                ? BigFloat.Parse(renderedY)
-                : BigFloat.FromDecimal(state.CenterY);
-            _renderedZoom = state.Zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered(state.CenterX, state.CenterY, state.CenterXExact, state.CenterYExact, state.Zoom);
             UpdatePreviewTransform();
             // На ступени BigFloat время кадра определяется выбранной точностью, поэтому
             // её видно в статусе — иначе непонятно, почему кадр вдруг стал дороже.
@@ -436,26 +384,16 @@ public partial class CollatzWindow : Window
         }
     }
 
-    private async Task<BitmapSource> RenderBitmapAsync(CollatzState state, int width, int height, int ssaa,
+    private Task<BitmapSource> RenderBitmapAsync(CollatzState state, int width, int height, int ssaa,
         CancellationToken token, IProgress<int>? progress)
     {
-        int factor = Math.Clamp(ssaa, 1, 4);
-        int renderWidth = checked(width * factor);
-        int renderHeight = checked(height * factor);
-        int stride = checked(renderWidth * 4);
-        byte[] pixels = new byte[checked(stride * renderHeight)];
+        // Элементы окна принадлежат UI-потоку: число потоков читается до расчёта.
         int threads = GetThreadCount();
-        await Task.Run(() => CollatzRenderer.Render(state, pixels, renderWidth, renderHeight, stride, threads, token,
-            value => progress?.Report(factor == 1 ? value : value * 90 / 100)));
-        BitmapSource source = BitmapSource.Create(renderWidth, renderHeight, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
-        source.Freeze();
-        return factor == 1 || token.IsCancellationRequested ? source : await Task.Run(() => BitmapResampler.ResizeLanczos3(source, width, height, token,
-            value => progress?.Report(value)));
+        return SsaaBitmapRenderer.RenderAsync(width, height, ssaa, 4, (pixels, renderWidth, renderHeight, stride, report) =>
+            CollatzRenderer.Render(state, pixels, renderWidth, renderHeight, stride, threads, token, report), token, progress);
     }
 
-    private int GetThreadCount() => ThreadsBox.SelectedItem?.ToString() == "Auto"
-        ? Environment.ProcessorCount
-        : Math.Max(1, Convert.ToInt32(ThreadsBox.SelectedItem, CultureInfo.InvariantCulture));
+    private int GetThreadCount() => RenderThreadsBox.Read(ThreadsBox);
 
     private void SetRendering(bool value, string? status = null)
     {
@@ -472,58 +410,32 @@ public partial class CollatzWindow : Window
         // Запекаем до изменения зума: снимок должен соответствовать прежнему виду, иначе
         // грубый предпросмотр будет двигать не то, что нарисовано.
         CommitAndBakePreview();
-        Point mouse = e.GetPosition(CanvasHost);
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double height = Math.Max(1, CanvasHost.ActualHeight);
-        double fractionX = mouse.X / width - 0.5;
-        double fractionY = 0.5 - mouse.Y / height;
-
-        double previousZoom = _zoom;
-        _zoom = Math.Clamp(_zoom * (e.Delta > 0 ? 1.2 : 1 / 1.2), MinZoom, MaxZoom);
-
-        // Точка под курсором остаётся на месте: сдвиг центра — доля от разности ширин
-        // области. Это прежняя формула «мир до минус мир после», записанная явно; сдвиг
-        // мал и укладывается в double, а ApplyCenterShift кладёт его в BigFloat-центр на
-        // глубине и в decimal — как раньше — на мелком зуме.
-        double previousViewWidth = (double)BaseScale / previousZoom;
-        double currentViewWidth = (double)BaseScale / _zoom;
-        double shiftX = fractionX * (previousViewWidth - currentViewWidth);
-        double shiftY = fractionY * (previousViewWidth - currentViewWidth) * height / width;
-
-        SyncDeepZoomState();
-        ApplyCenterShift(shiftX, shiftY);
-
+        _viewport.ZoomAt(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight,
+            _viewport.WheelFactor(e.Delta));
+        UpdatePreviewTransform();
         _updatingControls = true;
-        ZoomBox.Text = FormatZoom(_zoom);
+        ZoomBox.Text = FormatZoom(_viewport.Zoom.ToDouble());
         _updatingControls = false;
         ScheduleRender();
+        e.Handled = true;
     }
 
     private void CanvasHost_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         CommitAndBakePreview();
-        _panning = true;
-        _lastPanPoint = e.GetPosition(CanvasHost);
+        _viewport.BeginPan(e.GetPosition(CanvasHost));
         CanvasHost.CaptureMouse();
         Mouse.OverrideCursor = Cursors.SizeAll;
     }
 
     private void CanvasHost_OnMouseMove(object sender, MouseEventArgs e)
     {
-        if (!_panning) return;
-        Point current = e.GetPosition(CanvasHost);
-        double width = Math.Max(1, CanvasHost.ActualWidth);
-        double viewWidth = (double)BaseScale / _zoom;
-        ApplyCenterShift((_lastPanPoint.X - current.X) / width * viewWidth,
-            (current.Y - _lastPanPoint.Y) / width * viewWidth);
-        _lastPanPoint = current;
-        UpdatePreviewTransform();
+        if (_viewport.PanTo(e.GetPosition(CanvasHost), CanvasHost.ActualWidth)) UpdatePreviewTransform();
     }
 
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_panning) return;
-        _panning = false;
+        if (!_viewport.EndPan()) return;
         CanvasHost.ReleaseMouseCapture();
         Mouse.OverrideCursor = null;
         ScheduleRender();
@@ -550,10 +462,7 @@ public partial class CollatzWindow : Window
         if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
             StablePreviewImage.Source = baked;
-            _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
-            _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
-            _renderedZoom = _zoom;
-            _hasRenderedFrame = true;
+            _viewport.MarkRendered();
             UpdatePreviewTransform();
         }
         CanvasImage.Source = null;
@@ -561,60 +470,7 @@ public partial class CollatzWindow : Window
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
 
-    /// <summary>
-    /// Прибавляет к центру небольшой сдвиг в мировых координатах. На глубине сдвиг уходит в
-    /// BigFloat-центр (decimal-приближение обновляется следом), на мелком зуме — в decimal.
-    /// </summary>
-    private void ApplyCenterShift(double shiftX, double shiftY)
-    {
-        if (_deepZoomEngaged)
-        {
-            _centerXExact += BigFloat.FromDouble(shiftX);
-            _centerYExact += BigFloat.FromDouble(shiftY);
-            _centerX = _centerXExact.ToDecimalClamped();
-            _centerY = _centerYExact.ToDecimalClamped();
-        }
-        else
-        {
-            _centerX += (decimal)shiftX;
-            _centerY += (decimal)shiftY;
-        }
-    }
-
-    /// <summary>
-    /// Заводит или глушит ступень BigFloat по текущему зуму. Вверх через порог центр
-    /// переносится из decimal в BigFloat, вниз decimal снова становится источником истины.
-    /// </summary>
-    private void SyncDeepZoomState()
-    {
-        bool shouldEngage = _zoom >= DeepZoomThreshold;
-        if (shouldEngage && !_deepZoomEngaged)
-        {
-            _centerXExact = BigFloat.FromDecimal(_centerX);
-            _centerYExact = BigFloat.FromDecimal(_centerY);
-            _deepZoomEngaged = true;
-        }
-        else if (!shouldEngage && _deepZoomEngaged)
-        {
-            _centerX = _centerXExact.ToDecimalClamped();
-            _centerY = _centerYExact.ToDecimalClamped();
-            _deepZoomEngaged = false;
-        }
-    }
-
-    private void UpdatePreviewTransform()
-    {
-        if (!_hasRenderedFrame || _renderedZoom <= 0 || _zoom <= 0 || CanvasHost.ActualWidth <= 0) return;
-        double scale = _zoom / _renderedZoom;
-        double currentScale = (double)BaseScale / _zoom;
-        double width = CanvasHost.ActualWidth;
-        BigFloat currentCenterX = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
-        BigFloat currentCenterY = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
-        _previewScale.ScaleX = scale;
-        _previewScale.ScaleY = scale;
-        _previewTranslation.X = (_renderedCenterXExact - currentCenterX).ToDouble() / currentScale * width;
-        _previewTranslation.Y = (currentCenterY - _renderedCenterYExact).ToDouble() / currentScale * width;
-    }
+    private void UpdatePreviewTransform() => _viewport.UpdatePreview();
 
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -625,24 +481,7 @@ public partial class CollatzWindow : Window
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen();
-    }
-
-    private void ToggleFullscreen()
-    {
-        if (!_isFullscreen)
-        {
-            _previousWindowStyle = WindowStyle;
-            _previousWindowState = WindowState;
-            WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
-        }
-        else
-        {
-            WindowStyle = _previousWindowStyle;
-            WindowState = _previousWindowState;
-        }
-        _isFullscreen = !_isFullscreen;
+        _fullscreen.HandleKey(this, e.Key);
     }
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)

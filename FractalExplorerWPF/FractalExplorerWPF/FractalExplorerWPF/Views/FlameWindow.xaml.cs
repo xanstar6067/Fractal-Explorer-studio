@@ -23,8 +23,8 @@ public partial class FlameWindow : Window
     private readonly FlameSaveStore _saves = new(); private readonly List<FlameTransform> _transforms = FlameState.CreateDefaults();
     private readonly TransformGroup _transform = new(); private readonly ScaleTransform _imageScale = new(1,1); private readonly TranslateTransform _translation = new();
     private readonly TransformGroup _coverageTransform = new(); private readonly ScaleTransform _coverageScale = new(1,1); private readonly TranslateTransform _coverageTranslation = new();
-    private CancellationTokenSource? _cts; private bool _rendering,_panning,_controls=true,_fullscreen,_hasFrame,_syncing; private Point _panStart;
-    private double _centerX,_centerY,_worldScale=4,_renderedCenterX,_renderedCenterY,_renderedScale=4,_activeCenterX,_activeCenterY,_activeScale=4; private WindowStyle _oldStyle; private WindowState _oldState;
+    private CancellationTokenSource? _cts; private bool _rendering,_panning,_controls=true,_hasFrame,_syncing; private Point _panStart;
+    private double _centerX,_centerY,_worldScale=4,_renderedCenterX,_renderedCenterY,_renderedScale=4,_activeCenterX,_activeCenterY,_activeScale=4; private readonly FullscreenToggle _fullscreen = new();
 
     public FlameWindow()
     {
@@ -120,8 +120,7 @@ public partial class FlameWindow : Window
     private void UpdateTransform(){if(CanvasHost.ActualWidth<=0)return;if(_hasFrame)ApplyViewportTransform(_imageScale,_translation,_renderedCenterX,_renderedCenterY,_renderedScale);ApplyViewportTransform(_coverageScale,_coverageTranslation,_activeCenterX,_activeCenterY,_activeScale);}
     private void ApplyViewportTransform(ScaleTransform scale,TranslateTransform translation,double sourceX,double sourceY,double sourceScale){double w=CanvasHost.ActualWidth,h=CanvasHost.ActualHeight,worldH=_worldScale*h/w;scale.ScaleX=scale.ScaleY=sourceScale/_worldScale;translation.X=(sourceX-_centerX)/_worldScale*w;translation.Y=(_centerY-sourceY)/worldH*h;}
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,300,Schedule);
-    private void Window_OnKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.F11||e.Key==Key.Escape&&_fullscreen)ToggleFull();}
-    private void ToggleFull(){if(!_fullscreen){_oldStyle=WindowStyle;_oldState=WindowState;WindowStyle=WindowStyle.None;WindowState=WindowState.Maximized;}else{WindowStyle=_oldStyle;WindowState=_oldState;}_fullscreen=!_fullscreen;}
-    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){_timer.Stop();_memoryReliefTimer.Stop();_cts?.Cancel();_cts?.Dispose();}
+    private void Window_OnKeyDown(object sender,KeyEventArgs e){_fullscreen.HandleKey(this,e.Key);}
+        private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){_timer.Stop();_memoryReliefTimer.Stop();_cts?.Cancel();_cts?.Dispose();}
     private static bool Read(string text,out double value)=>double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out value)||double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value);private static string F(double value)=>value.ToString("G15",CultureInfo.InvariantCulture);
 }
