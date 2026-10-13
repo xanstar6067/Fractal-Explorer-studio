@@ -118,7 +118,7 @@ public partial class Fractal3DWindow : Window
         _updatingUi = false;
 
         BeginInitialPreparation();
-        ApplyState(_presets[0]);
+        ApplyState(Fractal3DPreferencesStore.Load().ApplyTo(_presets[0]));
         Loaded += (_, _) =>
         {
             ScheduleRender(immediate: true);
@@ -653,7 +653,7 @@ public partial class Fractal3DWindow : Window
     private void PresetBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingUi || PresetBox.SelectedIndex < 0 || PresetBox.SelectedIndex >= _presets.Count) return;
-        ApplyState(_presets[PresetBox.SelectedIndex].Clone());
+        ApplyState(Fractal3DPreferencesStore.Load().ApplyTo(_presets[PresetBox.SelectedIndex]));
     }
 
     private void Parameter_OnChanged(object sender, EventArgs e)
@@ -661,6 +661,7 @@ public partial class Fractal3DWindow : Window
         if (ReferenceEquals(sender, ShadingStyleBox)) UpdateColoringPanels();
         if (!_updatingUi)
         {
+            RememberPreference(sender);
             if (Kind == Fractal3DKind.Lyapunov3D)
             {
                 UpdateLyapunovCutLabel();

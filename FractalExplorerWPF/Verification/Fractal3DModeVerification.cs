@@ -29,6 +29,7 @@ internal static partial class Program
         string? record = ReadOption(args, "--record");
         string? compare = ReadOption(args, "--compare");
         EnsureWindowThemeStyles();
+        VerifyFractal3DPreferences();
 
         var lines = new List<string>();
         Fractal3DKind[] kinds = Enum.GetValues<Fractal3DKind>();

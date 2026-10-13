@@ -812,6 +812,7 @@ public partial class Fractal3DWindow
     private void NavigationMode_OnChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingUi) return;
+        RememberPreference(sender);
         if (_drag != DragMode.None) CanvasHost.ReleaseMouseCapture();
         StopCameraMotion();
         UpdateNavigationHelp();
@@ -832,7 +833,11 @@ public partial class Fractal3DWindow
 
     private void GameSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (!_updatingUi) UpdateGameSliderLabels();
+        if (!_updatingUi)
+        {
+            UpdateGameSliderLabels();
+            RememberPreference(sender);
+        }
     }
 
     private void UpdateGameSliderLabels()
@@ -853,6 +858,7 @@ public partial class Fractal3DWindow
     private void Navigation_OnChanged(object sender, EventArgs e)
     {
         if (_updatingUi) return;
+        RememberPreference(sender);
         if (AutoRotateBox.IsChecked == true) AttachLoop();
         UpdateCameraText();
     }

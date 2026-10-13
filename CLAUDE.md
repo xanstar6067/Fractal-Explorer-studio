@@ -90,7 +90,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `DomainColoringWindow` | Раскраска комплексных функций с циклической палитрой аргумента. |
 | `DynamicSystemWindow` | Ляпунов, Лоренц, Рёсслер, логистическое отображение, бифуркации, Хенон, Икэда, 2D-аттракторы, Спротт, Symmetric Icons (`SYMMETRIC_ICONS.md`), Popcorn (`POPCORN.md`), Hopalong (`HOPALONG.md`). |
 | `FlameWindow` | Fractal Flame. |
-| `Fractal3DWindow` | Тридцать восемь трёхмерных режимов (`Fractal3DKind`): поверхности по оценке расстояния, объёмы плотности, десять живых моделирований на ГП, аналитические сцены. Общие камера и навигация (`Fractal3DWindow.Navigation.cs`), подготовка, палитры, сохранения, экспорт; рендер — `Core/Rendering3D/Fractal3DRenderer*.cs`. Документы режимов — `FractalExplorerWPF/*3D*.md`, `HOPF.md`, `KIFS.md`, `TERRAIN.md`, `ABC_FLOW.md` и др. |
+| `Fractal3DWindow` | Тридцать восемь трёхмерных режимов (`Fractal3DKind`): поверхности по оценке расстояния, объёмы плотности, десять живых моделирований на ГП, аналитические сцены. Общие камера и навигация (`Fractal3DWindow.Navigation.cs`), сохраняемые настройки качества, теней и управления (`Fractal3DPreferencesStore`), подготовка, палитры, сохранения, экспорт; рендер — `Core/Rendering3D/Fractal3DRenderer*.cs`. Документы режимов — `FractalExplorerWPF/*3D*.md`, `HOPF.md`, `KIFS.md`, `TERRAIN.md`, `ABC_FLOW.md` и др. |
 | `Fractal3DConstantPickerWindow` | Выбор константы C Жюлиабульба и горящего корабля 3D — Жюлиа на карте исходного фрактала. |
 | `GrayScottWindow` | Gray–Scott 2D на ЦП/ГП с поиском узоров (`GRAY_SCOTT.md`). |
 | `IfsWindow` | IFS Барнсли/Хейуэя. |

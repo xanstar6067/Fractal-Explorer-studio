@@ -316,7 +316,7 @@ internal static partial class Program
     private static void VerifyUserDataMigrator()
     {
         using var sandbox = DataSandbox.Create("migrator");
-        Check(UserDataMigrator.CurrentVersion == 2, "The shipped data layout must include the catalog preview cache.");
+        Check(UserDataMigrator.CurrentVersion == 3, "The shipped data layout must include shared 3D preferences.");
 
         var calls = new List<int>();
         string settings = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile("test.txt"));
