@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -23,7 +22,6 @@ public partial class PhoenixWindow : Window
 {
     private const decimal BaseScale = 4m;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly MandelbrotPaletteManager _paletteManager = new();
     private readonly PhoenixSaveStore _saveStore = new();
     private CancellationTokenSource? _renderCts;
@@ -76,14 +74,13 @@ public partial class PhoenixWindow : Window
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
-    private RenderSession? _activeSession;
+    private TiledRenderSession? _activeSession;
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
 
     public PhoenixWindow()
     {
         InitializeComponent();
-        _visualizationTimer.Tick += (_, _) => { if (_activeSession is not null) FlushVisualizationEvents(_activeSession, false); };
         _previewTransform.Children.Add(_previewScale);
         _previewTransform.Children.Add(_previewTranslation);
         StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
@@ -308,18 +305,13 @@ public partial class PhoenixWindow : Window
     /// </summary>
     private void CommitAndBakePreview()
     {
-        RenderSession? session = _activeSession;
+        TiledRenderSession? session = _activeSession;
         _renderCts?.Cancel();
         if (session is null) return;
 
-        FlushVisualizationEvents(session, true);
-        RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(SavePreviewLayer);
-        try
+        session.Flush();
+        if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
-            var baked = new RenderTargetBitmap(surface.PixelWidth, surface.PixelHeight,
-                surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            baked.Render(SavePreviewLayer);
-            baked.Freeze();
             StablePreviewImage.Source = baked;
             _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
             _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
@@ -327,12 +319,8 @@ public partial class PhoenixWindow : Window
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
         }
-        catch (InvalidOperationException)
-        {
-            // Разметка бывает недоступна на свёртывании окна и в момент изменения размера.
-        }
         CanvasImage.Source = null;
-        RenderOverlay.EndSession();
+        session.End();
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
     private void RenderTimer_OnTick(object? sender, EventArgs e) { _renderTimer.Stop(); _ = RenderPreviewAsync(); }
@@ -345,6 +333,7 @@ public partial class PhoenixWindow : Window
         var watch = Stopwatch.StartNew();
         string planeName = state.PlaneMode == PhoenixPlaneMode.Julia ? "динамической плоскости" : "параметрической плоскости C1";
         SetRendering(true, $"Рендеринг {planeName}...");
+        TiledRenderSession? session = null;
         try
         {
             int factor = SsaaBox.SelectedItem is ComboBoxItem item ? Convert.ToInt32(item.Tag, CultureInfo.InvariantCulture) : 1;
@@ -357,17 +346,14 @@ public partial class PhoenixWindow : Window
             TileSchedulingStrategy strategy = RenderPatternSettings.SelectedPattern;
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(renderWidth, renderHeight, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
-            var session = new RenderSession(bitmap, tiles.Count, renderWidth, renderHeight);
+            session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress);
             _activeSession = session;
             CanvasImage.Source = bitmap;
-            RenderOverlay.BeginSession(renderWidth, renderHeight);
-            _visualizationTimer.Start();
-            await RenderTilesAsync(state, tiles, session, GetThreadCount(), token);
+            await session.RenderTilesAsync(tiles, GetThreadCount(),
+                (tile, tileToken) => PhoenixRenderer.RenderTile(state, renderWidth, renderHeight, tile, tileToken), token);
             if (token.IsCancellationRequested) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; return; }
-            FlushVisualizationEvents(session, true);
-            BitmapSource completed = session.Bitmap.Clone();
-            completed.Freeze();
-            StablePreviewImage.Source = completed;
+            session.Flush();
+            StablePreviewImage.Source = session.Snapshot();
             CanvasImage.Source = null;
             // Центр берём из состояния, которым кадр посчитан, а не из текущего: пока шёл
             // рендер, пользователь мог уже сдвинуть вид.
@@ -383,51 +369,13 @@ public partial class PhoenixWindow : Window
             _renderedZoom = state.Zoom;
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
-            RenderOverlay.EndSession();
+            session.End();
             _activeSession = null;
             StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек. {state.PlaneMode}, {state.Variant}, a={state.PrimaryPower}, b={state.SecondaryPower}, зум {FloatExpJsonConverter.ToDisplay(state.Zoom)}. Стратегия: {strategy}.";
         }
         catch (OperationCanceledException) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; }
         catch (Exception ex) { StatusText.Text = "Ошибка рендера"; MessageBox.Show(this, ex.Message, "Phoenix", MessageBoxButton.OK, MessageBoxImage.Error); }
-        finally { _visualizationTimer.Stop(); RenderOverlay.EndSession(); _activeSession = null; SetRendering(false); }
-    }
-
-    private static async Task RenderTilesAsync(PhoenixState state, IReadOnlyList<MandelbrotRenderTile> tiles,
-        RenderSession session, int threadCount, CancellationToken token)
-    {
-        var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
-        Task[] workers = Enumerable.Range(0, Math.Clamp(threadCount, 1, Environment.ProcessorCount)).Select(_ => Task.Run(() =>
-        {
-            while (queue.TryDequeue(out MandelbrotRenderTile tile))
-            {
-                if (token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(true, tile, null));
-                byte[]? pixels = PhoenixRenderer.RenderTile(state, session.RenderWidth, session.RenderHeight, tile, token);
-                if (pixels is null || token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(false, tile, pixels));
-            }
-        })).ToArray();
-        await Task.WhenAll(workers);
-    }
-
-    private void FlushVisualizationEvents(RenderSession session, bool drainAll)
-    {
-        int processed = 0; bool changed = false;
-        while ((drainAll || processed < 512) && session.Events.TryDequeue(out TileRenderEvent entry))
-        {
-            if (entry.IsStart) RenderOverlay.StartTile(entry.Tile);
-            else if (entry.Pixels is not null)
-            {
-                if (ProgressiveRenderBitmap.WriteTile(session.Bitmap, entry.Tile, entry.Pixels))
-                {
-                    RenderOverlay.CompleteTile(entry.Tile); session.CompletedTiles++;
-                }
-            }
-            processed++; changed = true;
-        }
-        if (!changed) return;
-        RenderOverlay.Refresh();
-        RenderProgress.Value = session.TileCount == 0 ? 0 : session.CompletedTiles * 100.0 / session.TileCount;
+        finally { session?.End(); _activeSession = null; SetRendering(false); }
     }
 
     private async Task<BitmapSource> RenderBitmapAsync(PhoenixState state, int width, int height, int ssaa, CancellationToken token, IProgress<int>? progress)
@@ -624,7 +572,7 @@ public partial class PhoenixWindow : Window
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e) => FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost, ToggleControlsButton, 310, ScheduleRender);
     private void Window_OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen(); }
     private void ToggleFullscreen() { if (!_isFullscreen) { _previousWindowStyle = WindowStyle; _previousWindowState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; } else { WindowStyle = _previousWindowStyle; WindowState = _previousWindowState; } _isFullscreen = !_isFullscreen; }
-    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _visualizationTimer.Stop(); _renderCts?.Cancel(); _renderCts?.Dispose(); }
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _activeSession?.End(); _renderCts?.Cancel(); _renderCts?.Dispose(); }
     /// <summary>
     /// Возврат к исходному виду: центр в нуле, зум 1.
     ///
@@ -672,15 +620,4 @@ public partial class PhoenixWindow : Window
             }
         }
     }
-
-    private sealed class RenderSession(WriteableBitmap bitmap, int tileCount, int renderWidth, int renderHeight)
-    {
-        public WriteableBitmap Bitmap { get; } = bitmap;
-        public int TileCount { get; } = tileCount;
-        public int RenderWidth { get; } = renderWidth;
-        public int RenderHeight { get; } = renderHeight;
-        public int CompletedTiles { get; set; }
-        public ConcurrentQueue<TileRenderEvent> Events { get; } = new();
-    }
-    private readonly record struct TileRenderEvent(bool IsStart, MandelbrotRenderTile Tile, byte[]? Pixels);
 }

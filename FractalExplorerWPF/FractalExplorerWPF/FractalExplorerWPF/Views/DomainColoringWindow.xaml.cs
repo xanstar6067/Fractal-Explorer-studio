@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
@@ -18,14 +17,13 @@ namespace FractalExplorerWPF.Views;
 public partial class DomainColoringWindow : Window
 {
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DomainColoringSaveStore _saveStore = new();
     private readonly DomainColoringPaletteManager _paletteManager = new();
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
     private CancellationTokenSource? _renderCts;
-    private RenderSession? _activeSession;
+    private TiledRenderSession? _activeSession;
     private bool _isRendering;
     private bool _panning;
     private bool _isFullscreen;
@@ -50,20 +48,6 @@ public partial class DomainColoringWindow : Window
         _previewTransform.Children.Add(_previewTranslation);
         StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
         StablePreviewImage.RenderTransform = _previewTransform;
-
-        _visualizationTimer.Tick += (_, _) =>
-        {
-            try
-            {
-                if (_activeSession is not null) FlushVisualizationEvents(_activeSession, false);
-            }
-            catch (Exception ex)
-            {
-                _visualizationTimer.Stop();
-                StatusText.Text = "Ошибка визуализации прогресса рендера.";
-                CrashLogger.Log("DomainColoringWindow.VisualizationTimer", ex);
-            }
-        };
         _renderTimer.Tick += RenderTimer_OnTick;
 
         FormulaBox.Text = "(z^3-1)/(z^3+1)";
@@ -292,18 +276,13 @@ public partial class DomainColoringWindow : Window
     /// </summary>
     private void CommitAndBakePreview()
     {
-        RenderSession? session = _activeSession;
+        TiledRenderSession? session = _activeSession;
         _renderCts?.Cancel();
         if (session is null) return;
 
-        FlushVisualizationEvents(session, true);
-        RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(SavePreviewLayer);
-        try
+        session.Flush();
+        if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
-            var baked = new RenderTargetBitmap(surface.PixelWidth, surface.PixelHeight,
-                surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            baked.Render(SavePreviewLayer);
-            baked.Freeze();
             StablePreviewImage.Source = baked;
             _renderedCenterX = _centerX;
             _renderedCenterY = _centerY;
@@ -311,12 +290,8 @@ public partial class DomainColoringWindow : Window
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
         }
-        catch (InvalidOperationException)
-        {
-            // Разметка бывает недоступна на свёртывании окна и в момент изменения размера.
-        }
         CanvasImage.Source = null;
-        RenderOverlay.EndSession();
+        session.End();
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
 
@@ -355,6 +330,7 @@ public partial class DomainColoringWindow : Window
         var watch = Stopwatch.StartNew();
         SetRendering(true, $"Рендеринг f(z) = {renderer.ParsedFormula}...");
 
+        TiledRenderSession? session = null;
         try
         {
             int factor = SsaaBox.SelectedItem is ComboBoxItem item
@@ -367,19 +343,17 @@ public partial class DomainColoringWindow : Window
                 renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(
                 renderWidth, renderHeight, surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY);
-            var session = new RenderSession(bitmap, tiles.Count, renderWidth, renderHeight);
+            session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress);
+            session.VisualizationFailed += _ => StatusText.Text = "Ошибка визуализации прогресса рендера.";
             _activeSession = session;
             CanvasImage.Source = bitmap;
-            RenderOverlay.BeginSession(renderWidth, renderHeight);
-            _visualizationTimer.Start();
 
-            await RenderTilesAsync(renderer, tiles, session, GetThreadCount(), token);
-            FlushVisualizationEvents(session, true);
+            await session.RenderTilesAsync(tiles, GetThreadCount(),
+                (tile, tileToken) => renderer.RenderTile(tile, renderWidth, renderHeight, tileToken), token);
+            session.Flush();
             token.ThrowIfCancellationRequested();
 
-            BitmapSource completed = session.Bitmap.Clone();
-            completed.Freeze();
-            StablePreviewImage.Source = completed;
+            StablePreviewImage.Source = session.Snapshot();
             CanvasImage.Source = null;
             _renderedCenterX = state.CenterX;
             _renderedCenterY = state.CenterY;
@@ -401,56 +375,12 @@ public partial class DomainColoringWindow : Window
         }
         finally
         {
-            _visualizationTimer.Stop();
-            RenderOverlay.EndSession();
+            session?.End();
             _activeSession = null;
             if (ReferenceEquals(_renderCts, cts)) _renderCts = null;
             cts.Dispose();
             SetRendering(false);
         }
-    }
-
-    private static async Task RenderTilesAsync(
-        DomainColoringRenderer renderer,
-        IReadOnlyList<MandelbrotRenderTile> tiles,
-        RenderSession session,
-        int threadCount,
-        CancellationToken token)
-    {
-        var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
-        Task[] workers = Enumerable.Range(0, Math.Clamp(threadCount, 1, Environment.ProcessorCount))
-            .Select(_ => Task.Run(() =>
-            {
-                while (queue.TryDequeue(out MandelbrotRenderTile tile))
-                {
-                    if (token.IsCancellationRequested) return;
-                    session.Events.Enqueue(new TileRenderEvent(true, tile, null));
-                    byte[]? pixels = renderer.RenderTile(tile, session.RenderWidth, session.RenderHeight, token);
-                    if (pixels is null || token.IsCancellationRequested) return;
-                    session.Events.Enqueue(new TileRenderEvent(false, tile, pixels));
-                }
-            }, token)).ToArray();
-        await Task.WhenAll(workers);
-    }
-
-    private void FlushVisualizationEvents(RenderSession session, bool drainAll)
-    {
-        int processed = 0;
-        bool changed = false;
-        while ((drainAll || processed < 512) && session.Events.TryDequeue(out TileRenderEvent entry))
-        {
-            if (entry.IsStart) RenderOverlay.StartTile(entry.Tile);
-            else if (entry.Pixels is not null && ProgressiveRenderBitmap.WriteTile(session.Bitmap, entry.Tile, entry.Pixels))
-            {
-                RenderOverlay.CompleteTile(entry.Tile);
-                session.CompletedTiles++;
-            }
-            processed++;
-            changed = true;
-        }
-        if (!changed) return;
-        RenderOverlay.Refresh();
-        RenderProgress.Value = session.TileCount == 0 ? 0 : session.CompletedTiles * 100.0 / session.TileCount;
     }
 
     private async Task<BitmapSource> RenderBitmapAsync(
@@ -603,7 +533,7 @@ public partial class DomainColoringWindow : Window
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _renderTimer.Stop();
-        _visualizationTimer.Stop();
+        _activeSession?.End();
         _renderCts?.Cancel();
         _renderCts?.Dispose();
         Mouse.OverrideCursor = null;
@@ -632,16 +562,4 @@ public partial class DomainColoringWindow : Window
         double.IsFinite(value) ? Math.Clamp(value, minimum, maximum) : fallback;
 
     private static string Format(double value) => value.ToString("G15", CultureInfo.InvariantCulture);
-
-    private sealed class RenderSession(WriteableBitmap bitmap, int tileCount, int renderWidth, int renderHeight)
-    {
-        public WriteableBitmap Bitmap { get; } = bitmap;
-        public int TileCount { get; } = tileCount;
-        public int RenderWidth { get; } = renderWidth;
-        public int RenderHeight { get; } = renderHeight;
-        public int CompletedTiles { get; set; }
-        public ConcurrentQueue<TileRenderEvent> Events { get; } = new();
-    }
-
-    private readonly record struct TileRenderEvent(bool IsStart, MandelbrotRenderTile Tile, byte[]? Pixels);
 }

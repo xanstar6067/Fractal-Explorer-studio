@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -25,7 +24,6 @@ public partial class NovaWindow : Window
     private readonly NovaVariant _variant;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _mapTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly NovaPaletteManager _paletteManager = new();
     private readonly NovaSaveStore _saveStore;
     private readonly TransformGroup _previewTransform = new();
@@ -33,7 +31,7 @@ public partial class NovaWindow : Window
     private readonly TranslateTransform _previewTranslation = new();
     private CancellationTokenSource? _renderCts;
     private CancellationTokenSource? _mapCts;
-    private RenderSession? _activeSession;
+    private TiledRenderSession? _activeSession;
     private bool _isRendering, _panning, _isFullscreen, _controlsVisible = true, _hasRenderedFrame;
 
     /// <summary>
@@ -103,7 +101,6 @@ public partial class NovaWindow : Window
         StablePreviewImage.RenderTransform = _previewTransform;
         _renderTimer.Tick += (_, _) => { _renderTimer.Stop(); _ = RenderPreviewAsync(); };
         _mapTimer.Tick += (_, _) => { _mapTimer.Stop(); _ = RenderJuliaMapAsync(); };
-        _visualizationTimer.Tick += (_, _) => { if (_activeSession is not null) FlushVisualizationEvents(_activeSession, false); };
         PRealBox.Text = "3"; PImaginaryBox.Text = "0"; Z0RealBox.Text = "1"; Z0ImaginaryBox.Text = "0";
         CRealBox.Text = "0"; CImaginaryBox.Text = "1"; MBox.Text = "1"; IterationsBox.Text = "100";
         ThresholdBox.Text = "10"; ZoomBox.Text = "1"; ColoringBox.SelectedIndex = 1; SsaaBox.SelectedIndex = 0;
@@ -188,18 +185,13 @@ public partial class NovaWindow : Window
     /// </summary>
     private void CommitAndBakePreview()
     {
-        RenderSession? session = _activeSession;
+        TiledRenderSession? session = _activeSession;
         _renderCts?.Cancel();
         if (session is null) return;
 
-        FlushVisualizationEvents(session, true);
-        RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(SavePreviewLayer);
-        try
+        session.Flush();
+        if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
-            var baked = new RenderTargetBitmap(surface.PixelWidth, surface.PixelHeight,
-                surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            baked.Render(SavePreviewLayer);
-            baked.Freeze();
             StablePreviewImage.Source = baked;
             _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
             _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
@@ -207,12 +199,8 @@ public partial class NovaWindow : Window
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
         }
-        catch (InvalidOperationException)
-        {
-            // Разметка бывает недоступна на свёртывании окна и в момент изменения размера.
-        }
         CanvasImage.Source = null;
-        RenderOverlay.EndSession();
+        session.End();
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
     private void ScheduleMapRender() { if (!IsLoaded || _variant != NovaVariant.Julia) return; _mapCts?.Cancel(); _mapTimer.Stop(); _mapTimer.Start(); }
@@ -228,6 +216,7 @@ public partial class NovaWindow : Window
         NovaState state; try { state = CaptureState("preview"); } catch (Exception ex) { StatusText.Text = ex.Message; return; }
         _renderCts?.Dispose(); _renderCts = new CancellationTokenSource(); CancellationToken token = _renderCts.Token;
         var watch = Stopwatch.StartNew(); SetRendering(true, "Рендеринг Nova...");
+        TiledRenderSession? session = null;
         try
         {
             int factor = SsaaBox.SelectedItem is ComboBoxItem item ? Convert.ToInt32(item.Tag, CultureInfo.InvariantCulture) : 1;
@@ -238,12 +227,13 @@ public partial class NovaWindow : Window
             TileSchedulingStrategy strategy = RenderPatternSettings.SelectedPattern;
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(width, height, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(width, height, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
-            var session = new RenderSession(bitmap, tiles.Count, width, height); _activeSession = session; CanvasImage.Source = bitmap;
-            RenderOverlay.BeginSession(width, height); _visualizationTimer.Start();
-            await RenderTilesAsync(state, tiles, session, GetThreadCount(), token);
+            session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress);
+            _activeSession = session; CanvasImage.Source = bitmap;
+            await session.RenderTilesAsync(tiles, GetThreadCount(),
+                (tile, tileToken) => NovaRenderer.RenderTile(state, width, height, tile, tileToken), token);
             if (token.IsCancellationRequested) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; return; }
-            FlushVisualizationEvents(session, true);
-            BitmapSource completed = session.Bitmap.Clone(); completed.Freeze(); StablePreviewImage.Source = completed; CanvasImage.Source = null;
+            session.Flush();
+            StablePreviewImage.Source = session.Snapshot(); CanvasImage.Source = null;
             _renderedCenterXExact = state.CenterXExact is { Length: > 0 } renderedX
                 ? BigFloat.Parse(renderedX)
                 : BigFloat.FromDecimal(state.CenterX);
@@ -255,42 +245,7 @@ public partial class NovaWindow : Window
         }
         catch (OperationCanceledException) { CanvasImage.Source = null; StatusText.Text = "Рендер отменён"; }
         catch (Exception ex) { CanvasImage.Source = null; MessageBox.Show(this, ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Error); }
-        finally { _visualizationTimer.Stop(); RenderOverlay.EndSession(); _activeSession = null; SetRendering(false); }
-    }
-
-    private static async Task RenderTilesAsync(NovaState state, IReadOnlyList<MandelbrotRenderTile> tiles, RenderSession session, int threads, CancellationToken token)
-    {
-        var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
-        Task[] workers = Enumerable.Range(0, Math.Clamp(threads, 1, Environment.ProcessorCount)).Select(_ => Task.Run(() =>
-        {
-            while (queue.TryDequeue(out MandelbrotRenderTile tile))
-            {
-                if (token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileEvent(true, tile, null));
-                byte[]? pixels = NovaRenderer.RenderTile(state, session.Width, session.Height, tile, token);
-                if (pixels is null || token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileEvent(false, tile, pixels));
-            }
-        })).ToArray();
-        await Task.WhenAll(workers);
-    }
-
-    private void FlushVisualizationEvents(RenderSession session, bool drain)
-    {
-        int processed = 0; bool changed = false;
-        while ((drain || processed < 512) && session.Events.TryDequeue(out TileEvent entry))
-        {
-            if (entry.Start) RenderOverlay.StartTile(entry.Tile);
-            else if (entry.Pixels is not null)
-            {
-                if (ProgressiveRenderBitmap.WriteTile(session.Bitmap, entry.Tile, entry.Pixels))
-                {
-                    RenderOverlay.CompleteTile(entry.Tile); session.Completed++;
-                }
-            }
-            processed++; changed = true;
-        }
-        if (!changed) return; RenderOverlay.Refresh(); RenderProgress.Value = session.Count == 0 ? 0 : session.Completed * 100d / session.Count;
+        finally { session?.End(); _activeSession = null; SetRendering(false); }
     }
 
     private async Task RenderJuliaMapAsync()
@@ -494,7 +449,7 @@ public partial class NovaWindow : Window
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e) => FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost, ToggleControlsButton, 300, ScheduleRender);
     private void Window_OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.F11 || e.Key == Key.Escape && _isFullscreen) ToggleFullscreen(); }
     private void ToggleFullscreen() { if (!_isFullscreen) { _previousWindowStyle = WindowStyle; _previousWindowState = WindowState; WindowStyle = WindowStyle.None; WindowState = WindowState.Maximized; } else { WindowStyle = _previousWindowStyle; WindowState = _previousWindowState; } _isFullscreen = !_isFullscreen; }
-    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _mapTimer.Stop(); _visualizationTimer.Stop(); _renderCts?.Cancel(); _mapCts?.Cancel(); _renderCts?.Dispose(); _mapCts?.Dispose(); }
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _mapTimer.Stop(); _activeSession?.End(); _renderCts?.Cancel(); _mapCts?.Cancel(); _renderCts?.Dispose(); _mapCts?.Dispose(); }
     private static bool TryRead(string text, out decimal value) => decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || decimal.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
     private static string Format(decimal value) => value.ToString("G15", CultureInfo.InvariantCulture);
 
@@ -503,6 +458,4 @@ public partial class NovaWindow : Window
     /// экспоненциальную запись (8.1707708E+09) и помещается в поле целиком.
     /// </summary>
     private static string FormatZoom(double value) => value.ToString("G8", CultureInfo.InvariantCulture);
-    private sealed class RenderSession(WriteableBitmap bitmap, int count, int width, int height) { public WriteableBitmap Bitmap { get; } = bitmap; public int Count { get; } = count; public int Width { get; } = width; public int Height { get; } = height; public int Completed { get; set; } public ConcurrentQueue<TileEvent> Events { get; } = new(); }
-    private readonly record struct TileEvent(bool Start, MandelbrotRenderTile Tile, byte[]? Pixels);
 }

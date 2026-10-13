@@ -195,7 +195,9 @@ internal static partial class Program
                 }
                 Check(((System.Windows.Controls.TextBlock)view.FindName("RenderButtonText")).Text == "Рендер превью" &&
                     Image(view) is BitmapSource && !((System.Windows.Controls.TextBlock)view.FindName("StatusText")).Text.Contains("Ошибка"),
-                    "A real deep-save rerender must finish without error.");
+                    $"{variant}: a real deep-save rerender must finish without error " +
+                    $"(button: «{((System.Windows.Controls.TextBlock)view.FindName("RenderButtonText")).Text}», " +
+                    $"status: «{((System.Windows.Controls.TextBlock)view.FindName("StatusText")).Text}»).");
                 var managerImage = (BitmapSource)Image(view)!;
                 var managerReference = await window.RenderStatePreviewAsync(entry.State,managerImage.PixelWidth,managerImage.PixelHeight,CancellationToken.None);
                 Check(ImageBytes(managerImage).SequenceEqual(ImageBytes(managerReference)), "Manual save-manager rerender must show the selected CPU frame.");

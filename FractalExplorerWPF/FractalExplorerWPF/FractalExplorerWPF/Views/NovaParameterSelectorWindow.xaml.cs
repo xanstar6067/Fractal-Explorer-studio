@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Models;
 using Point = System.Windows.Point;
@@ -19,12 +19,10 @@ public partial class NovaParameterSelectorWindow : Window
     private const decimal BaseScale = 4m;
     private readonly NovaState _mapState;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
-    private readonly DispatcherTimer _visualTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly TransformGroup _transform = new();
     private readonly ScaleTransform _scale = new(1, 1);
     private readonly TranslateTransform _translation = new();
     private CancellationTokenSource? _cts;
-    private Session? _session;
     private decimal _centerX, _centerY, _zoom = 1, _renderedCenterX, _renderedCenterY, _renderedZoom = 1;
     private decimal _selectedReal, _selectedImaginary;
     private bool _hasFrame, _panning, _rendering;
@@ -45,7 +43,6 @@ public partial class NovaParameterSelectorWindow : Window
         _transform.Children.Add(_scale); _transform.Children.Add(_translation);
         StableImage.RenderTransformOrigin = new Point(0.5, 0.5); StableImage.RenderTransform = _transform;
         _renderTimer.Tick += (_, _) => { _renderTimer.Stop(); _ = RenderAsync(); };
-        _visualTimer.Tick += (_, _) => { if (_session is not null) Flush(_session, false); };
         Loaded += (_, _) => ScheduleRender();
     }
 
@@ -56,6 +53,7 @@ public partial class NovaParameterSelectorWindow : Window
         if (_rendering) { ScheduleRender(); return; }
         _rendering = true; _cts?.Dispose(); _cts = new CancellationTokenSource(); CancellationToken token = _cts.Token;
         _mapState.CenterX = _centerX; _mapState.CenterY = _centerY; _mapState.Zoom = (double)_zoom;
+        TiledRenderSession? session = null;
         try
         {
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
@@ -64,45 +62,17 @@ public partial class NovaParameterSelectorWindow : Window
             int height = surface.PixelHeight;
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(width, height, 16, RenderPatternSettings.SelectedPattern);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(width, height, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
-            var session = new Session(bitmap, tiles.Count, width, height); _session = session; CurrentImage.Source = bitmap;
-            RenderOverlay.BeginSession(width, height); _visualTimer.Start();
-            var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
-            Task[] workers = Enumerable.Range(0, Math.Max(1, Environment.ProcessorCount)).Select(_ => Task.Run(() =>
-            {
-                while (queue.TryDequeue(out MandelbrotRenderTile tile))
-                {
-                    if (token.IsCancellationRequested) return;
-                    session.Events.Enqueue(new TileEvent(true, tile, null));
-                    byte[]? pixels = NovaRenderer.RenderTile(_mapState, width, height, tile, token, true);
-                    if (pixels is null || token.IsCancellationRequested) return;
-                    session.Events.Enqueue(new TileEvent(false, tile, pixels));
-                }
-            })).ToArray();
-            await Task.WhenAll(workers);
+            session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay); CurrentImage.Source = bitmap;
+            await session.RenderTilesAsync(tiles, Environment.ProcessorCount,
+                (tile, tileToken) => NovaRenderer.RenderTile(_mapState, width, height, tile, tileToken, true), token);
             if (token.IsCancellationRequested) return;
-            Flush(session, true);
-            BitmapSource completed = bitmap.Clone(); completed.Freeze(); StableImage.Source = completed; CurrentImage.Source = null;
+            session.Flush();
+            StableImage.Source = session.Snapshot(); CurrentImage.Source = null;
             _renderedCenterX = _centerX; _renderedCenterY = _centerY; _renderedZoom = _zoom; _hasFrame = true; UpdateTransform(); DrawOverlays();
             StatusText.Text = $"C = {_selectedReal:G8} {(_selectedImaginary < 0 ? '−' : '+')} {Math.Abs(_selectedImaginary):G8}i";
         }
         catch (OperationCanceledException) { CurrentImage.Source = null; }
-        finally { _visualTimer.Stop(); RenderOverlay.EndSession(); _session = null; _rendering = false; }
-    }
-
-    private void Flush(Session session, bool drain)
-    {
-        int count = 0; bool changed = false;
-        while ((drain || count < 512) && session.Events.TryDequeue(out TileEvent entry))
-        {
-            if (entry.Start) RenderOverlay.StartTile(entry.Tile);
-            else if (entry.Pixels is not null)
-            {
-                if (ProgressiveRenderBitmap.WriteTile(session.Bitmap, entry.Tile, entry.Pixels))
-                    RenderOverlay.CompleteTile(entry.Tile);
-            }
-            count++; changed = true;
-        }
-        if (changed) RenderOverlay.Refresh();
+        finally { session?.End(); _rendering = false; }
     }
 
     private void CanvasHost_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -171,7 +141,5 @@ public partial class NovaParameterSelectorWindow : Window
         MarkerCanvas.Children.Add(new Line { X1 = marker.X, X2 = marker.X, Y1 = marker.Y - 9, Y2 = marker.Y + 9, Stroke = Brushes.Lime, StrokeThickness = 2 });
     }
 
-    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _visualTimer.Stop(); _cts?.Cancel(); _cts?.Dispose(); }
-    private sealed class Session(WriteableBitmap bitmap, int count, int width, int height) { public WriteableBitmap Bitmap { get; } = bitmap; public int Count { get; } = count; public int Width { get; } = width; public int Height { get; } = height; public ConcurrentQueue<TileEvent> Events { get; } = new(); }
-    private readonly record struct TileEvent(bool Start, MandelbrotRenderTile Tile, byte[]? Pixels);
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _cts?.Cancel(); _cts?.Dispose(); }
 }

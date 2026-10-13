@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -22,14 +21,13 @@ public partial class CollatzWindow : Window
 {
     private const decimal BaseScale = 4m;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly CollatzPaletteManager _paletteManager = new();
     private readonly CollatzSaveStore _saveStore = new();
     private readonly TransformGroup _previewTransform = new();
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
     private CancellationTokenSource? _renderCts;
-    private RenderSession? _activeSession;
+    private TiledRenderSession? _activeSession;
     private bool _isRendering, _panning, _isFullscreen, _controlsVisible = true, _hasRenderedFrame,
         _updatingControls;
     private Point _lastPanPoint;
@@ -70,10 +68,6 @@ public partial class CollatzWindow : Window
         _previewTransform.Children.Add(_previewTranslation);
         StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
         StablePreviewImage.RenderTransform = _previewTransform;
-        _visualizationTimer.Tick += (_, _) =>
-        {
-            if (_activeSession is not null) FlushVisualizationEvents(_activeSession, false);
-        };
         _renderTimer.Tick += RenderTimer_OnTick;
         IterationsBox.Text = "150";
         ThresholdBox.Text = "100";
@@ -373,6 +367,7 @@ public partial class CollatzWindow : Window
         var watch = Stopwatch.StartNew();
         SetRendering(true, $"Рендеринг: {VariationDisplayName(state.Variation)} · " +
                            $"{ColoringModeDisplayName(state.ColoringMode)}...");
+        TiledRenderSession? session = null;
         try
         {
             int factor = SsaaBox.SelectedItem is ComboBoxItem item ? Convert.ToInt32(item.Tag, CultureInfo.InvariantCulture) : 1;
@@ -398,15 +393,13 @@ public partial class CollatzWindow : Window
                     renderWidth, renderHeight, 16 * factor, strategy);
                 WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(
                     renderWidth, renderHeight, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
-                var session = new RenderSession(bitmap, tiles.Count, renderWidth, renderHeight);
+                session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress);
                 _activeSession = session;
                 CanvasImage.Source = bitmap;
-                RenderOverlay.BeginSession(renderWidth, renderHeight);
-                _visualizationTimer.Start();
-                await RenderTilesAsync(state, tiles, session, GetThreadCount(), token);
-                FlushVisualizationEvents(session, true);
-                completed = session.Bitmap.Clone();
-                completed.Freeze();
+                await session.RenderTilesAsync(tiles, GetThreadCount(),
+                    (tile, tileToken) => CollatzRenderer.RenderTile(state, renderWidth, renderHeight, tile, tileToken), token);
+                session.Flush();
+                completed = session.Snapshot();
                 renderDetails = $"стратегия: {strategy}";
             }
 
@@ -437,52 +430,10 @@ public partial class CollatzWindow : Window
         catch (Exception ex) { StatusText.Text = "Ошибка рендера"; MessageBox.Show(this, ex.Message, "Коллатц", MessageBoxButton.OK, MessageBoxImage.Error); }
         finally
         {
-            _visualizationTimer.Stop();
-            RenderOverlay.EndSession();
+            session?.End();
             _activeSession = null;
             SetRendering(false);
         }
-    }
-
-    private static async Task RenderTilesAsync(CollatzState state, IReadOnlyList<MandelbrotRenderTile> tiles,
-        RenderSession session, int threadCount, CancellationToken token)
-    {
-        var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
-        Task[] workers = Enumerable.Range(0, Math.Clamp(threadCount, 1, Environment.ProcessorCount)).Select(_ => Task.Run(() =>
-        {
-            while (queue.TryDequeue(out MandelbrotRenderTile tile))
-            {
-                if (token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(true, tile, null));
-                byte[]? pixels = CollatzRenderer.RenderTile(state, session.RenderWidth, session.RenderHeight, tile, token);
-                if (pixels is null || token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(false, tile, pixels));
-            }
-        })).ToArray();
-        await Task.WhenAll(workers);
-    }
-
-    private void FlushVisualizationEvents(RenderSession session, bool drainAll)
-    {
-        int processed = 0;
-        bool changed = false;
-        while ((drainAll || processed < 512) && session.Events.TryDequeue(out TileRenderEvent entry))
-        {
-            if (entry.IsStart) RenderOverlay.StartTile(entry.Tile);
-            else if (entry.Pixels is not null)
-            {
-                if (ProgressiveRenderBitmap.WriteTile(session.Bitmap, entry.Tile, entry.Pixels))
-                {
-                    RenderOverlay.CompleteTile(entry.Tile);
-                    session.CompletedTiles++;
-                }
-            }
-            processed++;
-            changed = true;
-        }
-        if (!changed) return;
-        RenderOverlay.Refresh();
-        RenderProgress.Value = session.TileCount == 0 ? 0 : session.CompletedTiles * 100.0 / session.TileCount;
     }
 
     private async Task<BitmapSource> RenderBitmapAsync(CollatzState state, int width, int height, int ssaa,
@@ -589,20 +540,15 @@ public partial class CollatzWindow : Window
     /// </summary>
     private void CommitAndBakePreview()
     {
-        RenderSession? session = _activeSession;
+        TiledRenderSession? session = _activeSession;
         _renderCts?.Cancel();
         // Полнокадровые режимы (Orbit Density) сессию тайлов не заводят: запекать нечего,
         // достаточно отменить рендер.
         if (session is null) return;
 
-        FlushVisualizationEvents(session, true);
-        RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(SavePreviewLayer);
-        try
+        session.Flush();
+        if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
-            var baked = new RenderTargetBitmap(surface.PixelWidth, surface.PixelHeight,
-                surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            baked.Render(SavePreviewLayer);
-            baked.Freeze();
             StablePreviewImage.Source = baked;
             _renderedCenterXExact = _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX);
             _renderedCenterYExact = _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY);
@@ -610,12 +556,8 @@ public partial class CollatzWindow : Window
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
         }
-        catch (InvalidOperationException)
-        {
-            // Разметка бывает недоступна на свёртывании окна и в момент изменения размера.
-        }
         CanvasImage.Source = null;
-        RenderOverlay.EndSession();
+        session.End();
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
 
@@ -706,7 +648,7 @@ public partial class CollatzWindow : Window
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _renderTimer.Stop();
-        _visualizationTimer.Stop();
+        _activeSession?.End();
         _renderCts?.Cancel();
         _renderCts?.Dispose();
     }
@@ -786,16 +728,4 @@ public partial class CollatzWindow : Window
 
     private static string Format(decimal value) => value.ToString("G15", CultureInfo.InvariantCulture);
     private static string Format(double value) => value.ToString("G15", CultureInfo.InvariantCulture);
-
-    private sealed class RenderSession(WriteableBitmap bitmap, int tileCount, int renderWidth, int renderHeight)
-    {
-        public WriteableBitmap Bitmap { get; } = bitmap;
-        public int TileCount { get; } = tileCount;
-        public int RenderWidth { get; } = renderWidth;
-        public int RenderHeight { get; } = renderHeight;
-        public int CompletedTiles { get; set; }
-        public ConcurrentQueue<TileRenderEvent> Events { get; } = new();
-    }
-
-    private readonly record struct TileRenderEvent(bool IsStart, MandelbrotRenderTile Tile, byte[]? Pixels);
 }

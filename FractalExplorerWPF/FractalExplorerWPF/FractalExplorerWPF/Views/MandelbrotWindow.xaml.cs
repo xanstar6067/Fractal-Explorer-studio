@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -28,7 +27,6 @@ public partial class MandelbrotWindow : Window
     private readonly MandelbrotPaletteManager _paletteManager = new();
     private readonly MandelbrotSaveStore _saveStore;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(320) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private CancellationTokenSource? _renderCts;
     private CancellationTokenSource? _juliaMapPreviewCts;
     private bool _isRendering;
@@ -114,7 +112,7 @@ public partial class MandelbrotWindow : Window
     private FloatExp _renderedZoom;
     private int _stablePixelWidth;
     private int _stablePixelHeight;
-    private RenderSession? _activeSession;
+    private TiledRenderSession? _activeSession;
 
     internal string SaveManagerDisplayName => _definition.DisplayName;
     internal MandelbrotVariant SaveManagerVariant => _definition.Variant;
@@ -127,7 +125,6 @@ public partial class MandelbrotWindow : Window
         Title = _definition.DisplayName;
         HeaderText.Text = _definition.DisplayName;
         _renderTimer.Tick += RenderTimer_OnTick;
-        _visualizationTimer.Tick += VisualizationTimer_OnTick;
         InitializeControls();
         InitializeHybridControls();
         if (_definition.HasJuliaConstant && juliaReal.HasValue && juliaImaginary.HasValue)
@@ -694,6 +691,7 @@ public partial class MandelbrotWindow : Window
         var stopwatch = Stopwatch.StartNew();
         TileSchedulingStrategy strategy = RenderPatternSettings.SelectedPattern;
         SetRenderingState(true, $"Рендеринг: {GetStrategyDisplayName(strategy)}...");
+        TiledRenderSession? session = null;
         try
         {
             int factor = SelectedPreviewSsaaFactor;
@@ -728,11 +726,10 @@ public partial class MandelbrotWindow : Window
                 renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(renderWidth, renderHeight,
                 surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY);
-            var session = new RenderSession(bitmap, tiles.Count, renderWidth, renderHeight, cts);
+            session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress, cts);
+            session.VisualizationFailed += _ => StatusText.Text = "Ошибка визуализации прогресса рендера.";
             _activeSession = session;
             CanvasImage.Source = bitmap;
-            RenderOverlay.BeginSession(renderWidth, renderHeight);
-            _visualizationTimer.Start();
 
             await RenderTilesAsync(state, tiles, session, token);
             if (token.IsCancellationRequested)
@@ -741,9 +738,8 @@ public partial class MandelbrotWindow : Window
                 if (ReferenceEquals(_renderCts, cts)) StatusText.Text = "Рендер отменён";
                 return;
             }
-            FlushVisualizationEvents(session, true);
-            BitmapSource completed = session.Bitmap.Clone();
-            completed.Freeze();
+            session.Flush();
+            BitmapSource completed = session.Snapshot();
             BigFloat renderedCenterX, renderedCenterY;
             using (CenterPrecisionScope(state.Zoom))
             {
@@ -756,7 +752,7 @@ public partial class MandelbrotWindow : Window
             }
             SetStableBitmap(completed, renderedCenterX, renderedCenterY, state.Zoom, logicalWidth, logicalHeight);
             CanvasImage.Source = null;
-            RenderOverlay.EndSession();
+            session.End();
             if (ReferenceEquals(_activeSession, session)) _activeSession = null;
             stopwatch.Stop();
             StatusText.Text = $"ЦП{(_gpuPreview.FailureReason is null ? "" : " (ГП недоступен)")} · Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. " +
@@ -775,8 +771,7 @@ public partial class MandelbrotWindow : Window
         }
         finally
         {
-            _visualizationTimer.Stop();
-            RenderOverlay.EndSession();
+            session?.End();
             if (ReferenceEquals(_renderCts, cts))
             {
                 _renderCts = null;
@@ -794,7 +789,7 @@ public partial class MandelbrotWindow : Window
     private async Task RenderTilesAsync(
         MandelbrotState state,
         IReadOnlyList<MandelbrotRenderTile> tiles,
-        RenderSession session,
+        TiledRenderSession session,
         CancellationToken token)
     {
         // Histogram equalization needs one CDF for the entire frame. Rendering it
@@ -808,78 +803,17 @@ public partial class MandelbrotWindow : Window
                 session.RenderWidth, session.RenderHeight, session.RenderWidth * 4, token));
             token.ThrowIfCancellationRequested();
         }
-        var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
         int workerCount = state.Threads <= 0 ? Environment.ProcessorCount : state.Threads;
-        workerCount = Math.Clamp(workerCount, 1, Environment.ProcessorCount);
-        Task[] workers = Enumerable.Range(0, workerCount).Select(_ => Task.Run(() =>
+        await session.RenderTilesAsync(tiles, workerCount, (tile, tileToken) =>
         {
-            while (queue.TryDequeue(out MandelbrotRenderTile tile))
-            {
-                if (token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(true, tile, null));
-                byte[]? pixels;
-                if (histogramFrame is not null)
-                {
-                    pixels = new byte[checked(tile.Width * tile.Height * 4)];
-                    for (int row = 0; row < tile.Height; row++)
-                        Buffer.BlockCopy(histogramFrame, ((tile.Y + row) * session.RenderWidth + tile.X) * 4,
-                            pixels, row * tile.Width * 4, tile.Width * 4);
-                }
-                else
-                {
-                    pixels = MandelbrotFamilyRenderer.RenderTile(
-                        state, session.RenderWidth, session.RenderHeight, tile, token);
-                }
-                if (pixels is null || token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(false, tile, pixels));
-            }
-        })).ToArray();
-        await Task.WhenAll(workers);
-    }
-
-    private void VisualizationTimer_OnTick(object? sender, EventArgs e)
-    {
-        try
-        {
-            if (_activeSession is not null) FlushVisualizationEvents(_activeSession, false);
-        }
-        catch (Exception ex)
-        {
-            _visualizationTimer.Stop();
-            StatusText.Text = "Ошибка визуализации прогресса рендера.";
-            CrashLogger.Log("MandelbrotWindow.VisualizationTimer_OnTick", ex);
-        }
-    }
-
-    private void FlushVisualizationEvents(RenderSession session, bool drainAll)
-    {
-        int processed = 0;
-        bool changed = false;
-        while ((drainAll || processed < 512) && session.Events.TryDequeue(out TileRenderEvent visualEvent))
-        {
-            if (visualEvent.IsStart)
-            {
-                RenderOverlay.StartTile(visualEvent.Tile);
-            }
-            else if (visualEvent.Pixels is not null)
-            {
-                MandelbrotRenderTile tile = visualEvent.Tile;
-                if (ProgressiveRenderBitmap.WriteTile(session.Bitmap, tile, visualEvent.Pixels))
-                {
-                    RenderOverlay.CompleteTile(tile);
-                    session.CompletedTiles++;
-                }
-            }
-            processed++;
-            changed = true;
-        }
-        if (changed)
-        {
-            RenderOverlay.Refresh();
-            RenderProgress.Value = session.TileCount == 0
-                ? 0
-                : Math.Min(100, session.CompletedTiles * 100.0 / session.TileCount);
-        }
+            if (histogramFrame is null)
+                return MandelbrotFamilyRenderer.RenderTile(state, session.RenderWidth, session.RenderHeight, tile, tileToken);
+            byte[] pixels = new byte[checked(tile.Width * tile.Height * 4)];
+            for (int row = 0; row < tile.Height; row++)
+                Buffer.BlockCopy(histogramFrame, ((tile.Y + row) * session.RenderWidth + tile.X) * 4,
+                    pixels, row * tile.Width * 4, tile.Width * 4);
+            return pixels;
+        }, token);
     }
 
     private void SetStableBitmap(
@@ -903,34 +837,23 @@ public partial class MandelbrotWindow : Window
 
     private void CommitAndBakePreview()
     {
-        RenderSession? session = _activeSession;
+        TiledRenderSession? session = _activeSession;
         if (session is null) return;
 
-        session.Cancellation.Cancel();
-        FlushVisualizationEvents(session, true);
+        session.Cancellation?.Cancel();
+        session.Flush();
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(ImageLayer);
         int logicalWidth = Math.Max(1, (int)Math.Round(surface.LogicalWidth));
         int logicalHeight = Math.Max(1, (int)Math.Round(surface.LogicalHeight));
-        DpiScale dpi = surface.Dpi;
-        int pixelWidth = surface.PixelWidth;
-        int pixelHeight = surface.PixelHeight;
-        try
+        if (TiledRenderSession.TryCaptureLayer(ImageLayer) is { } baked)
         {
-            var baked = new RenderTargetBitmap(pixelWidth, pixelHeight, dpi.PixelsPerInchX,
-                dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            baked.Render(ImageLayer);
-            baked.Freeze();
             SetStableBitmap(baked,
                 _deepZoomEngaged ? _centerXExact : BigFloat.FromDecimal(_centerX),
                 _deepZoomEngaged ? _centerYExact : BigFloat.FromDecimal(_centerY),
                 _zoom, logicalWidth, logicalHeight);
         }
-        catch (InvalidOperationException)
-        {
-            // Layout can briefly be unavailable during minimization or a resize transition.
-        }
         CanvasImage.Source = null;
-        RenderOverlay.EndSession();
+        session.End();
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
 
@@ -1279,7 +1202,7 @@ public partial class MandelbrotWindow : Window
         _closed = true;
         _constantPicker?.Close();
         _renderTimer.Stop();
-        _visualizationTimer.Stop();
+        _activeSession?.End();
         _renderCts?.Cancel();
         _juliaMapPreviewCts?.Cancel();
         _activeSession = null;
@@ -1346,25 +1269,4 @@ public partial class MandelbrotWindow : Window
         DistanceContourSpacing = source.DistanceContourSpacing,
         DistanceContourStrength = source.DistanceContourStrength
     };
-
-    private sealed class RenderSession(
-        WriteableBitmap bitmap,
-        int tileCount,
-        int renderWidth,
-        int renderHeight,
-        CancellationTokenSource cancellation)
-    {
-        public WriteableBitmap Bitmap { get; } = bitmap;
-        public int TileCount { get; } = tileCount;
-        public int RenderWidth { get; } = renderWidth;
-        public int RenderHeight { get; } = renderHeight;
-        public CancellationTokenSource Cancellation { get; } = cancellation;
-        public int CompletedTiles { get; set; }
-        public ConcurrentQueue<TileRenderEvent> Events { get; } = new();
-    }
-
-    private readonly record struct TileRenderEvent(
-        bool IsStart,
-        MandelbrotRenderTile Tile,
-        byte[]? Pixels);
 }

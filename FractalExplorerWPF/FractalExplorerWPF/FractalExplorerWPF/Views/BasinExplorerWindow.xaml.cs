@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
@@ -35,7 +34,6 @@ public partial class BasinExplorerWindow : Window
     private const double MaxZoom = 1e12;
 
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly DispatcherTimer _visualizationTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly BasinExplorerEngine _engine;
     private readonly NewtonPaletteManager _paletteManager = new();
     private readonly BasinExplorerSaveStore _saveStore;
@@ -46,7 +44,7 @@ public partial class BasinExplorerWindow : Window
     private readonly ScaleTransform _previewScale = new(1, 1);
     private readonly TranslateTransform _previewTranslation = new();
     private CancellationTokenSource? _renderCts;
-    private RenderSession? _activeSession;
+    private TiledRenderSession? _activeSession;
     private bool _isRendering;
     private bool _isPanning;
     private bool _isFullscreen;
@@ -93,10 +91,6 @@ public partial class BasinExplorerWindow : Window
         _previewTransform.Children.Add(_previewTranslation);
         StablePreviewImage.RenderTransformOrigin = new Point(0.5, 0.5);
         StablePreviewImage.RenderTransform = _previewTransform;
-        _visualizationTimer.Tick += (_, _) =>
-        {
-            if (_activeSession is not null) FlushVisualizationEvents(_activeSession, false);
-        };
         _renderTimer.Tick += RenderTimer_OnTick;
         for (int count = 1; count <= Environment.ProcessorCount; count++) ThreadsBox.Items.Add(count);
         ThreadsBox.Items.Add("Auto");
@@ -1094,6 +1088,7 @@ public partial class BasinExplorerWindow : Window
         CancellationToken token = _renderCts.Token;
         var stopwatch = Stopwatch.StartNew();
         SetRenderingState(true, "Рендеринг бассейнов...");
+        TiledRenderSession? session = null;
         try
         {
             RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
@@ -1107,31 +1102,28 @@ public partial class BasinExplorerWindow : Window
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(renderWidth, renderHeight, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
             BasinExplorerEngine engine = CreateEngine(state);
-            var session = new RenderSession(bitmap, tiles.Count, renderWidth, renderHeight, _renderCts);
+            session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress, _renderCts);
             _activeSession = session;
             CanvasImage.Source = bitmap;
-            RenderOverlay.BeginSession(renderWidth, renderHeight);
-            _visualizationTimer.Start();
 
-            await RenderTilesAsync(engine, tiles, session, GetThreadCount(), token);
+            await session.RenderTilesAsync(tiles, GetThreadCount(),
+                (tile, tileToken) => engine.RenderTile(tile, renderWidth, renderHeight, tileToken), token);
             if (token.IsCancellationRequested)
             {
                 CanvasImage.Source = null;
                 StatusText.Text = "Рендер отменён";
                 return;
             }
-            FlushVisualizationEvents(session, true);
+            session.Flush();
 
-            BitmapSource completed = session.Bitmap.Clone();
-            completed.Freeze();
-            StablePreviewImage.Source = completed;
+            StablePreviewImage.Source = session.Snapshot();
             CanvasImage.Source = null;
             _renderedCenterX = state.CenterX;
             _renderedCenterY = state.CenterY;
             _renderedZoom = state.Zoom;
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
-            RenderOverlay.EndSession();
+            session.End();
             _activeSession = null;
             string targets = UsesPlanar ? $"Аттракторов: {engine.TargetCount}" : UsesPhysics ? $"Центров: {engine.TargetCount}" : IsLogisticParameter ? $"Периоды 1…{engine.MaxPeriod}" : UsesRoots ? $"Корней: {engine.Roots.Count}" : $"Аттракторов: {engine.Attractors.Count}";
             StatusText.Text = $"Готово за {stopwatch.Elapsed.TotalSeconds:F3} сек. {targets}. " +
@@ -1149,65 +1141,21 @@ public partial class BasinExplorerWindow : Window
         }
         finally
         {
-            _visualizationTimer.Stop();
-            RenderOverlay.EndSession();
+            session?.End();
             _activeSession = null;
             SetRenderingState(false);
         }
     }
 
-    private static async Task RenderTilesAsync(BasinExplorerEngine engine, IReadOnlyList<MandelbrotRenderTile> tiles,
-        RenderSession session, int threadCount, CancellationToken token)
-    {
-        var queue = new ConcurrentQueue<MandelbrotRenderTile>(tiles);
-        Task[] workers = Enumerable.Range(0, Math.Clamp(threadCount, 1, Environment.ProcessorCount)).Select(_ => Task.Run(() =>
-        {
-            while (queue.TryDequeue(out MandelbrotRenderTile tile))
-            {
-                if (token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(true, tile, null));
-                byte[]? pixels = engine.RenderTile(tile, session.RenderWidth, session.RenderHeight, token);
-                if (pixels is null || token.IsCancellationRequested) return;
-                session.Events.Enqueue(new TileRenderEvent(false, tile, pixels));
-            }
-        })).ToArray();
-        await Task.WhenAll(workers);
-    }
-
-    private void FlushVisualizationEvents(RenderSession session, bool drainAll)
-    {
-        int processed = 0;
-        bool changed = false;
-        while ((drainAll || processed < 512) && session.Events.TryDequeue(out TileRenderEvent entry))
-        {
-            if (entry.IsStart) RenderOverlay.StartTile(entry.Tile);
-            else if (entry.Pixels is not null && ProgressiveRenderBitmap.WriteTile(session.Bitmap, entry.Tile, entry.Pixels))
-            {
-                RenderOverlay.CompleteTile(entry.Tile);
-                session.CompletedTiles++;
-            }
-            processed++;
-            changed = true;
-        }
-        if (!changed) return;
-        RenderOverlay.Refresh();
-        RenderProgress.Value = session.TileCount == 0 ? 0 : session.CompletedTiles * 100.0 / session.TileCount;
-    }
-
     private void CommitAndBakePreview()
     {
-        RenderSession? session = _activeSession;
+        TiledRenderSession? session = _activeSession;
         if (session is null) return;
 
-        session.Cancellation.Cancel();
-        FlushVisualizationEvents(session, true);
-        RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(ImageLayer);
-        try
+        session.Cancellation?.Cancel();
+        session.Flush();
+        if (TiledRenderSession.TryCaptureLayer(ImageLayer) is { } baked)
         {
-            var baked = new RenderTargetBitmap(surface.PixelWidth, surface.PixelHeight,
-                surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            baked.Render(ImageLayer);
-            baked.Freeze();
             StablePreviewImage.Source = baked;
             _renderedCenterX = _centerX;
             _renderedCenterY = _centerY;
@@ -1215,14 +1163,9 @@ public partial class BasinExplorerWindow : Window
             _hasRenderedFrame = true;
             UpdatePreviewTransform();
         }
-        catch (InvalidOperationException)
-        {
-            // Во время сворачивания или смены размера разметка может быть кратко недоступна.
-        }
 
         CanvasImage.Source = null;
-        _visualizationTimer.Stop();
-        RenderOverlay.EndSession();
+        session.End();
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
 
@@ -1473,7 +1416,7 @@ public partial class BasinExplorerWindow : Window
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _renderTimer.Stop();
-        _visualizationTimer.Stop();
+        _activeSession?.End();
         _renderCts?.Cancel();
         _renderCts?.Dispose();
     }
@@ -1795,18 +1738,4 @@ public partial class BasinExplorerWindow : Window
 
         public void Dispose() => Mouse.OverrideCursor = _previous;
     }
-
-    private sealed class RenderSession(WriteableBitmap bitmap, int tileCount, int renderWidth, int renderHeight,
-        CancellationTokenSource cancellation)
-    {
-        public WriteableBitmap Bitmap { get; } = bitmap;
-        public int TileCount { get; } = tileCount;
-        public int RenderWidth { get; } = renderWidth;
-        public int RenderHeight { get; } = renderHeight;
-        public CancellationTokenSource Cancellation { get; } = cancellation;
-        public int CompletedTiles { get; set; }
-        public ConcurrentQueue<TileRenderEvent> Events { get; } = new();
-    }
-
-    private readonly record struct TileRenderEvent(bool IsStart, MandelbrotRenderTile Tile, byte[]? Pixels);
 }
