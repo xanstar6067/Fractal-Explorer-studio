@@ -88,7 +88,7 @@ A(τ) = A₀·sqrt(exp(2τ)/D)·exp(−i c₃·log(D)/2).
 Основные файлы:
 `Models/GinzburgLandau3DSettings.cs`, `Models/Fractal3DModes/GinzburgLandau3DMode.cs`,
 `Controls/GinzburgLandau3DEditor.xaml(.cs)`, `Core/Rendering3D/GinzburgLandau3DGpuSimulation.cs`,
-`GinzburgLandau3DComputeShader.cs`, `GinzburgLandau3DShader.cs`,
+`GinzburgLandau3DComputeShader.cs`, `Shaders/Volume.hlsl`,
 `Infrastructure/Serialization/GinzburgLandau3DFieldConverter.cs`.
 
 ## Проверка

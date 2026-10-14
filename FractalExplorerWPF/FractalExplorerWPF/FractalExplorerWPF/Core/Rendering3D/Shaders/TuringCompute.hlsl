@@ -7,8 +7,13 @@ RWStructuredBuffer<float4> Out : register(u0);
 RWStructuredBuffer<uint> Pixels : register(u1);
 // Ping-pong scans keep the same addition order without a private array
 // of eight values per thread or two barriers for every scan stage.
-groupshared float Prefix[4096];
-static const uint ScanCapacity = 2048;
+// Варианты Blur256/512/1024 (TuringComputeShader) задают меньшую ёмкость сканирования.
+#ifndef BLUR_CAPACITY
+#define BLUR_CAPACITY 2048
+#define BLUR_ENTRY Blur
+#endif
+groupshared float Prefix[BLUR_CAPACITY * 2];
+static const uint ScanCapacity = BLUR_CAPACITY;
 groupshared float2 Ranges[256];
 #include "TuringReactionKinetics.hlsl"
 uint Size() { return (uint)P[0].x; }
@@ -34,14 +39,14 @@ float Integral(int index, uint origin) {
     return cycles * total * (P[0].z == 0 ? 1 : 2) + part;
 }
 [numthreads(256,1,1)]
-void Blur(uint3 group : SV_GroupID, uint tid : SV_GroupIndex) {
+void BLUR_ENTRY(uint3 group : SV_GroupID, uint tid : SV_GroupIndex) {
     uint n = Size(), row = group.x; bool vertical = P[1].y != 0;
     for (uint x = tid; x < n; x += 256) Prefix[x] = A[vertical ? x * n + row : row * n + x].x;
     GroupMemoryBarrierWithGroupSync();
     uint origin = 0;
     [unroll] for (uint offset = 1; offset < ScanCapacity; offset *= 2) {
         if (offset >= n) break;
-        uint target = 2048 - origin;
+        uint target = BLUR_CAPACITY - origin;
         [unroll] for (uint k = 0; k < ScanCapacity; k += 256) {
             uint x = tid + k;
             if (x < n) Prefix[target + x] = Prefix[origin + x] + (x >= offset ? Prefix[origin + x - offset] : 0);

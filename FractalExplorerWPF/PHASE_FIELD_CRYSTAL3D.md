@@ -115,7 +115,7 @@ Q вычисляется на ГП только при публикации; п�
 Основные файлы: `Models/PhaseFieldCrystal3DSettings.cs`,
 `Models/Fractal3DModes/PhaseFieldCrystal3DMode.cs`, `Controls/PhaseFieldCrystal3DEditor.xaml(.cs)`,
 `Core/Rendering3D/PhaseFieldCrystal3DGpuSimulation.cs`, `PhaseFieldCrystal3DComputeShader.cs`,
-`PhaseFieldCrystal3DShader.cs`, `GpuSpectralScalarSimulation.cs`,
+`Shaders/Volume.hlsl`, `GpuSpectralScalarSimulation.cs`,
 `Infrastructure/Serialization/PhaseFieldCrystal3DFieldConverter.cs`.
 
 ```powershell

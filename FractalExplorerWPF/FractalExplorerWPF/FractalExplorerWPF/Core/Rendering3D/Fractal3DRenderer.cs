@@ -489,37 +489,37 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private static bool IsDensityVolume(Fractal3DKind kind) => Fractal3DCatalog.IsDensityVolume(kind);
 
     private static ShaderCacheEntry LyapunovPixelShaderEntry() =>
-        new("lyapunov3d-pixel", Lyapunov3DShader.Source, "PSMain", "ps_5_0");
+        new("lyapunov3d-pixel", VolumeShader.Build(Fractal3DKind.Lyapunov3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry LeniaPixelShaderEntry() =>
-        new("lenia3d-pixel", Lenia3DShader.Source, "PSMain", "ps_5_0");
+        new("lenia3d-pixel", VolumeShader.Build(Fractal3DKind.Lenia3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry PhysarumPixelShaderEntry() =>
-        new("physarum3d-pixel", Physarum3DShader.Source, "PSMain", "ps_5_0");
+        new("physarum3d-pixel", VolumeShader.Build(Fractal3DKind.Physarum3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry KobayashiPixelShaderEntry() =>
-        new("kobayashi3d-pixel", Kobayashi3DShader.Source, "PSMain", "ps_5_0");
+        new("kobayashi3d-pixel", VolumeShader.Build(Fractal3DKind.Kobayashi3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry ExcitablePixelShaderEntry() =>
-        new("excitable3d-pixel", Excitable3DShader.Source, "PSMain", "ps_5_0");
+        new("excitable3d-pixel", VolumeShader.Build(Fractal3DKind.Excitable3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry GinzburgLandauPixelShaderEntry() =>
-        new("ginzburg-landau3d-pixel", GinzburgLandau3DShader.Source, "PSMain", "ps_5_0");
+        new("ginzburg-landau3d-pixel", VolumeShader.Build(Fractal3DKind.GinzburgLandau3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry SwiftHohenbergPixelShaderEntry() =>
-        new("swift-hohenberg3d-pixel", SwiftHohenberg3DShader.Source, "PSMain", "ps_5_0");
+        new("swift-hohenberg3d-pixel", VolumeShader.Build(Fractal3DKind.SwiftHohenberg3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry PhaseFieldCrystalPixelShaderEntry() =>
-        new("phase-field-crystal3d-pixel", PhaseFieldCrystal3DShader.Source, "PSMain", "ps_5_0");
+        new("phase-field-crystal3d-pixel", VolumeShader.Build(Fractal3DKind.PhaseFieldCrystal3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry GrayScottPixelShaderEntry() =>
-        new("gray-scott3d-pixel", GrayScott3DShader.Source, "PSMain", "ps_5_0");
+        new("gray-scott3d-pixel", VolumeShader.Build(Fractal3DKind.GrayScott3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry CahnHilliardPixelShaderEntry() =>
-        new("cahn-hilliard3d-pixel", CahnHilliard3DShader.Source, "PSMain", "ps_5_0");
+        new("cahn-hilliard3d-pixel", VolumeShader.Build(Fractal3DKind.CahnHilliard3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry TuringPixelShaderEntry() =>
-        new("turing3d-pixel", Turing3DShader.Source, "PSMain", "ps_5_0");
+        new("turing3d-pixel", VolumeShader.Build(Fractal3DKind.Turing3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry PixelShaderEntry(Fractal3DKind kind) =>
         new($"fractal3d-{kind}-pixel", Fractal3DShader.Build(kind), "PSMain", "ps_5_0");
@@ -537,19 +537,19 @@ public sealed partial class Fractal3DRenderer : IDisposable
         new("fractal3d-vertex", Fractal3DShader.Build(Fractal3DKind.Mandelbulb), "VSMain", "vs_5_0");
 
     private static ShaderCacheEntry FlamePixelShaderEntry() =>
-        new("flame3d-pixel", Flame3DShader.Source, "PSMain", "ps_5_0");
+        new("flame3d-pixel", VolumeShader.Build(Fractal3DKind.Flame3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry BuddhabrotPixelShaderEntry() =>
-        new("buddhabrot4d-pixel", Buddhabrot4DShader.Source, "PSMain", "ps_5_0");
+        new("buddhabrot4d-pixel", VolumeShader.Build(Fractal3DKind.Buddhabrot4D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry IfsPixelShaderEntry() =>
-        new("ifs3d-pixel", Ifs3DShader.Source, "PSMain", "ps_5_0");
+        new("ifs3d-pixel", VolumeShader.Build(Fractal3DKind.Ifs3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry DlaPixelShaderEntry() =>
-        new("dla3d-pixel", Dla3DShader.Source, "PSMain", "ps_5_0");
+        new("dla3d-pixel", VolumeShader.Build(Fractal3DKind.Dla3D), "PSMain", "ps_5_0");
 
     private static ShaderCacheEntry LichtenbergPixelShaderEntry() =>
-        new("lichtenberg3d-pixel", Dla3DShader.Source, "PSMain", "ps_5_0");
+        new("lichtenberg3d-pixel", VolumeShader.Build(Fractal3DKind.Dla3D), "PSMain", "ps_5_0");
 
     private static ReadOnlyMemory<byte> Compile(ShaderCacheEntry entry) =>
         ShaderBytecodeCache.GetOrCompile(entry, CompileUncached);

@@ -103,7 +103,7 @@ GPU-ссылки в JSON не попадают; продолжение на то
 
 Файлы: `Models/SwiftHohenberg3DSettings.cs`, `Models/Fractal3DModes/SwiftHohenberg3DMode.cs`,
 `Controls/SwiftHohenberg3DEditor.xaml(.cs)`, `Core/Rendering3D/SwiftHohenberg3DGpuSimulation.cs`,
-`SwiftHohenberg3DComputeShader.cs`, `SwiftHohenberg3DShader.cs`,
+`SwiftHohenberg3DComputeShader.cs`, `Shaders/Volume.hlsl`,
 `Infrastructure/Serialization/SwiftHohenberg3DFieldConverter.cs`.
 
 ## Проверка

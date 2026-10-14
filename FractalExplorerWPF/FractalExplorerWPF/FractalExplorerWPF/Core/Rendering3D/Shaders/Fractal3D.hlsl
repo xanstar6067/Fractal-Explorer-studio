@@ -30,7 +30,7 @@ cbuffer FrameConstants : register(b0)
     float4 Palette[16];       // rgb — опорные цвета градиента
 };
 
-#if FRACTAL_KIND == 6
+#if FRACTAL_KIND == KIND_ApollonianPacking
 cbuffer ApollonianTree : register(b1)
 {
     float4 SphereTree[4095]; // xyz — центр, w — радиус; листья начинаются с 2047
@@ -46,6 +46,9 @@ PSInput VSMain(uint id : SV_VertexID)
     return output;
 }
 
+// Геометрия режима со своей картой расстояния (Fractal3DShader.Build): ландшафт, Хопф,
+// L-система и ABC-поток, гиперболические соты, неявные и периодические поверхности.
+#include "@ModeGeometry"
 float BoxDistance(float3 p, float3 b)
 {
     float3 q = abs(p) - b;
@@ -57,7 +60,7 @@ float3 RepeatSpace(float3 v, float period)
     return v - period * floor(v / period);
 }
 
-#if FRACTAL_KIND == 2 || FRACTAL_KIND == 13
+#if FRACTAL_KIND == KIND_Mandelbox || FRACTAL_KIND == KIND_BulbBoxHybrid
 // Граница звездообразной формы задаётся однородной нормой q(z)=1.
 // Инверсия z/q(z)^2 совпадает с формулой I^2*z/|z|^2 из статьи,
 // где I — пересечение луча через z с выбранной границей.
@@ -159,23 +162,23 @@ float Map(float3 p, out float4 trap)
     float trapAxis = 1e20;
     float trapIndex = 0.0;
 
-#if (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
+#if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     return LMap(p, trap);
-#elif FRACTAL_KIND == HOPF_KIND
+#elif FRACTAL_KIND == KIND_Hopf
     return HopfMap(p, trap);
-#elif FRACTAL_KIND == HYPERBOLIC_KIND
+#elif FRACTAL_KIND == KIND_HyperbolicHoneycomb
     return HyperbolicMap(p, trap);
-#elif FRACTAL_KIND == PERIODIC_KIND
+#elif FRACTAL_KIND == KIND_PeriodicSurfaces
     return PeriodicMap(p, trap);
-#elif FRACTAL_KIND == IMPLICIT_KIND
+#elif FRACTAL_KIND == KIND_ImplicitSurface
     return ImplicitMap(p, trap);
-#elif FRACTAL_KIND == 10
+#elif FRACTAL_KIND == KIND_Terrain
     float2 slope;
     float height = TerrainHeight(p.xz, slope);
     trap = 0;
     float edge = max(abs(p.x), abs(p.z)) - ShapeA.x * 0.5;
     return max(edge, (p.y - height) / sqrt(1.0 + dot(slope, slope)));
-#elif FRACTAL_KIND == 2
+#elif FRACTAL_KIND == KIND_Mandelbox
 
     float scale = ShapeA.x;
     float minRadius2 = ShapeA.y;
@@ -204,7 +207,7 @@ float Map(float3 p, out float4 trap)
     StepScale = BOX_STEP;
     return length(z) / max(abs(dr), 1e-9);
 
-#elif FRACTAL_KIND == 13
+#elif FRACTAL_KIND == KIND_BulbBoxHybrid
 
     float power = ShapeA.x;
     float minRadius2 = ShapeA.y;
@@ -256,7 +259,7 @@ float Map(float3 p, out float4 trap)
     return min(0.5 * log(max(finalRadius, 1.000001)), 1.0) *
         finalRadius / max(dr, 1e-9);
 
-#elif FRACTAL_KIND == 3
+#elif FRACTAL_KIND == KIND_MengerSponge
 
     float d = BoxDistance(p, float3(1.0, 1.0, 1.0));
     float s = 1.0;
@@ -280,7 +283,7 @@ float Map(float3 p, out float4 trap)
     trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(last));
     return d;
 
-#elif FRACTAL_KIND == 8 || FRACTAL_KIND == 9
+#elif FRACTAL_KIND == KIND_Vicsek || FRACTAL_KIND == KIND_CantorDust
 
     // Каждая итерация проверяет один разряд трёхмерной сетки 3×3×3.
     // Для Вицека остаются три пересекающихся осевых бруска (7 кубиков),
@@ -294,7 +297,7 @@ float Map(float3 p, out float4 trap)
     for (int i = 0; i < iterations; i++)
     {
         float3 a = RepeatSpace(p * scale + 1.0, 2.0) - 1.0;
-#if FRACTAL_KIND == 8
+#if FRACTAL_KIND == KIND_Vicsek
         float level = min(
             BoxDistance(a, float3(1.0, 1.0 / 3.0, 1.0 / 3.0)),
             min(BoxDistance(a, float3(1.0 / 3.0, 1.0, 1.0 / 3.0)),
@@ -314,7 +317,7 @@ float Map(float3 p, out float4 trap)
     // Смещение измеряется в единицах самого мелкого кубика; 1 — классика.
     return max(outer, detail - (ShapeA.x - 1.0) / scale);
 
-#elif FRACTAL_KIND == 4
+#elif FRACTAL_KIND == KIND_SierpinskiTetrahedron
 
     float scale = ShapeA.x;
     const float3 a1 = float3(1.0, 1.0, 1.0);
@@ -342,7 +345,7 @@ float Map(float3 p, out float4 trap)
     trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
     return length(z) * pow(max(abs(scale), 1.0001), -float(iterations));
 
-#elif FRACTAL_KIND == 17
+#elif FRACTAL_KIND == KIND_Kifs
 
     // Piecewise isometries (plane reflections and rotations) followed by uniform
     // scaling: the Lipschitz factor is exactly scale^n. The terminal primitive
@@ -400,7 +403,7 @@ float Map(float3 p, out float4 trap)
     trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, length(z));
     return d * inverseScale;
 
-#elif FRACTAL_KIND == 6
+#elif FRACTAL_KIND == KIND_ApollonianPacking
 
     // Точная знаковая дистанция до объединения касающихся сфер. Иерархия содержит
     // охватывающие сферы: если её нижняя граница дальше уже найденной поверхности,
@@ -449,13 +452,13 @@ float Map(float3 p, out float4 trap)
                   max(0.0, log2(0.5 / sphereRadius)), sphereRadius);
     return best;
 
-#elif FRACTAL_KIND == 11 || FRACTAL_KIND == 12
+#elif FRACTAL_KIND == KIND_BurningShip || FRACTAL_KIND == KIND_BurningShipJulia
 
     // x — действительная часть, y и z — две мнимые координаты кватерниона.
     // При z = 0 кватернионная формула повторяет комплексный Burning Ship.
     float power = ShapeA.x;
     int formula = (int)ShapeA.y;
-#if FRACTAL_KIND == 12
+#if FRACTAL_KIND == KIND_BurningShipJulia
     float3 c = ShapeB.xyz;
 #else
     float3 c = p;
@@ -511,7 +514,7 @@ float Map(float3 p, out float4 trap)
     StepScale = formula < 2 ? 0.5 : max(min(StepScale, 0.5), BULB_STEP_FLOOR);
     return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
 
-#elif FRACTAL_KIND == 14
+#elif FRACTAL_KIND == KIND_Phoenix
 
     // Кватернионный Phoenix. На плоскости p.z = 0 с вещественными C₁ и C₂
     // подалгебра (1, i) замкнута и даёт ту же рекурсию, что 2D Phoenix.
@@ -557,7 +560,7 @@ float Map(float3 p, out float4 trap)
     StepScale = 0.5;
     return 0.5 * log(max(r, 1.000001)) * r / max(derivative, 1e-9);
 
-#elif FRACTAL_KIND == 5
+#elif FRACTAL_KIND == KIND_QuaternionJulia
 
     float bailout = ShapeA.w;
     float4 z = float4(p, ShapeC.x);
@@ -582,7 +585,7 @@ float Map(float3 p, out float4 trap)
 
     float power = ShapeA.x;
     float bailout = ShapeA.w;
-#if FRACTAL_KIND == 1
+#if FRACTAL_KIND == KIND_Juliabulb
     float3 c = ShapeB.xyz;
 #else
     float3 c = p;
@@ -632,11 +635,11 @@ float Map(float3 p, out float4 trap)
 
 float3 EstimateNormal(float3 p, float epsilon)
 {
-#if FRACTAL_KIND == IMPLICIT_KIND
+#if FRACTAL_KIND == KIND_ImplicitSurface
     return ImplicitNormal(p, epsilon);
 #endif
     float2 k = float2(1.0, -1.0);
-#if FRACTAL_KIND == PERIODIC_KIND
+#if FRACTAL_KIND == KIND_PeriodicSurfaces
     if (BoxInversion.z == 1.0)
         return normalize(k.xyy * PeriodicField(p + k.xyy * epsilon) +
             k.yyx * PeriodicField(p + k.yyx * epsilon) +
@@ -653,10 +656,10 @@ float3 EstimateNormal(float3 p, float epsilon)
 
 float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDistance, float sharpness)
 {
-#if FRACTAL_KIND == IMPLICIT_KIND
+#if FRACTAL_KIND == KIND_ImplicitSurface
     float distance; int steps; float4 trap;
     return TraceImplicit(origin+direction*minDistance,direction,maxDistance,distance,steps,trap) ? .2 : 1;
-#elif (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
+#elif (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     float distance; int steps; float4 trap;
     float3 axis = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
     float3 other = cross(direction, axis);
@@ -669,7 +672,7 @@ float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDi
     }
     return visibility;
 #else
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     float distance;
     int steps;
     float3 axis = normalize(cross(direction, abs(direction.y) < 0.9 ? float3(0,1,0) : float3(1,0,0)));
@@ -778,7 +781,7 @@ float3 SkyAt(float3 direction)
 // расстоянии выступы фигуры не нагоняют туман.
 float ViewScale()
 {
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     // Ландшафт не самоподобен, а высота над рельефом скачет при каждом облёте холма:
     // туман у него всегда на заданной дальности.
     return 1.0;
@@ -786,7 +789,7 @@ float ViewScale()
     float4 trap;
     float home = Map(HomeCamera.xyz, trap);
     float here = Map(CameraPosition.xyz, trap);
-#if FRACTAL_KIND == PERIODIC_KIND
+#if FRACTAL_KIND == KIND_PeriodicSurfaces
     here = abs(here);
 #endif
     return clamp(2.0 * max(here, 0.0) / max(home, 1e-9), 1e-6, 1.0);
@@ -818,7 +821,7 @@ float3 SurfaceAlbedo(
     else if (mode == 4) value = trap.y * 3.0;
     else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
     else if (mode == 6) value = log(1.0 + trap.w) * 0.5;
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     else if (mode == 7) value = surfacePoint.y / max(ShapeA.y, 1e-6);
 #else
     else if (mode == 7) value = surfacePoint.y;
@@ -857,11 +860,11 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
     float4 reflectedTrap = 0.0;
     int steps = 0;
     bool hit = false;
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     hit = TraceTerrain(origin, reflected, March.z, distance, steps);
-#elif (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
+#elif (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     hit = TraceLSystem(origin, reflected, March.z, distance, steps, reflectedTrap);
-#elif FRACTAL_KIND == IMPLICIT_KIND
+#elif FRACTAL_KIND == KIND_ImplicitSurface
     hit = TraceImplicit(origin, reflected, March.z, distance, steps, reflectedTrap);
 #else
     int limit = min((int)March.x, 128);
@@ -894,7 +897,7 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
     }
 
     float3 hitPoint = origin + reflected * distance;
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     float2 slope;
     TerrainHeight(hitPoint.xz, slope);
     float3 reflectedNormal = normalize(float3(-slope.x, 1.0, -slope.y));
@@ -911,7 +914,7 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
     return lerp(lit, SkyAt(reflected), saturate(distance / depthSpan));
 }
 
-#if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
+#if FRACTAL_KIND == KIND_Mandelbulb || FRACTAL_KIND == KIND_BurningShip
 float MarkerDistance(float3 origin, float3 direction)
 {
     if (PickerMarker.w <= 0.0) return -1.0;
@@ -936,6 +939,8 @@ float4 ShadeMarker(float3 origin, float3 direction, float distance)
 }
 #endif
 
+// Своё освещение режима (гиперболические соты).
+#include "@ModeRendering"
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float2 pixel = input.position.xy + Resolution.zw;
@@ -948,11 +953,11 @@ float4 PSMain(PSInput input) : SV_TARGET
         CameraForward.xyz * CameraPosition.w + CameraRight.xyz * plane.x + CameraUp.xyz * plane.y);
     float3 rayOrigin = CameraPosition.xyz;
 
-#if FRACTAL_KIND == HYPERBOLIC_KIND
+#if FRACTAL_KIND == KIND_HyperbolicHoneycomb
     return RenderHyperbolic(rayOrigin,rayDirection,2*March.y/max(Resolution.y*CameraPosition.w,1));
 #endif
 
-#if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
+#if FRACTAL_KIND == KIND_Mandelbulb || FRACTAL_KIND == KIND_BurningShip
     float markerDistance = Probe.x < 0.5 ? MarkerDistance(rayOrigin, rayDirection) : -1.0;
 #endif
 
@@ -964,53 +969,53 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     // Начинаем трассировку у области фрактала: оценка расстояния далеко от него
     // может перескочить переднюю поверхность, а фиксированная дальность — обрезать её.
-#if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
+#if FRACTAL_KIND == KIND_Mandelbulb || FRACTAL_KIND == KIND_BurningShip
     float radius = ShapeA.w;
-#elif FRACTAL_KIND == 1
+#elif FRACTAL_KIND == KIND_Juliabulb
     float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
-#elif FRACTAL_KIND == 2
+#elif FRACTAL_KIND == KIND_Mandelbox
     // После кубической свёртки p превращается в -p + delta, |delta| <= 2*sqrt(3)*limit.
     // При scale != 1 за этой сферой первая итерация превышает радиус вылета.
     float foldReach = 1.7320508 * ShapeA.z;
     float radius = max(2.0 * foldReach + 1.0,
         (2.0 * abs(ShapeA.x) * foldReach + sqrt(ShapeA.w)) /
         max(abs(1.0 - ShapeA.x), 0.05));
-#elif FRACTAL_KIND == 13
+#elif FRACTAL_KIND == KIND_BulbBoxHybrid
     // Как у Мандельбокса, только радиус вылета гибрид сравнивает с самим |z|, а не с |z|².
     float foldReach = 1.7320508 * ShapeA.z;
     float radius = max(6.0,
         (2.0 * abs(ShapeB.x) * foldReach + ShapeA.w) /
         max(abs(1.0 - ShapeB.x), 0.05));
-#elif FRACTAL_KIND == 3 || FRACTAL_KIND == 4 || FRACTAL_KIND == 8 || FRACTAL_KIND == 9
+#elif FRACTAL_KIND == KIND_MengerSponge || FRACTAL_KIND == KIND_SierpinskiTetrahedron || FRACTAL_KIND == KIND_Vicsek || FRACTAL_KIND == KIND_CantorDust
     float radius = 1.7320508; // Куб [-1, 1]^3 и его вписанный тетраэдр.
-#elif FRACTAL_KIND == 11
+#elif FRACTAL_KIND == KIND_BurningShip
     float radius = 2.5; // Для степеней n >= 2 при |c| > 2 орбита уходит.
-#elif FRACTAL_KIND == 14
+#elif FRACTAL_KIND == KIND_Phoenix
     float radius = max(ShapeA.w, length(ShapeB.xyz) + length(BoxInversion.xyz) + 2.0);
-#elif FRACTAL_KIND == 12
+#elif FRACTAL_KIND == KIND_BurningShipJulia
     float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
-#elif FRACTAL_KIND == 10
+#elif FRACTAL_KIND == KIND_Terrain
     float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
-#elif FRACTAL_KIND == 6
+#elif FRACTAL_KIND == KIND_ApollonianPacking
     float radius = 1.112373;
-#elif (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
+#elif (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     float radius = 1.732051;
-#if FRACTAL_KIND == ABC_KIND
+#if FRACTAL_KIND == KIND_AbcFlow
     radius += .12; // largest particle radius beyond a periodic corner
 #endif
-#elif FRACTAL_KIND == HOPF_KIND
+#elif FRACTAL_KIND == KIND_Hopf
     float radius = ShapeA.x;
-#elif FRACTAL_KIND == PERIODIC_KIND || FRACTAL_KIND == IMPLICIT_KIND
+#elif FRACTAL_KIND == KIND_PeriodicSurfaces || FRACTAL_KIND == KIND_ImplicitSurface
     float radius = 1.7320508;
 #else
     float radius = max(sqrt(ShapeA.w), length(ShapeB) + 2.0);
 #endif
 
-#if FRACTAL_KIND == 2
+#if FRACTAL_KIND == KIND_Mandelbox
     // При scale ~= 1 множество может не иметь конечной границы.
     if (abs(1.0 - ShapeA.x) >= 0.05)
     {
-#elif FRACTAL_KIND == 13
+#elif FRACTAL_KIND == KIND_BulbBoxHybrid
     // При масштабе бокса около 1 некоторые чередования имеют неограниченные орбиты.
     if (abs(1.0 - ShapeB.x) >= 0.05)
     {
@@ -1024,7 +1029,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float distanceSquared = dot(closestPoint, closestPoint);
     if (distanceSquared > bound * bound)
     {
-    #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
+    #if FRACTAL_KIND == KIND_Mandelbulb || FRACTAL_KIND == KIND_BurningShip
         if (markerDistance > 0.0) return ShadeMarker(rayOrigin, rayDirection, markerDistance);
     #endif
         return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
@@ -1033,7 +1038,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float halfChord = sqrt(max(bound * bound - distanceSquared, 0.0));
     if (closest + halfChord < 0.0)
     {
-    #if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
+    #if FRACTAL_KIND == KIND_Mandelbulb || FRACTAL_KIND == KIND_BurningShip
         if (markerDistance > 0.0) return ShadeMarker(rayOrigin, rayDirection, markerDistance);
     #endif
         return Probe.x > 0.5 ? PackFloat(-1.0) : float4(LinearToSrgb(SkyAt(rayDirection)), 1.0);
@@ -1047,7 +1052,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     // Пользовательская дальность остаётся минимумом, но не обрезает фигуру
     // только из-за того, что камера отъехала от неё.
     maxDistance = max(maxDistance, closest + halfChord);
-#if FRACTAL_KIND == 2 || FRACTAL_KIND == 13
+#if FRACTAL_KIND == KIND_Mandelbox || FRACTAL_KIND == KIND_BulbBoxHybrid
     }
 #endif
 
@@ -1071,18 +1076,18 @@ float4 PSMain(PSInput input) : SV_TARGET
     float4 bestTrap = 0.0;
     bool exhausted = true;
 
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     hit = TraceTerrain(rayOrigin, rayDirection, maxDistance, travelled, usedSteps);
     exhausted = false;
     epsilon = max(pixelRadius * travelled * 0.1, 1e-6);
-#elif FRACTAL_KIND == IMPLICIT_KIND
+#elif FRACTAL_KIND == KIND_ImplicitSurface
     hit = TraceImplicit(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
     exhausted = false;
     epsilon = max(pixelRadius * travelled * .15, 2e-6);
     if(hit && volumetric)
         proximity = .04/max(abs(dot(ImplicitNormal(rayOrigin+rayDirection*travelled,epsilon),rayDirection)),.1);
 #else
-#if (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
+#if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     if (!volumetric || Probe.x > .5)
     {
         hit = TraceLSystem(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
@@ -1098,7 +1103,7 @@ float4 PSMain(PSInput input) : SV_TARGET
         float4 stepTrap;
         float3 samplePoint = rayOrigin + rayDirection * travelled;
         float stepDistance = Map(samplePoint, stepTrap);
-    #if FRACTAL_KIND == PERIODIC_KIND
+    #if FRACTAL_KIND == KIND_PeriodicSurfaces
         // A camera inside a filled region must trace its exit, not hit at distance zero.
         stepDistance = abs(stepDistance);
     #endif
@@ -1132,7 +1137,7 @@ float4 PSMain(PSInput input) : SV_TARGET
             break;
         }
     }
-#if (FRACTAL_KIND == 19 || FRACTAL_KIND == ABC_KIND)
+#if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     }
 #endif
 #endif
@@ -1141,7 +1146,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     // Фон на их месте выглядел бы чёрной дырой, поэтому, если луч подходил к поверхности
     // ближе нескольких пикселей, считаем попаданием ближайшую точку (Enhanced Sphere Tracing).
     float exhaustedHitRatio =
-#if FRACTAL_KIND == 13
+#if FRACTAL_KIND == KIND_BulbBoxHybrid
         1.25;
 #else
         16.0;
@@ -1155,13 +1160,13 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     if (Probe.x > 0.5) return PackFloat(hit ? travelled : -1.0);
 
-#if FRACTAL_KIND == 0 || FRACTAL_KIND == 11
+#if FRACTAL_KIND == KIND_Mandelbulb || FRACTAL_KIND == KIND_BurningShip
     if (markerDistance > 0.0 && (!hit || markerDistance < travelled))
         return ShadeMarker(rayOrigin, rayDirection, markerDistance);
 #endif
 
     float3 sky = SkyAt(rayDirection);
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     float stepsRatio = saturate((float)usedSteps / max(2.0 * (ShapeA.z - 1.0), 1.0));
 #else
     float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
@@ -1189,14 +1194,14 @@ float4 PSMain(PSInput input) : SV_TARGET
     if (!hit) return float4(LinearToSrgb(sky + glowTint * glow), 1.0);
 
     float3 surfacePoint = rayOrigin + rayDirection * travelled;
-#if FRACTAL_KIND == 10
+#if FRACTAL_KIND == KIND_Terrain
     float2 terrainSlope;
     TerrainHeight(surfacePoint.xz, terrainSlope);
     float3 normal = normalize(float3(-terrainSlope.x, 1.0, -terrainSlope.y));
     if (dot(normal, rayDirection) > 0) normal = -normal;
 #else
     float3 normal = EstimateNormal(surfacePoint, max(epsilon, 1e-6));
-#if FRACTAL_KIND == PERIODIC_KIND || FRACTAL_KIND == IMPLICIT_KIND
+#if FRACTAL_KIND == KIND_PeriodicSurfaces || FRACTAL_KIND == KIND_ImplicitSurface
     if (dot(normal, rayDirection) > 0) normal = -normal;
 #endif
 #endif

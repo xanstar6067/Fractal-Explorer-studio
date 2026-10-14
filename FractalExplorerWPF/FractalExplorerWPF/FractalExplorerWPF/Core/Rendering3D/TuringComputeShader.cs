@@ -13,11 +13,7 @@ internal static class TuringComputeShader
     {
         if (!name.StartsWith("Blur", StringComparison.Ordinal) || name == "Blur") return Source;
         int capacity = int.Parse(name.AsSpan(4));
-        return ShaderSource.Patch(Source, "размытия Тьюринга",
-            ("Prefix[4096]", $"Prefix[{capacity * 2}]"),
-            ("ScanCapacity = 2048", $"ScanCapacity = {capacity}"),
-            ("2048 - origin", $"{capacity} - origin"),
-            ("void Blur(", $"void {name}("));
+        return $"#define BLUR_CAPACITY {capacity}\n#define BLUR_ENTRY {name}\n" + Source;
     }
 
     // Float4 buffers share a pool. Only the committed field owns value and scale together.

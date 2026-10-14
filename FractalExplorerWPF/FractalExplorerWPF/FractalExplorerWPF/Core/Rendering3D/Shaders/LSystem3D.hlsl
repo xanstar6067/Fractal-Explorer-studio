@@ -1,6 +1,13 @@
+// Общая геометрия L-системы и ABC-потока: капсулы в BVH-дереве с обходом по ссылкам.
+#if FRACTAL_KIND == KIND_AbcFlow
+StructuredBuffer<float4> AbcSamples : register(t4);
+#endif
 StructuredBuffer<float4> LNodes : register(t2);
 StructuredBuffer<float4> LCapsules : register(t3);
 
+#if FRACTAL_KIND == KIND_AbcFlow
+#include "AbcFlow.Capsule.hlsl"
+#else
 bool LCapsule(int id, out float3 a, out float3 b, out float r, out float4 color)
 {
     float4 first = LCapsules[id * 3];
@@ -12,6 +19,7 @@ bool LCapsule(int id, out float3 a, out float3 b, out float r, out float4 color)
     color = float4(value, value, value * max(March.w - 1.0, 1.0), value);
     return amount > 0;
 }
+#endif
 
 float LBoxDistance(float3 p, float3 lo, float3 hi)
 {
@@ -27,6 +35,12 @@ float LMap(float3 p, out float4 trap)
     [loop] while (node * 2 < (int)count)
     {
         float4 lo = LNodes[node * 2], hi = LNodes[node * 2 + 1];
+#if FRACTAL_KIND == KIND_AbcFlow
+        // Линии тока (-2) и частицы (-3) можно скрыть.
+        if((hi.w == -2 && ShapeA.y < .5) || (hi.w == -3 && ShapeA.z < .5)) {
+            node=(int)lo.w; continue;
+        }
+#endif
         if (LBoxDistance(p, lo.xyz, hi.xyz) > best) { node = (int)lo.w; continue; }
         if (hi.w >= 0)
         {
@@ -109,6 +123,12 @@ bool TraceLSystem(float3 o, float3 d, float limit, out float distance, out int s
     [loop] while (node * 2 < (int)count)
     {
         float4 lo = LNodes[node * 2], hi = LNodes[node * 2 + 1];
+#if FRACTAL_KIND == KIND_AbcFlow
+        // Линии тока (-2) и частицы (-3) можно скрыть.
+        if((hi.w == -2 && ShapeA.y < .5) || (hi.w == -3 && ShapeA.z < .5)) {
+            node=(int)lo.w; continue;
+        }
+#endif
         steps++;
         if (!LRayBox(o, d, lo.xyz, hi.xyz, distance)) { node = (int)lo.w; continue; }
         if (hi.w >= 0)
