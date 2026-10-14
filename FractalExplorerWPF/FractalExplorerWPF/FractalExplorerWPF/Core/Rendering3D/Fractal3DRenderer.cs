@@ -555,7 +555,11 @@ public sealed partial class Fractal3DRenderer : IDisposable
         ShaderBytecodeCache.GetOrCompile(entry, CompileUncached);
 
     /// <summary>Перекомпилирует и заменяет все шейдеры 3D-режимов; вызывать в фоновом потоке.</summary>
-    public static void RebuildShaderCache(Action<int, int, string>? progress = null)
+    public static void RebuildShaderCache(Action<int, int, string>? progress = null) =>
+        ShaderBytecodeCache.Rebuild(AllShaderEntries(), CompileUncached, progress);
+
+    /// <summary>Все варианты GPU-шейдеров приложения — набор команды «Пересобрать шейдеры».</summary>
+    internal static List<ShaderCacheEntry> AllShaderEntries()
     {
         var entries = new List<ShaderCacheEntry> { VertexShaderEntry() };
         foreach (Fractal3DKind kind in Enum.GetValues<Fractal3DKind>())
@@ -598,7 +602,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.AddRange(TuringComputeShader.CacheEntries);
         entries.AddRange(GrayScottComputeShader.CacheEntries);
         entries.Add(MandelbrotPreviewShader.CacheEntry);
-        ShaderBytecodeCache.Rebuild(entries, CompileUncached, progress);
+        return entries;
     }
 
     private static ReadOnlyMemory<byte> CompileUncached(ShaderCacheEntry entry)

@@ -6,7 +6,7 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 /// </summary>
 internal static class GrayScott3DShader
 {
-    public static string Source { get; } = Patch(Ifs3DShader.Source,
+    public static string Source { get; } = ShaderSource.Patch(Ifs3DShader.Source, "Gray–Scott 3D",
         ("return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0);", """
             if (any(abs(samplePosition) > 1.0001)) return 0.0;
             int axis = (int)ShapeB.x;
@@ -31,18 +31,4 @@ internal static class GrayScott3DShader
             float3 gradient = float3(
             """),
         ("if (mode == 3)", "if (mode == 2) value = Density.SampleLevel(DensitySampler, saturate(surfacePoint * .5 + .5), 0);\n            else if (mode == 3)"));
-
-    /// <summary>A changed IFS source must fail loudly instead of silently dropping a patch.</summary>
-    private static string Patch(string source, params (string Find, string Replace)[] patches)
-    {
-        foreach (var (find, replace) in patches)
-        {
-            int count = 0;
-            for (int at = source.IndexOf(find, StringComparison.Ordinal); at >= 0;
-                 at = source.IndexOf(find, at + find.Length, StringComparison.Ordinal)) count++;
-            if (count == 0) throw new InvalidOperationException($"Шейдер Gray–Scott 3D: не найден фрагмент «{find}».");
-            source = source.Replace(find, replace, StringComparison.Ordinal);
-        }
-        return source;
-    }
 }

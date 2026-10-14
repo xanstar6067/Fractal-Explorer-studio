@@ -15,7 +15,7 @@ internal static class Turing3DShader
     /// </summary>
     public const float RegionRadius = .97f;
 
-    public static string Source { get; } = Patch(Ifs3DShader.Source,
+    public static string Source { get; } = ShaderSource.Patch(Ifs3DShader.Source, "узоров Тьюринга 3D",
         ("Texture3D<float> Density : register(t0);", "Texture3D<float2> Density : register(t0);"),
         ("float SampleDensity(float3 samplePosition)", """
             float RegionMask(float3 p)
@@ -66,16 +66,4 @@ internal static class Turing3DShader
             float3 gradient = float3(
             """),
         ("if (mode == 3)", "if (mode == 2) value = ScaleAt(surfacePoint);\n            else if (mode == 4) value = length(surfacePoint);\n            else if (mode == 3)"));
-
-    /// <summary>Изменившийся исходник IFS должен падать явно, а не терять заплатку молча.</summary>
-    private static string Patch(string source, params (string Find, string Replace)[] patches)
-    {
-        foreach (var (find, replace) in patches)
-        {
-            if (source.IndexOf(find, StringComparison.Ordinal) < 0)
-                throw new InvalidOperationException($"Шейдер узоров Тьюринга 3D: не найден фрагмент «{find}».");
-            source = source.Replace(find, replace, StringComparison.Ordinal);
-        }
-        return source;
-    }
 }

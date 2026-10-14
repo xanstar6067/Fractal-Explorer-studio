@@ -8,14 +8,14 @@ internal static class Flame3DShader
     private static string CreateSource()
     {
         // Retain the shared frame layout, ray/probe and nine lighting implementations.
-        string source = Ifs3DShader.Source
-            .Replace("Texture3D<float> Density", "Texture3D<float4> Density")
-            .Replace("return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0);",
-                "return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0).a;")
-            .Replace("float3 LinearToSrgb(float3 color)", Helpers + "\nfloat3 LinearToSrgb(float3 color)")
-            .Replace("float cell = 2.0 / 512.0;", $"float cell = 2.0 / {Flame3DVolume.Side}.0;")
-            .Replace("float strength = max(Style.y, 0.0);", "float strength = max(Style.y, 0.0);\n" + VolumeMarch)
-            .Replace("return float4(LinearToSrgb(color), 1.0);", "return float4(LinearToSrgb(FlameTone(color)), 1.0);");
+        string source = ShaderSource.Patch(Ifs3DShader.Source, "Flame 3D",
+            ("Texture3D<float> Density", "Texture3D<float4> Density"),
+            ("return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0);",
+                "return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0).a;"),
+            ("float3 LinearToSrgb(float3 color)", Helpers + "\nfloat3 LinearToSrgb(float3 color)"),
+            ("float cell = 2.0 / 512.0;", $"float cell = 2.0 / {Flame3DVolume.Side}.0;"),
+            ("float strength = max(Style.y, 0.0);", "float strength = max(Style.y, 0.0);\n" + VolumeMarch),
+            ("return float4(LinearToSrgb(color), 1.0);", "return float4(LinearToSrgb(FlameTone(color)), 1.0);"));
         int start = source.IndexOf("float3 SurfaceAlbedo(", StringComparison.Ordinal);
         int end = source.IndexOf("float3 EstimateNormal(", start, StringComparison.Ordinal);
         return source[..start] + """
@@ -28,24 +28,7 @@ internal static class Flame3DShader
             """ + source[end..];
     }
 
-    private const string Helpers = """
-        float3 FlameColor(float3 p)
-        {
-            float4 v = Density.SampleLevel(DensitySampler, saturate(p * 0.5 + 0.5), 0);
-            return v.rgb / max(v.a, 1e-6);
-        }
-
-        float3 FlameTone(float3 radiance)
-        {
-            // Compress the peak channel to preserve hue without clipping the bright cores.
-            float peak = max(radiance.r, max(radiance.g, radiance.b));
-            float mapped = 1.0 - exp(-peak * ShapeA.x);
-            float3 color = radiance * (mapped / max(peak, 1e-6));
-            color = pow(max(color, 0), 2.2 / max(ShapeA.y, 0.5));
-            float gray = dot(color, float3(0.2126, 0.7152, 0.0722));
-            return max(0, lerp(gray.xxx, color, ShapeC.w));
-        }
-        """;
+    private static string Helpers => ShaderSource.Load("Flame3D.Helpers.hlsl");
 
     private const string VolumeMarch = """
         if (style == 3 || style == 4)
