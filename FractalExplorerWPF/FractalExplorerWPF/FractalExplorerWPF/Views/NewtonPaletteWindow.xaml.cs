@@ -40,6 +40,7 @@ public partial class NewtonPaletteWindow : Window
     {
         InitializeComponent();
         _manager = manager;
+        CustomPaletteFile.ShowLoadWarning(this, manager.LoadWarning);
         _roots = targets;
         _labels = targetLabels;
         _gradientApplies = showGradientOption;

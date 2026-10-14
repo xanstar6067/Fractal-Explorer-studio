@@ -25,6 +25,7 @@ public partial class DynamicPaletteWindow : Window
         DynamicPalette? selected, bool densityOnly)
     {
         _store = store;
+        CustomPaletteFile.ShowLoadWarning(this, store.LoadWarning);
         _palettes = palettes.ToList();
         InitializeComponent();
         ModeBox.ItemsSource = new[]

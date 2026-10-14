@@ -8,7 +8,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class InverseCollatzPaletteManager
 {
-    private const string FileName = "custom_palettes_inverse_collatz.json";
+    private readonly CustomPaletteFile _file = new("custom_palettes_inverse_collatz.json");
 
     public List<InverseCollatzPalette> Palettes { get; } =
     [
@@ -28,28 +28,15 @@ public sealed class InverseCollatzPaletteManager
 
     public InverseCollatzPaletteManager()
     {
-        try { LoadCustomPalettes(); } catch { }
+        Palettes.AddRange(_file.Load(json => CustomPaletteFile.ParseList<InverseCollatzPalette>(json)
+            .Where(palette => !palette.IsBuiltIn && palette.Colors.Count > 0)));
         ActivePalette = Palettes[0];
     }
 
-    public void SaveCustomPalettes()
-    {
-        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
-        string temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(
-            Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
-        File.Move(temporary, path, true);
-    }
+    public string? LoadWarning => _file.LoadWarning;
 
-    private void LoadCustomPalettes()
-    {
-        string path = AppPaths.GetPaletteFile(FileName);
-        if (!File.Exists(path)) return;
-        List<InverseCollatzPalette>? custom = JsonSerializer.Deserialize<List<InverseCollatzPalette>>(
-            File.ReadAllText(path), JsonOptionsFactory.Create());
-        if (custom is not null)
-            Palettes.AddRange(custom.Where(palette => !palette.IsBuiltIn && palette.Colors.Count > 0));
-    }
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void SaveCustomPalettes() => _file.SaveIfLoaded(Palettes.Where(palette => !palette.IsBuiltIn));
 
     private static InverseCollatzPalette BuiltIn(string name, List<Color> colors,
         InverseCollatzPaletteMapping mapping = InverseCollatzPaletteMapping.StretchToDepth,

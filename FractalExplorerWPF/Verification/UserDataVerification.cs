@@ -17,6 +17,7 @@ internal static partial class Program
         VerifySaveStoreFiles();
         VerifyReplacementFailures();
         VerifyPalettePersistence();
+        VerifyPaletteFileProtection();
         VerifyTypedSaveRoundTrip();
         VerifySaveFormatUpgrades();
         VerifyUserDataMigrator();

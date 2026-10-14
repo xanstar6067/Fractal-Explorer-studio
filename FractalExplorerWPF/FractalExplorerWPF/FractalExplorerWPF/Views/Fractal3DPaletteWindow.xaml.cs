@@ -48,6 +48,7 @@ public partial class Fractal3DPaletteWindow : Window
         ArgumentNullException.ThrowIfNull(current);
         InitializeComponent();
         _manager = manager;
+        CustomPaletteFile.ShowLoadWarning(this, manager.LoadWarning);
         _renderPreview = renderPreview;
         _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PreviewDelayMs) };
         _previewTimer.Tick += (_, _) =>

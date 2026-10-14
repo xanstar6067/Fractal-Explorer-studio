@@ -8,7 +8,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class SerpinskyPaletteManager
 {
-    private const string FileName = "serpinsky_palettes.json";
+    private readonly CustomPaletteFile _file = new("serpinsky_palettes.json");
 
     public List<SerpinskyPalette> Palettes { get; } =
     [
@@ -23,44 +23,16 @@ public sealed class SerpinskyPaletteManager
 
     public SerpinskyPaletteManager()
     {
-        try
-        {
-            LoadCustomPalettes();
-        }
-        catch
-        {
-            // Built-in palettes remain available if a custom palette file is damaged.
-        }
+        // Встроенные палитры остаются доступны, даже если файл пользовательских повреждён.
+        Palettes.AddRange(_file.Load(json => CustomPaletteFile.ParseList<SerpinskyPalette>(json)
+            .Where(palette => !palette.IsBuiltIn)));
         ActivePalette = Palettes[0];
     }
 
-    public void SaveCustomPalettes()
-    {
-        string filePath = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
-        File.WriteAllText(
-            filePath,
-            JsonSerializer.Serialize(
-                Palettes.Where(palette => !palette.IsBuiltIn),
-                JsonOptionsFactory.Create()));
-    }
+    public string? LoadWarning => _file.LoadWarning;
 
-    private void LoadCustomPalettes()
-    {
-        string filePath = AppPaths.GetPaletteFile(FileName);
-        if (!File.Exists(filePath))
-        {
-            return;
-        }
-
-        string json = File.ReadAllText(filePath);
-        List<SerpinskyPalette>? custom = JsonSerializer.Deserialize<List<SerpinskyPalette>>(
-            json,
-            JsonOptionsFactory.Create());
-        if (custom is not null)
-        {
-            Palettes.AddRange(custom.Where(palette => !palette.IsBuiltIn));
-        }
-    }
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void SaveCustomPalettes() => _file.SaveIfLoaded(Palettes.Where(palette => !palette.IsBuiltIn));
 
     private static SerpinskyPalette BuiltIn(string name, Color fractal, Color background) =>
         new()

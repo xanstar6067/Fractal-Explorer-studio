@@ -11,18 +11,30 @@ public static class RecentFractalsStore
     public const int Capacity = 8;
     private const string FileName = "recent_fractals.txt";
 
+    // Последнее чтение не удалось (файл занят, нет доступа): список не перезаписывается, иначе
+    // первый же запуск режима стёр бы всю историю. Главное окно читает его один раз.
+    private static bool _loadFailed;
+
     public static List<string> Load()
     {
         try
         {
             string path = AppPaths.GetSettingsFile(FileName);
-            return File.Exists(path) ? Normalize(File.ReadAllLines(path)) : [];
+            List<string> recent = File.Exists(path) ? Normalize(File.ReadAllLines(path)) : [];
+            _loadFailed = false;
+            return recent;
         }
-        catch { return []; }
+        catch (Exception exception)
+        {
+            _loadFailed = true;
+            CrashLogger.Log($"Загрузка недавних режимов: {AppPaths.GetSettingsFile(FileName)}", exception);
+            return [];
+        }
     }
 
     public static void Save(IEnumerable<string> recent)
     {
+        if (_loadFailed) return;
         try
         {
             string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile(FileName));

@@ -14,6 +14,7 @@ public partial class SerpinskyPaletteWindow : Window
     {
         InitializeComponent();
         _manager = manager;
+        CustomPaletteFile.ShowLoadWarning(this, manager.LoadWarning);
         RefreshList(_manager.ActivePalette);
     }
 

@@ -18,23 +18,29 @@ public sealed class DynamicSystemSaveStore(DynamicSystemKind kind) : FractalSave
 public sealed class DynamicPaletteStore
 {
     private readonly DynamicSystemKind _kind;
-    private readonly string? _customFileName;
     private readonly List<DynamicPalette>? _customBuiltIns;
-    private string FilePath => AppPaths.GetPaletteFile(_customFileName ?? (_kind switch
+    private readonly CustomPaletteFile _file;
+    public DynamicPaletteStore(DynamicSystemKind kind)
     {
-        DynamicSystemKind.Lyapunov => "lyapunov_palettes.json",
-        DynamicSystemKind.Attractors2D => "symmetric_icon_palettes.json",
-        DynamicSystemKind.Popcorn => "popcorn_palettes.json",
-        DynamicSystemKind.Hopalong => "hopalong_palettes.json",
-        _ => "logistic_map_palettes.json"
-    }));
-    public DynamicPaletteStore(DynamicSystemKind kind) => _kind = kind;
+        _kind = kind;
+        _file = new CustomPaletteFile(kind switch
+        {
+            DynamicSystemKind.Lyapunov => "lyapunov_palettes.json",
+            DynamicSystemKind.Attractors2D => "symmetric_icon_palettes.json",
+            DynamicSystemKind.Popcorn => "popcorn_palettes.json",
+            DynamicSystemKind.Hopalong => "hopalong_palettes.json",
+            _ => "logistic_map_palettes.json"
+        });
+    }
     public DynamicPaletteStore(string fileName, IEnumerable<DynamicPalette> builtIns)
     {
         if (Path.GetFileName(fileName) != fileName) throw new ArgumentException("Имя файла палитр не должно содержать путь.", nameof(fileName));
-        _customFileName = fileName;
         _customBuiltIns = builtIns.ToList();
+        _file = new CustomPaletteFile(fileName);
     }
+
+    /// <summary>Причина блокировки записи для окна палитр; <c>null</c>, если загрузка удалась.</summary>
+    public string? LoadWarning => _file.LoadWarning;
 
     public List<DynamicPalette> Load()
     {
@@ -46,43 +52,43 @@ public sealed class DynamicPaletteStore
             DynamicSystemKind.Hopalong => HopalongBuiltIns(),
             _ => LogisticBuiltIns()
         });
-        if (!File.Exists(FilePath)) return result;
-        try
-        {
-            List<DynamicPalette>? custom = JsonSerializer.Deserialize<List<DynamicPalette>>(File.ReadAllText(FilePath), JsonOptionsFactory.Create());
-            if (custom is not null) result.AddRange(custom.Select(p => { p.IsBuiltIn = false; return p; }));
-        }
-        catch
-        {
-            // Legacy Lyapunov palettes stored the coloring enum as a number.
-            // Read that shape explicitly so existing user palettes survive migration.
-            try
-            {
-                using JsonDocument document = JsonDocument.Parse(File.ReadAllText(FilePath));
-                foreach (JsonElement item in document.RootElement.EnumerateArray())
-                {
-                    var palette = new DynamicPalette
-                    {
-                        Name = item.TryGetProperty("Name", out JsonElement name) ? name.GetString() ?? "Палитра" : "Палитра",
-                        Mode = ReadLegacyMode(item),
-                        ExponentRange = item.TryGetProperty("ExponentRange", out JsonElement range) ? range.GetDouble() : 2,
-                        ZeroBandWidth = item.TryGetProperty("ZeroBandWidth", out JsonElement zero) ? zero.GetDouble() : .05
-                    };
-                    if (item.TryGetProperty("Colors", out JsonElement colors))
-                        foreach (JsonElement color in colors.EnumerateArray())
-                            if (TryColor(color.GetString(), out Color parsed)) palette.Colors.Add(parsed);
-                    if (palette.Colors.Count > 1) result.Add(palette);
-                }
-            }
-            catch { }
-        }
+        result.AddRange(_file.Load(ParseCustom));
         return result;
     }
 
-    public void Save(IEnumerable<DynamicPalette> palettes)
+    private static List<DynamicPalette> ParseCustom(string json)
     {
-        File.WriteAllText(AppPaths.EnsureDirectoryFor(FilePath), JsonSerializer.Serialize(palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
+        try
+        {
+            return CustomPaletteFile.ParseList<DynamicPalette>(json).Select(p => { p.IsBuiltIn = false; return p; }).ToList();
+        }
+        catch (Exception)
+        {
+            // Legacy Lyapunov palettes stored the coloring enum as a number.
+            // Read that shape explicitly so existing user palettes survive migration;
+            // a file that fails both readings blocks saving (CustomPaletteFile).
+            var result = new List<DynamicPalette>();
+            using JsonDocument document = JsonDocument.Parse(json);
+            foreach (JsonElement item in document.RootElement.EnumerateArray())
+            {
+                var palette = new DynamicPalette
+                {
+                    Name = item.TryGetProperty("Name", out JsonElement name) ? name.GetString() ?? "Палитра" : "Палитра",
+                    Mode = ReadLegacyMode(item),
+                    ExponentRange = item.TryGetProperty("ExponentRange", out JsonElement range) ? range.GetDouble() : 2,
+                    ZeroBandWidth = item.TryGetProperty("ZeroBandWidth", out JsonElement zero) ? zero.GetDouble() : .05
+                };
+                if (item.TryGetProperty("Colors", out JsonElement colors))
+                    foreach (JsonElement color in colors.EnumerateArray())
+                        if (TryColor(color.GetString(), out Color parsed)) palette.Colors.Add(parsed);
+                if (palette.Colors.Count > 1) result.Add(palette);
+            }
+            return result;
+        }
     }
+
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void Save(IEnumerable<DynamicPalette> palettes) => _file.SaveIfLoaded(palettes.Where(p => !p.IsBuiltIn));
 
     private static DynamicPalette P(string name, string mode, params Color[] colors) => new() { Name = name, Mode = mode, Colors = colors.ToList(), IsBuiltIn = true };
     private static string ReadLegacyMode(JsonElement item)

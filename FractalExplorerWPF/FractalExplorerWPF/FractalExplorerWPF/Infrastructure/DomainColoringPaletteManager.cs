@@ -8,7 +8,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class DomainColoringPaletteManager
 {
-    private const string FileName = "custom_palettes_domain_coloring.json";
+    private readonly CustomPaletteFile _file = new("custom_palettes_domain_coloring.json");
 
     public List<DomainColoringPalette> Palettes { get; } =
     [
@@ -26,28 +26,15 @@ public sealed class DomainColoringPaletteManager
 
     public DomainColoringPaletteManager()
     {
-        try { LoadCustomPalettes(); } catch { }
+        Palettes.AddRange(_file.Load(json => CustomPaletteFile.ParseList<DomainColoringPalette>(json)
+            .Where(palette => !palette.IsBuiltIn && palette.Colors.Count > 0)));
         ActivePalette = Palettes[0];
     }
 
-    public void SaveCustomPalettes()
-    {
-        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
-        string temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(
-            Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
-        File.Move(temporary, path, true);
-    }
+    public string? LoadWarning => _file.LoadWarning;
 
-    private void LoadCustomPalettes()
-    {
-        string path = AppPaths.GetPaletteFile(FileName);
-        if (!File.Exists(path)) return;
-        List<DomainColoringPalette>? custom = JsonSerializer.Deserialize<List<DomainColoringPalette>>(
-            File.ReadAllText(path), JsonOptionsFactory.Create());
-        if (custom is not null)
-            Palettes.AddRange(custom.Where(palette => !palette.IsBuiltIn && palette.Colors.Count > 0));
-    }
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void SaveCustomPalettes() => _file.SaveIfLoaded(Palettes.Where(palette => !palette.IsBuiltIn));
 
     private static DomainColoringPalette BuiltIn(string name, List<Color> colors, bool gradient = true) => new()
     {

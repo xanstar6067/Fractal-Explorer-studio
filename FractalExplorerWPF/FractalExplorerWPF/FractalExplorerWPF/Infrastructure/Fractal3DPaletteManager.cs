@@ -10,7 +10,7 @@ namespace FractalExplorerWPF.Infrastructure;
 /// </summary>
 public class Fractal3DPaletteManager
 {
-    private readonly string _fileName;
+    private readonly CustomPaletteFile _file;
 
     public Fractal3DPaletteManager()
         : this("custom_palettes_fractal3d.json", Fractal3DPalettes.All)
@@ -19,10 +19,18 @@ public class Fractal3DPaletteManager
 
     protected Fractal3DPaletteManager(string fileName, IEnumerable<Fractal3DPalette> builtIns)
     {
-        _fileName = fileName;
+        _file = new CustomPaletteFile(fileName);
         Palettes = [.. builtIns.Select(BuiltInCopy)];
-        try { LoadCustomPalettes(); } catch { }
+        Palettes.AddRange(_file.Load(json => CustomPaletteFile.ParseList<Fractal3DPalette>(json)
+            .Where(palette => palette.Colors.Count > 0)
+            .Select(palette =>
+            {
+                palette.IsBuiltIn = false;
+                return palette;
+            })));
     }
+
+    public string? LoadWarning => _file.LoadWarning;
 
     public List<Fractal3DPalette> Palettes { get; }
 
@@ -31,28 +39,8 @@ public class Fractal3DPaletteManager
         ? null
         : Palettes.FirstOrDefault(palette => palette.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-    public void SaveCustomPalettes()
-    {
-        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(_fileName));
-        File.WriteAllText(path, JsonSerializer.Serialize(
-            Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
-    }
-
-    private void LoadCustomPalettes()
-    {
-        string path = AppPaths.GetPaletteFile(_fileName);
-        if (!File.Exists(path)) return;
-        List<Fractal3DPalette>? custom = JsonSerializer.Deserialize<List<Fractal3DPalette>>(
-            File.ReadAllText(path), JsonOptionsFactory.Create());
-        if (custom is null) return;
-        Palettes.AddRange(custom
-            .Where(palette => palette.Colors.Count > 0)
-            .Select(palette =>
-            {
-                palette.IsBuiltIn = false;
-                return palette;
-            }));
-    }
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void SaveCustomPalettes() => _file.SaveIfLoaded(Palettes.Where(palette => !palette.IsBuiltIn));
 
     /// <summary>Копия встроенной палитры: библиотека своя у каждого окна и правится независимо.</summary>
     private static Fractal3DPalette BuiltInCopy(Fractal3DPalette palette)

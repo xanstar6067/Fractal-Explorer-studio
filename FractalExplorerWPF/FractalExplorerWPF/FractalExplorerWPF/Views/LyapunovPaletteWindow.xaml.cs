@@ -38,6 +38,7 @@ public partial class LyapunovPaletteWindow : Window
     public LyapunovPaletteWindow(DynamicPaletteStore store, IEnumerable<DynamicPalette> palettes, DynamicPalette? selected)
     {
         _store = store;
+        CustomPaletteFile.ShowLoadWarning(this, store.LoadWarning);
         List<DynamicPalette> source = palettes.ToList();
         _palettes = source.Select(p => p.Clone(p.Name)).ToList();
         for (int i = 0; i < _palettes.Count; i++) _palettes[i].IsBuiltIn = source[i].IsBuiltIn;

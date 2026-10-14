@@ -29,6 +29,7 @@ public partial class InverseCollatzPaletteWindow : Window
     {
         InitializeComponent();
         _manager = manager;
+        CustomPaletteFile.ShowLoadWarning(this, manager.LoadWarning);
         RefreshList(_manager.ActivePalette);
     }
 

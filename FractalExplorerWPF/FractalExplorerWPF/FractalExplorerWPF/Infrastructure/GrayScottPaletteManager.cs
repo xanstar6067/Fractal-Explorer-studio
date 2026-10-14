@@ -8,7 +8,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class GrayScottPaletteManager
 {
-    private const string FileName = "custom_palettes_gray_scott.json";
+    private readonly CustomPaletteFile _file = new("custom_palettes_gray_scott.json");
 
     public List<GrayScottPalette> Palettes { get; } =
     [
@@ -26,26 +26,15 @@ public sealed class GrayScottPaletteManager
 
     public GrayScottPaletteManager()
     {
-        try { LoadCustomPalettes(); } catch { }
+        Palettes.AddRange(_file.Load(json => CustomPaletteFile.ParseList<GrayScottPalette>(json)
+            .Where(palette => !palette.IsBuiltIn && palette.Colors.Count > 0)));
         ActivePalette = Palettes[0];
     }
 
-    public void SaveCustomPalettes()
-    {
-        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
-        File.WriteAllText(path, JsonSerializer.Serialize(
-            Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
-    }
+    public string? LoadWarning => _file.LoadWarning;
 
-    private void LoadCustomPalettes()
-    {
-        string path = AppPaths.GetPaletteFile(FileName);
-        if (!File.Exists(path)) return;
-        List<GrayScottPalette>? custom = JsonSerializer.Deserialize<List<GrayScottPalette>>(
-            File.ReadAllText(path), JsonOptionsFactory.Create());
-        if (custom is not null)
-            Palettes.AddRange(custom.Where(palette => !palette.IsBuiltIn && palette.Colors.Count > 0));
-    }
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void SaveCustomPalettes() => _file.SaveIfLoaded(Palettes.Where(palette => !palette.IsBuiltIn));
 
     private static GrayScottPalette BuiltIn(GrayScottPalette palette)
     {

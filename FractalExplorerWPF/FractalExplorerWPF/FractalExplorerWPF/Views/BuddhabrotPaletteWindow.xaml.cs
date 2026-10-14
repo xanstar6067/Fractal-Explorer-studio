@@ -7,7 +7,7 @@ public partial class BuddhabrotPaletteWindow : Window
     private readonly BuddhabrotPaletteManager _manager; private readonly ColorSelectionService _picker = ColorSelectionService.Default;
     private readonly List<Color> _colors=[]; private BuddhabrotColorPalette? _selected; private bool CanEdit => _selected is { IsBuiltIn:false };
     public event EventHandler? PaletteApplied;
-    public BuddhabrotPaletteWindow(BuddhabrotPaletteManager manager) { InitializeComponent(); _manager=manager; Refresh(manager.ActivePalette); }
+    public BuddhabrotPaletteWindow(BuddhabrotPaletteManager manager) { InitializeComponent(); _manager=manager; CustomPaletteFile.ShowLoadWarning(this, manager.LoadWarning); Refresh(manager.ActivePalette); }
     private void Refresh(BuddhabrotColorPalette select) { PaletteList.ItemsSource=null; PaletteList.ItemsSource=_manager.Palettes; PaletteList.SelectedItem=select; }
     private void PaletteList_OnSelectionChanged(object s, SelectionChangedEventArgs e) { if(PaletteList.SelectedItem is not BuddhabrotColorPalette p)return; _selected=p; NameBox.Text=p.Name; ModeBox.SelectedIndex=(int)p.ColoringMode; GammaBox.Text=p.Gamma.ToString(CultureInfo.InvariantCulture); GradientBox.IsChecked=p.IsGradient; AlignBox.IsChecked=p.AlignWithRenderIterations; StepsBox.Text=p.MaxColorIterations.ToString(); _colors.Clear();_colors.AddRange(p.Colors);ReloadColors();UpdateState();UpdatePreview(); }
     private void UpdateState(){bool edit=CanEdit;NameBox.IsEnabled=ModeBox.IsEnabled=GammaBox.IsEnabled=GradientBox.IsEnabled=AlignBox.IsEnabled=StepsBox.IsEnabled=edit;DeleteButton.IsEnabled=edit;EditButton.IsEnabled=edit&&ColorList.SelectedIndex>=0;RemoveButton.IsEnabled=edit&&_colors.Count>1&&ColorList.SelectedIndex>=0;}

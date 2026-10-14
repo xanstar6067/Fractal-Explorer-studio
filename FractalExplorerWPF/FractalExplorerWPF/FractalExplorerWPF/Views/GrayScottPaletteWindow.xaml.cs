@@ -25,6 +25,7 @@ public partial class GrayScottPaletteWindow : Window
     {
         InitializeComponent();
         _manager = manager;
+        CustomPaletteFile.ShowLoadWarning(this, manager.LoadWarning);
         RefreshList(manager.ActivePalette);
     }
 

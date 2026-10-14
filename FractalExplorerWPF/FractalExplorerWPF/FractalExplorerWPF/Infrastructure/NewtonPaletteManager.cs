@@ -8,7 +8,7 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class NewtonPaletteManager
 {
-    private const string FileName = "newton_palettes.json";
+    private readonly CustomPaletteFile _file = new("newton_palettes.json");
 
     public List<NewtonColorPalette> Palettes { get; } =
     [
@@ -33,16 +33,14 @@ public sealed class NewtonPaletteManager
 
     public NewtonPaletteManager()
     {
-        try { LoadCustomPalettes(); } catch { }
+        Palettes.AddRange(ReadCustomPalettes());
         ActivePalette = Palettes[0];
     }
 
-    public void SaveCustomPalettes()
-    {
-        string path = AppPaths.EnsureDirectoryFor(AppPaths.GetPaletteFile(FileName));
-        File.WriteAllText(path, JsonSerializer.Serialize(
-            Palettes.Where(palette => !palette.IsBuiltIn), JsonOptionsFactory.Create()));
-    }
+    public string? LoadWarning => _file.LoadWarning;
+
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void SaveCustomPalettes() => _file.SaveIfLoaded(Palettes.Where(palette => !palette.IsBuiltIn));
 
     public static List<Color> AdjustColors(NewtonColorPalette palette, int requiredCount)
     {
@@ -76,9 +74,9 @@ public sealed class NewtonPaletteManager
     /// </summary>
     public void ReloadCustomPalettes()
     {
-        List<NewtonColorPalette> custom;
-        try { custom = ReadCustomPalettes(); }
-        catch { return; }
+        if (!_file.CanSave) return; // Файл не прочитался: показываем то, что есть, и ничего не пишем.
+        List<NewtonColorPalette> custom = ReadCustomPalettes();
+        if (!_file.CanSave) return;
         string? activeName = !ActivePalette.IsBuiltIn && Palettes.Contains(ActivePalette) ? ActivePalette.Name : null;
         Palettes.RemoveAll(palette => !palette.IsBuiltIn);
         Palettes.AddRange(custom);
@@ -86,16 +84,8 @@ public sealed class NewtonPaletteManager
             ActivePalette = Palettes.FirstOrDefault(palette => palette.Name == activeName) ?? ActivePalette; // Удалённая в другом окне остаётся текущей.
     }
 
-    private void LoadCustomPalettes() => Palettes.AddRange(ReadCustomPalettes());
-
-    private static List<NewtonColorPalette> ReadCustomPalettes()
-    {
-        string path = AppPaths.GetPaletteFile(FileName);
-        if (!File.Exists(path)) return [];
-        List<NewtonColorPalette>? custom = JsonSerializer.Deserialize<List<NewtonColorPalette>>(
-            File.ReadAllText(path), JsonOptionsFactory.Create());
-        return custom?.Where(palette => palette is not null && !palette.IsBuiltIn).ToList() ?? [];
-    }
+    private List<NewtonColorPalette> ReadCustomPalettes() => _file.Load(json =>
+        CustomPaletteFile.ParseList<NewtonColorPalette>(json).Where(palette => palette is not null && !palette.IsBuiltIn));
 
     private static List<Color> CreateLinearRamp(IReadOnlyList<Color> anchors, int count)
     {

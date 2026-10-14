@@ -8,28 +8,21 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public sealed class BuddhabrotPaletteManager
 {
-    private string FilePath => AppPaths.GetPaletteFile("buddhabrot_palettes.json");
+    private readonly CustomPaletteFile _file = new("buddhabrot_palettes.json");
     public List<BuddhabrotColorPalette> Palettes { get; } = CreateBuiltIns();
     public BuddhabrotColorPalette ActivePalette { get; set; }
 
     public BuddhabrotPaletteManager()
     {
-        try
-        {
-            if (File.Exists(FilePath))
-            {
-                List<BuddhabrotColorPalette>? custom = JsonSerializer.Deserialize<List<BuddhabrotColorPalette>>(File.ReadAllText(FilePath), JsonOptionsFactory.Create());
-                if (custom is not null) Palettes.AddRange(custom.Select(p => { p.IsBuiltIn = false; return p; }));
-            }
-        }
-        catch { }
+        Palettes.AddRange(_file.Load(json => CustomPaletteFile.ParseList<BuddhabrotColorPalette>(json)
+            .Select(p => { p.IsBuiltIn = false; return p; })));
         ActivePalette = Palettes[0];
     }
 
-    public void Save()
-    {
-        File.WriteAllText(AppPaths.EnsureDirectoryFor(FilePath), JsonSerializer.Serialize(Palettes.Where(p => !p.IsBuiltIn), JsonOptionsFactory.Create()));
-    }
+    public string? LoadWarning => _file.LoadWarning;
+
+    /// <summary>После неудачной загрузки ничего не пишет: окно палитр предупредило при открытии.</summary>
+    public void Save() => _file.SaveIfLoaded(Palettes.Where(p => !p.IsBuiltIn));
 
     public static Color Evaluate(BuddhabrotColorPalette palette, double normalized, int renderIterations)
     {

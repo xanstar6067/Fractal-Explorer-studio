@@ -20,6 +20,8 @@ public partial class ColorPickerPanel : UserControl
     private const int CustomColorCount = 16;
     private readonly ScreenEyedropper _eyedropper = new();
     private readonly Color?[] _customColors = new Color?[CustomColorCount];
+    // Пользовательские цвета не прочитались: файл не перезаписывается пустым набором.
+    private bool _customColorsLoadFailed;
     private readonly List<Button> _customButtons = [];
     private Color _originalColor = Colors.White;
     private Color _selectedColor = Colors.White;
@@ -303,17 +305,25 @@ public partial class ColorPickerPanel : UserControl
             for (int index = 0; index < Math.Min(values.Count, CustomColorCount); index++)
                 if (values[index] is string text && TryParseHex(text, out Color color)) _customColors[index] = color;
         }
-        catch { }
+        catch (Exception exception)
+        {
+            _customColorsLoadFailed = true;
+            CrashLogger.Log("Загрузка пользовательских цветов пипетки", exception);
+        }
     }
 
     private void SaveCustomColors()
     {
+        if (_customColorsLoadFailed) return;
         try
         {
             string path = AppPaths.EnsureDirectoryFor(AppPaths.GetSettingsFile("color_picker_custom_colors.json"));
             File.WriteAllText(path, JsonSerializer.Serialize(_customColors.Select(color => color is Color value ? ToHex(value) : null)));
         }
-        catch { }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Набор остаётся в окне до закрытия; запись — удобство, а не обязательство.
+        }
     }
 
     private static string ToHex(Color color) => color.A == 255
