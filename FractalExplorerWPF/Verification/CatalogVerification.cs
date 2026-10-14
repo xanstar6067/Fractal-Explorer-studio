@@ -279,8 +279,8 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + 120,
-                "Laboratories, 3D fractals, Gray–Scott, Turing patterns, Sprott, Symmetric Icons, Popcorn, snow crystals, Hopalong and the new Mandelbrot/Julia modes must be rendered on the fly.");
+                    Enum.GetValues<Fractal3DKind>().Length + Enum.GetValues<TranscendentalJuliaKind>().Length + 120,
+                "Laboratories, 3D fractals, simulations, orbit renderers and polynomial/transcendental Julia modes must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
                 Check(tile.Thumbnail is BitmapSource { PixelWidth: CatalogPreviewLoader.ThumbnailPixelWidth } && !tile.IsPreviewPending,
@@ -365,25 +365,28 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
+            Check(ViewItems(window).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
+                "The two transcendental Julia modes must lead new arrivals.");
+            var previousArrivals = ViewItems(window).Skip(2).ToList();
             Fractal3DKind[] recent3D = [Fractal3DKind.PhaseFieldCrystal3D, Fractal3DKind.SwiftHohenberg3D, Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
                 Fractal3DKind.HyperbolicHoneycomb, Fractal3DKind.ImplicitSurface, Fractal3DKind.PeriodicSurfaces,
                 Fractal3DKind.Excitable3D, Fractal3DKind.Lyapunov3D, Fractal3DKind.Kobayashi3D];
-            Check(ViewItems(window).Take(recent3D.Length).Select(tile => tile.Item.LaunchKey)
+            Check(previousArrivals.Take(recent3D.Length).Select(tile => tile.Item.LaunchKey)
                     .SequenceEqual(recent3D.Select(Fractal3DCatalog.LaunchKey)),
                 "Phase field crystal must lead new arrivals; existing 3D modes must retain their introduction dates.");
-            Check(ViewItems(window).Skip(recent3D.Length).Take(94).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(previousArrivals.Skip(recent3D.Length).Take(94).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 FoldedFormulaCatalog.All.SelectMany(d => new[] { d.Parameter.ToString(), d.Julia.ToString() }).Concat(new[] { "Hybrid", "JuliaHybrid" })),
                 "Newest must begin with 92 polynomial modes and the two hybrid constructors.");
-            Check(ViewItems(window).Skip(recent3D.Length + 94).Take(6).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(previousArrivals.Skip(recent3D.Length + 94).Take(6).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["CelticMandelbar", "CubicQuasiBurningShip", "CubicFlyingSquirrel", "JuliaCelticMandelbar", "JuliaCubicQuasiBurningShip", "JuliaCubicFlyingSquirrel"]),
                 "Newest must begin with the six new folded quadratic/cubic modes.");
-            Check(ViewItems(window).Skip(recent3D.Length + 100).Take(8).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(previousArrivals.Skip(recent3D.Length + 100).Take(8).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["PerpendicularMandelbrot", "PerpendicularBurningShip", "PerpendicularCeltic", "PerpendicularBuffalo", "JuliaPerpendicularMandelbrot", "JuliaPerpendicularBurningShip", "JuliaPerpendicularCeltic", "JuliaPerpendicularBuffalo"]),
                 "The eight perpendicular modes must lead new arrivals.");
-            Check(ViewItems(window).Skip(recent3D.Length + 108).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
+            Check(previousArrivals.Skip(recent3D.Length + 108).Take(5).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(
                 ["JuliaGeneralized", "JuliaTricorn", "JuliaBuffalo", "JuliaCeltic", "JuliaSimonobrot"]),
                 "The previous Julia modes must retain their chronology after the perpendicular modes.");
-            Check(ViewItems(window).Skip(recent3D.Length + 113).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
+            Check(previousArrivals.Skip(recent3D.Length + 113).Take(10).Select(tile => tile.Item.LaunchKey).SequenceEqual([
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lenia3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Physarum3D),
                       Fractal3DCatalog.LaunchKey(Fractal3DKind.Lichtenberg3D),

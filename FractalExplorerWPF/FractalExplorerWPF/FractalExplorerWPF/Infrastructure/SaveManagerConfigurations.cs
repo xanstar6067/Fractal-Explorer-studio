@@ -5,6 +5,25 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public static class SaveManagerConfigurations
 {
+    public static SaveManagerConfiguration<TranscendentalJuliaState> ForTranscendentalJulia(
+        TranscendentalJuliaWindow window, TranscendentalJuliaSaveStore store) => new()
+    {
+        WindowTitle = $"Сохранение/Загрузка: {TranscendentalJuliaCatalog.Title(window.Kind)}",
+        Store = store, CaptureState = name =>
+        {
+            var state = window.CaptureState(name);
+            if (store.Category != TranscendentalJuliaCatalog.LaunchKey(state.Kind))
+                throw new InvalidOperationException("Формула изменилась. Откройте менеджер сохранений заново для выбранной формулы.");
+            return state;
+        }, CapturePreview = window.CaptureCurrentPreview,
+        LoadState = window.LoadState, RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName, GetTimestamp = state => state.Timestamp,
+        GetDetails = state => $"{Prefix(state.Timestamp)} · {TranscendentalJuliaCatalog.Formula(state.Kind)}\n" +
+            $"λ = {state.LambdaReal:G8} + ({state.LambdaImaginary:G8})i · {state.Layer}\n" +
+            $"Итерации: {state.MaxIterations} · глубина: {state.InverseDepth} · масштаб: {state.Zoom:G6}",
+        PointsOfInterest = TranscendentalJuliaCatalog.Presets(window.Kind)
+    };
+
     public static SaveManagerConfiguration<LSystemState> ForLSystem(
         LSystemWindow window, LSystemSaveStore store) => new()
     {

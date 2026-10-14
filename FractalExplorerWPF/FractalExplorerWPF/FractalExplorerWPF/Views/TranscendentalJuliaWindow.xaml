@@ -1,0 +1,130 @@
+<Window x:Class="FractalExplorerWPF.Views.TranscendentalJuliaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
+        xmlns:theme="clr-namespace:FractalExplorerWPF.Theming"
+        Title="Трансцендентные Жюлиа" Width="1200" Height="800" MinWidth="900" MinHeight="580"
+        WindowStartupLocation="CenterOwner" Icon="../Assets/Icons/NewtonPool.ico"
+        KeyDown="Window_OnKeyDown" Closed="Window_OnClosed">
+    <Window.Resources>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="32"/><Setter Property="Margin" Value="0,3"/>
+        </Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="MinHeight" Value="30"/><Setter Property="Margin" Value="0,3"/>
+        </Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="MinHeight" Value="28"/><Setter Property="Margin" Value="4,3,0,3"/>
+            <Setter Property="Padding" Value="5,3"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Margin" Value="0,6"/>
+            <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource Theme.BaseBackgroundBrush}">
+        <Grid.ColumnDefinitions><ColumnDefinition x:Name="ControlsColumn" Width="330"/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <Border x:Name="ControlsHost" Margin="10" Padding="12" CornerRadius="7"
+                Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Трансцендентные Жюлиа" FontSize="18" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="KindBox" SelectionChanged="Kind_OnChanged">
+                        <ComboBoxItem Content="Экспонента λ·exp(z)"/><ComboBoxItem Content="Синус λ·sin(z)"/>
+                    </ComboBox>
+                    <TextBlock x:Name="FormulaText" Style="{StaticResource Hint}"/>
+                    <TextBlock Text="Готовый пример"/>
+                    <ComboBox x:Name="PresetBox" DisplayMemberPath="SaveName" SelectionChanged="Preset_OnChanged"/>
+                    <TextBlock Text="Отображение" Margin="0,8,0,0"/>
+                    <ComboBox x:Name="LayerBox" SelectionChanged="Parameter_OnChanged">
+                        <ComboBoxItem Content="Карта орбит"/><ComboBoxItem Content="Жюлиа: обратные итерации"/>
+                        <ComboBoxItem Content="Совмещение"/>
+                    </ComboBox>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Re λ" VerticalAlignment="Center"/>
+                        <TextBox x:Name="LambdaRealBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Im λ" VerticalAlignment="Center"/>
+                        <TextBox x:Name="LambdaImaginaryBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Итерации" VerticalAlignment="Center"/>
+                        <TextBox x:Name="IterationsBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Макс. период" VerticalAlignment="Center"/>
+                        <TextBox x:Name="PeriodBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Допуск сходимости" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ToleranceBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Глубина прообразов" VerticalAlignment="Center"/>
+                        <TextBox x:Name="DepthBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Радиус ветвей" VerticalAlignment="Center"/>
+                        <TextBox x:Name="BranchesBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Бюджет прообразов" VerticalAlignment="Center"/>
+                        <TextBox x:Name="BudgetBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Центр X" VerticalAlignment="Center"/>
+                        <TextBox x:Name="CenterXBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="View_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Центр Y" VerticalAlignment="Center"/>
+                        <TextBox x:Name="CenterYBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="View_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Приближение" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ZoomBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="View_OnChanged"/>
+                    </Grid>
+                    <TextBlock Style="{StaticResource Hint}" Text="Бюджет ограничивает число вычисленных прообразов. Радиус ветвей задаёт выборку около начала координат и текущего вида; дальние вспомогательные ветви подбираются по виду."/>
+                    <TextBlock Text="Потоки ЦП"/>
+                    <ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
+                    <TextBlock Text="Сглаживание"/>
+                    <ComboBox x:Name="SsaaBox" SelectedIndex="0" SelectionChanged="Parameter_OnChanged">
+                        <ComboBoxItem Content="1×" Tag="1"/><ComboBoxItem Content="2×" Tag="2"/><ComboBoxItem Content="4×" Tag="4"/>
+                    </ComboBox>
+                    <Button Content="Пересчитать" Click="Render_OnClick"/>
+                    <Button x:Name="CancelButton" Content="Отмена" IsEnabled="False" Click="Cancel_OnClick"/>
+                    <Button Content="Сбросить вид" Click="Reset_OnClick"/>
+                    <Button Content="Настроить палитру" Click="Palette_OnClick"/>
+                    <Button Content="Менеджер сохранений" Click="Saves_OnClick"/>
+                    <Button Content="Сохранить изображение" Click="Export_OnClick"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Карта орбит: яркость — скорость сходимости. Нераспознанные орбиты и численный предел имеют отдельные цвета. Большой модуль не доказывает убегание."/>
+                    <ProgressBar x:Name="RenderProgress" Height="16" Minimum="0" Maximum="100" Margin="0,6"/>
+                    <TextBlock x:Name="StatusText" Style="{StaticResource Hint}" Text="Подготовка…"/>
+                    <TextBlock x:Name="CoordinateText" Style="{StaticResource Hint}" FontFamily="Consolas"/>
+                    <TextBlock Text="Орбита выбранной точки" Margin="0,6"/>
+                    <TextBox x:Name="OrbitText" IsReadOnly="True" TextWrapping="Wrap" Height="100" VerticalScrollBarVisibility="Auto"/>
+                    <Button Content="Скрыть орбиту" Click="ClearOrbit_OnClick"/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Колесо: масштаб; левая кнопка: перемещение; правая: орбита точки; F11: полный экран."/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+        <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" ClipToBounds="True" Background="Black"
+                BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7"
+                theme:ThemeContract.IgnoreAudit="True" SizeChanged="Canvas_OnSizeChanged"
+                MouseWheel="Canvas_OnMouseWheel" MouseLeftButtonDown="Canvas_OnMouseDown"
+                MouseMove="Canvas_OnMouseMove" MouseLeftButtonUp="Canvas_OnMouseUp"
+                LostMouseCapture="Canvas_OnLostMouseCapture" MouseRightButtonDown="Canvas_OnOrbit">
+            <Grid>
+                <Grid x:Name="SavePreviewLayer" ClipToBounds="True">
+                    <Image x:Name="StablePreviewImage" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <Image x:Name="CanvasImage" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                </Grid>
+                <Canvas x:Name="OrbitCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
+                <controls:RenderProgressOverlay x:Name="RenderOverlay" IsHitTestVisible="False"/>
+            </Grid>
+        </Border>
+        <Button x:Name="ToggleControlsButton" Grid.Column="1" Style="{StaticResource FractalPanelToggleButtonStyle}"
+                Content="✕" ToolTip="Скрыть панель параметров" Click="Toggle_OnClick"/>
+    </Grid>
+</Window>

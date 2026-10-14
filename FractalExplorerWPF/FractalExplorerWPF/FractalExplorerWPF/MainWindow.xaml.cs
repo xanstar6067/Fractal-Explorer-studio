@@ -536,6 +536,8 @@ public partial class MainWindow : Window
     internal static Func<Window>? GetWindowFactory(string? launchKey)
     {
         if (string.IsNullOrEmpty(launchKey)) return null;
+        if (TranscendentalJuliaCatalog.TryParseLaunchKey(launchKey, out TranscendentalJuliaKind transcendentalKind))
+            return () => new TranscendentalJuliaWindow(transcendentalKind);
         if (MathematicalLaboratoryCatalog.TryParseLaunchKey(launchKey, out MathematicalLaboratoryKind laboratoryKind))
             return () => new MathematicalLaboratoryWindow(laboratoryKind);
         if (BasinExplorerCatalog.TryParseLaunchKey(launchKey, out BasinExplorerKind basinKind))

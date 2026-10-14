@@ -48,6 +48,7 @@ internal sealed class CatalogPreviewLoader
         item.LaunchKey == "TuringPatterns" && TuringPresets.All[0].CreateState().Backend == TuringBackend.Gpu;
 
     public static bool IsRendered(FractalCatalogItem item) =>
+        TranscendentalJuliaCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         (Enum.TryParse(item.LaunchKey, out MandelbrotVariant folded) && FoldedFormulaCatalog.IsProgram(folded)) ||
         MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
         Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ||
@@ -84,6 +85,9 @@ internal sealed class CatalogPreviewLoader
 
     public static Task<BitmapSource> RenderAsync(FractalCatalogItem item, CancellationToken token)
     {
+        if (TranscendentalJuliaCatalog.TryParseLaunchKey(item.LaunchKey, out TranscendentalJuliaKind transcendentalKind))
+            return TranscendentalJuliaRenderer.RenderStateAsync(TranscendentalJuliaCatalog.CreateDefault(transcendentalKind),
+                RenderedPixelSize, RenderedPixelSize, token);
         if (MathematicalLaboratoryCatalog.TryParseLaunchKey(item.LaunchKey, out MathematicalLaboratoryKind kind))
         {
             return MathematicalLaboratoryRenderer.RenderBitmapAsync(

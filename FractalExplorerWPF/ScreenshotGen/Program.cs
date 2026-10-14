@@ -183,14 +183,14 @@ internal static class Program
             }
             throw new TimeoutException("Карта C не завершила рендер перед захватом.");
         }
-        string renderFlag = win is DynamicSystemWindow ? "_rendering" : "_isRendering";
+        string renderFlag = win is DynamicSystemWindow or TranscendentalJuliaWindow ? "_rendering" : "_isRendering";
         if (GetMember(win, renderFlag) is not bool) return;
 
         bool IsBusy() => GetMember(win, renderFlag) is true ||
             GetMember(win, "_frameRequested") is true ||
             // Live GPU simulation of Fractal3DWindow: steps in flight or the first field not shown yet.
             GetMember(win, "_simulation") is FractalExplorerWPF.Controls.IFractal3DSimulationMode { IsBusy: true } or FractalExplorerWPF.Controls.IFractal3DSimulationMode { IsPreparing: true } ||
-            win is DynamicSystemWindow && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
+            (win is DynamicSystemWindow or TranscendentalJuliaWindow) && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < maxExtraMs)
@@ -528,6 +528,22 @@ internal static class Program
                     var editor = (LSystem3DEditor)w.FindName("LSystemEditor");
                     var panel = (LSystemRandomizerPanel)GetMember(editor, "Randomizer")!;
                     await CaptureChildAsync(w, new LSystem3DRandomizerWindow(panel), "lsystem-randomizer-3d");
+                }
+                SafeCloseIfAny(w);
+                return;
+            }
+
+            if (TranscendentalJuliaCatalog.TryParseLaunchKey(key, out TranscendentalJuliaKind transcendentalKind))
+            {
+                Window? w = await CaptureAsync(() => new TranscendentalJuliaWindow(transcendentalKind),
+                    "julia-" + Kebab(transcendentalKind.ToString()), 3000);
+                if (w != null)
+                {
+                    var manager = (NewtonPaletteManager)GetMember(w, "_palettes")!;
+                    string[] labels = ["Точки Жюлиа", "Нераспознанные орбиты", "Численный предел", "Цикл 1", "Цикл 2", "Цикл 3", "Цикл 4"];
+                    await CaptureChildAsync(w, new NewtonPaletteWindow(manager,
+                        Enumerable.Repeat(System.Numerics.Complex.Zero, labels.Length).ToArray(), labels,
+                        "Цвета слоёв и исходов орбиты", true, "Палитра трансцендентных Жюлиа"), "julia-" + Kebab(transcendentalKind.ToString()) + "-palette");
                 }
                 SafeCloseIfAny(w);
                 return;
