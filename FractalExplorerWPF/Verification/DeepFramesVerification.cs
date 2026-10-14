@@ -15,7 +15,8 @@ internal static partial class Program
     // Мандельброта — каждое ядро (z²+c, отражённые варианты с кубическими, Multibrot,
     // Симоноброт, их Жюлиа) в обоих представлениях δ (double и FloatExp) и в четырёх режимах
     // окраски, которые по-разному проходят ядро: гладкая (с BLA), ловушка и полосы (пошагово)
-    // и оценка расстояния (с производной). Плюс Nova, Феникс и Ньютон. Вся группа идёт
+    // и оценка расстояния (с производной). У Феникса — double-ядро и гибридное с пропуском и
+    // без (см. AddPhoenixDeepFrames). Плюс Nova и Ньютон. Вся группа идёт
     // десятки секунд, поэтому её можно гонять после каждой правки ядер, а полные группы
     // deep, phoenix, newton — один раз в конце.
     //
@@ -81,7 +82,10 @@ internal static partial class Program
             "mandelbrot/double/DistanceEstimation", "mandelbrot/floatexp/DistanceEstimation",
             "burning-ship/double/OrbitTrap", "burning-ship/floatexp/OrbitTrap",
             "multibrot3/double/OrbitTrap", "multibrot3/floatexp/OrbitTrap",
-            "simonobrot3/double/OrbitTrap", "simonobrot3/floatexp/OrbitTrap"
+            "simonobrot3/double/OrbitTrap", "simonobrot3/floatexp/OrbitTrap",
+            "phoenix-classic-julia/double/Smooth", "phoenix-classic-julia/stepped/Smooth",
+            "phoenix-celtic-julia/double/Period", "phoenix-celtic-julia/stepped/Period",
+            "phoenix-saddle-1e300/stepped/Smooth", "phoenix-saddle-1e300/skipped/Smooth"
         ];
         foreach (string name in timed)
         {
@@ -242,48 +246,7 @@ internal static partial class Program
             }));
         }
 
-        // Феникс: double-δ и гибридное ядро с линейным пропуском.
-        foreach (bool extended in new[] { false, true })
-        {
-            bool capturedExtended = extended;
-            frames.Add(($"phoenix/{(extended ? "extended" : "double")}", (w, h) =>
-            {
-                var state = new PhoenixState
-                {
-                    CenterXExact = "0.3605697876341732990634970411179978",
-                    CenterYExact = "0.9162050700524670653999492733755535",
-                    Zoom = 1.15e18,
-                    Iterations = 300,
-                    Threshold = 4m,
-                    C1Real = 0.56667m,
-                    C2Real = -0.5m,
-                    PlaneMode = PhoenixPlaneMode.Julia,
-                    Variant = PhoenixVariant.Classic,
-                    PrimaryPower = 2,
-                    ColoringMode = PhoenixColoringMode.Smooth,
-                    OrbitTrapMode = PhoenixOrbitTrapMode.Axes,
-                    OrbitTrapRadius = 0.5,
-                    OrbitTrapStrength = 1.5,
-                    StripeFrequency = 3,
-                    StripeStrength = 0.65,
-                    CycleTolerance = 1e-7,
-                    MaximumDetectedPeriod = 32,
-                    Palette = Palette()
-                };
-                state.CenterX = BigFloat.Parse(state.CenterXExact).ToDecimalClamped();
-                state.CenterY = BigFloat.Parse(state.CenterYExact).ToDecimalClamped();
-                byte[] pixels = new byte[w * h * 4];
-                PhoenixRenderer.ForceDeepZoomForTests = true;
-                PhoenixRenderer.ForceExtendedDeltaForTests = capturedExtended;
-                try { PhoenixRenderer.Render(state, pixels, w, h, w * 4, 1, CancellationToken.None); }
-                finally
-                {
-                    PhoenixRenderer.ForceDeepZoomForTests = null;
-                    PhoenixRenderer.ForceExtendedDeltaForTests = null;
-                }
-                return pixels;
-            }));
-        }
+        AddPhoenixDeepFrames(frames, Palette);
 
         // Ньютон: метод Ньютона у отталкивающего 2-цикла z³ − 1 и метод Галлея рядом с ним.
         foreach ((NewtonIterationMethod method, string zoom) in new[] { (NewtonIterationMethod.Newton, "1e12"), (NewtonIterationMethod.Halley, "1") })
@@ -319,6 +282,153 @@ internal static partial class Program
         }
 
         return frames;
+    }
+
+    /// <summary>
+    /// Кадры Феникса: семь конфигураций (все свёртки, обе плоскости, степени до 5 и член
+    /// C1·ΔG) в пяти режимах окраски, каждый на трёх путях — double-ядре, гибридном без
+    /// пропуска и гибридном с линейным пропуском. На найденных центрах (~9e9) гибридное ядро
+    /// идёт в double-режиме, поэтому FloatExp-шаги проверяют сверхглубокие кадры 1e300 у
+    /// отталкивающих неподвижных точек: β-точки «базилики» и седла с памятью (как в группе
+    /// phoenix, где они сверяются с точным BigFloat-эталоном).
+    /// </summary>
+    private static void AddPhoenixDeepFrames(List<(string Name, Func<int, int, byte[]> Render)> frames,
+        Func<MandelbrotPalette> palette)
+    {
+        PhoenixState Base(PhoenixVariant variant, PhoenixPlaneMode plane, int primaryPower, int secondaryPower,
+            PhoenixColoringMode coloring) => new()
+        {
+            Zoom = 1,
+            Iterations = 300,
+            Threshold = 4m,
+            C1Real = 0.56667m,
+            C2Real = -0.5m,
+            PlaneMode = plane,
+            Variant = variant,
+            PrimaryPower = primaryPower,
+            SecondaryPower = secondaryPower,
+            ColoringMode = coloring,
+            OrbitTrapMode = PhoenixOrbitTrapMode.Axes,
+            OrbitTrapRadius = 0.5,
+            OrbitTrapStrength = 1.5,
+            StripeFrequency = 3,
+            StripeStrength = 0.65,
+            CycleTolerance = 1e-7,
+            MaximumDetectedPeriod = 32,
+            Palette = palette()
+        };
+
+        static byte[] Render(PhoenixState state, int w, int h, bool? forceDeep, bool? forceExtended, bool? forceSkip)
+        {
+            byte[] pixels = new byte[w * h * 4];
+            PhoenixRenderer.ForceDeepZoomForTests = forceDeep;
+            PhoenixRenderer.ForceExtendedDeltaForTests = forceExtended;
+            PhoenixRenderer.ForceLinearSkipForTests = forceSkip;
+            try { PhoenixRenderer.Render(state, pixels, w, h, w * 4, 1, CancellationToken.None); }
+            finally
+            {
+                PhoenixRenderer.ForceDeepZoomForTests = null;
+                PhoenixRenderer.ForceExtendedDeltaForTests = null;
+                PhoenixRenderer.ForceLinearSkipForTests = null;
+            }
+            return pixels;
+        }
+
+        (string Label, PhoenixVariant Variant, PhoenixPlaneMode Plane, int A, int B)[] configurations =
+        [
+            ("phoenix-classic-julia", PhoenixVariant.Classic, PhoenixPlaneMode.Julia, 2, 0),
+            ("phoenix-classic-c1", PhoenixVariant.Classic, PhoenixPlaneMode.ParameterC1, 2, 1),
+            ("phoenix-tricorn-julia", PhoenixVariant.Tricorn, PhoenixPlaneMode.Julia, 2, 0),
+            ("phoenix-burning-ship-julia", PhoenixVariant.BurningShip, PhoenixPlaneMode.Julia, 2, 1),
+            ("phoenix-buffalo-c1", PhoenixVariant.Buffalo, PhoenixPlaneMode.ParameterC1, 2, 1),
+            ("phoenix-celtic-julia", PhoenixVariant.Celtic, PhoenixPlaneMode.Julia, 3, 1),
+            ("phoenix-classic-julia-a5b2", PhoenixVariant.Classic, PhoenixPlaneMode.Julia, 5, 2)
+        ];
+        PhoenixColoringMode[] colorings =
+        [
+            PhoenixColoringMode.Smooth, PhoenixColoringMode.OrbitTrap, PhoenixColoringMode.StripeAverage,
+            PhoenixColoringMode.TriangleInequalityAverage, PhoenixColoringMode.Period
+        ];
+        (string Label, bool Extended, bool Skip)[] kernels = [("double", false, false), ("stepped", true, false), ("skipped", true, true)];
+
+        foreach ((string label, PhoenixVariant variant, PhoenixPlaneMode plane, int a, int b) in configurations)
+        {
+            var center = new Lazy<(decimal X, decimal Y, double Zoom)>(() =>
+                FindBusyPhoenixCenter(() => Base(variant, plane, a, b, PhoenixColoringMode.Smooth)));
+            foreach ((string kernel, bool extended, bool skip) in kernels)
+            foreach (PhoenixColoringMode coloring in colorings)
+                frames.Add(($"{label}/{kernel}/{coloring}", (w, h) =>
+                {
+                    PhoenixState state = Base(variant, plane, a, b, coloring);
+                    (state.CenterX, state.CenterY, double zoom) = center.Value;
+                    state.Zoom = zoom;
+                    return Render(state, w, h, true, extended, skip);
+                }));
+        }
+
+        // Сверхглубина: здесь гибридное ядро действительно шагает в FloatExp.
+        string betaX;
+        using (new BigFloat.PrecisionScope(4096))
+            betaX = ((BigFloat.One + BigFloat.Sqrt(BigFloat.FromInt(5))) / 2L).ToInvariantString();
+        foreach (bool memory in new[] { false, true })
+        foreach (PhoenixColoringMode coloring in new[] { PhoenixColoringMode.Smooth, PhoenixColoringMode.TriangleInequalityAverage })
+        foreach ((string kernel, bool skip) in new[] { ("stepped", false), ("skipped", true) })
+        {
+            string label = $"phoenix-{(memory ? "saddle" : "beta")}-1e300/{kernel}/{coloring}";
+            frames.Add((label, (w, h) =>
+            {
+                PhoenixState state = Base(PhoenixVariant.Classic, PhoenixPlaneMode.Julia, 2, 0, coloring);
+                state.Zoom = FloatExp.Pow10(300);
+                state.Iterations = 1000;
+                state.C1Real = -1m;
+                state.C2Real = memory ? -0.5m : 0m;
+                state.InitialPreviousReal = memory ? 2m : 0m;
+                state.CenterXExact = memory ? "2" : betaX;
+                state.CenterYExact = "0";
+                using (new BigFloat.PrecisionScope(1152))
+                    state.CenterX = BigFloat.Parse(state.CenterXExact).ToDecimalClamped();
+                return Render(state, w, h, true, true, skip);
+            }));
+        }
+    }
+
+    /// <summary>
+    /// Центр Феникса с богатой структурой — тот же поиск, что <see cref="FindBusyCenter"/>, на
+    /// плоской ступени Феникса (ширина вида 4/зум, обе оси делятся на ширину полотна).
+    /// </summary>
+    private static (decimal X, decimal Y, double Zoom) FindBusyPhoenixCenter(Func<PhoenixState> create)
+    {
+        const int w = 40, h = 30;
+        decimal x = 0, y = 0;
+        double zoom = 1;
+        for (int step = 0; step < 10; step++)
+        {
+            PhoenixState state = create();
+            state.CenterX = x;
+            state.CenterY = y;
+            state.Zoom = zoom;
+            byte[] pixels = new byte[w * h * 4];
+            PhoenixRenderer.ForceDeepZoomForTests = false;
+            try { PhoenixRenderer.Render(state, pixels, w, h, w * 4, 1, CancellationToken.None); }
+            finally { PhoenixRenderer.ForceDeepZoomForTests = null; }
+
+            int bestX = w / 2, bestY = h / 2, bestScore = -1;
+            for (int py = 1; py < h - 1; py++)
+            for (int px = 1; px < w - 1; px++)
+            {
+                var colors = new HashSet<int>();
+                for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    colors.Add(BitConverter.ToInt32(pixels, ((py + dy) * w + px + dx) * 4));
+                if (colors.Count > bestScore) (bestScore, bestX, bestY) = (colors.Count, px, py);
+            }
+
+            decimal viewWidth = 4m / (decimal)zoom;
+            x += (bestX - w / 2m) * viewWidth / w;
+            y += (h / 2m - bestY) * viewWidth / w;
+            zoom *= 8;
+        }
+        return (x, y, zoom * 8);
     }
 
     /// <summary>

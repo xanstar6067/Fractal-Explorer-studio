@@ -150,22 +150,6 @@ public static partial class MandelbrotFamilyRenderer
     private static bool IsJuliaVariant(MandelbrotVariant variant) =>
         MandelbrotVariantDefinition.IsJulia(variant);
 
-    // |Zc + δc| − |Zc| без катастрофического сокращения: пока δ не перевернул знак
-    // компоненты (обычный случай на глубоком зуме) это ровно ±δc; на перевороте — точное
-    // отражённое выражение (δ там уже сравнимо с Z и тут же срабатывает rebasing).
-    private static double FoldedDelta(double referenceComponent, double deltaComponent)
-    {
-        if (referenceComponent > 0.0)
-            return deltaComponent > -referenceComponent
-                ? deltaComponent
-                : -(deltaComponent + 2.0 * referenceComponent);
-        if (referenceComponent < 0.0)
-            return deltaComponent < -referenceComponent
-                ? -deltaComponent
-                : deltaComponent + 2.0 * referenceComponent;
-        return System.Math.Abs(deltaComponent);
-    }
-
     // ------------------------------------------------------------------ precision planner
 
     // log2(зума), начиная с которого отклонение δ на пиксель уже не помещается надёжно в
@@ -996,26 +980,6 @@ public static partial class MandelbrotFamilyRenderer
             deltaReal, deltaImaginary, escapeSquared, distanceScale, token);
     }
 
-    // |Zc + δc| − |Zc| без катастрофического сокращения: пока δ не перевернул знак
-    // компоненты (обычный случай на глубоком зуме) это ровно ±δc; на перевороте — точное
-    // отражённое выражение (δ там уже сравнимо с Z и тут же срабатывает rebasing). Опорная
-    // компонента — double из опорной орбиты, ограниченной радиусом бейлаута.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static TDelta FoldedDelta<TDelta, TDerivative>(double referenceComponent, TDelta deltaComponent)
-        where TDelta : struct, IDeltaNumber<TDelta>
-        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
-    {
-        if (referenceComponent > 0.0)
-            return deltaComponent > -referenceComponent
-                ? deltaComponent
-                : -(deltaComponent + 2.0 * referenceComponent);
-        if (referenceComponent < 0.0)
-            return deltaComponent < -referenceComponent
-                ? -deltaComponent
-                : deltaComponent + 2.0 * referenceComponent;
-        return TDelta.Abs(deltaComponent);
-    }
-
     /// <summary>
     /// Пропуск комплексной BLA: δ ← A·δ + B·δc сразу на несколько итераций. BLA доступен только
     /// для гладкой окраски (таблица в остальных режимах — null): пропуск итераций несовместим ни
@@ -1218,7 +1182,7 @@ public static partial class MandelbrotFamilyRenderer
     // Пертурбационное ядро для отражённых вариантов (Burning Ship, Julia Burning Ship,
     // Tricorn, Buffalo, Celtic, перпендикулярные и кубические свёртки). Их формула — «свёртка
     // знака» компонент z, затем z²+c, поэтому линейная часть возмущения не комплексная:
-    // свёрнутое δ считается точным разбором случаев (<see cref="FoldedDelta"/>), а ускоряется
+    // свёрнутое δ считается точным разбором случаев (<see cref="PerturbationReference.FoldedDelta{TDelta}"/>), а ускоряется
     // вещественной 2×2 таблицей (<see cref="RealBlaTable"/>), а не комплексной.
     private static PixelMetrics DeepZoomPixelReflected<TDelta, TDerivative>(
         MandelbrotState state,
@@ -1296,7 +1260,7 @@ public static partial class MandelbrotFamilyRenderer
                                   + deltaReal * deltaReal - deltaImaginary * deltaImaginary;
                     TDelta deltaV = (deltaImaginary * referenceReal + deltaReal * referenceImaginary) * 2.0
                                   + deltaReal * 2.0 * deltaImaginary;
-                    deltaReal = FoldedDelta<TDelta, TDerivative>(
+                    deltaReal = PerturbationReference.FoldedDelta(
                         referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU) + addReal;
                     deltaImaginary = deltaV + addImaginary;
                 }
@@ -1310,20 +1274,20 @@ public static partial class MandelbrotFamilyRenderer
                         case ReflectKind.BurningShip:
                             foldedReferenceReal = System.Math.Abs(referenceReal);
                             foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = FoldedDelta<TDelta, TDerivative>(referenceReal, deltaReal);
-                            foldedDeltaImaginary = -FoldedDelta<TDelta, TDerivative>(referenceImaginary, deltaImaginary);
+                            foldedDeltaReal = PerturbationReference.FoldedDelta(referenceReal, deltaReal);
+                            foldedDeltaImaginary = -PerturbationReference.FoldedDelta(referenceImaginary, deltaImaginary);
                             break;
                         case ReflectKind.Buffalo:
                             foldedReferenceReal = System.Math.Abs(referenceReal);
                             foldedReferenceImaginary = System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = FoldedDelta<TDelta, TDerivative>(referenceReal, deltaReal);
-                            foldedDeltaImaginary = FoldedDelta<TDelta, TDerivative>(referenceImaginary, deltaImaginary);
+                            foldedDeltaReal = PerturbationReference.FoldedDelta(referenceReal, deltaReal);
+                            foldedDeltaImaginary = PerturbationReference.FoldedDelta(referenceImaginary, deltaImaginary);
                             break;
                         case ReflectKind.PerpendicularMandelbrot:
                         case ReflectKind.PerpendicularCeltic:
                             foldedReferenceReal = System.Math.Abs(referenceReal);
                             foldedReferenceImaginary = -referenceImaginary;
-                            foldedDeltaReal = FoldedDelta<TDelta, TDerivative>(referenceReal, deltaReal);
+                            foldedDeltaReal = PerturbationReference.FoldedDelta(referenceReal, deltaReal);
                             foldedDeltaImaginary = -deltaImaginary;
                             break;
                         case ReflectKind.PerpendicularBurningShip:
@@ -1331,7 +1295,7 @@ public static partial class MandelbrotFamilyRenderer
                             foldedReferenceReal = referenceReal;
                             foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
                             foldedDeltaReal = deltaReal;
-                            foldedDeltaImaginary = -FoldedDelta<TDelta, TDerivative>(referenceImaginary, deltaImaginary);
+                            foldedDeltaImaginary = -PerturbationReference.FoldedDelta(referenceImaginary, deltaImaginary);
                             break;
                         default: // Tricorn — сопряжение, знак определён всегда
                             foldedReferenceReal = referenceReal;
@@ -1350,7 +1314,7 @@ public static partial class MandelbrotFamilyRenderer
                     TDelta foldedDeltaSquaredImaginary = foldedDeltaReal * 2.0 * foldedDeltaImaginary;
                     TDelta deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
                     if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
-                        deltaU = FoldedDelta<TDelta, TDerivative>(
+                        deltaU = PerturbationReference.FoldedDelta(
                             referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
                     deltaReal = deltaU + addReal;
                     deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;

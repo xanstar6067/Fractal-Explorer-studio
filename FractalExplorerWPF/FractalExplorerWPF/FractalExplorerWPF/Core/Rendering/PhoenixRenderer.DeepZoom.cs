@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using FractalExplorerWPF.Core.NewtonMath;
 using FractalExplorerWPF.Models;
 using Color = System.Windows.Media.Color;
@@ -36,10 +37,10 @@ namespace FractalExplorerWPF.Core.Rendering;
 /// Все семь режимов окраски обслуживаются одним проходом: каждый читает восстановленное
 /// <c>z = Z + δ</c>, а двухпроходных режимов (гистограмма, оценка расстояния) у Феникса нет.
 ///
-/// Здесь — double-ядро <see cref="DeepZoomPixel"/> и общая инфраструктура. За порогом
-/// <see cref="ExtendedDeltaBits"/> кадр считает гибридное ядро со сверхглубокой ступени
-/// (<c>PhoenixRenderer.Extended</c>): зум и сетка кадра в <see cref="FloatExp"/>, δ в FloatExp
-/// пока мало, и линейный пропуск начала орбиты.
+/// Здесь — ядро <see cref="DeepZoomPixel{TMode}"/> и общая инфраструктура. До порога
+/// <see cref="ExtendedDeltaBits"/> ядро ведёт δ в double, за ним — в гибридном режиме
+/// сверхглубокой ступени (<c>PhoenixRenderer.Extended</c>): зум и сетка кадра в
+/// <see cref="FloatExp"/>, δ в FloatExp пока мало, и линейный пропуск начала орбиты.
 /// </summary>
 public static partial class PhoenixRenderer
 {
@@ -307,45 +308,32 @@ public static partial class PhoenixRenderer
 
     // ------------------------------------------------------------------ per-pixel perturbation
 
-    /// <summary>
-    /// <c>|Zc + δc| − |Zc|</c> без катастрофического сокращения: пока δ не перевернул знак
-    /// компоненты (обычный случай на глубоком зуме) это ровно ±δc, а на перевороте — точное
-    /// отражённое выражение. Та же функция, что у отражённых вариантов Мандельброта.
-    /// </summary>
-    private static double FoldedDelta(double referenceComponent, double deltaComponent)
-    {
-        if (referenceComponent > 0.0)
-            return deltaComponent > -referenceComponent
-                ? deltaComponent
-                : -(deltaComponent + 2.0 * referenceComponent);
-        if (referenceComponent < 0.0)
-            return deltaComponent < -referenceComponent
-                ? -deltaComponent
-                : deltaComponent + 2.0 * referenceComponent;
-        return Math.Abs(deltaComponent);
-    }
+    // Шаг возмущения обобщён по представлению δ (IDeltaNumber): DoubleDelta — обычный double,
+    // FloatExp — расширенная экспонента сверхглубокой ступени. Степени опорной точки остаются
+    // double: они зависят только от опорной орбиты, ограниченной радиусом выхода.
 
     /// <summary>
     /// Значение <c>W^p</c> и его точное возмущение <c>(W+δw)^p − W^p</c> биномиальным
     /// разложением <c>Σₖ C(p,k)·W^{p−k}·δwᵏ</c>: сумма, а не разность близких величин,
     /// поэтому сокращения нет ни при какой глубине.
     /// </summary>
-    private static void PerturbPower(
+    private static void PerturbPower<TDelta>(
         double baseReal, double baseImaginary,
-        double deltaReal, double deltaImaginary,
+        TDelta deltaReal, TDelta deltaImaginary,
         int power,
         ReadOnlySpan<long> binomial,
         Span<double> powersReal, Span<double> powersImaginary,
         out double valueReal, out double valueImaginary,
-        out double deltaValueReal, out double deltaValueImaginary)
+        out TDelta deltaValueReal, out TDelta deltaValueImaginary)
+        where TDelta : struct, IDeltaNumber<TDelta>
     {
         if (power == 0)
         {
             // W⁰ ≡ 1: константа, возмущения нет.
             valueReal = 1.0;
             valueImaginary = 0.0;
-            deltaValueReal = 0.0;
-            deltaValueImaginary = 0.0;
+            deltaValueReal = TDelta.Zero;
+            deltaValueImaginary = TDelta.Zero;
             return;
         }
 
@@ -361,18 +349,17 @@ public static partial class PhoenixRenderer
         valueReal = powersReal[power - 1] * baseReal - powersImaginary[power - 1] * baseImaginary;
         valueImaginary = powersReal[power - 1] * baseImaginary + powersImaginary[power - 1] * baseReal;
 
-        double accumulatorReal = 0.0, accumulatorImaginary = 0.0;
-        double deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δw¹
+        TDelta accumulatorReal = TDelta.Zero, accumulatorImaginary = TDelta.Zero;
+        TDelta deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δw¹
         for (int k = 1; k <= power; k++)
         {
             double termBaseReal = powersReal[power - k];
             double termBaseImaginary = powersImaginary[power - k];
-            accumulatorReal += binomial[k] *
-                (termBaseReal * deltaPowerReal - termBaseImaginary * deltaPowerImaginary);
-            accumulatorImaginary += binomial[k] *
-                (termBaseReal * deltaPowerImaginary + termBaseImaginary * deltaPowerReal);
+            double coefficient = binomial[k];
+            accumulatorReal += (deltaPowerReal * termBaseReal - deltaPowerImaginary * termBaseImaginary) * coefficient;
+            accumulatorImaginary += (deltaPowerImaginary * termBaseReal + deltaPowerReal * termBaseImaginary) * coefficient;
 
-            double nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
+            TDelta nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
             deltaPowerImaginary = deltaPowerReal * deltaImaginary + deltaPowerImaginary * deltaReal;
             deltaPowerReal = nextDeltaPowerReal;
         }
@@ -383,19 +370,22 @@ public static partial class PhoenixRenderer
 
     /// <summary>
     /// Значение <c>VariantPower(Z)</c> и его точное возмущение. Свёртки знака проходят через
-    /// <see cref="FoldedDelta"/>, степень — через <see cref="PerturbPower"/>; у Celtic внешний
-    /// модуль вещественной части — снова <see cref="FoldedDelta"/>, уже на результате.
+    /// <see cref="PerturbationReference.FoldedDelta{TDelta}"/>, степень — через
+    /// <see cref="PerturbPower{TDelta}"/>; у Celtic внешний модуль вещественной части — снова
+    /// свёртка, уже на результате.
     /// </summary>
-    private static void PerturbVariantPower(
+    private static void PerturbVariantPower<TDelta>(
         double referenceReal, double referenceImaginary,
-        double deltaReal, double deltaImaginary,
+        TDelta deltaReal, TDelta deltaImaginary,
         int power, PhoenixVariant variant,
         ReadOnlySpan<long> binomial,
         Span<double> powersReal, Span<double> powersImaginary,
         out double valueReal, out double valueImaginary,
-        out double deltaValueReal, out double deltaValueImaginary)
+        out TDelta deltaValueReal, out TDelta deltaValueImaginary)
+        where TDelta : struct, IDeltaNumber<TDelta>
     {
-        double baseReal, baseImaginary, foldedDeltaReal, foldedDeltaImaginary;
+        double baseReal, baseImaginary;
+        TDelta foldedDeltaReal, foldedDeltaImaginary;
         switch (variant)
         {
             case PhoenixVariant.Tricorn:
@@ -407,14 +397,14 @@ public static partial class PhoenixRenderer
             case PhoenixVariant.BurningShip:
                 baseReal = Math.Abs(referenceReal);
                 baseImaginary = -Math.Abs(referenceImaginary);
-                foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
-                foldedDeltaImaginary = -FoldedDelta(referenceImaginary, deltaImaginary);
+                foldedDeltaReal = PerturbationReference.FoldedDelta(referenceReal, deltaReal);
+                foldedDeltaImaginary = -PerturbationReference.FoldedDelta(referenceImaginary, deltaImaginary);
                 break;
             case PhoenixVariant.Buffalo:
                 baseReal = Math.Abs(referenceReal);
                 baseImaginary = Math.Abs(referenceImaginary);
-                foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
-                foldedDeltaImaginary = FoldedDelta(referenceImaginary, deltaImaginary);
+                foldedDeltaReal = PerturbationReference.FoldedDelta(referenceReal, deltaReal);
+                foldedDeltaImaginary = PerturbationReference.FoldedDelta(referenceImaginary, deltaImaginary);
                 break;
             default: // Classic, Celtic
                 baseReal = referenceReal;
@@ -430,7 +420,7 @@ public static partial class PhoenixRenderer
 
         if (variant != PhoenixVariant.Celtic) return;
 
-        deltaValueReal = FoldedDelta(valueReal, deltaValueReal);
+        deltaValueReal = PerturbationReference.FoldedDelta(valueReal, deltaValueReal);
         valueReal = Math.Abs(valueReal);
     }
 
@@ -471,7 +461,7 @@ public static partial class PhoenixRenderer
     }
 
     /// <summary>
-    /// Пертурбационное ядро Феникса. Возмущение шага выводится из формулы вычитанием опорной
+    /// Шаг возмущения Феникса. Возмущение выводится из формулы вычитанием опорной
     /// рекуррентности и не содержит разностей близких величин:
     /// <code>
     ///   δ' = ΔF + C1·ΔG + δc1·G(z) + C2·δ₋₁
@@ -479,17 +469,83 @@ public static partial class PhoenixRenderer
     /// где <c>ΔF = F(Z+δ) − F(Z)</c> и <c>ΔG = G(Z+δ) − G(Z)</c> раскрываются биномиально, а
     /// <c>G(z) = G(Z) + ΔG</c> — значение в самой точке. Пара <c>C1·ΔG + δc1·G(z)</c> — это в
     /// точности <c>(C1+δc1)·G(z) − C1·G(Z)</c>, то есть вклад второго слагаемого формулы.
-    ///
-    /// В динамической плоскости пиксель задаёт <c>δ₀</c>, а <c>δc1 = 0</c>; в параметрической
-    /// наоборот — <c>δ₀ = 0</c>, а пиксель задаёт <c>δc1</c>. В обоих случаях <c>δ₋₁ = 0</c>.
     /// </summary>
-    private static PixelMetrics DeepZoomPixel(
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static (TDelta Real, TDelta Imaginary) PerturbStep<TDelta>(
+        double referenceReal, double referenceImaginary, in DeepParameters parameters,
+        ReadOnlySpan<long> primaryBinomial, ReadOnlySpan<long> secondaryBinomial,
+        Span<double> powersReal, Span<double> powersImaginary,
+        TDelta deltaC1Real, TDelta deltaC1Imaginary,
+        TDelta deltaCurrentReal, TDelta deltaCurrentImaginary,
+        TDelta deltaPreviousReal, TDelta deltaPreviousImaginary)
+        where TDelta : struct, IDeltaNumber<TDelta>
+    {
+        PerturbVariantPower(referenceReal, referenceImaginary,
+            deltaCurrentReal, deltaCurrentImaginary,
+            parameters.PrimaryPower, parameters.Variant,
+            primaryBinomial, powersReal, powersImaginary,
+            out _, out _, out TDelta deltaPrimaryReal, out TDelta deltaPrimaryImaginary);
+
+        PerturbVariantPower(referenceReal, referenceImaginary,
+            deltaCurrentReal, deltaCurrentImaginary,
+            parameters.SecondaryPower, parameters.Variant,
+            secondaryBinomial, powersReal, powersImaginary,
+            out double secondaryReal, out double secondaryImaginary,
+            out TDelta deltaSecondaryReal, out TDelta deltaSecondaryImaginary);
+
+        // G(z) = G(Z) + ΔG — значение в самой точке, множитель при δc1.
+        TDelta secondaryAtPointReal = deltaSecondaryReal + secondaryReal;
+        TDelta secondaryAtPointImaginary = deltaSecondaryImaginary + secondaryImaginary;
+
+        TDelta nextDeltaReal = deltaPrimaryReal
+            + (deltaSecondaryReal * parameters.C1Real - deltaSecondaryImaginary * parameters.C1Imaginary)
+            + (deltaC1Real * secondaryAtPointReal - deltaC1Imaginary * secondaryAtPointImaginary)
+            + (deltaPreviousReal * parameters.C2Real - deltaPreviousImaginary * parameters.C2Imaginary);
+        TDelta nextDeltaImaginary = deltaPrimaryImaginary
+            + (deltaSecondaryImaginary * parameters.C1Real + deltaSecondaryReal * parameters.C1Imaginary)
+            + (deltaC1Real * secondaryAtPointImaginary + deltaC1Imaginary * secondaryAtPointReal)
+            + (deltaPreviousImaginary * parameters.C2Real + deltaPreviousReal * parameters.C2Imaginary);
+        return (nextDeltaReal, nextDeltaImaginary);
+    }
+
+    /// <summary>Режим ядра: только double или гибридный (см. <see cref="DeepZoomPixel{TMode}"/>).</summary>
+    private interface IKernelMode
+    {
+        static abstract bool AllowExtended { get; }
+    }
+
+    private readonly struct DoubleOnlyMode : IKernelMode
+    {
+        public static bool AllowExtended => false;
+    }
+
+    private readonly struct HybridMode : IKernelMode
+    {
+        public static bool AllowExtended => true;
+    }
+
+    /// <summary>
+    /// Пертурбационное ядро Феникса. Шаг — <see cref="PerturbStep{TDelta}"/>; в динамической
+    /// плоскости пиксель задаёт <c>δ₀</c>, а <c>δc1 = 0</c>; в параметрической наоборот —
+    /// <c>δ₀ = 0</c>, а пиксель задаёт <c>δc1</c>. В обоих случаях <c>δ₋₁ = 0</c>.
+    ///
+    /// До порога <see cref="ExtendedDeltaBits"/> (<see cref="DoubleOnlyMode"/>) ядро ведёт δ в
+    /// double от начала до конца; режим — параметр-тип, чтобы в этом, самом частом, случае
+    /// JIT выбросил гибридные ветки целиком. За порогом оно гибридное (см. описание
+    /// <c>PhoenixRenderer.Extended</c>): δ и η ведутся в <see cref="FloatExp"/>, пока малы, и
+    /// переходят в double, как только double их представляет без потерь; начало орбиты
+    /// пропускается таблицей <paramref name="skip"/>. В double-режиме арифметика одна и та же,
+    /// поэтому в полосе, где верны оба пути, кадры совпадают бит-в-бит.
+    /// </summary>
+    private static PixelMetrics DeepZoomPixel<TMode>(
         PhoenixState state,
         ReferenceOrbit orbit,
         in DeepParameters parameters,
-        double deltaPixelReal,
-        double deltaPixelImaginary,
+        LinearSkipTable? skip,
+        FloatExp pixelReal,
+        FloatExp pixelImaginary,
         CancellationToken token)
+        where TMode : struct, IKernelMode
     {
         int maximum = state.Iterations;
         bool detectPeriods = state.ColoringMode == PhoenixColoringMode.Period;
@@ -515,11 +571,19 @@ public static partial class PhoenixRenderer
         Span<double> powersReal = stackalloc double[MaximumPower];
         Span<double> powersImaginary = stackalloc double[MaximumPower];
 
-        double deltaCurrentReal = parameters.ParameterPlane ? 0.0 : deltaPixelReal;
-        double deltaCurrentImaginary = parameters.ParameterPlane ? 0.0 : deltaPixelImaginary;
-        double deltaPreviousReal = 0.0, deltaPreviousImaginary = 0.0;
-        double deltaC1Real = parameters.ParameterPlane ? deltaPixelReal : 0.0;
-        double deltaC1Imaginary = parameters.ParameterPlane ? deltaPixelImaginary : 0.0;
+        int switchExponent = -ExtendedDeltaBits(parameters.DeltaPower);
+        double switchBack = Math.ScaleB(1.0, switchExponent - ModeHysteresisBits);
+
+        FloatExp extendedC1Real = parameters.ParameterPlane ? pixelReal : FloatExp.Zero;
+        FloatExp extendedC1Imaginary = parameters.ParameterPlane ? pixelImaginary : FloatExp.Zero;
+        // В double-режиме δc1 может обратиться в ноль — это допустимо: туда гибридное ядро
+        // переходит лишь при δ, рядом с которым вклад δc1·G(z) пренебрежим (см. SafeInDouble).
+        double deltaC1Real = extendedC1Real.ToDouble();
+        double deltaC1Imaginary = extendedC1Imaginary.ToDouble();
+
+        FloatExp extendedCurrentReal = parameters.ParameterPlane ? FloatExp.Zero : pixelReal;
+        FloatExp extendedCurrentImaginary = parameters.ParameterPlane ? FloatExp.Zero : pixelImaginary;
+        FloatExp extendedPreviousReal = FloatExp.Zero, extendedPreviousImaginary = FloatExp.Zero;
 
         // Orbit[1] — это z₀; Orbit[0] под ним хранит z₋₁.
         int referenceIndex = 1;
@@ -527,8 +591,43 @@ public static partial class PhoenixRenderer
         int detectedPeriod = 0;
         double minimumTrap = double.MaxValue;
         double stripeSum = 0, triangleSum = 0;
-        double currentReal = orbit.Re[1] + deltaCurrentReal;
-        double currentImaginary = orbit.Im[1] + deltaCurrentImaginary;
+
+        if (TMode.AllowExtended && skip is not null)
+        {
+            int skipped = skip.FindSkip(FloatExp.Sqrt(FloatExp.MagnitudeSquared(pixelReal, pixelImaginary)));
+            if (skipped > 0)
+            {
+                Interlocked.Add(ref SkippedIterationsForTests, skipped);
+                extendedCurrentReal = skip.D00[skipped] * pixelReal + skip.D01[skipped] * pixelImaginary;
+                extendedCurrentImaginary = skip.D10[skipped] * pixelReal + skip.D11[skipped] * pixelImaginary;
+                extendedPreviousReal = skip.D00[skipped - 1] * pixelReal + skip.D01[skipped - 1] * pixelImaginary;
+                extendedPreviousImaginary = skip.D10[skipped - 1] * pixelReal + skip.D11[skipped - 1] * pixelImaginary;
+                iteration = skipped;
+                referenceIndex = skipped + 1;
+                minimumTrap = skip.Trap[skipped];
+                stripeSum = skip.Stripe[skipped];
+                triangleSum = skip.Triangle[skipped];
+                if (detectPeriods)
+                {
+                    for (int past = Math.Max(0, skipped - historyCapacity); past < skipped; past++)
+                    {
+                        currentHistory[past % historyCapacity] = new ComplexValue(orbit.Re[past + 1], orbit.Im[past + 1]);
+                        previousHistory[past % historyCapacity] = new ComplexValue(orbit.Re[past], orbit.Im[past]);
+                    }
+                }
+            }
+        }
+
+        bool extended = TMode.AllowExtended && !SafeInDouble(extendedCurrentReal, extendedCurrentImaginary,
+            switchExponent, orbit.Re[referenceIndex], orbit.Im[referenceIndex]);
+        // В FloatExp-режиме double-копии δ — лишь приближение для восстановления z и метрик.
+        double deltaCurrentReal = extendedCurrentReal.ToDouble();
+        double deltaCurrentImaginary = extendedCurrentImaginary.ToDouble();
+        double deltaPreviousReal = extendedPreviousReal.ToDouble();
+        double deltaPreviousImaginary = extendedPreviousImaginary.ToDouble();
+
+        double currentReal = orbit.Re[referenceIndex] + deltaCurrentReal;
+        double currentImaginary = orbit.Im[referenceIndex] + deltaCurrentImaginary;
         double currentMagnitudeSquared = currentReal * currentReal + currentImaginary * currentImaginary;
 
         while (iteration < maximum && currentMagnitudeSquared <= parameters.ThresholdSquared)
@@ -553,45 +652,46 @@ public static partial class PhoenixRenderer
             double referenceReal = orbit.Re[referenceIndex];
             double referenceImaginary = orbit.Im[referenceIndex];
 
-            PerturbVariantPower(referenceReal, referenceImaginary,
-                deltaCurrentReal, deltaCurrentImaginary,
-                parameters.PrimaryPower, parameters.Variant,
-                primaryBinomial, powersReal, powersImaginary,
-                out _, out _, out double deltaPrimaryReal, out double deltaPrimaryImaginary);
-
-            PerturbVariantPower(referenceReal, referenceImaginary,
-                deltaCurrentReal, deltaCurrentImaginary,
-                parameters.SecondaryPower, parameters.Variant,
-                secondaryBinomial, powersReal, powersImaginary,
-                out double secondaryReal, out double secondaryImaginary,
-                out double deltaSecondaryReal, out double deltaSecondaryImaginary);
-
-            // G(z) = G(Z) + ΔG — значение в самой точке, множитель при δc1.
-            double secondaryAtPointReal = secondaryReal + deltaSecondaryReal;
-            double secondaryAtPointImaginary = secondaryImaginary + deltaSecondaryImaginary;
-
-            double nextDeltaReal = deltaPrimaryReal
-                + (parameters.C1Real * deltaSecondaryReal - parameters.C1Imaginary * deltaSecondaryImaginary)
-                + (deltaC1Real * secondaryAtPointReal - deltaC1Imaginary * secondaryAtPointImaginary)
-                + (parameters.C2Real * deltaPreviousReal - parameters.C2Imaginary * deltaPreviousImaginary);
-            double nextDeltaImaginary = deltaPrimaryImaginary
-                + (parameters.C1Real * deltaSecondaryImaginary + parameters.C1Imaginary * deltaSecondaryReal)
-                + (deltaC1Real * secondaryAtPointImaginary + deltaC1Imaginary * secondaryAtPointReal)
-                + (parameters.C2Real * deltaPreviousImaginary + parameters.C2Imaginary * deltaPreviousReal);
-
-            deltaPreviousReal = deltaCurrentReal;
-            deltaPreviousImaginary = deltaCurrentImaginary;
-            deltaCurrentReal = nextDeltaReal;
-            deltaCurrentImaginary = nextDeltaImaginary;
+            if (TMode.AllowExtended && extended)
+            {
+                (FloatExp stepReal, FloatExp stepImaginary) = PerturbStep(referenceReal, referenceImaginary, parameters,
+                    primaryBinomial, secondaryBinomial, powersReal, powersImaginary,
+                    extendedC1Real, extendedC1Imaginary,
+                    extendedCurrentReal, extendedCurrentImaginary, extendedPreviousReal, extendedPreviousImaginary);
+                extendedPreviousReal = extendedCurrentReal;
+                extendedPreviousImaginary = extendedCurrentImaginary;
+                extendedCurrentReal = stepReal;
+                extendedCurrentImaginary = stepImaginary;
+                deltaCurrentReal = extendedCurrentReal.ToDouble();
+                deltaCurrentImaginary = extendedCurrentImaginary.ToDouble();
+                deltaPreviousReal = extendedPreviousReal.ToDouble();
+                deltaPreviousImaginary = extendedPreviousImaginary.ToDouble();
+            }
+            else
+            {
+                (DoubleDelta stepReal, DoubleDelta stepImaginary) = PerturbStep(referenceReal, referenceImaginary, parameters,
+                    primaryBinomial, secondaryBinomial, powersReal, powersImaginary,
+                    new DoubleDelta(deltaC1Real), new DoubleDelta(deltaC1Imaginary),
+                    new DoubleDelta(deltaCurrentReal), new DoubleDelta(deltaCurrentImaginary),
+                    new DoubleDelta(deltaPreviousReal), new DoubleDelta(deltaPreviousImaginary));
+                deltaPreviousReal = deltaCurrentReal;
+                deltaPreviousImaginary = deltaCurrentImaginary;
+                deltaCurrentReal = stepReal.Value;
+                deltaCurrentImaginary = stepImaginary.Value;
+            }
             referenceIndex++;
             iteration++;
 
-            // Ребазирование — точное тождество, поэтому выполняется до восстановления z:
-            // само z от него не меняется, меняется только опорная точка, от которой оно
-            // отсчитано.
+            // Ребазирование — точное тождество, поэтому выполняется до восстановления z: само z
+            // от него не меняется, меняется только опорная точка, от которой оно отсчитано.
+            // Перенос работает с double-копиями. В FloatExp-режиме он случается только на
+            // исчерпании орбиты (для крошечного δ критерии потери значимости не срабатывают),
+            // и перенесённая пара — порядка самих z, так что дальше ей хватает double.
+            int indexBeforeRebase = referenceIndex;
             TryRebase(orbit, ref referenceIndex,
                 ref deltaCurrentReal, ref deltaCurrentImaginary,
                 ref deltaPreviousReal, ref deltaPreviousImaginary);
+            if (TMode.AllowExtended && extended && referenceIndex != indexBeforeRebase) extended = false;
 
             double nextReal = orbit.Re[referenceIndex] + deltaCurrentReal;
             double nextImaginary = orbit.Im[referenceIndex] + deltaCurrentImaginary;
@@ -629,6 +729,32 @@ public static partial class PhoenixRenderer
                     break;
                 }
                 if (detectedPeriod > 0) break;
+            }
+
+            if (!TMode.AllowExtended) continue;
+            double nextReferenceReal = orbit.Re[referenceIndex];
+            double nextReferenceImaginary = orbit.Im[referenceIndex];
+            if (extended)
+            {
+                if (SafeInDouble(extendedCurrentReal, extendedCurrentImaginary, switchExponent,
+                        nextReferenceReal, nextReferenceImaginary))
+                    extended = false;
+            }
+            else
+            {
+                double deltaMax = Math.Max(Math.Abs(deltaCurrentReal), Math.Abs(deltaCurrentImaginary));
+                double referenceMax = Math.Max(Math.Abs(nextReferenceReal), Math.Abs(nextReferenceImaginary));
+                // δ ровно 0 точен и в double; сжатие δ у общего с опорной точкой аттрактора
+                // (referenceMax ≫ δ) тоже не повод замедляться — нелинейных членов там нет.
+                if (deltaMax != 0 && deltaMax < switchBack &&
+                    referenceMax < deltaMax * (NegligibleNonlinearRatio / 16))
+                {
+                    extendedCurrentReal = FloatExp.FromDouble(deltaCurrentReal);
+                    extendedCurrentImaginary = FloatExp.FromDouble(deltaCurrentImaginary);
+                    extendedPreviousReal = FloatExp.FromDouble(deltaPreviousReal);
+                    extendedPreviousImaginary = FloatExp.FromDouble(deltaPreviousImaginary);
+                    extended = true;
+                }
             }
         }
 
@@ -815,15 +941,14 @@ public static partial class PhoenixRenderer
     }
 
     /// <summary>
-    /// Выбор ядра по плану кадра: до порога <see cref="ExtendedDeltaBits"/> — прежнее
-    /// double-ядро <see cref="DeepZoomPixel"/> без единой изменённой строки, за ним —
-    /// гибридное <see cref="DeepZoomPixelExtended"/>.
+    /// Ядро по плану кадра: до порога <see cref="ExtendedDeltaBits"/> — только double, за ним —
+    /// гибридный режим с линейным пропуском (таблица <paramref name="skip"/> есть только там).
     /// </summary>
     private static PixelMetrics DeepZoomPixelDispatch(
         PhoenixState state, ReferenceOrbit orbit, in DeepParameters parameters, DeepZoomPlan plan,
         LinearSkipTable? skip, FloatExp deltaReal, FloatExp deltaImaginary, CancellationToken token) =>
         plan.UseExtendedDelta
-            ? DeepZoomPixelExtended(state, orbit, parameters, skip, deltaReal, deltaImaginary, token)
-            : DeepZoomPixel(state, orbit, parameters, deltaReal.ToDouble(), deltaImaginary.ToDouble(), token);
+            ? DeepZoomPixel<HybridMode>(state, orbit, parameters, skip, deltaReal, deltaImaginary, token)
+            : DeepZoomPixel<DoubleOnlyMode>(state, orbit, parameters, null, deltaReal, deltaImaginary, token);
 
 }

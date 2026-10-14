@@ -31,12 +31,12 @@ public static partial class MandelbrotFamilyRenderer
     {
         bool quasi = kind == ReflectKind.CubicQuasiBurningShip;
         double currentX = x + dx, currentY = y + dy;
-        if (quasi) { dx = FoldedDelta(x, dx); x = System.Math.Abs(x); }
+        if (quasi) { dx = PerturbationReference.FoldedDelta(x, dx); x = System.Math.Abs(x); }
         double a = x * x - y * y, b = 2 * x * y;
         double d2r = dx * dx - dy * dy, d2i = 2 * dx * dy;
         double du = 3 * (a * dx - b * dy) + 3 * (x * d2r - y * d2i) + dx * (dx * dx - 3 * dy * dy);
         double dv = 3 * (a * dy + b * dx) + 3 * (x * d2i + y * d2r) + dy * (3 * dx * dx - dy * dy);
-        double folded = FoldedDelta(referenceV, dv);
+        double folded = PerturbationReference.FoldedDelta(referenceV, dv);
         Jacobian2 jacobian = estimateDistance
             ? FoldedCubicJacobian(quasi, currentX, currentY, System.Math.Sign(currentX), System.Math.Sign(referenceV + dv))
             : Jacobian2.Zero;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using FractalExplorerWPF.Core.NewtonMath;
 
 namespace FractalExplorerWPF.Core.Rendering;
@@ -38,6 +39,32 @@ internal static class PerturbationReference
     /// обслуживается ребазированием и вырожденной не считается.
     /// </summary>
     public const int MinimumOrbitLength = 4;
+
+    /// <summary>
+    /// <c>|Zc + δc| − |Zc|</c> без катастрофического сокращения: пока δ не перевернул знак
+    /// компоненты (обычный случай на глубоком зуме) это ровно ±δc, а на перевороте — точное
+    /// отражённое выражение (δ там уже сравнимо с Z, и тут же срабатывает ребазирование).
+    /// Опорная компонента — double из опорной орбиты, ограниченной радиусом выхода.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TDelta FoldedDelta<TDelta>(double referenceComponent, TDelta deltaComponent)
+        where TDelta : struct, IDeltaNumber<TDelta>
+    {
+        if (referenceComponent > 0.0)
+            return deltaComponent > -referenceComponent
+                ? deltaComponent
+                : -(deltaComponent + 2.0 * referenceComponent);
+        if (referenceComponent < 0.0)
+            return deltaComponent < -referenceComponent
+                ? -deltaComponent
+                : deltaComponent + 2.0 * referenceComponent;
+        return TDelta.Abs(deltaComponent);
+    }
+
+    /// <inheritdoc cref="FoldedDelta{TDelta}"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static double FoldedDelta(double referenceComponent, double deltaComponent) =>
+        FoldedDelta(referenceComponent, new DoubleDelta(deltaComponent)).Value;
 
     /// <summary>Двоичный логарифм зума; для нуля, отрицательного, меньшего единицы и нечислового — 0.</summary>
     public static double ZoomBits(FloatExp zoom)
