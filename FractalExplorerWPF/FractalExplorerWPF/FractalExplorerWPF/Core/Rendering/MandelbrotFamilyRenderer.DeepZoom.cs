@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using FractalExplorerWPF.Core.NewtonMath;
 using FractalExplorerWPF.Models;
 using Color = System.Windows.Media.Color;
@@ -24,7 +25,8 @@ namespace FractalExplorerWPF.Core.Rendering;
 /// 2. Каждый пиксель итерирует лишь отклонение <c>δₙ = zₙ − Zₙ</c>:
 ///    <c>δₙ₊₁ = 2·Zₙ·δₙ + δₙ² + δc</c> (для Жюлиа слагаемое δc отсутствует, а δc задаёт δ₀).
 ///    Представление δ — обычный double либо <see cref="FloatExp"/> за ~1e72 (тот же
-///    <see cref="PlanDeepZoom"/>).
+///    <see cref="PlanDeepZoom"/>); каждое ядро написано один раз и обобщено по нему (см.
+///    <c>MandelbrotFamilyRenderer.DeepDelta.cs</c>).
 /// 3. Потеря значимости («глитчи») лечится rebasing по Zhuoran: когда |zₙ| &lt; |δₙ| или
 ///    опорная орбита закончилась, δ сбрасывается в <c>z − Z₀</c>, а индекс опорной точки — в 0.
 ///
@@ -164,22 +166,6 @@ public static partial class MandelbrotFamilyRenderer
         return System.Math.Abs(deltaComponent);
     }
 
-    // Тот же разбор случаев, что и <see cref="FoldedDelta"/>, но δ — в <see cref="FloatExp"/>
-    // (для FloatExp-ядра отражённых вариантов). Опорная компонента остаётся double — она из
-    // опорной орбиты, ограничена радиусом бейлаута и в расширенном диапазоне не нуждается.
-    private static FloatExp FoldedDeltaExp(double referenceComponent, FloatExp deltaComponent)
-    {
-        if (referenceComponent > 0.0)
-            return deltaComponent > -referenceComponent
-                ? deltaComponent
-                : -(deltaComponent + 2.0 * referenceComponent);
-        if (referenceComponent < 0.0)
-            return deltaComponent < -referenceComponent
-                ? -deltaComponent
-                : deltaComponent + 2.0 * referenceComponent;
-        return FloatExp.Abs(deltaComponent);
-    }
-
     // ------------------------------------------------------------------ precision planner
 
     // log2(зума), начиная с которого отклонение δ на пиксель уже не помещается надёжно в
@@ -245,45 +231,13 @@ public static partial class MandelbrotFamilyRenderer
                     initialReal, initialImaginary, Jacobian2Exp.Identity, distanceScale, SmoothingPower(state));
         }
 
-        // Варианты с отражением/сопряжением идут своим ядром; за порогом FloatExpDeltaZoomBits
-        // δ ведётся в FloatExp — тем же переключателем плана, что и у z²+c ниже.
-        if (ReflectKindOf(state.Variant) is { } reflect)
-            return plan.UseFloatExpDelta
-                ? DeepZoomPixelReflectedFloatExp(state, orbit, reflect, isJulia,
-                    deltaReal, deltaImaginary, escapeSquared, distanceScale, token)
-                : DeepZoomPixelReflected(state, orbit, reflect, isJulia,
-                    deltaReal.ToDouble(), deltaImaginary.ToDouble(),
-                    escapeSquared, distanceScale.ToDouble(), token);
-
-        // Симоноброт целой степени: композиция возмущений zᵖ и |z|ᵖ=M^(p/2) (при нечётном p
-        // множитель модуля несёт корень); BLA — вещественная 2×2 (ведущий линейный член не
-        // комплексный). δ — double либо FloatExp по тому же плану.
-        int simonobrotPower = SimonobrotPowerOrZero(state);
-        if (simonobrotPower >= 2)
-            return plan.UseFloatExpDelta
-                ? DeepZoomPixelSimonobrotFloatExp(state, orbit, simonobrotPower,
-                    deltaReal, deltaImaginary, escapeSquared, distanceScale, token)
-                : DeepZoomPixelSimonobrot(state, orbit, simonobrotPower,
-                    deltaReal.ToDouble(), deltaImaginary.ToDouble(),
-                    escapeSquared, distanceScale.ToDouble(), token);
-
-        // Multibrot целой степени: биномиальное возмущение (BLA с p-зависимым A, комплексная
-        // таблица). δ — double либо FloatExp по тому же плану.
-        int multibrotPower = MultibrotPowerOrZero(state);
-        if (multibrotPower >= 3)
-            return plan.UseFloatExpDelta
-                ? DeepZoomPixelMultibrotFloatExp(state, orbit, multibrotPower,
-                    deltaReal, deltaImaginary, escapeSquared, distanceScale, token)
-                : DeepZoomPixelMultibrot(state, orbit, multibrotPower,
-                    deltaReal.ToDouble(), deltaImaginary.ToDouble(),
-                    escapeSquared, distanceScale.ToDouble(), token);
-        // p == 2 (или обычные Mandelbrot/Julia) — общий z²+c-путь ниже.
-
+        // За порогом FloatExpDeltaZoomBits δ ведётся в FloatExp, до него — в double.
         return plan.UseFloatExpDelta
-            ? DeepZoomPixelFloatExp(state, orbit, isJulia, deltaReal, deltaImaginary,
-                escapeSquared, distanceScale, token)
-            : DeepZoomPixel(state, orbit, isJulia, deltaReal.ToDouble(), deltaImaginary.ToDouble(),
-                escapeSquared, distanceScale.ToDouble(), token);
+            ? DeepZoomKernel<FloatExp, Jacobian2Exp>(state, orbit, isJulia,
+                deltaReal, deltaImaginary, escapeSquared, distanceScale, token)
+            : DeepZoomKernel<DoubleDelta, Jacobian2>(state, orbit, isJulia,
+                new(deltaReal.ToDouble()), new(deltaImaginary.ToDouble()), escapeSquared,
+                new(distanceScale.ToDouble()), token);
     }
 
     // ------------------------------------------------------------------ entry points
@@ -999,15 +953,195 @@ public static partial class MandelbrotFamilyRenderer
             : metrics;
     }
 
-    private static PixelMetrics DeepZoomPixel(
+    // Каждое ядро ниже написано один раз и обобщено по представлению δ (см. IDeltaNumber и
+    // IDeepDerivative): DoubleDelta до порога FloatExpDeltaZoomBits, FloatExp за ним — на зуме за ~1e72 δ и
+    // особенно δ² перестают помещаться в обычный double. Опорная орбита и все проверки (escape,
+    // rebasing) остаются в double — там значения ограничены и расширенный диапазон не нужен.
+
+    /// <summary>Выбор ядра по варианту — общий для обоих представлений δ.</summary>
+    private static PixelMetrics DeepZoomKernel<TDelta, TDerivative>(
         MandelbrotState state,
         ReferenceOrbit orbit,
         bool isJulia,
-        double deltaConstantReal,
-        double deltaConstantImaginary,
+        TDelta deltaReal,
+        TDelta deltaImaginary,
         double escapeSquared,
-        double distanceScale,
+        TDelta distanceScale,
         CancellationToken token)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
+    {
+        // Варианты с отражением/сопряжением идут своим ядром.
+        if (ReflectKindOf(state.Variant) is { } reflect)
+            return DeepZoomPixelReflected<TDelta, TDerivative>(state, orbit, reflect, isJulia,
+                deltaReal, deltaImaginary, escapeSquared, distanceScale, token);
+
+        // Симоноброт целой степени: композиция возмущений zᵖ и |z|ᵖ=M^(p/2) (при нечётном p
+        // множитель модуля несёт корень); BLA — вещественная 2×2 (ведущий линейный член не
+        // комплексный).
+        int simonobrotPower = SimonobrotPowerOrZero(state);
+        if (simonobrotPower >= 2)
+            return DeepZoomPixelSimonobrot<TDelta, TDerivative>(state, orbit, simonobrotPower,
+                deltaReal, deltaImaginary, escapeSquared, distanceScale, token);
+
+        // Multibrot целой степени: биномиальное возмущение (BLA с p-зависимым A, комплексная
+        // таблица).
+        int multibrotPower = MultibrotPowerOrZero(state);
+        if (multibrotPower >= 3)
+            return DeepZoomPixelMultibrot<TDelta, TDerivative>(state, orbit, multibrotPower,
+                deltaReal, deltaImaginary, escapeSquared, distanceScale, token);
+
+        // p == 2 (или обычные Mandelbrot/Julia) — общий z²+c-путь.
+        return DeepZoomPixel<TDelta, TDerivative>(state, orbit, isJulia,
+            deltaReal, deltaImaginary, escapeSquared, distanceScale, token);
+    }
+
+    // |Zc + δc| − |Zc| без катастрофического сокращения: пока δ не перевернул знак
+    // компоненты (обычный случай на глубоком зуме) это ровно ±δc; на перевороте — точное
+    // отражённое выражение (δ там уже сравнимо с Z и тут же срабатывает rebasing). Опорная
+    // компонента — double из опорной орбиты, ограниченной радиусом бейлаута.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static TDelta FoldedDelta<TDelta, TDerivative>(double referenceComponent, TDelta deltaComponent)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
+    {
+        if (referenceComponent > 0.0)
+            return deltaComponent > -referenceComponent
+                ? deltaComponent
+                : -(deltaComponent + 2.0 * referenceComponent);
+        if (referenceComponent < 0.0)
+            return deltaComponent < -referenceComponent
+                ? -deltaComponent
+                : deltaComponent + 2.0 * referenceComponent;
+        return TDelta.Abs(deltaComponent);
+    }
+
+    /// <summary>
+    /// Пропуск комплексной BLA: δ ← A·δ + B·δc сразу на несколько итераций. BLA доступен только
+    /// для гладкой окраски (таблица в остальных режимах — null): пропуск итераций несовместим ни
+    /// с накоплением ловушки / полосовой суммы по каждому шагу, ни с рекуррентностью производной.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TrySkipComplexBla<TDelta, TDerivative>(BlaTable? bla, ref int referenceIndex,
+        ref int iteration, int maxIterations, ref TDelta deltaReal, ref TDelta deltaImaginary,
+        TDelta addReal, TDelta addImaginary)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
+    {
+        if (bla is null ||
+            !bla.TryLookup(referenceIndex, TDelta.MagnitudeSquared(deltaReal, deltaImaginary),
+                maxIterations - iteration,
+                out double blaAx, out double blaAy, out double blaBx, out double blaBy, out int blaSteps))
+            return false;
+
+        TDerivative.ComplexBlaStep(ref deltaReal, ref deltaImaginary, addReal, addImaginary, blaAx, blaAy, blaBx, blaBy);
+        referenceIndex += blaSteps;
+        iteration += blaSteps;
+        return true;
+    }
+
+    /// <summary>Пропуск вещественной 2×2 BLA (отражённые варианты и Симоноброт).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TrySkipRealBla<TDelta, TDerivative>(RealBlaTable? bla, ref int referenceIndex,
+        ref int iteration, int maxIterations, ref TDelta deltaReal, ref TDelta deltaImaginary,
+        TDelta addReal, TDelta addImaginary)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
+    {
+        // В режимах ловушки/полос/DE таблица отключена — |δ|² тогда и не считается.
+        if (bla is null) return false;
+        double deltaMagnitudeSquared = TDelta.MagnitudeSquared(deltaReal, deltaImaginary);
+        if (!bla.CanSkip(referenceIndex, deltaMagnitudeSquared) ||
+            !bla.TryLookup(referenceIndex, deltaMagnitudeSquared,
+                maxIterations - iteration,
+                out double blaA11, out double blaA12, out double blaA21, out double blaA22,
+                out double blaB11, out double blaB12, out double blaB21, out double blaB22,
+                out int blaSteps))
+            return false;
+
+        // δ ← A·δ + B·δc  (вещественная 2×2), пропуская blaSteps итераций разом
+        TDelta skippedReal = deltaReal * blaA11 + deltaImaginary * blaA12
+                           + addReal * blaB11 + addImaginary * blaB12;
+        TDelta skippedImaginary = deltaReal * blaA21 + deltaImaginary * blaA22
+                                + addReal * blaB21 + addImaginary * blaB22;
+        deltaReal = skippedReal;
+        deltaImaginary = skippedImaginary;
+        referenceIndex += blaSteps;
+        iteration += blaSteps;
+        if (CountRealBlaSkipsForTests)
+            Interlocked.Add(ref RealBlaSkippedIterationsForTests, blaSteps);
+        return true;
+    }
+
+    /// <summary>Расстояние z до ловушки «оси» — как в обычном <see cref="Iterate"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static double TrapDistance(double currentReal, double currentImaginary) =>
+        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary));
+
+    /// <summary>Вклад z в полосовое среднее — как в обычном <see cref="Iterate"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static double StripeTerm(MandelbrotState state, double currentReal, double currentImaginary) =>
+        0.5 + 0.5 * System.Math.Sin(state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
+
+    /// <summary>
+    /// Конец шага любого ядра: полное z = Z + δ по следующей опорной точке, выход за радиус и
+    /// ребазирование. true — пиксель вышел, z лежит в <paramref name="fullReal"/>/
+    /// <paramref name="fullImaginary"/>.
+    ///
+    /// Rebasing по Zhuoran (|z| < |δ|) плюс критерий Pauldelbrot (|z|² ≪ |Zref|²): и то и
+    /// другое означает, что опорная точка перестала быть хорошим приближением. δ отсчитывается
+    /// от опорной точки, поэтому при сбросе индекса в 0 нужно δ = z − Z₀. Для Мандельброта
+    /// Z₀ = 0 (вычитание — no-op); для Жюлиа Z₀ = центр, и без вычитания rebasing давал глитчи.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool CompleteStep<TDelta, TDerivative>(ReferenceOrbit orbit, ref int referenceIndex,
+        ref TDelta deltaReal, ref TDelta deltaImaginary, double escapeSquared, bool cubicRebase,
+        out double magnitudeSquared, out double fullReal, out double fullImaginary)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
+    {
+        double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
+        double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
+        fullReal = nextReferenceReal + deltaReal.ToDouble();
+        fullImaginary = nextReferenceImaginary + deltaImaginary.ToDouble();
+        magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
+        if (magnitudeSquared > escapeSquared) return true;
+
+        // |δ|²: при действительно малом δ обращается в 0 и не даёт ложного rebasing.
+        double deltaMagnitudeSquared = TDelta.MagnitudeSquared(deltaReal, deltaImaginary);
+        double referenceMagnitudeSquared =
+            nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
+        if (referenceIndex >= orbit.Length - 1 ||
+            magnitudeSquared < deltaMagnitudeSquared ||
+            magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
+        {
+            if (cubicRebase)
+            {
+                (deltaReal, deltaImaginary) = TDerivative.RebaseCubic(orbit, referenceIndex,
+                    deltaReal, deltaImaginary, fullReal, fullImaginary);
+            }
+            else
+            {
+                deltaReal = TDelta.FromDouble(fullReal - orbit.Re[0]);
+                deltaImaginary = TDelta.FromDouble(fullImaginary - orbit.Im[0]);
+            }
+            referenceIndex = 0;
+        }
+        return false;
+    }
+
+    // Пертурбационное ядро z²+c (Мандельброт и Жюлиа).
+    private static PixelMetrics DeepZoomPixel<TDelta, TDerivative>(
+        MandelbrotState state,
+        ReferenceOrbit orbit,
+        bool isJulia,
+        TDelta deltaConstantReal,
+        TDelta deltaConstantImaginary,
+        double escapeSquared,
+        TDelta distanceScale,
+        CancellationToken token)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
     {
         int maxIterations = state.Iterations;
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
@@ -1015,146 +1149,13 @@ public static partial class MandelbrotFamilyRenderer
 
         // Мандельброт: δ₀ = 0, а δc добавляется каждый шаг. Жюлиа: c постоянна, поэтому
         // δc не добавляется, но задаёт начальное возмущение δ₀.
-        double deltaReal = isJulia ? deltaConstantReal : 0.0;
-        double deltaImaginary = isJulia ? deltaConstantImaginary : 0.0;
-        double addReal = isJulia ? 0.0 : deltaConstantReal;
-        double addImaginary = isJulia ? 0.0 : deltaConstantImaginary;
+        TDelta deltaReal = isJulia ? deltaConstantReal : TDelta.Zero;
+        TDelta deltaImaginary = isJulia ? deltaConstantImaginary : TDelta.Zero;
+        TDelta addReal = isJulia ? TDelta.Zero : deltaConstantReal;
+        TDelta addImaginary = isJulia ? TDelta.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
-
-        // BLA доступен только для гладкой окраски: пропуск итераций несовместим ни с
-        // накоплением орбитальной ловушки / полосовой суммы по каждому шагу, ни с
-        // рекуррентностью производной для Distance Estimation.
-        BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
-            ? orbit.Bla
-            : null;
-
-        int referenceIndex = 0;
-        int iteration = 0;
-        double magnitudeSquared = 0;
-        double escapeReal = 0;
-        double escapeImaginary = 0;
-        double minTrap = double.MaxValue;
-        double stripe = 0;
-        bool escaped = false;
-
-        while (iteration < maxIterations)
-        {
-            if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
-
-            if (bla is not null &&
-                bla.TryLookup(referenceIndex, deltaReal * deltaReal + deltaImaginary * deltaImaginary,
-                    maxIterations - iteration,
-                    out double blaAx, out double blaAy, out double blaBx, out double blaBy, out int blaSteps))
-            {
-                // δ ← A·δ + B·δc  (комплексно), пропуская blaSteps итераций разом
-                double skippedReal = blaAx * deltaReal - blaAy * deltaImaginary
-                                   + blaBx * addReal - blaBy * addImaginary;
-                double skippedImaginary = blaAx * deltaImaginary + blaAy * deltaReal
-                                        + blaBx * addImaginary + blaBy * addReal;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-            }
-            else
-            {
-                double referenceReal = orbit.Re[referenceIndex];
-                double referenceImaginary = orbit.Im[referenceIndex];
-
-                double currentReal = referenceReal + deltaReal;
-                double currentImaginary = referenceImaginary + deltaImaginary;
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-                if (estimateDistance)
-                    derivative = AdvanceDerivative(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
-
-                // δ ← 2·Z·δ + δ² + δc
-                double twoZDeltaReal = 2 * (referenceReal * deltaReal - referenceImaginary * deltaImaginary);
-                double twoZDeltaImaginary = 2 * (referenceReal * deltaImaginary + referenceImaginary * deltaReal);
-                double deltaSquaredReal = deltaReal * deltaReal - deltaImaginary * deltaImaginary;
-                double deltaSquaredImaginary = 2 * deltaReal * deltaImaginary;
-                deltaReal = twoZDeltaReal + deltaSquaredReal + addReal;
-                deltaImaginary = twoZDeltaImaginary + deltaSquaredImaginary + addImaginary;
-
-                referenceIndex++;
-                iteration++;
-            }
-
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal;
-            double fullImaginary = nextReferenceImaginary + deltaImaginary;
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
-            {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
-                escaped = true;
-                break;
-            }
-
-            double deltaMagnitudeSquared = deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            // Rebasing по Zhuoran (|z| < |δ|) плюс критерий Pauldelbrot (|z|² ≪ |Zref|²):
-            // и то и другое означает, что опорная точка перестала быть хорошим приближением.
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                // δ отсчитывается от опорной точки, поэтому при сбросе индекса в 0 нужно
-                // δ = z − Z₀. Для Мандельброта Z₀ = 0 (вычитание — no-op, бит-в-бит как
-                // раньше); для Жюлиа Z₀ = центр, и без вычитания rebasing давал глитчи.
-                deltaReal = fullReal - orbit.Re[0];
-                deltaImaginary = fullImaginary - orbit.Im[0];
-                referenceIndex = 0;
-            }
-        }
-
-        if (!escaped)
-            return new PixelMetrics(maxIterations, maxIterations, 0, 0);
-
-        return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
-    }
-
-    // Тот же алгоритм, что <see cref="DeepZoomPixel"/>, но отклонение δ ведётся в
-    // <see cref="FloatExp"/>: на зуме за ~1e72 δ и особенно δ² перестают помещаться в
-    // обычный double. Опорная орбита и все проверки (escape, rebasing) остаются в double —
-    // там значения ограничены и расширенный диапазон не нужен. Ниже порога FloatExp этот
-    // путь не вызывается, поэтому расхождение округления с double-путём картинку не задевает.
-    private static PixelMetrics DeepZoomPixelFloatExp(
-        MandelbrotState state,
-        ReferenceOrbit orbit,
-        bool isJulia,
-        FloatExp deltaConstantReal,
-        FloatExp deltaConstantImaginary,
-        double escapeSquared,
-        FloatExp distanceScale,
-        CancellationToken token)
-    {
-        int maxIterations = state.Iterations;
-        bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
-        bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
-
-        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
-        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
-        FloatExp addReal = isJulia ? FloatExp.Zero : deltaConstantReal;
-        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
-
-        bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        // Производная для Distance Estimation здесь тоже расширенная: |D| растёт примерно как
-        // сам зум и за 1.8e308 в double не помещается (см. Jacobian2Exp).
-        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
+        TDerivative derivative = isJulia ? TDerivative.Identity : TDerivative.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
@@ -1174,45 +1175,24 @@ public static partial class MandelbrotFamilyRenderer
         {
             if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
 
-            if (bla is not null &&
-                bla.TryLookup(referenceIndex,
-                    FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble(),
-                    maxIterations - iteration,
-                    out double blaAx, out double blaAy, out double blaBx, out double blaBy, out int blaSteps))
-            {
-                // δ ← A·δ + B·δc  (A, B — double из таблицы; δ, δc — FloatExp)
-                FloatExp skippedReal = deltaReal * blaAx - deltaImaginary * blaAy
-                                     + addReal * blaBx - addImaginary * blaBy;
-                FloatExp skippedImaginary = deltaReal * blaAy + deltaImaginary * blaAx
-                                          + addReal * blaBy + addImaginary * blaBx;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-            }
-            else
+            if (!TrySkipComplexBla<TDelta, TDerivative>(bla, ref referenceIndex, ref iteration, maxIterations,
+                    ref deltaReal, ref deltaImaginary, addReal, addImaginary))
             {
                 double referenceReal = orbit.Re[referenceIndex];
                 double referenceImaginary = orbit.Im[referenceIndex];
 
                 double currentReal = referenceReal + deltaReal.ToDouble();
                 double currentImaginary = referenceImaginary + deltaImaginary.ToDouble();
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-
+                if (trackTrap) minTrap = System.Math.Min(minTrap, TrapDistance(currentReal, currentImaginary));
+                if (trackStripe) stripe += StripeTerm(state, currentReal, currentImaginary);
                 if (estimateDistance)
-                    derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
+                    derivative = TDerivative.Advance(state, derivative, parameterDerivative, currentReal, currentImaginary);
 
                 // δ ← 2·Z·δ + δ² + δc
-                FloatExp twoZDeltaReal = (deltaReal * referenceReal - deltaImaginary * referenceImaginary) * 2.0;
-                FloatExp twoZDeltaImaginary = (deltaReal * referenceImaginary + deltaImaginary * referenceReal) * 2.0;
-                FloatExp deltaSquaredReal = deltaReal * deltaReal - deltaImaginary * deltaImaginary;
-                FloatExp deltaSquaredImaginary = deltaReal * deltaImaginary * 2.0;
+                TDelta twoZDeltaReal = (deltaReal * referenceReal - deltaImaginary * referenceImaginary) * 2.0;
+                TDelta twoZDeltaImaginary = (deltaImaginary * referenceReal + deltaReal * referenceImaginary) * 2.0;
+                TDelta deltaSquaredReal = deltaReal * deltaReal - deltaImaginary * deltaImaginary;
+                TDelta deltaSquaredImaginary = deltaReal * 2.0 * deltaImaginary;
                 deltaReal = twoZDeltaReal + deltaSquaredReal + addReal;
                 deltaImaginary = twoZDeltaImaginary + deltaSquaredImaginary + addImaginary;
 
@@ -1220,77 +1200,53 @@ public static partial class MandelbrotFamilyRenderer
                 iteration++;
             }
 
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal.ToDouble();
-            double fullImaginary = nextReferenceImaginary + deltaImaginary.ToDouble();
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
+            if (CompleteStep<TDelta, TDerivative>(orbit, ref referenceIndex, ref deltaReal, ref deltaImaginary,
+                    escapeSquared, false, out magnitudeSquared, out escapeReal, out escapeImaginary))
             {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
                 escaped = true;
                 break;
-            }
-
-            // |δ|²: при действительно малом δ обращается в 0 и не даёт ложного rebasing;
-            // ближе к |δ| ~ |z| снова становится числом в диапазоне double — как и нужно.
-            double deltaMagnitudeSquared = FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble();
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                // δ = z − Z₀ (для Мандельброта Z₀ = 0; для Жюлиа — центр). См. double-ядро.
-                deltaReal = FloatExp.FromDouble(fullReal - orbit.Re[0]);
-                deltaImaginary = FloatExp.FromDouble(fullImaginary - orbit.Im[0]);
-                referenceIndex = 0;
             }
         }
 
         if (!escaped)
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
-        return FinishDeepZoomPixelExp(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
+        return TDerivative.Finish(iteration, magnitudeSquared, minTrap, stripe,
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, 2);
     }
 
     // Пертурбационное ядро для отражённых вариантов (Burning Ship, Julia Burning Ship,
-    // Tricorn, Buffalo, Celtic). Их формула — «свёртка знака» компонент z, затем z²+c,
-    // поэтому линейная часть возмущения не комплексная: свёрнутое δ считается точным
-    // разбором случаев (<see cref="FoldedDelta"/>), а ускоряется вещественной 2×2 таблицей
-    // (<see cref="RealBlaTable"/>), а не комплексной. δ здесь всегда double — за порогом
-    // FloatExpDeltaZoomBits используется двойник <see cref="DeepZoomPixelReflectedFloatExp"/>.
-    // Опорная орбита и все проверки (escape, rebasing) — как в <see cref="DeepZoomPixel"/>.
-    private static PixelMetrics DeepZoomPixelReflected(
+    // Tricorn, Buffalo, Celtic, перпендикулярные и кубические свёртки). Их формула — «свёртка
+    // знака» компонент z, затем z²+c, поэтому линейная часть возмущения не комплексная:
+    // свёрнутое δ считается точным разбором случаев (<see cref="FoldedDelta"/>), а ускоряется
+    // вещественной 2×2 таблицей (<see cref="RealBlaTable"/>), а не комплексной.
+    private static PixelMetrics DeepZoomPixelReflected<TDelta, TDerivative>(
         MandelbrotState state,
         ReferenceOrbit orbit,
         ReflectKind kind,
         bool isJulia,
-        double deltaConstantReal,
-        double deltaConstantImaginary,
+        TDelta deltaConstantReal,
+        TDelta deltaConstantImaginary,
         double escapeSquared,
-        double distanceScale,
+        TDelta distanceScale,
         CancellationToken token)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
     {
         int maxIterations = state.Iterations;
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
         bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
+        bool cubic = IsCubicReflected(kind);
 
-        double deltaReal = isJulia ? deltaConstantReal : 0.0;
-        double deltaImaginary = isJulia ? deltaConstantImaginary : 0.0;
-        double addReal = isJulia ? 0.0 : deltaConstantReal;
-        double addImaginary = isJulia ? 0.0 : deltaConstantImaginary;
+        TDelta deltaReal = isJulia ? deltaConstantReal : TDelta.Zero;
+        TDelta deltaImaginary = isJulia ? deltaConstantImaginary : TDelta.Zero;
+        TDelta addReal = isJulia ? TDelta.Zero : deltaConstantReal;
+        TDelta addImaginary = isJulia ? TDelta.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
+        TDerivative derivative = isJulia ? TDerivative.Identity : TDerivative.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
-        // BLA с вещественной 2×2 линейной частью. Условия те же, что у комплексного:
-        // пропуск итераций несовместим с накоплением ловушки/полос по каждому шагу и с
-        // рекуррентностью производной для Distance Estimation.
         RealBlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
             ? orbit.RealBla
             : null;
@@ -1308,54 +1264,27 @@ public static partial class MandelbrotFamilyRenderer
         {
             if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
 
-            // В режимах ловушки/полос/DE таблица отключена — |δ|² тогда и не считается.
-            double blaDeltaMagnitudeSquared = bla is null
-                ? 0.0
-                : deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-            if (bla is not null && bla.CanSkip(referenceIndex, blaDeltaMagnitudeSquared) &&
-                bla.TryLookup(referenceIndex, blaDeltaMagnitudeSquared,
-                    maxIterations - iteration,
-                    out double blaA11, out double blaA12, out double blaA21, out double blaA22,
-                    out double blaB11, out double blaB12, out double blaB21, out double blaB22,
-                    out int blaSteps))
-            {
-                // δ ← A·δ + B·δc  (вещественная 2×2), пропуская blaSteps итераций разом
-                double skippedReal = blaA11 * deltaReal + blaA12 * deltaImaginary
-                                   + blaB11 * addReal + blaB12 * addImaginary;
-                double skippedImaginary = blaA21 * deltaReal + blaA22 * deltaImaginary
-                                        + blaB21 * addReal + blaB22 * addImaginary;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-                if (CountRealBlaSkipsForTests)
-                    Interlocked.Add(ref RealBlaSkippedIterationsForTests, blaSteps);
-            }
-            else
+            if (!TrySkipRealBla<TDelta, TDerivative>(bla, ref referenceIndex, ref iteration, maxIterations,
+                    ref deltaReal, ref deltaImaginary, addReal, addImaginary))
             {
                 double referenceReal = orbit.Re[referenceIndex];
                 double referenceImaginary = orbit.Im[referenceIndex];
 
                 // Ловушка/полосы считаются по z (до свёртки), как в обычном Iterate.
-                double currentReal = referenceReal + deltaReal;
-                double currentImaginary = referenceImaginary + deltaImaginary;
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
+                double currentReal = referenceReal + deltaReal.ToDouble();
+                double currentImaginary = referenceImaginary + deltaImaginary.ToDouble();
+                if (trackTrap) minTrap = System.Math.Min(minTrap, TrapDistance(currentReal, currentImaginary));
+                if (trackStripe) stripe += StripeTerm(state, currentReal, currentImaginary);
 
-                if (estimateDistance && !IsCubicReflected(kind))
-                    derivative = AdvanceDerivative(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
+                if (estimateDistance && !cubic)
+                    derivative = TDerivative.Advance(state, derivative, parameterDerivative, currentReal, currentImaginary);
 
-                if (IsCubicReflected(kind))
+                if (cubic)
                 {
-                    var delta = FoldedCubicDelta(kind, referenceReal, referenceImaginary, orbit.CubicV![referenceIndex].ToDouble(),
-                        deltaReal, deltaImaginary, estimateDistance);
+                    var delta = TDerivative.FoldedCubicStep(kind, orbit, referenceIndex, deltaReal, deltaImaginary,
+                        estimateDistance);
                     if (estimateDistance)
-                        derivative = Jacobian2.Multiply(delta.Jacobian, derivative) + parameterDerivative;
+                        derivative = TDerivative.Chain(delta.Jacobian, derivative, parameterDerivative);
                     deltaReal = delta.Real + addReal;
                     deltaImaginary = delta.Imaginary + addImaginary;
                 }
@@ -1363,36 +1292,38 @@ public static partial class MandelbrotFamilyRenderer
                 {
                     // u = Re(z²) = zr²−zi² ⇒ δu = 2Zr·δr − 2Zi·δi + δr² − δi² ;  Re' = |u| + cr
                     // v = Im(z²) = 2 zr zi ⇒ δv = 2(Zr·δi + Zi·δr) + 2 δr δi   ;  Im' = v + ci
-                    double deltaU = 2 * (referenceReal * deltaReal - referenceImaginary * deltaImaginary)
+                    TDelta deltaU = (deltaReal * referenceReal - deltaImaginary * referenceImaginary) * 2.0
                                   + deltaReal * deltaReal - deltaImaginary * deltaImaginary;
-                    double deltaV = 2 * (referenceReal * deltaImaginary + referenceImaginary * deltaReal)
-                                  + 2 * deltaReal * deltaImaginary;
-                    deltaReal = FoldedDelta(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU) + addReal;
+                    TDelta deltaV = (deltaImaginary * referenceReal + deltaReal * referenceImaginary) * 2.0
+                                  + deltaReal * 2.0 * deltaImaginary;
+                    deltaReal = FoldedDelta<TDelta, TDerivative>(
+                        referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU) + addReal;
                     deltaImaginary = deltaV + addImaginary;
                 }
                 else
                 {
                     // Свёрнутая опорная точка W и свёрнутое отклонение δ_w = fold(Z+δ) − fold(Z).
-                    double foldedReferenceReal, foldedReferenceImaginary, foldedDeltaReal, foldedDeltaImaginary;
+                    double foldedReferenceReal, foldedReferenceImaginary;
+                    TDelta foldedDeltaReal, foldedDeltaImaginary;
                     switch (kind)
                     {
                         case ReflectKind.BurningShip:
                             foldedReferenceReal = System.Math.Abs(referenceReal);
                             foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
-                            foldedDeltaImaginary = -FoldedDelta(referenceImaginary, deltaImaginary);
+                            foldedDeltaReal = FoldedDelta<TDelta, TDerivative>(referenceReal, deltaReal);
+                            foldedDeltaImaginary = -FoldedDelta<TDelta, TDerivative>(referenceImaginary, deltaImaginary);
                             break;
                         case ReflectKind.Buffalo:
                             foldedReferenceReal = System.Math.Abs(referenceReal);
                             foldedReferenceImaginary = System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
-                            foldedDeltaImaginary = FoldedDelta(referenceImaginary, deltaImaginary);
+                            foldedDeltaReal = FoldedDelta<TDelta, TDerivative>(referenceReal, deltaReal);
+                            foldedDeltaImaginary = FoldedDelta<TDelta, TDerivative>(referenceImaginary, deltaImaginary);
                             break;
                         case ReflectKind.PerpendicularMandelbrot:
                         case ReflectKind.PerpendicularCeltic:
                             foldedReferenceReal = System.Math.Abs(referenceReal);
                             foldedReferenceImaginary = -referenceImaginary;
-                            foldedDeltaReal = FoldedDelta(referenceReal, deltaReal);
+                            foldedDeltaReal = FoldedDelta<TDelta, TDerivative>(referenceReal, deltaReal);
                             foldedDeltaImaginary = -deltaImaginary;
                             break;
                         case ReflectKind.PerpendicularBurningShip:
@@ -1400,7 +1331,7 @@ public static partial class MandelbrotFamilyRenderer
                             foldedReferenceReal = referenceReal;
                             foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
                             foldedDeltaReal = deltaReal;
-                            foldedDeltaImaginary = -FoldedDelta(referenceImaginary, deltaImaginary);
+                            foldedDeltaImaginary = -FoldedDelta<TDelta, TDerivative>(referenceImaginary, deltaImaginary);
                             break;
                         default: // Tricorn — сопряжение, знак определён всегда
                             foldedReferenceReal = referenceReal;
@@ -1411,13 +1342,16 @@ public static partial class MandelbrotFamilyRenderer
                     }
 
                     // δ ← 2·W·δ_w + δ_w² + δc
-                    double twoWDeltaReal = 2 * (foldedReferenceReal * foldedDeltaReal - foldedReferenceImaginary * foldedDeltaImaginary);
-                    double twoWDeltaImaginary = 2 * (foldedReferenceReal * foldedDeltaImaginary + foldedReferenceImaginary * foldedDeltaReal);
-                    double foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
-                    double foldedDeltaSquaredImaginary = 2 * foldedDeltaReal * foldedDeltaImaginary;
-                    double deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
+                    TDelta twoWDeltaReal = (foldedDeltaReal * foldedReferenceReal
+                                            - foldedDeltaImaginary * foldedReferenceImaginary) * 2.0;
+                    TDelta twoWDeltaImaginary = (foldedDeltaImaginary * foldedReferenceReal
+                                                 + foldedDeltaReal * foldedReferenceImaginary) * 2.0;
+                    TDelta foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
+                    TDelta foldedDeltaSquaredImaginary = foldedDeltaReal * 2.0 * foldedDeltaImaginary;
+                    TDelta deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
                     if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
-                        deltaU = FoldedDelta(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
+                        deltaU = FoldedDelta<TDelta, TDerivative>(
+                            referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
                     deltaReal = deltaU + addReal;
                     deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;
                 }
@@ -1426,258 +1360,37 @@ public static partial class MandelbrotFamilyRenderer
                 iteration++;
             }
 
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal;
-            double fullImaginary = nextReferenceImaginary + deltaImaginary;
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
+            if (CompleteStep<TDelta, TDerivative>(orbit, ref referenceIndex, ref deltaReal, ref deltaImaginary,
+                    escapeSquared, cubic, out magnitudeSquared, out escapeReal, out escapeImaginary))
             {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
                 escaped = true;
                 break;
-            }
-
-            double deltaMagnitudeSquared = deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                deltaReal = fullReal - orbit.Re[0];
-                deltaImaginary = fullImaginary - orbit.Im[0];
-                referenceIndex = 0;
             }
         }
 
         if (!escaped)
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
-        return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, SmoothingPower(state));
-    }
-
-    // Тот же алгоритм, что <see cref="DeepZoomPixelReflected"/>, но δ ведётся в
-    // <see cref="FloatExp"/> — используется за порогом FloatExpDeltaZoomBits, тем же
-    // переключателем плана, что и у z²+c (<see cref="DeepZoomPixelFloatExp"/>). Опорная
-    // орбита и все проверки (escape, rebasing) остаются в double — как и в double-δ ядре,
-    // так и в FloatExp-ядре z²+c. Вещественная BLA (A, B) тоже остаётся double: пропуск
-    // применяется к δ через <see cref="FloatExp"/>-умножение, а сами коэффициенты не зависят
-    // от представления δ.
-    private static PixelMetrics DeepZoomPixelReflectedFloatExp(
-        MandelbrotState state,
-        ReferenceOrbit orbit,
-        ReflectKind kind,
-        bool isJulia,
-        FloatExp deltaConstantReal,
-        FloatExp deltaConstantImaginary,
-        double escapeSquared,
-        FloatExp distanceScale,
-        CancellationToken token)
-    {
-        int maxIterations = state.Iterations;
-        bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
-        bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
-
-        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
-        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
-        FloatExp addReal = isJulia ? FloatExp.Zero : deltaConstantReal;
-        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
-
-        bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
-
-        RealBlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
-            ? orbit.RealBla
-            : null;
-
-        int referenceIndex = 0;
-        int iteration = 0;
-        double magnitudeSquared = 0;
-        double escapeReal = 0;
-        double escapeImaginary = 0;
-        double minTrap = double.MaxValue;
-        double stripe = 0;
-        bool escaped = false;
-
-        while (iteration < maxIterations)
-        {
-            if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
-
-            double blaDeltaMagnitudeSquared = bla is null
-                ? 0.0
-                : FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble();
-            if (bla is not null && bla.CanSkip(referenceIndex, blaDeltaMagnitudeSquared) &&
-                bla.TryLookup(referenceIndex, blaDeltaMagnitudeSquared,
-                    maxIterations - iteration,
-                    out double blaA11, out double blaA12, out double blaA21, out double blaA22,
-                    out double blaB11, out double blaB12, out double blaB21, out double blaB22,
-                    out int blaSteps))
-            {
-                // δ ← A·δ + B·δc  (вещественная 2×2, A/B — double; δ, δc — FloatExp)
-                FloatExp skippedReal = deltaReal * blaA11 + deltaImaginary * blaA12
-                                     + addReal * blaB11 + addImaginary * blaB12;
-                FloatExp skippedImaginary = deltaReal * blaA21 + deltaImaginary * blaA22
-                                          + addReal * blaB21 + addImaginary * blaB22;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-                if (CountRealBlaSkipsForTests)
-                    Interlocked.Add(ref RealBlaSkippedIterationsForTests, blaSteps);
-            }
-            else
-            {
-                double referenceReal = orbit.Re[referenceIndex];
-                double referenceImaginary = orbit.Im[referenceIndex];
-
-                double currentReal = referenceReal + deltaReal.ToDouble();
-                double currentImaginary = referenceImaginary + deltaImaginary.ToDouble();
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-
-                if (estimateDistance && !IsCubicReflected(kind))
-                    derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
-
-                if (IsCubicReflected(kind))
-                {
-                    var delta = FoldedCubicDeltaExp(kind, orbit.CubicRe![referenceIndex], orbit.CubicIm![referenceIndex],
-                        orbit.CubicV![referenceIndex], deltaReal, deltaImaginary, estimateDistance);
-                    if (estimateDistance)
-                        derivative = Jacobian2Exp.Multiply(delta.Jacobian, derivative) + parameterDerivative;
-                    deltaReal = delta.Real + addReal;
-                    deltaImaginary = delta.Imaginary + addImaginary;
-                }
-                else if (kind == ReflectKind.Celtic)
-                {
-                    FloatExp deltaU = (referenceReal * deltaReal - referenceImaginary * deltaImaginary) * 2.0
-                                     + deltaReal * deltaReal - deltaImaginary * deltaImaginary;
-                    FloatExp deltaV = (referenceReal * deltaImaginary + referenceImaginary * deltaReal) * 2.0
-                                     + deltaReal * deltaImaginary * 2.0;
-                    deltaReal = FoldedDeltaExp(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU) + addReal;
-                    deltaImaginary = deltaV + addImaginary;
-                }
-                else
-                {
-                    double foldedReferenceReal, foldedReferenceImaginary;
-                    FloatExp foldedDeltaReal, foldedDeltaImaginary;
-                    switch (kind)
-                    {
-                        case ReflectKind.BurningShip:
-                            foldedReferenceReal = System.Math.Abs(referenceReal);
-                            foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = FoldedDeltaExp(referenceReal, deltaReal);
-                            foldedDeltaImaginary = -FoldedDeltaExp(referenceImaginary, deltaImaginary);
-                            break;
-                        case ReflectKind.Buffalo:
-                            foldedReferenceReal = System.Math.Abs(referenceReal);
-                            foldedReferenceImaginary = System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = FoldedDeltaExp(referenceReal, deltaReal);
-                            foldedDeltaImaginary = FoldedDeltaExp(referenceImaginary, deltaImaginary);
-                            break;
-                        case ReflectKind.PerpendicularMandelbrot:
-                        case ReflectKind.PerpendicularCeltic:
-                            foldedReferenceReal = System.Math.Abs(referenceReal);
-                            foldedReferenceImaginary = -referenceImaginary;
-                            foldedDeltaReal = FoldedDeltaExp(referenceReal, deltaReal);
-                            foldedDeltaImaginary = -deltaImaginary;
-                            break;
-                        case ReflectKind.PerpendicularBurningShip:
-                        case ReflectKind.PerpendicularBuffalo:
-                            foldedReferenceReal = referenceReal;
-                            foldedReferenceImaginary = -System.Math.Abs(referenceImaginary);
-                            foldedDeltaReal = deltaReal;
-                            foldedDeltaImaginary = -FoldedDeltaExp(referenceImaginary, deltaImaginary);
-                            break;
-                        default: // Tricorn — сопряжение, знак определён всегда
-                            foldedReferenceReal = referenceReal;
-                            foldedReferenceImaginary = -referenceImaginary;
-                            foldedDeltaReal = deltaReal;
-                            foldedDeltaImaginary = -deltaImaginary;
-                            break;
-                    }
-
-                    FloatExp twoWDeltaReal = (foldedReferenceReal * foldedDeltaReal - foldedReferenceImaginary * foldedDeltaImaginary) * 2.0;
-                    FloatExp twoWDeltaImaginary = (foldedReferenceReal * foldedDeltaImaginary + foldedReferenceImaginary * foldedDeltaReal) * 2.0;
-                    FloatExp foldedDeltaSquaredReal = foldedDeltaReal * foldedDeltaReal - foldedDeltaImaginary * foldedDeltaImaginary;
-                    FloatExp foldedDeltaSquaredImaginary = foldedDeltaReal * foldedDeltaImaginary * 2.0;
-                    FloatExp deltaU = twoWDeltaReal + foldedDeltaSquaredReal;
-                    if (kind is ReflectKind.PerpendicularCeltic or ReflectKind.PerpendicularBuffalo or ReflectKind.CelticMandelbar)
-                        deltaU = FoldedDeltaExp(referenceReal * referenceReal - referenceImaginary * referenceImaginary, deltaU);
-                    deltaReal = deltaU + addReal;
-                    deltaImaginary = twoWDeltaImaginary + foldedDeltaSquaredImaginary + addImaginary;
-                }
-
-                referenceIndex++;
-                iteration++;
-            }
-
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal.ToDouble();
-            double fullImaginary = nextReferenceImaginary + deltaImaginary.ToDouble();
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
-            {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
-                escaped = true;
-                break;
-            }
-
-            double deltaMagnitudeSquared = FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble();
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                if (IsCubicReflected(kind))
-                {
-                    deltaReal = orbit.CubicRe![referenceIndex] + deltaReal - orbit.CubicRe[0];
-                    deltaImaginary = orbit.CubicIm![referenceIndex] + deltaImaginary - orbit.CubicIm[0];
-                }
-                else
-                {
-                    deltaReal = FloatExp.FromDouble(fullReal - orbit.Re[0]);
-                    deltaImaginary = FloatExp.FromDouble(fullImaginary - orbit.Im[0]);
-                }
-                referenceIndex = 0;
-            }
-        }
-
-        if (!escaped)
-            return new PixelMetrics(maxIterations, maxIterations, 0, 0);
-
-        return FinishDeepZoomPixelExp(iteration, magnitudeSquared, minTrap, stripe,
+        return TDerivative.Finish(iteration, magnitudeSquared, minTrap, stripe,
             estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, SmoothingPower(state));
     }
 
     // Пертурбационное ядро Multibrot (Generalized) целой степени p ≥ 3: формула zᵖ+c.
     // Возмущение — точное биномиальное разложение (Z+δ)ᵖ − Zᵖ = Σₖ C(p,k)·Zᵖ⁻ᵏ·δᵏ (без
     // вычитания ⇒ без катастрофического сокращения). Линейный член A = p·Zᵖ⁻¹ комплексный,
-    // поэтому BLA (с p-зависимой таблицей) применяется как обычно. δ здесь всегда double —
-    // за порогом FloatExpDeltaZoomBits используется двойник
-    // <see cref="DeepZoomPixelMultibrotFloatExp"/>.
-    private static PixelMetrics DeepZoomPixelMultibrot(
+    // поэтому BLA (с p-зависимой таблицей) применяется как обычно. Zᵏ и биномиальные
+    // коэффициенты — double: они зависят только от опорной орбиты.
+    private static PixelMetrics DeepZoomPixelMultibrot<TDelta, TDerivative>(
         MandelbrotState state,
         ReferenceOrbit orbit,
         int power,
-        double deltaConstantReal,
-        double deltaConstantImaginary,
+        TDelta deltaConstantReal,
+        TDelta deltaConstantImaginary,
         double escapeSquared,
-        double distanceScale,
+        TDelta distanceScale,
         CancellationToken token)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
     {
         int maxIterations = state.Iterations;
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
@@ -1685,13 +1398,13 @@ public static partial class MandelbrotFamilyRenderer
 
         // Жюлиа меняет z₀ при постоянной C; параметрическая плоскость меняет C.
         bool isJulia = IsJuliaVariant(state.Variant);
-        double deltaReal = isJulia ? deltaConstantReal : 0.0;
-        double deltaImaginary = isJulia ? deltaConstantImaginary : 0.0;
-        double addReal = isJulia ? 0.0 : deltaConstantReal;
-        double addImaginary = isJulia ? 0.0 : deltaConstantImaginary;
+        TDelta deltaReal = isJulia ? deltaConstantReal : TDelta.Zero;
+        TDelta deltaImaginary = isJulia ? deltaConstantImaginary : TDelta.Zero;
+        TDelta addReal = isJulia ? TDelta.Zero : deltaConstantReal;
+        TDelta addImaginary = isJulia ? TDelta.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
+        TDerivative derivative = isJulia ? TDerivative.Identity : TDerivative.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
@@ -1718,188 +1431,18 @@ public static partial class MandelbrotFamilyRenderer
         {
             if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
 
-            if (bla is not null &&
-                bla.TryLookup(referenceIndex, deltaReal * deltaReal + deltaImaginary * deltaImaginary,
-                    maxIterations - iteration,
-                    out double blaAx, out double blaAy, out double blaBx, out double blaBy, out int blaSteps))
-            {
-                double skippedReal = blaAx * deltaReal - blaAy * deltaImaginary
-                                   + blaBx * addReal - blaBy * addImaginary;
-                double skippedImaginary = blaAx * deltaImaginary + blaAy * deltaReal
-                                        + blaBx * addImaginary + blaBy * addReal;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-            }
-            else
-            {
-                double referenceReal = orbit.Re[referenceIndex];
-                double referenceImaginary = orbit.Im[referenceIndex];
-
-                double currentReal = referenceReal + deltaReal;
-                double currentImaginary = referenceImaginary + deltaImaginary;
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-
-                if (estimateDistance)
-                    derivative = AdvanceDerivative(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
-
-                // Zᵏ, k = 0..p−1.
-                zPowerReal[0] = 1.0;
-                zPowerImaginary[0] = 0.0;
-                for (int j = 1; j < power; j++)
-                {
-                    zPowerReal[j] = zPowerReal[j - 1] * referenceReal - zPowerImaginary[j - 1] * referenceImaginary;
-                    zPowerImaginary[j] = zPowerReal[j - 1] * referenceImaginary + zPowerImaginary[j - 1] * referenceReal;
-                }
-
-                // Σ_{k=1}^{p} C(p,k)·Zᵖ⁻ᵏ·δᵏ
-                double accumulatorReal = 0.0, accumulatorImaginary = 0.0;
-                double deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δ¹
-                for (int k = 1; k <= power; k++)
-                {
-                    double zTermReal = zPowerReal[power - k];
-                    double zTermImaginary = zPowerImaginary[power - k];
-                    double termReal = zTermReal * deltaPowerReal - zTermImaginary * deltaPowerImaginary;
-                    double termImaginary = zTermReal * deltaPowerImaginary + zTermImaginary * deltaPowerReal;
-                    accumulatorReal += binomial[k] * termReal;
-                    accumulatorImaginary += binomial[k] * termImaginary;
-
-                    double nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
-                    deltaPowerImaginary = deltaPowerReal * deltaImaginary + deltaPowerImaginary * deltaReal;
-                    deltaPowerReal = nextDeltaPowerReal;
-                }
-
-                deltaReal = accumulatorReal + addReal;
-                deltaImaginary = accumulatorImaginary + addImaginary;
-
-                referenceIndex++;
-                iteration++;
-            }
-
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal;
-            double fullImaginary = nextReferenceImaginary + deltaImaginary;
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
-            {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
-                escaped = true;
-                break;
-            }
-
-            double deltaMagnitudeSquared = deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                deltaReal = fullReal - orbit.Re[0];
-                deltaImaginary = fullImaginary - orbit.Im[0];
-                referenceIndex = 0;
-            }
-        }
-
-        if (!escaped)
-            return new PixelMetrics(maxIterations, maxIterations, 0, 0);
-
-        return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
-    }
-
-    // Тот же алгоритм, что <see cref="DeepZoomPixelMultibrot"/>, но δ ведётся в
-    // <see cref="FloatExp"/> — используется за порогом FloatExpDeltaZoomBits. Опорная орбита,
-    // Zᵏ и биномиальные коэффициенты остаются double (зависят только от опорной орбиты);
-    // комплексная BLA (A, B) — тоже double, как и в FloatExp-ядре z²+c.
-    private static PixelMetrics DeepZoomPixelMultibrotFloatExp(
-        MandelbrotState state,
-        ReferenceOrbit orbit,
-        int power,
-        FloatExp deltaConstantReal,
-        FloatExp deltaConstantImaginary,
-        double escapeSquared,
-        FloatExp distanceScale,
-        CancellationToken token)
-    {
-        int maxIterations = state.Iterations;
-        bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
-        bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
-
-        // Жюлиа меняет z₀ при постоянной C; параметрическая плоскость меняет C.
-        bool isJulia = IsJuliaVariant(state.Variant);
-        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
-        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
-        FloatExp addReal = isJulia ? FloatExp.Zero : deltaConstantReal;
-        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
-
-        bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
-
-        BlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
-            ? orbit.Bla
-            : null;
-
-        Span<long> binomial = stackalloc long[power + 1];
-        binomial[0] = 1;
-        for (int k = 1; k <= power; k++) binomial[k] = binomial[k - 1] * (power - k + 1) / k;
-        Span<double> zPowerReal = stackalloc double[power];
-        Span<double> zPowerImaginary = stackalloc double[power];
-
-        int referenceIndex = 0;
-        int iteration = 0;
-        double magnitudeSquared = 0;
-        double escapeReal = 0;
-        double escapeImaginary = 0;
-        double minTrap = double.MaxValue;
-        double stripe = 0;
-        bool escaped = false;
-
-        while (iteration < maxIterations)
-        {
-            if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
-
-            if (bla is not null &&
-                bla.TryLookup(referenceIndex, FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble(),
-                    maxIterations - iteration,
-                    out double blaAx, out double blaAy, out double blaBx, out double blaBy, out int blaSteps))
-            {
-                FloatExp skippedReal = deltaReal * blaAx - deltaImaginary * blaAy
-                                     + addReal * blaBx - addImaginary * blaBy;
-                FloatExp skippedImaginary = deltaReal * blaAy + deltaImaginary * blaAx
-                                          + addReal * blaBy + addImaginary * blaBx;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-            }
-            else
+            if (!TrySkipComplexBla<TDelta, TDerivative>(bla, ref referenceIndex, ref iteration, maxIterations,
+                    ref deltaReal, ref deltaImaginary, addReal, addImaginary))
             {
                 double referenceReal = orbit.Re[referenceIndex];
                 double referenceImaginary = orbit.Im[referenceIndex];
 
                 double currentReal = referenceReal + deltaReal.ToDouble();
                 double currentImaginary = referenceImaginary + deltaImaginary.ToDouble();
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-
+                if (trackTrap) minTrap = System.Math.Min(minTrap, TrapDistance(currentReal, currentImaginary));
+                if (trackStripe) stripe += StripeTerm(state, currentReal, currentImaginary);
                 if (estimateDistance)
-                    derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
+                    derivative = TDerivative.Advance(state, derivative, parameterDerivative, currentReal, currentImaginary);
 
                 // Zᵏ, k = 0..p−1.
                 zPowerReal[0] = 1.0;
@@ -1911,18 +1454,18 @@ public static partial class MandelbrotFamilyRenderer
                 }
 
                 // Σ_{k=1}^{p} C(p,k)·Zᵖ⁻ᵏ·δᵏ
-                FloatExp accumulatorReal = FloatExp.Zero, accumulatorImaginary = FloatExp.Zero;
-                FloatExp deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δ¹
+                TDelta accumulatorReal = TDelta.Zero, accumulatorImaginary = TDelta.Zero;
+                TDelta deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δ¹
                 for (int k = 1; k <= power; k++)
                 {
                     double zTermReal = zPowerReal[power - k];
                     double zTermImaginary = zPowerImaginary[power - k];
-                    FloatExp termReal = zTermReal * deltaPowerReal - zTermImaginary * deltaPowerImaginary;
-                    FloatExp termImaginary = zTermReal * deltaPowerImaginary + zTermImaginary * deltaPowerReal;
-                    accumulatorReal += binomial[k] * termReal;
-                    accumulatorImaginary += binomial[k] * termImaginary;
+                    TDelta termReal = deltaPowerReal * zTermReal - deltaPowerImaginary * zTermImaginary;
+                    TDelta termImaginary = deltaPowerImaginary * zTermReal + deltaPowerReal * zTermImaginary;
+                    accumulatorReal += termReal * binomial[k];
+                    accumulatorImaginary += termImaginary * binomial[k];
 
-                    FloatExp nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
+                    TDelta nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
                     deltaPowerImaginary = deltaPowerReal * deltaImaginary + deltaPowerImaginary * deltaReal;
                     deltaPowerReal = nextDeltaPowerReal;
                 }
@@ -1934,38 +1477,19 @@ public static partial class MandelbrotFamilyRenderer
                 iteration++;
             }
 
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal.ToDouble();
-            double fullImaginary = nextReferenceImaginary + deltaImaginary.ToDouble();
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
+            if (CompleteStep<TDelta, TDerivative>(orbit, ref referenceIndex, ref deltaReal, ref deltaImaginary,
+                    escapeSquared, false, out magnitudeSquared, out escapeReal, out escapeImaginary))
             {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
                 escaped = true;
                 break;
-            }
-
-            double deltaMagnitudeSquared = FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble();
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                deltaReal = FloatExp.FromDouble(fullReal - orbit.Re[0]);
-                deltaImaginary = FloatExp.FromDouble(fullImaginary - orbit.Im[0]);
-                referenceIndex = 0;
             }
         }
 
         if (!escaped)
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
-        return FinishDeepZoomPixelExp(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
+        return TDerivative.Finish(iteration, magnitudeSquared, minTrap, stripe,
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, 2);
     }
 
     // Пертурбационное ядро Симоноброта целой степени p: формула zᵖ·|z|ᵖ+c = zᵖ·M^(p/2)+c,
@@ -1977,18 +1501,19 @@ public static partial class MandelbrotFamilyRenderer
     //        где δ√M = δm/(√(M+δm)+√M) — тождество, убирающее вычитание корней
     //   δ' = W·δp + P·δw + δw·δp + δc,  W = Zᵖ, P = M^(p/2)
     // Ведущий линейный член (P·p·Zᵖ⁻¹·δ плюс W·p·M^(p/2−1)·(Zr·δr+Zi·δi)) — вещественная 2×2
-    // карта, не комплексное умножение, поэтому ускоряется RealBlaTable, а не BlaTable.
-    // δ здесь всегда double — за порогом FloatExpDeltaZoomBits используется двойник
-    // <see cref="DeepZoomPixelSimonobrotFloatExp"/>.
-    private static PixelMetrics DeepZoomPixelSimonobrot(
+    // карта, не комплексное умножение, поэтому ускоряется RealBlaTable, а не BlaTable. Zᵏ, Mᵏ,
+    // factorP и rootM — double: они зависят только от опорной орбиты.
+    private static PixelMetrics DeepZoomPixelSimonobrot<TDelta, TDerivative>(
         MandelbrotState state,
         ReferenceOrbit orbit,
         int power,
-        double deltaConstantReal,
-        double deltaConstantImaginary,
+        TDelta deltaConstantReal,
+        TDelta deltaConstantImaginary,
         double escapeSquared,
-        double distanceScale,
+        TDelta distanceScale,
         CancellationToken token)
+        where TDelta : struct, IDeltaNumber<TDelta>
+        where TDerivative : struct, IDeepDerivative<TDerivative, TDelta>
     {
         int maxIterations = state.Iterations;
         bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
@@ -1998,217 +1523,13 @@ public static partial class MandelbrotFamilyRenderer
 
         // У Жюлиа δ₀ — смещение пикселя, а инверсия относится к фиксированной C.
         bool isJulia = IsJuliaVariant(state.Variant);
-        double deltaReal = isJulia ? deltaConstantReal : 0.0;
-        double deltaImaginary = isJulia ? deltaConstantImaginary : 0.0;
-        double addReal = isJulia ? 0.0 : state.UseInversion ? -deltaConstantReal : deltaConstantReal;
-        double addImaginary = isJulia ? 0.0 : deltaConstantImaginary;
+        TDelta deltaReal = isJulia ? deltaConstantReal : TDelta.Zero;
+        TDelta deltaImaginary = isJulia ? deltaConstantImaginary : TDelta.Zero;
+        TDelta addReal = isJulia ? TDelta.Zero : state.UseInversion ? -deltaConstantReal : deltaConstantReal;
+        TDelta addImaginary = isJulia ? TDelta.Zero : deltaConstantImaginary;
 
         bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2 derivative = isJulia ? Jacobian2.Identity : Jacobian2.Zero;
-        Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
-
-        // BLA с вещественной 2×2 линейной частью — условия те же, что у комплексного.
-        RealBlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
-            ? orbit.RealBla
-            : null;
-
-        Span<long> binomialPower = stackalloc long[power + 1];
-        binomialPower[0] = 1;
-        for (int k = 1; k <= power; k++) binomialPower[k] = binomialPower[k - 1] * (power - k + 1) / k;
-
-        Span<long> binomialHalf = stackalloc long[halfPower + 1];
-        binomialHalf[0] = 1;
-        for (int k = 1; k <= halfPower; k++) binomialHalf[k] = binomialHalf[k - 1] * (halfPower - k + 1) / k;
-
-        Span<double> zPowerReal = stackalloc double[power + 1];
-        Span<double> zPowerImaginary = stackalloc double[power + 1];
-        Span<double> magnitudePower = stackalloc double[halfPower + 1];
-
-        int referenceIndex = 0;
-        int iteration = 0;
-        double magnitudeSquared = 0;
-        double escapeReal = 0;
-        double escapeImaginary = 0;
-        double minTrap = double.MaxValue;
-        double stripe = 0;
-        bool escaped = false;
-
-        while (iteration < maxIterations)
-        {
-            if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
-
-            // В режимах ловушки/полос/DE таблица отключена — |δ|² тогда и не считается.
-            double blaDeltaMagnitudeSquared = bla is null
-                ? 0.0
-                : deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-            if (bla is not null && bla.CanSkip(referenceIndex, blaDeltaMagnitudeSquared) &&
-                bla.TryLookup(referenceIndex, blaDeltaMagnitudeSquared,
-                    maxIterations - iteration,
-                    out double blaA11, out double blaA12, out double blaA21, out double blaA22,
-                    out double blaB11, out double blaB12, out double blaB21, out double blaB22,
-                    out int blaSteps))
-            {
-                // δ ← A·δ + B·δc  (вещественная 2×2), пропуская blaSteps итераций разом
-                double skippedReal = blaA11 * deltaReal + blaA12 * deltaImaginary
-                                   + blaB11 * addReal + blaB12 * addImaginary;
-                double skippedImaginary = blaA21 * deltaReal + blaA22 * deltaImaginary
-                                        + blaB21 * addReal + blaB22 * addImaginary;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-                if (CountRealBlaSkipsForTests)
-                    Interlocked.Add(ref RealBlaSkippedIterationsForTests, blaSteps);
-            }
-            else
-            {
-                double referenceReal = orbit.Re[referenceIndex];
-                double referenceImaginary = orbit.Im[referenceIndex];
-
-                double currentReal = referenceReal + deltaReal;
-                double currentImaginary = referenceImaginary + deltaImaginary;
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-
-                if (estimateDistance)
-                    derivative = AdvanceDerivative(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
-
-                // Zᵏ, k = 0..power (включительно — нужна и W = Zᵖ).
-                zPowerReal[0] = 1.0;
-                zPowerImaginary[0] = 0.0;
-                for (int j = 1; j <= power; j++)
-                {
-                    zPowerReal[j] = zPowerReal[j - 1] * referenceReal - zPowerImaginary[j - 1] * referenceImaginary;
-                    zPowerImaginary[j] = zPowerReal[j - 1] * referenceImaginary + zPowerImaginary[j - 1] * referenceReal;
-                }
-
-                // Mᵏ, k = 0..halfPower (M = |Z|²; нужна и Mᵠ).
-                double referenceMagnitudeSquaredHere = referenceReal * referenceReal + referenceImaginary * referenceImaginary;
-                magnitudePower[0] = 1.0;
-                for (int j = 1; j <= halfPower; j++)
-                    magnitudePower[j] = magnitudePower[j - 1] * referenceMagnitudeSquaredHere;
-
-                // δw = Σ_{k=1}^{p} C(p,k)·Zᵖ⁻ᵏ·δᵏ   (комплексное)
-                double deltaWReal = 0.0, deltaWImaginary = 0.0;
-                double deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δ¹
-                for (int k = 1; k <= power; k++)
-                {
-                    double zr = zPowerReal[power - k], zi = zPowerImaginary[power - k];
-                    deltaWReal += binomialPower[k] * (zr * deltaPowerReal - zi * deltaPowerImaginary);
-                    deltaWImaginary += binomialPower[k] * (zr * deltaPowerImaginary + zi * deltaPowerReal);
-
-                    double nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
-                    deltaPowerImaginary = deltaPowerReal * deltaImaginary + deltaPowerImaginary * deltaReal;
-                    deltaPowerReal = nextDeltaPowerReal;
-                }
-
-                // δm = |Z+δ|² − M = 2(Zr·δr + Zi·δi) + δr² + δi²   (сумма, не разность — точно)
-                double deltaM = 2.0 * (referenceReal * deltaReal + referenceImaginary * deltaImaginary)
-                               + deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-
-                // δs = Σ_{j=1}^{q} C(q,j)·M^(q-j)·δmʲ   (возмущение Mᵠ, вещественное)
-                double deltaS = 0.0;
-                double deltaMPower = deltaM; // δm¹
-                for (int j = 1; j <= halfPower; j++)
-                {
-                    deltaS += binomialHalf[j] * magnitudePower[halfPower - j] * deltaMPower;
-                    deltaMPower *= deltaM;
-                }
-
-                // Множитель модуля P = M^(p/2) и его возмущение δp = (M+δm)^(p/2) − P.
-                // Чётное p: P = Mᵠ и δp = δs — выражения ниже те же, что и до нечётной
-                // степени. Нечётное p = 2q+1: P = Mᵠ·√M, а корень возмущается тождеством
-                // δ√M = δm/(√(M+δm)+√M) — знаменатель ≈ 2√M, вычитания близких величин нет.
-                double factorP = magnitudePower[halfPower];
-                double deltaP = deltaS;
-                if (oddPower)
-                {
-                    double rootM = System.Math.Sqrt(referenceMagnitudeSquaredHere);
-                    double shifted = referenceMagnitudeSquaredHere + deltaM;   // = |Z+δ|² ≥ 0
-                    double rootSum = (shifted > 0.0 ? System.Math.Sqrt(shifted) : 0.0) + rootM;
-                    double deltaRoot = rootSum > 0.0 ? deltaM / rootSum : 0.0;
-                    deltaP = factorP * deltaRoot + rootM * deltaS + deltaS * deltaRoot;
-                    factorP *= rootM;
-                }
-
-                // δ' = W·δp + P·δw + δw·δp + δc
-                double wReal = zPowerReal[power], wImaginary = zPowerImaginary[power];
-                deltaReal = wReal * deltaP + factorP * deltaWReal + deltaWReal * deltaP + addReal;
-                deltaImaginary = wImaginary * deltaP + factorP * deltaWImaginary + deltaWImaginary * deltaP + addImaginary;
-
-                referenceIndex++;
-                iteration++;
-            }
-
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal;
-            double fullImaginary = nextReferenceImaginary + deltaImaginary;
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
-            {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
-                escaped = true;
-                break;
-            }
-
-            double deltaMagnitudeSquared = deltaReal * deltaReal + deltaImaginary * deltaImaginary;
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                deltaReal = fullReal - orbit.Re[0];
-                deltaImaginary = fullImaginary - orbit.Im[0];
-                referenceIndex = 0;
-            }
-        }
-
-        if (!escaped)
-            return new PixelMetrics(maxIterations, maxIterations, 0, 0);
-
-        return FinishDeepZoomPixel(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
-    }
-
-    // Тот же алгоритм, что <see cref="DeepZoomPixelSimonobrot"/>, но δ (и все производные от
-    // него величины — δw, δm, δs, δp, δ√M) ведутся в <see cref="FloatExp"/>, используется за
-    // порогом FloatExpDeltaZoomBits. Опорная орбита, Zᵏ, Mᵏ, factorP и rootM остаются double —
-    // они зависят только от опорной орбиты, ограниченной радиусом бейлаута. Вещественная BLA
-    // (A, B) — тоже double, как и в остальных FloatExp-ядрах.
-    private static PixelMetrics DeepZoomPixelSimonobrotFloatExp(
-        MandelbrotState state,
-        ReferenceOrbit orbit,
-        int power,
-        FloatExp deltaConstantReal,
-        FloatExp deltaConstantImaginary,
-        double escapeSquared,
-        FloatExp distanceScale,
-        CancellationToken token)
-    {
-        int maxIterations = state.Iterations;
-        bool trackTrap = state.ColoringMode == MandelbrotColoringMode.OrbitTrap;
-        bool trackStripe = state.ColoringMode == MandelbrotColoringMode.StripeAverage;
-        int halfPower = power / 2;              // q = ⌊p/2⌋
-        bool oddPower = (power & 1) != 0;       // p = 2q+1 ⇒ множитель модуля несёт ещё и √M
-
-        // У Жюлиа δ₀ — смещение пикселя, а инверсия относится к фиксированной C.
-        bool isJulia = IsJuliaVariant(state.Variant);
-        FloatExp deltaReal = isJulia ? deltaConstantReal : FloatExp.Zero;
-        FloatExp deltaImaginary = isJulia ? deltaConstantImaginary : FloatExp.Zero;
-        FloatExp addReal = isJulia ? FloatExp.Zero : state.UseInversion ? -deltaConstantReal : deltaConstantReal;
-        FloatExp addImaginary = isJulia ? FloatExp.Zero : deltaConstantImaginary;
-
-        bool estimateDistance = state.ColoringMode == MandelbrotColoringMode.DistanceEstimation;
-        Jacobian2Exp derivative = isJulia ? Jacobian2Exp.Identity : Jacobian2Exp.Zero;
+        TDerivative derivative = isJulia ? TDerivative.Identity : TDerivative.Zero;
         Jacobian2 parameterDerivative = ParameterDerivativeOf(state, isJulia);
 
         RealBlaTable? bla = BlaEnabled && !trackTrap && !trackStripe && !estimateDistance
@@ -2240,45 +1561,18 @@ public static partial class MandelbrotFamilyRenderer
         {
             if ((iteration & 8191) == 0 && token.IsCancellationRequested) return default;
 
-            double blaDeltaMagnitudeSquared = bla is null
-                ? 0.0
-                : FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble();
-            if (bla is not null && bla.CanSkip(referenceIndex, blaDeltaMagnitudeSquared) &&
-                bla.TryLookup(referenceIndex, blaDeltaMagnitudeSquared,
-                    maxIterations - iteration,
-                    out double blaA11, out double blaA12, out double blaA21, out double blaA22,
-                    out double blaB11, out double blaB12, out double blaB21, out double blaB22,
-                    out int blaSteps))
-            {
-                // δ ← A·δ + B·δc  (вещественная 2×2), пропуская blaSteps итераций разом
-                FloatExp skippedReal = deltaReal * blaA11 + deltaImaginary * blaA12
-                                     + addReal * blaB11 + addImaginary * blaB12;
-                FloatExp skippedImaginary = deltaReal * blaA21 + deltaImaginary * blaA22
-                                          + addReal * blaB21 + addImaginary * blaB22;
-                deltaReal = skippedReal;
-                deltaImaginary = skippedImaginary;
-                referenceIndex += blaSteps;
-                iteration += blaSteps;
-                if (CountRealBlaSkipsForTests)
-                    Interlocked.Add(ref RealBlaSkippedIterationsForTests, blaSteps);
-            }
-            else
+            if (!TrySkipRealBla<TDelta, TDerivative>(bla, ref referenceIndex, ref iteration, maxIterations,
+                    ref deltaReal, ref deltaImaginary, addReal, addImaginary))
             {
                 double referenceReal = orbit.Re[referenceIndex];
                 double referenceImaginary = orbit.Im[referenceIndex];
 
                 double currentReal = referenceReal + deltaReal.ToDouble();
                 double currentImaginary = referenceImaginary + deltaImaginary.ToDouble();
-                if (trackTrap)
-                    minTrap = System.Math.Min(minTrap,
-                        System.Math.Min(System.Math.Abs(currentReal), System.Math.Abs(currentImaginary)));
-                if (trackStripe)
-                    stripe += 0.5 + 0.5 * System.Math.Sin(
-                        state.StripeFrequency * System.Math.Atan2(currentImaginary, currentReal));
-
+                if (trackTrap) minTrap = System.Math.Min(minTrap, TrapDistance(currentReal, currentImaginary));
+                if (trackStripe) stripe += StripeTerm(state, currentReal, currentImaginary);
                 if (estimateDistance)
-                    derivative = AdvanceDerivativeExp(state, derivative, parameterDerivative,
-                        currentReal, currentImaginary);
+                    derivative = TDerivative.Advance(state, derivative, parameterDerivative, currentReal, currentImaginary);
 
                 // Zᵏ, k = 0..power (включительно — нужна и W = Zᵖ).
                 zPowerReal[0] = 1.0;
@@ -2296,89 +1590,70 @@ public static partial class MandelbrotFamilyRenderer
                     magnitudePower[j] = magnitudePower[j - 1] * referenceMagnitudeSquaredHere;
 
                 // δw = Σ_{k=1}^{p} C(p,k)·Zᵖ⁻ᵏ·δᵏ   (комплексное)
-                FloatExp deltaWReal = FloatExp.Zero, deltaWImaginary = FloatExp.Zero;
-                FloatExp deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δ¹
+                TDelta deltaWReal = TDelta.Zero, deltaWImaginary = TDelta.Zero;
+                TDelta deltaPowerReal = deltaReal, deltaPowerImaginary = deltaImaginary; // δ¹
                 for (int k = 1; k <= power; k++)
                 {
                     double zr = zPowerReal[power - k], zi = zPowerImaginary[power - k];
-                    deltaWReal += binomialPower[k] * (zr * deltaPowerReal - zi * deltaPowerImaginary);
-                    deltaWImaginary += binomialPower[k] * (zr * deltaPowerImaginary + zi * deltaPowerReal);
+                    deltaWReal += (deltaPowerReal * zr - deltaPowerImaginary * zi) * binomialPower[k];
+                    deltaWImaginary += (deltaPowerImaginary * zr + deltaPowerReal * zi) * binomialPower[k];
 
-                    FloatExp nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
+                    TDelta nextDeltaPowerReal = deltaPowerReal * deltaReal - deltaPowerImaginary * deltaImaginary;
                     deltaPowerImaginary = deltaPowerReal * deltaImaginary + deltaPowerImaginary * deltaReal;
                     deltaPowerReal = nextDeltaPowerReal;
                 }
 
                 // δm = |Z+δ|² − M = 2(Zr·δr + Zi·δi) + δr² + δi²   (сумма, не разность — точно)
-                FloatExp deltaM = (referenceReal * deltaReal + referenceImaginary * deltaImaginary) * 2.0
-                                 + deltaReal * deltaReal + deltaImaginary * deltaImaginary;
+                TDelta deltaM = (deltaReal * referenceReal + deltaImaginary * referenceImaginary) * 2.0
+                              + deltaReal * deltaReal + deltaImaginary * deltaImaginary;
 
                 // δs = Σ_{j=1}^{q} C(q,j)·M^(q-j)·δmʲ   (возмущение Mᵠ, вещественное)
-                FloatExp deltaS = FloatExp.Zero;
-                FloatExp deltaMPower = deltaM; // δm¹
+                TDelta deltaS = TDelta.Zero;
+                TDelta deltaMPower = deltaM; // δm¹
                 for (int j = 1; j <= halfPower; j++)
                 {
-                    deltaS += (binomialHalf[j] * magnitudePower[halfPower - j]) * deltaMPower;
+                    deltaS += deltaMPower * (binomialHalf[j] * magnitudePower[halfPower - j]);
                     deltaMPower *= deltaM;
                 }
 
                 // Множитель модуля P = M^(p/2) и его возмущение δp = (M+δm)^(p/2) − P.
-                // Чётное p: P = Mᵠ и δp = δs — выражения ниже те же, что и до нечётной
-                // степени. Нечётное p = 2q+1: P = Mᵠ·√M, а корень возмущается тождеством
-                // δ√M = δm/(√(M+δm)+√M) — знаменатель ≈ 2√M, вычитания близких величин нет.
+                // Чётное p: P = Mᵠ и δp = δs. Нечётное p = 2q+1: P = Mᵠ·√M, а корень
+                // возмущается тождеством δ√M = δm/(√(M+δm)+√M) — знаменатель ≈ 2√M, вычитания
+                // близких величин нет.
                 double factorP = magnitudePower[halfPower];
-                FloatExp deltaP = deltaS;
+                TDelta deltaP = deltaS;
                 if (oddPower)
                 {
                     double rootM = System.Math.Sqrt(referenceMagnitudeSquaredHere);
-                    FloatExp shifted = referenceMagnitudeSquaredHere + deltaM;   // = |Z+δ|² ≥ 0
-                    FloatExp rootSum = (shifted.Sign > 0 ? FloatExp.Sqrt(shifted) : FloatExp.Zero) + rootM;
-                    FloatExp deltaRoot = rootSum.Sign > 0 ? deltaM / rootSum : FloatExp.Zero;
-                    deltaP = factorP * deltaRoot + rootM * deltaS + deltaS * deltaRoot;
+                    TDelta shifted = deltaM + referenceMagnitudeSquaredHere;   // = |Z+δ|² ≥ 0
+                    TDelta rootSum = (shifted > 0.0 ? TDelta.Sqrt(shifted) : TDelta.Zero) + rootM;
+                    TDelta deltaRoot = rootSum > 0.0 ? deltaM / rootSum : TDelta.Zero;
+                    deltaP = deltaRoot * factorP + deltaS * rootM + deltaS * deltaRoot;
                     factorP *= rootM;
                 }
 
                 // δ' = W·δp + P·δw + δw·δp + δc
                 double wReal = zPowerReal[power], wImaginary = zPowerImaginary[power];
-                deltaReal = wReal * deltaP + factorP * deltaWReal + deltaWReal * deltaP + addReal;
-                deltaImaginary = wImaginary * deltaP + factorP * deltaWImaginary + deltaWImaginary * deltaP + addImaginary;
+                deltaReal = deltaP * wReal + deltaWReal * factorP + deltaWReal * deltaP + addReal;
+                deltaImaginary = deltaP * wImaginary + deltaWImaginary * factorP + deltaWImaginary * deltaP + addImaginary;
 
                 referenceIndex++;
                 iteration++;
             }
 
-            double nextReferenceReal = referenceIndex < orbit.Length ? orbit.Re[referenceIndex] : 0.0;
-            double nextReferenceImaginary = referenceIndex < orbit.Length ? orbit.Im[referenceIndex] : 0.0;
-            double fullReal = nextReferenceReal + deltaReal.ToDouble();
-            double fullImaginary = nextReferenceImaginary + deltaImaginary.ToDouble();
-            magnitudeSquared = fullReal * fullReal + fullImaginary * fullImaginary;
-
-            if (magnitudeSquared > escapeSquared)
+            if (CompleteStep<TDelta, TDerivative>(orbit, ref referenceIndex, ref deltaReal, ref deltaImaginary,
+                    escapeSquared, false, out magnitudeSquared, out escapeReal, out escapeImaginary))
             {
-                escapeReal = fullReal;
-                escapeImaginary = fullImaginary;
                 escaped = true;
                 break;
-            }
-
-            double deltaMagnitudeSquared = FloatExp.MagnitudeSquared(deltaReal, deltaImaginary).ToDouble();
-            double referenceMagnitudeSquared =
-                nextReferenceReal * nextReferenceReal + nextReferenceImaginary * nextReferenceImaginary;
-            if (referenceIndex >= orbit.Length - 1 ||
-                magnitudeSquared < deltaMagnitudeSquared ||
-                magnitudeSquared < GlitchToleranceSquared * referenceMagnitudeSquared)
-            {
-                deltaReal = FloatExp.FromDouble(fullReal - orbit.Re[0]);
-                deltaImaginary = FloatExp.FromDouble(fullImaginary - orbit.Im[0]);
-                referenceIndex = 0;
             }
         }
 
         if (!escaped)
             return new PixelMetrics(maxIterations, maxIterations, 0, 0);
 
-        return FinishDeepZoomPixelExp(iteration, magnitudeSquared, minTrap, stripe,
-            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale);
+        return TDerivative.Finish(iteration, magnitudeSquared, minTrap, stripe,
+            estimateDistance, escapeReal, escapeImaginary, derivative, distanceScale, 2);
     }
 
     // ------------------------------------------------------------------ brute-force safety net

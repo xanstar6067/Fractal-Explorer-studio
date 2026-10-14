@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -10,21 +11,95 @@ using FractalExplorerWPF.Models;
 // общего кода глубокого зума.
 internal static partial class Program
 {
-    // Быстрая сверка глубокого зума: по нескольку мелких кадров на каждый пертурбационный
-    // движок (Мандельброт и его отражённые варианты, Nova, Феникс, Ньютон), каждый — во всех
-    // представлениях δ, которые выбирает план кадра. Кадры крошечные, вся группа идёт
-    // секунды, поэтому её можно гонять после каждой правки общего кода, а полные группы
+    // Быстрая сверка глубокого зума: мелкие кадры на каждом пертурбационном ядре. У семейства
+    // Мандельброта — каждое ядро (z²+c, отражённые варианты с кубическими, Multibrot,
+    // Симоноброт, их Жюлиа) в обоих представлениях δ (double и FloatExp) и в четырёх режимах
+    // окраски, которые по-разному проходят ядро: гладкая (с BLA), ловушка и полосы (пошагово)
+    // и оценка расстояния (с производной). Плюс Nova, Феникс и Ньютон. Вся группа идёт
+    // десятки секунд, поэтому её можно гонять после каждой правки ядер, а полные группы
     // deep, phoenix, newton — один раз в конце.
     //
-    //   deep-frames [--record файл] [--compare файл]
+    //   deep-frames [--record файл] [--compare файл] [--time]
     //
-    // Без ключей группа только проверяет, что в каждом кадре есть структура.
+    // Без ключей группа только проверяет, что в каждом кадре есть структура. --time вместо
+    // сверки замеряет скорость основных ядер на кадрах покрупнее.
     private static async Task VerifyDeepFramesAsync(string[] args)
     {
         string? record = ReadOption(args, "--record");
         string? compare = ReadOption(args, "--compare");
-        const int w = 48, h = 32;
+        List<(string Name, Func<int, int, byte[]> Render)> frames = DeepFrameCases();
 
+        if (args.Contains("--time"))
+        {
+            await TimeDeepFramesAsync(frames);
+            return;
+        }
+
+        const int w = 32, h = 24;
+        var lines = new List<string>();
+        foreach ((string name, Func<int, int, byte[]> render) in frames)
+        {
+            byte[] pixels = await Task.Run(() => render(w, h));
+            int colors = Enumerable.Range(0, w * h)
+                .Select(pixel => BitConverter.ToInt32(pixels, pixel * 4)).Distinct().Count();
+            // Ловушка и полосы на глубоком зуме законно дают почти однотонный кадр: орбиты
+            // соседних пикселей там почти совпадают. Структура обязательна у гладкой окраски.
+            if (name.EndsWith("/Smooth") || !name.Contains('/'))
+                Check(colors > 1, $"deep-frames {name}: кадр однородный, сверять нечего.");
+            if (colors <= 1) Console.WriteLine($"[diag] однотонный кадр {name}");
+            lines.Add($"{name} {w}x{h}:{Convert.ToHexString(SHA256.HashData(pixels))}");
+        }
+        Console.WriteLine($"[diag] deep-frames: посчитано {lines.Count} кадров.");
+
+        if (record is not null)
+        {
+            File.WriteAllLines(record, lines);
+            Console.WriteLine($"Записано {lines.Count} глубоких кадров в {record}.");
+        }
+        if (compare is not null)
+        {
+            string[] expected = File.ReadAllLines(compare).Where(line => line.Length > 0).ToArray();
+            var differing = lines.Where(line => !expected.Contains(line)).ToList();
+            foreach (string line in differing)
+                Console.WriteLine($"Кадр отличается от эталона: {line}");
+            Check(expected.Length == lines.Count, $"В эталоне {expected.Length} кадров, посчитано {lines.Count}.");
+            Check(differing.Count == 0, $"{differing.Count} глубоких кадров отличаются от эталона {compare}.");
+            Console.WriteLine($"Все {lines.Count} глубоких кадров совпадают с эталоном {compare}.");
+        }
+    }
+
+    /// <summary>
+    /// Скорость ядер: кадры 160×120 в один поток, по три прогона, в отчёт идёт лучший. Опорная
+    /// орбита кэшируется после первого прогона, поэтому время — это время самих пикселей.
+    /// </summary>
+    private static async Task TimeDeepFramesAsync(List<(string Name, Func<int, int, byte[]> Render)> frames)
+    {
+        string[] timed =
+        [
+            "mandelbrot/double/Smooth", "mandelbrot/floatexp/Smooth",
+            "mandelbrot/double/OrbitTrap", "mandelbrot/floatexp/OrbitTrap",
+            "mandelbrot/double/DistanceEstimation", "mandelbrot/floatexp/DistanceEstimation",
+            "burning-ship/double/OrbitTrap", "burning-ship/floatexp/OrbitTrap",
+            "multibrot3/double/OrbitTrap", "multibrot3/floatexp/OrbitTrap",
+            "simonobrot3/double/OrbitTrap", "simonobrot3/floatexp/OrbitTrap"
+        ];
+        foreach (string name in timed)
+        {
+            Func<int, int, byte[]> render = frames.Single(frame => frame.Name == name).Render;
+            await Task.Run(() => render(160, 120));
+            long best = long.MaxValue;
+            for (int run = 0; run < 3; run++)
+            {
+                var watch = Stopwatch.StartNew();
+                await Task.Run(() => render(160, 120));
+                best = Math.Min(best, watch.ElapsedMilliseconds);
+            }
+            Console.WriteLine($"[time] {name}: {best} мс");
+        }
+    }
+
+    private static List<(string Name, Func<int, int, byte[]> Render)> DeepFrameCases()
+    {
         static MandelbrotPalette Palette() => new()
         {
             Colors = [Colors.White, Colors.Black],
@@ -32,91 +107,104 @@ internal static partial class Program
             IsGradient = true
         };
 
-        var frames = new List<(string Name, Func<byte[]> Render)>();
+        var frames = new List<(string Name, Func<int, int, byte[]> Render)>();
 
-        // Точка на границе множества с точностью double — бисекцией по отрезку от внутренней
-        // точки c = 0 к внешней по 600 итерациям (там, где граница не гладкая): на зуме 1e11 вокруг неё в кадре есть структура.
-        static decimal BoundaryX(Func<double, double, double, double, (double, double)> step, double y, double outsideX = 2)
+        // Семейство Мандельброта: вариант, степень, обращение (Симоноброт).
+        (string Label, MandelbrotVariant Variant, decimal Power, bool Inversion)[] variants =
+        [
+            ("mandelbrot", MandelbrotVariant.Mandelbrot, 2, false),
+            ("julia", MandelbrotVariant.Julia, 2, false),
+            ("burning-ship", MandelbrotVariant.BurningShip, 2, false),
+            ("julia-burning-ship", MandelbrotVariant.JuliaBurningShip, 2, false),
+            ("tricorn", MandelbrotVariant.Tricorn, 2, false),
+            ("buffalo", MandelbrotVariant.Buffalo, 2, false),
+            ("celtic", MandelbrotVariant.Celtic, 2, false),
+            ("perpendicular-mandelbrot", MandelbrotVariant.PerpendicularMandelbrot, 2, false),
+            ("perpendicular-burning-ship", MandelbrotVariant.PerpendicularBurningShip, 2, false),
+            ("perpendicular-celtic", MandelbrotVariant.PerpendicularCeltic, 2, false),
+            ("perpendicular-buffalo", MandelbrotVariant.PerpendicularBuffalo, 2, false),
+            ("celtic-mandelbar", MandelbrotVariant.CelticMandelbar, 2, false),
+            ("cubic-quasi-burning-ship", MandelbrotVariant.CubicQuasiBurningShip, 2, false),
+            ("cubic-flying-squirrel", MandelbrotVariant.CubicFlyingSquirrel, 2, false),
+            ("julia-cubic-flying-squirrel", MandelbrotVariant.JuliaCubicFlyingSquirrel, 2, false),
+            ("multibrot3", MandelbrotVariant.Generalized, 3, false),
+            ("multibrot5", MandelbrotVariant.Generalized, 5, false),
+            ("julia-multibrot4", MandelbrotVariant.JuliaGeneralized, 4, false),
+            ("simonobrot2", MandelbrotVariant.Simonobrot, 2, false),
+            ("simonobrot3", MandelbrotVariant.Simonobrot, 3, false),
+            ("julia-simonobrot3-inverted", MandelbrotVariant.JuliaSimonobrot, 3, true)
+        ];
+        MandelbrotColoringMode[] colorings =
+        [
+            MandelbrotColoringMode.Smooth, MandelbrotColoringMode.OrbitTrap,
+            MandelbrotColoringMode.StripeAverage, MandelbrotColoringMode.DistanceEstimation
+        ];
+
+        foreach ((string label, MandelbrotVariant variant, decimal power, bool inversion) in variants)
         {
-            bool Escapes(double cx)
+            MandelbrotVariantDefinition definition = MandelbrotVariantDefinition.For(variant);
+            MandelbrotState Base() => new()
             {
-                double zx = 0, zy = 0;
-                for (int i = 0; i < 600; i++)
+                Variant = variant,
+                Power = power,
+                UseInversion = inversion,
+                JuliaCReal = definition.DefaultJuliaReal,
+                JuliaCImaginary = definition.DefaultJuliaImaginary,
+                CenterX = definition.InitialCenterX,
+                CenterY = definition.InitialCenterY,
+                Zoom = definition.InitialZoom,
+                Iterations = 800,
+                Threads = 1,
+                Palette = Palette()
+            };
+            var center = new Lazy<(decimal X, decimal Y, double Zoom)>(() => FindBusyCenter(Base));
+
+            foreach (bool floatExp in new[] { false, true })
+            foreach (MandelbrotColoringMode coloring in colorings)
+            {
+                bool capturedFloatExp = floatExp;
+                MandelbrotColoringMode capturedColoring = coloring;
+                frames.Add(($"{label}/{(floatExp ? "floatexp" : "double")}/{coloring}", (w, h) =>
                 {
-                    (zx, zy) = step(zx, zy, cx, y);
-                    if (zx * zx + zy * zy > 16) return true;
-                }
-                return false;
+                    MandelbrotState state = Base();
+                    (state.CenterX, state.CenterY, state.Zoom) = center.Value;
+                    state.ColoringMode = capturedColoring;
+                    byte[] pixels = new byte[w * h * 4];
+                    MandelbrotFamilyRenderer.ForceDeepZoomForTests = true;
+                    MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = capturedFloatExp;
+                    try { MandelbrotFamilyRenderer.Render(state, pixels, w, h, w * 4, CancellationToken.None); }
+                    finally
+                    {
+                        MandelbrotFamilyRenderer.ForceDeepZoomForTests = null;
+                        MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = null;
+                    }
+                    return pixels;
+                }));
             }
-            double inside = 0, outside = outsideX;
-            for (int i = 0; i < 60; i++)
-            {
-                double middle = (inside + outside) / 2;
-                if (Escapes(middle)) outside = middle; else inside = middle;
-            }
-            return (decimal)inside;
         }
 
-        // Мандельброт и отражённые варианты: double-δ, FloatExp-δ и вещественная BLA.
-        foreach ((string label, MandelbrotVariant variant, decimal centerX, decimal centerY, double zoom) in new[]
-                 {
-                     ("mandelbrot", MandelbrotVariant.Mandelbrot,
-                         -1.2628848671045503000020782246m, 0.0409687601493310685285376264m, 5.7607143988620999e25),
-                     ("burning-ship", MandelbrotVariant.BurningShip,
-                         BoundaryX((x, y, cx, cy) => (x * x - y * y + cx, -2 * Math.Abs(x * y) + cy), 0.05, -2.5), 0.05m, 1e11),
-                     ("tricorn", MandelbrotVariant.Tricorn,
-                         BoundaryX((x, y, cx, cy) => (x * x - y * y + cx, -2 * x * y + cy), 0.05, -2.5), 0.05m, 1e11)
-                 })
+        // Тот же z²+c на настоящей глубине 5.8e25.
         foreach (bool floatExp in new[] { false, true })
         {
-            MandelbrotVariant capturedVariant = variant;
-            decimal capturedX = centerX, capturedY = centerY;
-            double capturedZoom = zoom;
             bool capturedFloatExp = floatExp;
-            frames.Add(($"{label}/{(floatExp ? "floatexp" : "double")}", () =>
+            frames.Add(($"mandelbrot-5.8e25/{(floatExp ? "floatexp" : "double")}", (w, h) =>
             {
                 var state = new MandelbrotState
                 {
-                    Variant = capturedVariant,
-                    CenterX = capturedX,
-                    CenterY = capturedY,
-                    Zoom = capturedZoom,
+                    CenterX = -1.2628848671045503000020782246m,
+                    CenterY = 0.0409687601493310685285376264m,
+                    Zoom = 5.7607143988620999e25,
                     Iterations = 2200,
-                    Threads = 2,
+                    Threads = 1,
                     Palette = Palette()
                 };
                 byte[] pixels = new byte[w * h * 4];
-                MandelbrotFamilyRenderer.ForceDeepZoomForTests = true;
                 MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = capturedFloatExp;
                 try { MandelbrotFamilyRenderer.Render(state, pixels, w, h, w * 4, CancellationToken.None); }
-                finally
-                {
-                    MandelbrotFamilyRenderer.ForceDeepZoomForTests = null;
-                    MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = null;
-                }
+                finally { MandelbrotFamilyRenderer.ForceFloatExpDeltaForTests = null; }
                 return pixels;
             }));
         }
-
-        frames.Add(("multibrot3/double", () =>
-        {
-            var state = new MandelbrotState
-            {
-                Variant = MandelbrotVariant.Generalized,
-                Power = 3,
-                CenterX = BoundaryX((x, y, cx, cy) => (x * x * x - 3 * x * y * y + cx, 3 * x * x * y - y * y * y + cy), 0.3),
-                CenterY = 0.3m,
-                Zoom = 1e11,
-                Iterations = 600,
-                Threads = 2,
-                Palette = Palette()
-            };
-            byte[] pixels = new byte[w * h * 4];
-            MandelbrotFamilyRenderer.ForceDeepZoomForTests = true;
-            try { MandelbrotFamilyRenderer.Render(state, pixels, w, h, w * 4, CancellationToken.None); }
-            finally { MandelbrotFamilyRenderer.ForceDeepZoomForTests = null; }
-            return pixels;
-        }));
 
         // Nova: целая и дробная степень.
         foreach ((string label, decimal power, double zoom, decimal threshold) in new[]
@@ -127,7 +215,7 @@ internal static partial class Program
         {
             decimal capturedPower = power, capturedThreshold = threshold;
             double capturedZoom = zoom;
-            frames.Add((label, () =>
+            frames.Add((label, (w, h) =>
             {
                 var state = new NovaState
                 {
@@ -148,7 +236,7 @@ internal static partial class Program
                 state.CenterY = BigFloat.Parse(state.CenterYExact).ToDecimalClamped();
                 byte[] pixels = new byte[w * h * 4];
                 NovaRenderer.ForceDeepZoomForTests = true;
-                try { NovaRenderer.Render(state, pixels, w, h, w * 4, 2, CancellationToken.None); }
+                try { NovaRenderer.Render(state, pixels, w, h, w * 4, 1, CancellationToken.None); }
                 finally { NovaRenderer.ForceDeepZoomForTests = null; }
                 return pixels;
             }));
@@ -158,7 +246,7 @@ internal static partial class Program
         foreach (bool extended in new[] { false, true })
         {
             bool capturedExtended = extended;
-            frames.Add(($"phoenix/{(extended ? "extended" : "double")}", () =>
+            frames.Add(($"phoenix/{(extended ? "extended" : "double")}", (w, h) =>
             {
                 var state = new PhoenixState
                 {
@@ -187,7 +275,7 @@ internal static partial class Program
                 byte[] pixels = new byte[w * h * 4];
                 PhoenixRenderer.ForceDeepZoomForTests = true;
                 PhoenixRenderer.ForceExtendedDeltaForTests = capturedExtended;
-                try { PhoenixRenderer.Render(state, pixels, w, h, w * 4, 2, CancellationToken.None); }
+                try { PhoenixRenderer.Render(state, pixels, w, h, w * 4, 1, CancellationToken.None); }
                 finally
                 {
                     PhoenixRenderer.ForceDeepZoomForTests = null;
@@ -202,7 +290,7 @@ internal static partial class Program
         {
             NewtonIterationMethod capturedMethod = method;
             string capturedZoom = zoom;
-            frames.Add(($"newton-{method.ToString().ToLowerInvariant()}", () =>
+            frames.Add(($"newton-{method.ToString().ToLowerInvariant()}", (w, h) =>
             {
                 var engine = new NewtonPoolsEngine
                 {
@@ -224,38 +312,55 @@ internal static partial class Program
                 engine.RootColors = [Colors.Red, Colors.Lime, Colors.Blue];
                 byte[] pixels = new byte[w * h * 4];
                 NewtonPoolsEngine.ForceDeepZoomForTests = true;
-                try { engine.RenderToBuffer(pixels, w, h, w * 4, 2, CancellationToken.None); }
+                try { engine.RenderToBuffer(pixels, w, h, w * 4, 1, CancellationToken.None); }
                 finally { NewtonPoolsEngine.ForceDeepZoomForTests = null; }
                 return pixels;
             }));
         }
 
-        var lines = new List<string>();
-        foreach ((string name, Func<byte[]> render) in frames)
-        {
-            byte[] pixels = await Task.Run(render);
-            int colors = Enumerable.Range(0, w * h)
-                .Select(pixel => BitConverter.ToInt32(pixels, pixel * 4)).Distinct().Count();
-            Console.WriteLine($"[diag] deep-frames {name}: {colors} цветов");
-            Check(colors > 1, $"deep-frames {name}: кадр однородный, сверять нечего.");
-            lines.Add($"{name} {w}x{h}:{Convert.ToHexString(SHA256.HashData(pixels))}");
-        }
+        return frames;
+    }
 
-        if (record is not null)
+    /// <summary>
+    /// Центр с богатой структурой: десять приближений в 8 раз к самому пёстрому пикселю кадра
+    /// (до зума ~8e8). Все шаги — плоская ступень ниже порога глубокого движка, поэтому
+    /// найденный центр от правки пертурбационных ядер не зависит. Итоговый зум — ещё в 8 раз
+    /// глубже (~6e9), уже за порогом.
+    /// </summary>
+    private static (decimal X, decimal Y, double Zoom) FindBusyCenter(Func<MandelbrotState> create)
+    {
+        const int w = 40, h = 30;
+        MandelbrotState state = create();
+        decimal x = state.CenterX, y = state.CenterY;
+        double zoom = state.Zoom.ToDouble();
+        for (int step = 0; step < 10; step++)
         {
-            File.WriteAllLines(record, lines);
-            Console.WriteLine($"Записано {lines.Count} глубоких кадров в {record}.");
+            state = create();
+            state.CenterX = x;
+            state.CenterY = y;
+            state.Zoom = zoom;
+            byte[] pixels = new byte[w * h * 4];
+            MandelbrotFamilyRenderer.ForceDeepZoomForTests = false;
+            try { MandelbrotFamilyRenderer.Render(state, pixels, w, h, w * 4, CancellationToken.None); }
+            finally { MandelbrotFamilyRenderer.ForceDeepZoomForTests = null; }
+
+            int bestX = w / 2, bestY = h / 2, bestScore = -1;
+            for (int py = 1; py < h - 1; py++)
+            for (int px = 1; px < w - 1; px++)
+            {
+                var colors = new HashSet<int>();
+                for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    colors.Add(BitConverter.ToInt32(pixels, ((py + dy) * w + px + dx) * 4));
+                if (colors.Count > bestScore) (bestScore, bestX, bestY) = (colors.Count, px, py);
+            }
+
+            decimal viewWidth = 3m / (decimal)zoom;
+            decimal viewHeight = viewWidth * h / w;
+            x += ((decimal)bestX / w - 0.5m) * viewWidth;
+            y += (0.5m - (decimal)bestY / h) * viewHeight;
+            zoom *= 8;
         }
-        if (compare is not null)
-        {
-            string[] expected = File.ReadAllLines(compare).Where(line => line.Length > 0).ToArray();
-            var differing = lines.Where(line => !expected.Contains(line)).ToList();
-            foreach (string line in differing)
-                Console.WriteLine($"Кадр отличается от эталона: {line}");
-            Check(expected.Length == lines.Count, $"В эталоне {expected.Length} кадров, посчитано {lines.Count}.");
-            Check(differing.Count == 0, $"{differing.Count} глубоких кадров отличаются от эталона {compare}.");
-            if (differing.Count == 0)
-                Console.WriteLine($"Все {lines.Count} глубоких кадров совпадают с эталоном {compare}.");
-        }
+        return (x, y, zoom * 8);
     }
 }

@@ -21,7 +21,7 @@ namespace FractalExplorerWPF.Core.NewtonMath;
 /// радиусом бейлаута и в расширенном диапазоне не нуждаются. Позиция центра требует не
 /// диапазона, а разрядности мантиссы, и ведётся в <see cref="BigFloat"/>.
 /// </summary>
-public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, IFormattable
+public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, IFormattable, IDeltaNumber<FloatExp>
 {
     /// <summary>Нормализованная мантисса: 0 либо |Mantissa| ∈ [1; 2).</summary>
     public readonly double Mantissa;
@@ -248,6 +248,15 @@ public readonly struct FloatExp : IComparable<FloatExp>, IEquatable<FloatExp>, I
 
     /// <summary>|re|² + |im|² как <see cref="FloatExp"/> — без промежуточного переполнения диапазона.</summary>
     public static FloatExp MagnitudeSquared(FloatExp re, FloatExp im) => re * re + im * im;
+
+    // Операции пертурбационных ядер с double-аргументом (см. IDeltaNumber). Реализованы явно,
+    // чтобы не менять разбор обычных выражений с FloatExp: там double приводится неявным
+    // расширением, и результат ровно тот же.
+    static FloatExp IDeltaNumber<FloatExp>.operator +(FloatExp left, double right) => left + FromDouble(right);
+    static bool IDeltaNumber<FloatExp>.operator >(FloatExp left, double right) => left > FromDouble(right);
+    static bool IDeltaNumber<FloatExp>.operator <(FloatExp left, double right) => left < FromDouble(right);
+    static double IDeltaNumber<FloatExp>.MagnitudeSquared(FloatExp real, FloatExp imaginary) =>
+        MagnitudeSquared(real, imaginary).ToDouble();
 
     /// <summary>Число значащих десятичных цифр в <see cref="ToInvariantString"/>.</summary>
     private const int SignificantDigits = 17;

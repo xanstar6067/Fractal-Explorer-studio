@@ -806,7 +806,7 @@ public static partial class MandelbrotFamilyRenderer
         return distance > 0 && double.IsFinite(distance) ? distance : 0;
     }
 
-    private readonly record struct Jacobian2(double M11, double M12, double M21, double M22)
+    private readonly partial record struct Jacobian2(double M11, double M12, double M21, double M22)
     {
         public static Jacobian2 Zero => new(0, 0, 0, 0);
         public static Jacobian2 Identity => new(1, 0, 0, 1);
@@ -840,7 +840,7 @@ public static partial class MandelbrotFamilyRenderer
     /// Сам якобиан шага <see cref="GetIterationJacobian"/> остаётся double — он зависит
     /// только от ограниченного радиусом бейлаута <c>z</c>.
     /// </summary>
-    private readonly record struct Jacobian2Exp(FloatExp M11, FloatExp M12, FloatExp M21, FloatExp M22)
+    private readonly partial record struct Jacobian2Exp(FloatExp M11, FloatExp M12, FloatExp M21, FloatExp M22)
     {
         public static Jacobian2Exp Zero => new(FloatExp.Zero, FloatExp.Zero, FloatExp.Zero, FloatExp.Zero);
         public static Jacobian2Exp Identity => new(FloatExp.One, FloatExp.Zero, FloatExp.Zero, FloatExp.One);

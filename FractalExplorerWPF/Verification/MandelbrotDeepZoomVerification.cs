@@ -1216,7 +1216,7 @@ internal static partial class Program
 
     // Phase 11: FloatExp-δ for the reflected variants, Multibrot and Simonobrot — the same
     // plan switch (PlanDeepZoom.UseFloatExpDelta) that already gates the z²+c kernel now
-    // also gates DeepZoomPixelReflectedFloatExp/MultibrotFloatExp/SimonobrotFloatExp, lifting
+    // also gates the FloatExp instantiation of the reflected/Multibrot/Simonobrot kernels, lifting
     // their double-δ ceiling (was 1e50/1e40/1e30) up to the shared MaxZoom.
     //   1. Overlap band: wherever both δ representations are valid, the FloatExp kernel must
     //      be bit-identical to the trusted double kernel (the same technique as Phase 1 for
