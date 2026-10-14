@@ -1,10 +1,13 @@
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
+using System.Text.Json.Serialization;
 
 namespace FractalExplorerWPF.Models;
 
 public enum TranscendentalJuliaKind { Exponential, Sine }
 public enum TranscendentalJuliaLayer { Orbits, Julia, Combined }
+public enum TranscendentalJuliaDrawing { Points, Rays, RaysAndPoints }
+public enum TranscendentalJuliaPlane { Dynamic, Parameter }
 
 public sealed class TranscendentalJuliaState
 {
@@ -25,6 +28,17 @@ public sealed class TranscendentalJuliaState
     public int BranchRadius { get; set; } = 4;
     public int PointBudget { get; set; } = 1_000_000;
     public int SamplingSeed { get; set; } = 137;
+    // Points сохраняет вид прежних JSON, где этих полей ещё нет.
+    public TranscendentalJuliaDrawing Drawing { get; set; }
+    public TranscendentalJuliaPlane Plane { get; set; }
+    public int RayLimit { get; set; } = 600;
+    public double RayAccuracy { get; set; } = 0.35;
+    public double ParameterCenterX { get; set; }
+    public double ParameterCenterY { get; set; }
+    public double ParameterZoom { get; set; } = 3;
+    [JsonIgnore] public double ViewCenterX => Plane == TranscendentalJuliaPlane.Parameter ? ParameterCenterX : CenterX;
+    [JsonIgnore] public double ViewCenterY => Plane == TranscendentalJuliaPlane.Parameter ? ParameterCenterY : CenterY;
+    [JsonIgnore] public double ViewZoom => Plane == TranscendentalJuliaPlane.Parameter ? ParameterZoom : Zoom;
     public NewtonColorPalette Palette { get; set; } = new()
     {
         Name = "Трансцендентные Жюлиа", BackgroundColor = Color.FromRgb(7, 10, 18),
@@ -43,7 +57,8 @@ public sealed class TranscendentalJuliaState
 
     public void Validate()
     {
-        if (!Enum.IsDefined(Kind) || !Enum.IsDefined(Layer)) throw new ArgumentException("Неизвестный режим Жюлиа.");
+        if (!Enum.IsDefined(Kind) || !Enum.IsDefined(Layer) || !Enum.IsDefined(Drawing) || !Enum.IsDefined(Plane))
+            throw new ArgumentException("Неизвестный режим Жюлиа.");
         if (!double.IsFinite(LambdaReal) || !double.IsFinite(LambdaImaginary) ||
             Math.Abs(LambdaReal) > 1e6 || Math.Abs(LambdaImaginary) > 1e6)
             throw new ArgumentException("Компоненты λ должны быть конечными числами в пределах ±1000000.");
@@ -56,6 +71,12 @@ public sealed class TranscendentalJuliaState
         if (InverseDepth is < 1 or > 80 || BranchRadius is < 1 or > 24 || PointBudget is < 1000 or > 10_000_000)
             throw new ArgumentException("Глубина: 1…80; ветви: 1…24; бюджет: 1000…10000000.");
         if (Palette is null || Palette.RootColors is null) throw new ArgumentException("Палитра отсутствует.");
+        if (RayLimit is < 8 or > 10000 || !double.IsFinite(RayAccuracy) || RayAccuracy < 0.05 || RayAccuracy > 2)
+            throw new ArgumentException("Лучей: 8…10000; точность кривых: 0.05…2 пикселя.");
+        if (!double.IsFinite(ParameterCenterX) || !double.IsFinite(ParameterCenterY) ||
+            Math.Abs(ParameterCenterX) > 1e10 || Math.Abs(ParameterCenterY) > 1e10 ||
+            !double.IsFinite(ParameterZoom) || ParameterZoom < 1e-6 || ParameterZoom > 1e10)
+            throw new ArgumentException("Некорректный вид карты λ.");
     }
 }
 
@@ -75,7 +96,8 @@ public static class TranscendentalJuliaCatalog
     public static TranscendentalJuliaState CreateDefault(TranscendentalJuliaKind kind) => new()
     {
         Kind = kind, SaveName = "Канторов букет", LambdaReal = kind == TranscendentalJuliaKind.Exponential ? 0.3 : 0.5,
-        CenterX = kind == TranscendentalJuliaKind.Exponential ? 2 : 0
+        CenterX = kind == TranscendentalJuliaKind.Exponential ? 2 : 0,
+        Drawing = TranscendentalJuliaDrawing.Rays
     };
     public static IReadOnlyList<TranscendentalJuliaState> Presets(TranscendentalJuliaKind kind)
     {

@@ -62,6 +62,11 @@ internal static partial class Program
         {
             try
             {
+                if (group == "transcendental-rays")
+                {
+                    await VerifyTranscendentalRaysAsync(args);
+                    return;
+                }
                 if (group == "transcendental-julia")
                 {
                     await VerifyTranscendentalJuliaAsync(args);
@@ -91,6 +96,7 @@ internal static partial class Program
                 if (group is "laboratory") await VerifyLaboratoriesAsync(args);
                 if (group is "all" or "basins") VerifyBasinExplorers();
                 if (group == "all") await VerifyTranscendentalJuliaAsync(["transcendental-julia"]);
+                if (group == "all") await VerifyTranscendentalRaysAsync(["transcendental-rays"]);
                 if (group is "all" or "preparation3d") await Verify3DPreparationAsync(args);
                 if (group is "all" or "fractal3d") await VerifyFractal3DAsync();
                 if (group is "all" or "fractal3d-modes") await VerifyFractal3DModesAsync(args);

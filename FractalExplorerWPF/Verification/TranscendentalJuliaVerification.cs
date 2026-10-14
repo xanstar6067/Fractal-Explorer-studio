@@ -73,7 +73,8 @@ internal static partial class Program
                 var renderer = new TranscendentalJuliaRenderer(preset);
                 var frame = new byte[256 * 192 * 4];
                 renderer.Render(frame, 256, 192, 256 * 4, 1, CancellationToken.None);
-                Check(renderer.SeedCount > 0 && renderer.CompletedDepth >= 8, "Presets must retain a meaningful inverse tree.");
+                Check(renderer.SeedCount > 0 && (preset.Drawing == TranscendentalJuliaDrawing.Points ? renderer.CompletedDepth >= 8 :
+                    renderer.RayCount > 20 && renderer.CompletedDepth >= 3), "Presets must retain a meaningful inverse tree or a family of continued rays.");
                 int hairs = Enumerable.Range(0, 256 * 192).Count(i => frame[i * 4 + 2] > 130 && frame[i * 4 + 1] > 100 && frame[i * 4] < frame[i * 4 + 1]);
                 Check(hairs > 150 && frames.All(f => !f.SequenceEqual(frame)), $"Preset {preset.SaveName} must have visible Julia points and a distinct picture; got {hairs}.");
                 frames.Add(frame);

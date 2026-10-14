@@ -540,10 +540,14 @@ internal static class Program
                 if (w != null)
                 {
                     var manager = (NewtonPaletteManager)GetMember(w, "_palettes")!;
-                    string[] labels = ["Точки Жюлиа", "Нераспознанные орбиты", "Численный предел", "Цикл 1", "Цикл 2", "Цикл 3", "Цикл 4"];
+                    string[] labels = ["Жюлиа: лучи и точки", "Нераспознанные орбиты", "Численный предел", "Цикл 1", "Цикл 2", "Цикл 3", "Цикл 4"];
                     await CaptureChildAsync(w, new NewtonPaletteWindow(manager,
                         Enumerable.Repeat(System.Numerics.Complex.Zero, labels.Length).ToArray(), labels,
                         "Цвета слоёв и исходов орбиты", true, "Палитра трансцендентных Жюлиа"), "julia-" + Kebab(transcendentalKind.ToString()) + "-palette");
+                    ((System.Windows.Controls.ComboBox)w.FindName("PlaneBox")).SelectedIndex = 1;
+                    await Task.Delay(500);
+                    await WaitForRenderIdleAsync(w);
+                    Capture(w, "julia-" + Kebab(transcendentalKind.ToString()) + "-lambda");
                 }
                 SafeCloseIfAny(w);
                 return;

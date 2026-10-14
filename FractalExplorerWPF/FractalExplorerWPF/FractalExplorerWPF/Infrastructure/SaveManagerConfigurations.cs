@@ -19,8 +19,9 @@ public static class SaveManagerConfigurations
         LoadState = window.LoadState, RenderPreviewAsync = window.RenderStatePreviewAsync,
         GetName = state => state.SaveName, GetTimestamp = state => state.Timestamp,
         GetDetails = state => $"{Prefix(state.Timestamp)} · {TranscendentalJuliaCatalog.Formula(state.Kind)}\n" +
-            $"λ = {state.LambdaReal:G8} + ({state.LambdaImaginary:G8})i · {state.Layer}\n" +
-            $"Итерации: {state.MaxIterations} · глубина: {state.InverseDepth} · масштаб: {state.Zoom:G6}",
+            (state.Plane == TranscendentalJuliaPlane.Parameter ? "Карта λ · сингулярные орбиты\n" :
+                $"λ = {state.LambdaReal:G8} + ({state.LambdaImaginary:G8})i · {state.Drawing}\n") +
+            $"Итерации: {state.MaxIterations} · глубина: {state.InverseDepth} · масштаб: {state.ViewZoom:G6}",
         PointsOfInterest = TranscendentalJuliaCatalog.Presets(window.Kind)
     };
 

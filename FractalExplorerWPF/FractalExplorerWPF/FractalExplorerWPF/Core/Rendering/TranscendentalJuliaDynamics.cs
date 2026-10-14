@@ -12,64 +12,20 @@ public sealed class TranscendentalJuliaDynamics
 {
     private readonly TranscendentalJuliaState _state;
     private readonly Complex _lambda;
-    private readonly double _logLambda, _lambdaArgument;
+    private readonly TranscendentalMap _map;
     public TranscendentalJuliaDynamics(TranscendentalJuliaState state)
     {
         state.Validate();
         _state = state.Clone();
         _lambda = new(state.LambdaReal, state.LambdaImaginary);
-        _logLambda = Math.Log(_lambda.Magnitude);
-        _lambdaArgument = Math.Atan2(_lambda.Imaginary, _lambda.Real);
+        _map = new(state.Kind, _lambda);
     }
     public static bool IsFinite(Complex z) => double.IsFinite(z.Real) && double.IsFinite(z.Imaginary);
 
-    public Complex Evaluate(Complex z)
-    {
-        if (_lambda == Complex.Zero) return Complex.Zero;
-        // Масштаб λ включён до exp: промежуточное exp(z) может переполниться,
-        // хотя λ·exp(z) ещё представимо (и наоборот, не должно раньше времени обнуляться).
-        if (_state.Kind == TranscendentalJuliaKind.Exponential)
-            return Complex.FromPolarCoordinates(Math.Exp(z.Real + _logLambda), z.Imaginary + _lambdaArgument);
-        return Math.Abs(z.Imaginary) <= 20 ? _lambda * Complex.Sin(z) : ScaledSine(z, cosine: false);
-    }
-    public Complex Derivative(Complex z) => _lambda == Complex.Zero ? Complex.Zero :
-        _state.Kind == TranscendentalJuliaKind.Exponential ? Evaluate(z) :
-        Math.Abs(z.Imaginary) <= 20 ? _lambda * Complex.Cos(z) : ScaledSine(z, cosine: true);
-
-    private Complex ScaledSine(Complex z, bool cosine)
-    {
-        // При |Im z|>20 поправка exp(-2|Im z|) меньше машинной точности.
-        double scale = Math.Exp(Math.Abs(z.Imaginary) + _logLambda - Math.Log(2));
-        double sin = Math.Sin(z.Real), cos = Math.Cos(z.Real), sign = Math.Sign(z.Imaginary);
-        Complex phase = cosine ? new(cos, -sign * sin) : new(sin, sign * cos);
-        return phase * Complex.FromPolarCoordinates(scale, _lambdaArgument);
-    }
-
-    // За пределом надёжного аргумента тригонометрии не угадываем фазу.
-    public bool TryStep(Complex z, out Complex next)
-    {
-        next = default;
-        if (!IsFinite(z)) return false;
-        if (_lambda == Complex.Zero) return true;
-        // Здесь модуль результата уже меньше минимального double при любой фазе.
-        // Проверка до ограничения аргумента позволяет огромной отрицательной экспоненте вернуться к 0.
-        if (_state.Kind == TranscendentalJuliaKind.Exponential && z.Real + _logLambda < -745.2)
-            return true;
-        if ((_state.Kind == TranscendentalJuliaKind.Exponential && Math.Abs(z.Imaginary) > 1e14) ||
-            (_state.Kind == TranscendentalJuliaKind.Sine && Math.Abs(z.Real) > 1e14)) return false;
-        next = Evaluate(z);
-        return IsFinite(next);
-    }
-
-    public Complex Preimage(Complex w, long branch)
-    {
-        if (_lambda == Complex.Zero) return new(double.NaN, double.NaN);
-        Complex q = w / _lambda;
-        return _state.Kind == TranscendentalJuliaKind.Exponential
-            ? Complex.Log(q) + new Complex(0, 2 * Math.PI * branch)
-            : new Complex(branch * Math.PI, 0) + ((branch & 1) == 0 ? 1 : -1) * Complex.Asin(q);
-    }
-
+    public Complex Evaluate(Complex z) => _map.Evaluate(z);
+    public Complex Derivative(Complex z) => _map.Derivative(z);
+    public bool TryStep(Complex z, out Complex next) => _map.TryStep(z, out next);
+    public Complex Preimage(Complex w, long branch) => _map.Preimage(w, branch);
     public TranscendentalOrbit Classify(Complex z, IReadOnlyList<TranscendentalCycle> cycles, CancellationToken token = default)
     {
         for (int iteration = 0; iteration <= _state.MaxIterations; iteration++)

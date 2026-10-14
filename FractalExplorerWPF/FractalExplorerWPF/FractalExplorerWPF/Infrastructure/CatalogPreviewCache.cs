@@ -13,7 +13,8 @@ internal static class CatalogPreviewCache
     {
         // Новая окраска стартовых 3D-видов должна обновить превью после установки версии.
         // Кэш остальных разделов остаётся действительным.
-        string version = Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ? "v2" : "v1";
+        string version = TranscendentalJuliaCatalog.TryParseLaunchKey(item.LaunchKey, out _) ? "v2-rays" :
+            Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out _) ? "v2" : "v1";
         return Path.Combine(AppPaths.CatalogPreviewCacheDirectory,
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
                 $"{version}|{item.LaunchKey}|{item.PreviewResourcePath}|{CatalogPreviewLoader.IsRendered(item)}"))) + ".png");

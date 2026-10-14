@@ -34,6 +34,10 @@
                         <ComboBoxItem Content="Экспонента λ·exp(z)"/><ComboBoxItem Content="Синус λ·sin(z)"/>
                     </ComboBox>
                     <TextBlock x:Name="FormulaText" Style="{StaticResource Hint}"/>
+                    <ComboBox x:Name="PlaneBox" SelectionChanged="Plane_OnChanged">
+                        <ComboBoxItem Content="Динамическая плоскость z"/><ComboBoxItem Content="Карта параметра λ"/>
+                    </ComboBox>
+                    <TextBlock x:Name="PlaneDescriptionText" Style="{StaticResource Hint}"/>
                     <TextBlock Text="Готовый пример"/>
                     <ComboBox x:Name="PresetBox" DisplayMemberPath="SaveName" SelectionChanged="Preset_OnChanged"/>
                     <TextBlock Text="Отображение" Margin="0,8,0,0"/>
@@ -41,6 +45,19 @@
                         <ComboBoxItem Content="Карта орбит"/><ComboBoxItem Content="Жюлиа: обратные итерации"/>
                         <ComboBoxItem Content="Совмещение"/>
                     </ComboBox>
+                    <TextBlock Text="Структура Жюлиа" Margin="0,6,0,0"/>
+                    <ComboBox x:Name="DrawingBox" SelectionChanged="Parameter_OnChanged">
+                        <ComboBoxItem Content="Точки-прообразы"/><ComboBoxItem Content="Динамические лучи"/>
+                        <ComboBoxItem Content="Лучи и точки"/>
+                    </ComboBox>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Частей лучей" VerticalAlignment="Center"/>
+                        <TextBox x:Name="RayLimitBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Точность, пиксели" VerticalAlignment="Center"/>
+                        <TextBox x:Name="RayAccuracyBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                    </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Re λ" VerticalAlignment="Center"/>
                         <TextBox x:Name="LambdaRealBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
@@ -70,7 +87,7 @@
                         <TextBox x:Name="BranchesBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                        <TextBlock Text="Бюджет прообразов" VerticalAlignment="Center"/>
+                        <TextBlock Text="Бюджет точек" VerticalAlignment="Center"/>
                         <TextBox x:Name="BudgetBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
@@ -85,7 +102,7 @@
                         <TextBlock Text="Приближение" VerticalAlignment="Center"/>
                         <TextBox x:Name="ZoomBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="View_OnChanged"/>
                     </Grid>
-                    <TextBlock Style="{StaticResource Hint}" Text="Бюджет ограничивает число вычисленных прообразов. Радиус ветвей задаёт выборку около начала координат и текущего вида; дальние вспомогательные ветви подбираются по виду."/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Бюджет ограничивает выборку точек и уточнение кривых. Радиус ветвей задаёт выборку около начала координат и текущего вида; дальние вспомогательные ветви подбираются по виду."/>
                     <TextBlock Text="Потоки ЦП"/>
                     <ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
                     <TextBlock Text="Сглаживание"/>

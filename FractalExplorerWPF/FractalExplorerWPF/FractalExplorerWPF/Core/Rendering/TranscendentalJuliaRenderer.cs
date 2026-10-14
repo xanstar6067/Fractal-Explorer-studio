@@ -14,15 +14,23 @@ public sealed class TranscendentalJuliaRenderer
     private readonly TranscendentalJuliaState _state;
     private readonly TranscendentalJuliaDynamics _dynamics;
     private readonly Color[] _colors;
+    private readonly Color[] _periodColors;
     private float[]? _julia;
     private int _width, _height;
     public IReadOnlyList<TranscendentalCycle> Attractors { get; private set; } = [];
     public int SeedCount { get; private set; }
     public int SampleCount { get; private set; }
     public int CompletedDepth { get; private set; }
-    public string Description => $"Циклов: {Attractors.Count}; затравок Жюлиа: {SeedCount}; прообразов: {SampleCount:N0}; глубина: {CompletedDepth}." +
+    public int RayCount { get; private set; }
+    public int RaySplits { get; private set; }
+    public string Description => _state.Plane == TranscendentalJuliaPlane.Parameter
+        ? (_state.Kind == TranscendentalJuliaKind.Exponential ? "Карта λ: орбита 0." : "Карта λ: обе орбиты +λ и −λ.") +
+            " Цвет — период притягивающего цикла; нераспознанные исходы и численные пределы отмечены отдельно. Двойной щелчок открывает Жюлиа."
+        : $"Циклов: {Attractors.Count}; затравок: {SeedCount}; выборка: {SampleCount:N0}; глубина: {CompletedDepth}; частей лучей: {RayCount}; разрывов: {RaySplits}." +
         (_state.Layer != TranscendentalJuliaLayer.Orbits && SeedCount == 0
-            ? " Слой Жюлиа пуст: отталкивающие точки не найдены (при λ = 0 отображение постоянно)." : "");
+            ? _state.LambdaReal == 0 && _state.LambdaImaginary == 0 ? " При λ = 0 отображение постоянно; обратного слоя нет." :
+                _state.Drawing == TranscendentalJuliaDrawing.Points ? " Отталкивающие точки не найдены." :
+                " Хвосты лучей не построены в пределах бюджета; можно сравнить с точками-прообразами." : "");
 
     public TranscendentalJuliaRenderer(TranscendentalJuliaState state)
     {
@@ -30,6 +38,8 @@ public sealed class TranscendentalJuliaRenderer
         _state = state.Clone();
         _dynamics = new(_state);
         _colors = NewtonPaletteManager.AdjustColors(_state.Palette, 7).ToArray();
+        _periodColors = NewtonPaletteManager.AdjustColors(new NewtonColorPalette
+        { RootColors = _colors.Skip(3).ToList(), ExpansionMode = NewtonPaletteExpansionMode.CyclicRamp }, _state.MaxPeriod).ToArray();
     }
 
     public void Prepare(int width, int height, CancellationToken token)
@@ -37,12 +47,34 @@ public sealed class TranscendentalJuliaRenderer
         if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width));
         token.ThrowIfCancellationRequested();
         _width = width; _height = height;
-        SeedCount = SampleCount = CompletedDepth = 0;
+        SeedCount = SampleCount = CompletedDepth = RayCount = RaySplits = 0;
+        _julia = null;
+        if (_state.Plane == TranscendentalJuliaPlane.Parameter) { Attractors = []; return; }
         Attractors = _dynamics.FindAttractors(token);
         _julia = _state.Layer == TranscendentalJuliaLayer.Orbits ? null : new float[checked(width * height)];
         if (_julia is null) return;
+        if (_state.Drawing != TranscendentalJuliaDrawing.Points)
+        {
+            int? rayBudget = _state.Drawing == TranscendentalJuliaDrawing.RaysAndPoints ? _state.PointBudget * 3 / 5 : null;
+            var builder = new TranscendentalJuliaRays(_state, width, height, rayBudget);
+            var rays = builder.Build(token);
+            RayCount = rays.Count; RaySplits = builder.SplitCount;
+            SampleCount = builder.Work; CompletedDepth = builder.CompletedDepth;
+            SeedCount = rays.Count == 0 ? 0 : _state.Kind == TranscendentalJuliaKind.Sine ? 2 : 1;
+            foreach (var ray in rays)
+            {
+                token.ThrowIfCancellationRequested();
+                for (int i = 1; i < ray.Points.Length; i++) Stroke(ray.Points[i - 1], ray.Points[i]);
+            }
+        }
+        if (_state.Drawing == TranscendentalJuliaDrawing.Rays) return;
+        PreparePoints(width, height, token);
+    }
+
+    private void PreparePoints(int width, int height, CancellationToken token)
+    {
         List<Complex> current = [.. _dynamics.FindRepellingSeeds(token)];
-        SeedCount = current.Count;
+        SeedCount += current.Count;
         if (current.Count == 0) return;
 
         double units = BaseViewWidth / (_state.Zoom * width);
@@ -122,6 +154,29 @@ public sealed class TranscendentalJuliaRenderer
             }
     }
 
+    private void Stroke(Complex a, Complex b)
+    {
+        double scale = _width * _state.Zoom / BaseViewWidth;
+        double x0 = (a.Real - _state.CenterX) * scale + _width / 2.0 - 0.5;
+        double y0 = (_state.CenterY - a.Imaginary) * scale + _height / 2.0 - 0.5;
+        double dx = (b.Real - a.Real) * scale, dy = (a.Imaginary - b.Imaginary) * scale;
+        double from = 0, to = 1;
+        bool Clip(double p, double q)
+        {
+            if (p == 0) return q >= 0;
+            double t = q / p;
+            if (p < 0) { if (t > to) return false; from = Math.Max(from, t); }
+            else { if (t < from) return false; to = Math.Min(to, t); }
+            return true;
+        }
+        if (!double.IsFinite(x0) || !double.IsFinite(y0) || !double.IsFinite(dx) || !double.IsFinite(dy) ||
+            !Clip(-dx, x0 + 2) || !Clip(dx, _width + 1 - x0) || !Clip(-dy, y0 + 2) || !Clip(dy, _height + 1 - y0)) return;
+        double length = Math.Sqrt(dx * dx + dy * dy) * (to - from);
+        int steps = Math.Clamp((int)Math.Ceiling(length * 2), 1, 4 * (_width + _height));
+        for (int i = 0; i <= steps; i++)
+        { double t = from + (to - from) * i / steps; Splat(x0 + dx * t, y0 + dy * t); }
+    }
+
     public byte[] RenderTile(MandelbrotRenderTile tile, CancellationToken token)
     {
         if (_width <= 0) throw new InvalidOperationException("Сначала подготовьте кадр.");
@@ -152,6 +207,18 @@ public sealed class TranscendentalJuliaRenderer
     private void WritePixel(byte[] pixels, int offset, int x, int y, CancellationToken token)
     {
         Color background = _state.Palette.BackgroundColor;
+        if (_state.Plane == TranscendentalJuliaPlane.Parameter)
+        {
+            double units = BaseViewWidth / (_state.ViewZoom * _width);
+            var lambda = new Complex(_state.ViewCenterX + (x + 0.5 - _width / 2.0) * units,
+                _state.ViewCenterY + (_height / 2.0 - y - 0.5) * units);
+            var result = TranscendentalParameterMap.Analyze(_state.Kind, lambda, _state.MaxIterations,
+                _state.MaxPeriod, _state.Tolerance, token);
+            Color first = ParameterColor(result.First);
+            Color mapColor = result.Second is { } second ? Blend(first, ParameterColor(second), 0.5) : first;
+            pixels[offset] = mapColor.B; pixels[offset + 1] = mapColor.G; pixels[offset + 2] = mapColor.R; pixels[offset + 3] = 255;
+            return;
+        }
         Color color = background;
         if (_state.Layer != TranscendentalJuliaLayer.Julia)
         {
@@ -170,6 +237,15 @@ public sealed class TranscendentalJuliaRenderer
         if (_julia is not null) color = Blend(color, _colors[0], Math.Sqrt(_julia[y * _width + x]));
         pixels[offset] = color.B; pixels[offset + 1] = color.G; pixels[offset + 2] = color.R; pixels[offset + 3] = 255;
     }
+
+    private Color ParameterColor(SingularOrbitResult orbit) => orbit.Outcome switch
+    {
+        TranscendentalOrbitOutcome.Converged => Blend(_state.Palette.BackgroundColor,
+            _periodColors[Math.Clamp(orbit.Period - 1, 0, _periodColors.Length - 1)],
+            _state.Palette.IsGradient ? 0.35 + 0.6 * Math.Exp(-orbit.Iterations / 90.0) : 0.9),
+        TranscendentalOrbitOutcome.NumericalLimit => _colors[2],
+        _ => _colors[1]
+    };
 
     private static Color Blend(Color a, Color b, double t) => Color.FromRgb(
         (byte)Math.Clamp(Math.Round(a.R + (b.R - a.R) * t), 0, 255),

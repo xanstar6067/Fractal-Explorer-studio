@@ -22,6 +22,9 @@ namespace FractalExplorerWPF.Views;
 public partial class TranscendentalJuliaWindow : Window
 {
     private readonly DoubleDeepZoomViewport _viewport = new(TranscendentalJuliaRenderer.BaseViewWidth, 1e-6, 1e10, double.PositiveInfinity);
+    private readonly DoubleDeepZoomViewport _parameterViewport = new(TranscendentalJuliaRenderer.BaseViewWidth, 1e-6, 1e10, double.PositiveInfinity);
+    private TranscendentalJuliaPlane _plane;
+    private DoubleDeepZoomViewport ActiveView => _plane == TranscendentalJuliaPlane.Parameter ? _parameterViewport : _viewport;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private readonly NewtonPaletteManager _palettes = new();
     private readonly FullscreenToggle _fullscreen = new();
@@ -33,7 +36,7 @@ public partial class TranscendentalJuliaWindow : Window
     public TranscendentalJuliaWindow(TranscendentalJuliaKind kind = TranscendentalJuliaKind.Exponential)
     {
         InitializeComponent();
-        _viewport.AttachPreview(StablePreviewImage, CanvasHost);
+        ActiveView.AttachPreview(StablePreviewImage, CanvasHost);
         RenderThreadsBox.Fill(ThreadsBox);
         _timer.Tick += (_, _) => { _timer.Stop(); _ = RenderPreviewAsync(); };
         LoadState(TranscendentalJuliaCatalog.CreateDefault(kind));
@@ -48,6 +51,8 @@ public partial class TranscendentalJuliaWindow : Window
             LambdaReal = PanelFields.ReadDouble(LambdaRealBox, "Re λ", -1e6, 1e6),
             LambdaImaginary = PanelFields.ReadDouble(LambdaImaginaryBox, "Im λ", -1e6, 1e6),
             CenterX = _viewport.CenterX, CenterY = _viewport.CenterY, Zoom = _viewport.Zoom.ToDouble(),
+            ParameterCenterX = _parameterViewport.CenterX, ParameterCenterY = _parameterViewport.CenterY,
+            ParameterZoom = _parameterViewport.Zoom.ToDouble(), Plane = _plane,
             MaxIterations = PanelFields.ReadInt(IterationsBox, "итерации", 1, 10000),
             MaxPeriod = PanelFields.ReadInt(PeriodBox, "макс. период", 1, 32),
             Tolerance = PanelFields.ReadDouble(ToleranceBox, "допуск", 1e-12, 1e-3),
@@ -56,6 +61,9 @@ public partial class TranscendentalJuliaWindow : Window
             PointBudget = PanelFields.ReadInt(BudgetBox, "бюджет прообразов", 1000, 10_000_000),
             Layer = (TranscendentalJuliaLayer)LayerBox.SelectedIndex,
             SamplingSeed = _samplingSeed,
+            Drawing = (TranscendentalJuliaDrawing)DrawingBox.SelectedIndex,
+            RayLimit = PanelFields.ReadInt(RayLimitBox, "частей лучей", 8, 10000),
+            RayAccuracy = PanelFields.ReadDouble(RayAccuracyBox, "точность лучей", 0.05, 2),
             Palette = _palettes.ActivePalette.Clone(_palettes.ActivePalette.Name)
         };
         // Не сохраняем прежний центр при неоконченном/неверном вводе нового.
@@ -71,7 +79,11 @@ public partial class TranscendentalJuliaWindow : Window
     {
         state.Validate();
         BakePreview(); _timer.Stop(); ClearOrbit();
+        EndNavigation();
         _updating = true;
+        if (_plane != state.Plane || Kind != state.Kind) StablePreviewImage.Source = null;
+        _plane = state.Plane;
+        PlaneBox.SelectedIndex = (int)_plane;
         Kind = state.Kind;
         KindBox.SelectedIndex = (int)Kind;
         Title = TranscendentalJuliaCatalog.Title(Kind);
@@ -87,12 +99,18 @@ public partial class TranscendentalJuliaWindow : Window
         BranchesBox.Text = state.BranchRadius.ToString(CultureInfo.InvariantCulture);
         BudgetBox.Text = state.PointBudget.ToString(CultureInfo.InvariantCulture);
         LayerBox.SelectedIndex = (int)state.Layer;
+        DrawingBox.SelectedIndex = (int)state.Drawing;
+        RayLimitBox.Text = state.RayLimit.ToString(CultureInfo.InvariantCulture);
+        RayAccuracyBox.Text = FormatValue(state.RayAccuracy);
         _samplingSeed = state.SamplingSeed;
         _palettes.ActivePalette = state.Palette.Clone(state.Palette.Name);
         _viewport.Restore(state.CenterX, state.CenterY, null, null, state.Zoom);
+        _parameterViewport.Restore(state.ParameterCenterX, state.ParameterCenterY, null, null, state.ParameterZoom);
+        ActiveView.AttachPreview(StablePreviewImage, CanvasHost);
+        UpdatePlaneControls();
         SetViewText();
         _updating = false;
-        _viewport.UpdatePreview();
+        ActiveView.UpdatePreview();
         ScheduleRender();
     }
 
@@ -113,6 +131,40 @@ public partial class TranscendentalJuliaWindow : Window
         if (!_updating && PresetBox.SelectedItem is TranscendentalJuliaState state) LoadState(state.Clone());
     }
     private void Parameter_OnChanged(object sender, EventArgs e) { if (!_updating) ScheduleRender(); }
+    private void Plane_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updating || PlaneBox.SelectedIndex < 0) return;
+        BakePreview(); ClearOrbit();
+        EndNavigation();
+        _plane = (TranscendentalJuliaPlane)PlaneBox.SelectedIndex;
+        StablePreviewImage.Source = null;
+        ActiveView.AttachPreview(StablePreviewImage, CanvasHost);
+        SetViewText(); UpdatePlaneControls(); ScheduleRender();
+    }
+    private void UpdatePlaneControls()
+    {
+        bool dynamic = _plane == TranscendentalJuliaPlane.Dynamic;
+        LambdaRealBox.IsEnabled = LambdaImaginaryBox.IsEnabled = LayerBox.IsEnabled = DrawingBox.IsEnabled = dynamic;
+        RayLimitBox.IsEnabled = RayAccuracyBox.IsEnabled = DepthBox.IsEnabled = BranchesBox.IsEnabled = BudgetBox.IsEnabled = dynamic;
+        PlaneDescriptionText.Text = dynamic
+            ? "Лучам задаются согласованные обратные ветви и точность в пикселях. Разрывы и критические точки разделяют кривые."
+            : "Цвет показывает период притягивающего цикла. Для синуса учитываются обе орбиты ±λ. Правая кнопка: исходы орбит; двойной щелчок: открыть Жюлиа.";
+    }
+    private void EndNavigation()
+    {
+        _viewport.EndPan(); _parameterViewport.EndPan();
+        CanvasHost.ReleaseMouseCapture();
+    }
+
+    public void ExploreParameter(double real, double imaginary)
+    {
+        var state = CaptureState("parameter");
+        state.LambdaReal = real; state.LambdaImaginary = imaginary;
+        state.Plane = TranscendentalJuliaPlane.Dynamic;
+        var defaults = TranscendentalJuliaCatalog.CreateDefault(Kind);
+        state.CenterX = defaults.CenterX; state.CenterY = defaults.CenterY; state.Zoom = defaults.Zoom;
+        LoadState(state);
+    }
     private void View_OnChanged(object sender, TextChangedEventArgs e)
     {
         if (_updating) return;
@@ -122,8 +174,8 @@ public partial class TranscendentalJuliaWindow : Window
             double y = PanelFields.ReadDouble(CenterYBox, "центр Y", -1e10, 1e10);
             double zoom = PanelFields.ReadDouble(ZoomBox, "приближение", 1e-6, 1e10);
             BakePreview();
-            _viewport.Restore(x, y, null, null, zoom);
-            _viewport.UpdatePreview();
+            ActiveView.Restore(x, y, null, null, zoom);
+            ActiveView.UpdatePreview();
             ScheduleRender();
         }
         catch (InvalidOperationException ex) { _renderCts?.Cancel(); _timer.Stop(); StatusText.Text = ex.Message; }
@@ -143,8 +195,8 @@ public partial class TranscendentalJuliaWindow : Window
         if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
         {
             StablePreviewImage.Source = baked;
-            _viewport.MarkRendered();
-            _viewport.UpdatePreview();
+            ActiveView.MarkRendered();
+            ActiveView.UpdatePreview();
         }
         CanvasImage.Source = null;
         session.End(); _session = null;
@@ -182,8 +234,8 @@ public partial class TranscendentalJuliaWindow : Window
             session.Flush(); cts.Token.ThrowIfCancellationRequested();
             StablePreviewImage.Source = session.Snapshot();
             CanvasImage.Source = null;
-            _viewport.MarkRendered(state.CenterX, state.CenterY, null, null, state.Zoom);
-            _viewport.UpdatePreview();
+            ActiveView.MarkRendered(state.ViewCenterX, state.ViewCenterY, null, null, state.ViewZoom);
+            ActiveView.UpdatePreview();
             StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F2} с. {renderer.Description}";
         }
         catch (OperationCanceledException) { if (!_closed) StatusText.Text = "Рендер отменён."; }
@@ -204,16 +256,18 @@ public partial class TranscendentalJuliaWindow : Window
     {
         BakePreview();
         var defaults = TranscendentalJuliaCatalog.CreateDefault(Kind);
-        _viewport.Reset(defaults.CenterX, defaults.CenterY, FloatExp.One);
-        SetViewText(); _viewport.UpdatePreview(); ScheduleRender();
+        ActiveView.Reset(_plane == TranscendentalJuliaPlane.Parameter ? 0 : defaults.CenterX,
+            _plane == TranscendentalJuliaPlane.Parameter ? 0 : defaults.CenterY,
+            _plane == TranscendentalJuliaPlane.Parameter ? (FloatExp)3 : FloatExp.One);
+        SetViewText(); ActiveView.UpdatePreview(); ScheduleRender();
     }
     private static string FormatValue(double value) => value.ToString("R", CultureInfo.InvariantCulture);
     private void SetViewText()
     {
         bool previous = _updating; _updating = true;
-        CenterXBox.Text = FormatValue(_viewport.CenterX);
-        CenterYBox.Text = FormatValue(_viewport.CenterY);
-        ZoomBox.Text = FormatValue(_viewport.Zoom.ToDouble());
+        CenterXBox.Text = FormatValue(ActiveView.CenterX);
+        CenterYBox.Text = FormatValue(ActiveView.CenterY);
+        ZoomBox.Text = FormatValue(ActiveView.Zoom.ToDouble());
         _updating = previous;
     }
     private void Saves_OnClick(object sender, RoutedEventArgs e) =>
@@ -221,7 +275,7 @@ public partial class TranscendentalJuliaWindow : Window
     private void Palette_OnClick(object sender, RoutedEventArgs e)
     {
         _palettes.ReloadCustomPalettes();
-        string[] labels = ["Точки Жюлиа", "Нераспознанные орбиты", "Численный предел", "Цикл 1", "Цикл 2", "Цикл 3", "Цикл 4"];
+        string[] labels = ["Жюлиа: лучи и точки", "Нераспознанные орбиты", "Численный предел", "Цикл 1", "Цикл 2", "Цикл 3", "Цикл 4"];
         var dialog = new NewtonPaletteWindow(_palettes, Enumerable.Repeat(Complex.Zero, labels.Length).ToArray(),
             labels, "Цвета слоёв и исходов орбиты", true, "Палитра трансцендентных Жюлиа") { Owner = this };
         dialog.PaletteApplied += (_, _) => ScheduleRender();
@@ -246,31 +300,38 @@ public partial class TranscendentalJuliaWindow : Window
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Параметры экспорта", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
-    private void Canvas_OnSizeChanged(object sender, SizeChangedEventArgs e) { _viewport.UpdatePreview(); ScheduleRender(); }
+    private void Canvas_OnSizeChanged(object sender, SizeChangedEventArgs e) { ActiveView.UpdatePreview(); ScheduleRender(); }
     private void Canvas_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         BakePreview();
-        _viewport.ZoomAt(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight, _viewport.WheelFactor(e.Delta));
-        SetViewText(); _viewport.UpdatePreview(); ScheduleRender(); e.Handled = true;
+        ActiveView.ZoomAt(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight, ActiveView.WheelFactor(e.Delta));
+        SetViewText(); ActiveView.UpdatePreview(); ScheduleRender(); e.Handled = true;
     }
     private void Canvas_OnMouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (_plane == TranscendentalJuliaPlane.Parameter && e.ClickCount == 2)
+        {
+            (double real, double imaginary) = ActiveView.ScreenToWorld(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight);
+            try { ExploreParameter(real, imaginary); }
+            catch (Exception ex) { StatusText.Text = ex.Message; }
+            e.Handled = true; return;
+        }
         BakePreview(); _timer.Stop(); ClearOrbit();
-        _viewport.BeginPan(e.GetPosition(CanvasHost)); CanvasHost.CaptureMouse();
+        ActiveView.BeginPan(e.GetPosition(CanvasHost)); CanvasHost.CaptureMouse();
     }
     private void Canvas_OnMouseMove(object sender, MouseEventArgs e)
     {
         Point point = e.GetPosition(CanvasHost);
-        (double x, double y) = _viewport.ScreenToWorld(point, CanvasHost.ActualWidth, CanvasHost.ActualHeight);
-        CoordinateText.Text = $"z = {x:G8} {(y < 0 ? '−' : '+')} {Math.Abs(y):G8}i";
-        if (_viewport.PanTo(point, CanvasHost.ActualWidth)) { SetViewText(); _viewport.UpdatePreview(); }
+        (double x, double y) = ActiveView.ScreenToWorld(point, CanvasHost.ActualWidth, CanvasHost.ActualHeight);
+        CoordinateText.Text = $"{(_plane == TranscendentalJuliaPlane.Parameter ? "λ" : "z")} = {x:G8} {(y < 0 ? '−' : '+')} {Math.Abs(y):G8}i";
+        if (ActiveView.PanTo(point, CanvasHost.ActualWidth)) { SetViewText(); ActiveView.UpdatePreview(); }
     }
     private void Canvas_OnMouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_viewport.EndPan()) return;
+        if (!ActiveView.EndPan()) return;
         CanvasHost.ReleaseMouseCapture(); ScheduleRender();
     }
-    private void Canvas_OnLostMouseCapture(object sender, MouseEventArgs e) { if (_viewport.EndPan()) ScheduleRender(); }
+    private void Canvas_OnLostMouseCapture(object sender, MouseEventArgs e) { if (ActiveView.EndPan()) ScheduleRender(); }
 
     private async void Canvas_OnOrbit(object sender, MouseButtonEventArgs e)
     {
@@ -278,11 +339,27 @@ public partial class TranscendentalJuliaWindow : Window
         TranscendentalJuliaState state;
         try { state = CaptureState("orbit"); }
         catch (Exception ex) { OrbitText.Text = ex.Message; return; }
-        (double x, double y) = _viewport.ScreenToWorld(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight);
+        (double x, double y) = ActiveView.ScreenToWorld(e.GetPosition(CanvasHost), CanvasHost.ActualWidth, CanvasHost.ActualHeight);
+        e.Handled = true;
         using var cts = new CancellationTokenSource(); _orbitCts = cts;
         OrbitText.Text = "Расчёт орбиты…";
         try
         {
+            if (_plane == TranscendentalJuliaPlane.Parameter)
+            {
+                var parameter = await Task.Run(() => TranscendentalParameterMap.Analyze(Kind, new(x, y), state.MaxIterations,
+                    state.MaxPeriod, state.Tolerance, cts.Token), cts.Token);
+                cts.Token.ThrowIfCancellationRequested();
+                string Describe(string name, SingularOrbitResult orbit) => $"{name}: " + (orbit.Outcome switch
+                {
+                    TranscendentalOrbitOutcome.Converged => $"притягивающий цикл периода {orbit.Period}; множитель {orbit.Multiplier:G5}",
+                    TranscendentalOrbitOutcome.NumericalLimit => "численный предел",
+                    _ => "исход не распознан"
+                }) + $"; шагов: {orbit.Iterations}.";
+                OrbitText.Text = $"λ = {x:G9} + ({y:G9})i\n" + Describe(Kind == TranscendentalJuliaKind.Sine ? "+λ" : "0", parameter.First) +
+                    (parameter.Second is { } second ? "\n" + Describe("−λ", second) : "");
+                return;
+            }
             var result = await Task.Run(() =>
             {
                 var dynamics = new TranscendentalJuliaDynamics(state);
