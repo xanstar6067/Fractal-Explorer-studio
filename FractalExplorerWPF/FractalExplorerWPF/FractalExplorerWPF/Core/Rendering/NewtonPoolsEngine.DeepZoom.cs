@@ -50,7 +50,7 @@ namespace FractalExplorerWPF.Core.Rendering;
 public sealed partial class NewtonPoolsEngine
 {
     /// <summary>Зум, выше которого кадр считает этот движок — тот же порог, что у Мандельброта, Nova и Феникса.</summary>
-    internal const double DeepZoomThreshold = 1.5e9;
+    internal const double DeepZoomThreshold = PerturbationReference.ZoomThreshold;
 
     /// <summary>Шов для проверок: включает или выключает движок независимо от зума.</summary>
     internal static bool? ForceDeepZoomForTests { get; set; }
@@ -94,19 +94,10 @@ public sealed partial class NewtonPoolsEngine
     internal bool ShouldUseDeepZoom() =>
         DeepExpressions() is not null && (ForceDeepZoomForTests ?? Zoom > DeepZoomThreshold);
 
-    /// <summary>
-    /// Разрядность опорной орбиты: биты на разрешение соседних пикселей (≈ log2 зума), удвоенная
-    /// длина орбиты на накопление округлений и 48 бит люфта — план Nova и Феникса.
-    /// </summary>
-    internal int PlanReferenceBits()
-    {
-        double zoomBits = Zoom.Sign > 0 && Zoom.IsFinite ? Zoom.Log2() : 0;
-        if (!double.IsFinite(zoomBits) || zoomBits < 0) zoomBits = 0;
-        int iterationBits = 32 - BitOperations.LeadingZeroCount((uint)Math.Max(MaxIterations, 2));
-        int needed = (int)Math.Ceiling(zoomBits) + 2 * iterationBits + 48;
-        int rounded = Math.Max(BigFloat.MinimumPrecisionBits, (needed + 63) / 64 * 64);
-        return ForceReferenceBitsForTests ?? rounded;
-    }
+    /// <summary>Разрядность опорной орбиты — общий план <see cref="PerturbationReference.PlanBits"/>.</summary>
+    internal int PlanReferenceBits() =>
+        ForceReferenceBitsForTests ??
+        PerturbationReference.PlanBits(PerturbationReference.ZoomBits(Zoom), MaxIterations);
 
     /// <summary>
     /// Выражения, которые нужны шагу текущего метода: всегда f (проверки), дальше f′ (Newton,
@@ -128,8 +119,8 @@ public sealed partial class NewtonPoolsEngine
         };
     }
 
-    private string CenterXRaw => CenterXExact is { Length: > 0 } exact ? exact : CenterX.ToString("R", CultureInfo.InvariantCulture);
-    private string CenterYRaw => CenterYExact is { Length: > 0 } exact ? exact : CenterY.ToString("R", CultureInfo.InvariantCulture);
+    private string CenterXRaw => PerturbationReference.CenterText(CenterXExact, CenterX);
+    private string CenterYRaw => PerturbationReference.CenterText(CenterYExact, CenterY);
 
     // ------------------------------------------------------------------ reference orbit
 
@@ -157,9 +148,7 @@ public sealed partial class NewtonPoolsEngine
             new(Slots[expression], index * SlotCounts[expression], SlotCounts[expression]);
     }
 
-    private static readonly object ReferenceLock = new();
-    private static string? _referenceKey;
-    private static DeepReference? _referenceCache;
+    private static readonly ReferenceOrbitCache<DeepReference> _references = new();
 
     private DeepReference GetDeepReference(CompiledComplexExpression[] expressions, int bits, CancellationToken token)
     {
@@ -178,14 +167,7 @@ public sealed partial class NewtonPoolsEngine
             MaxIterations.ToString(CultureInfo.InvariantCulture),
             bits.ToString(CultureInfo.InvariantCulture));
 
-        lock (ReferenceLock)
-        {
-            if (_referenceKey == key && _referenceCache is not null) return _referenceCache;
-            DeepReference reference = ComputeDeepReference(expressions, bits, token);
-            _referenceKey = key;
-            _referenceCache = reference;
-            return reference;
-        }
+        return _references.GetOrCompute(key, () => ComputeDeepReference(expressions, bits, token));
     }
 
     /// <summary>

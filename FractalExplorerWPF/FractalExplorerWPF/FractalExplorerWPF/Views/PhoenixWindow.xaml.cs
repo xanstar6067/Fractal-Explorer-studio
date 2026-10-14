@@ -40,7 +40,7 @@ public partial class PhoenixWindow : Window
     /// точный центр раньше нет, а после — обязательно, иначе движку неоткуда взять положение
     /// области с нужным числом знаков.
     /// </summary>
-    private const double DeepZoomThreshold = 1.5e9;
+    private const double DeepZoomThreshold = PhoenixRenderer.DeepZoomThreshold;
 
     private static readonly FloatExp MinZoom = FloatExp.FromDouble(0.000001);
 

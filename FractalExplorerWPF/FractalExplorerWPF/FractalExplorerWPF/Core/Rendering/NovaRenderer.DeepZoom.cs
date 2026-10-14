@@ -58,19 +58,15 @@ namespace FractalExplorerWPF.Core.Rendering;
 /// </summary>
 public static partial class NovaRenderer
 {
-    /// <summary>
-    /// Зум, выше которого кадр считает пертурбационный движок. Значение то же, что у
-    /// семейства Мандельброта и Феникса: около 1.5e9 шаг между пикселями перестаёт надёжно
-    /// отличаться от нуля в double-координатах порядка единицы.
-    /// </summary>
-    private const double DeepZoomThreshold = 1.5e9;
+    /// <summary>Зум, выше которого кадр считает пертурбационный движок, — общий порог.</summary>
+    internal const double DeepZoomThreshold = PerturbationReference.ZoomThreshold;
 
     /// <summary>
     /// Опорная орбита обрывается, уйдя выше этого квадрата модуля: дальше её значения уже не
     /// нужны ни одному пикселю (порог выхода у окна не больше 1000), а <c>Z^k</c> при большой
     /// отрицательной степени начал бы терять порядок.
     /// </summary>
-    private const double ReferenceEscapeSquared = 1e18;
+    private const double ReferenceEscapeSquared = PerturbationReference.EscapeSquared;
 
     /// <summary>
     /// Опорная орбита обрывается и у полюса: при <c>Z → 0</c> величина <c>Z^k</c> с
@@ -80,7 +76,7 @@ public static partial class NovaRenderer
     private const double ReferenceVanishSquared = 1e-24;
 
     /// <summary>Критерий Pauldelbrot: |z|² ниже этой доли от |Zref|² — опорная точка ненадёжна.</summary>
-    private const double GlitchToleranceSquared = 1e-6;
+    private const double GlitchToleranceSquared = PerturbationReference.GlitchToleranceSquared;
 
     /// <summary>
     /// Наибольшая целая степень, которую движок раскладывает биномиально. Окно принимает
@@ -117,19 +113,10 @@ public static partial class NovaRenderer
     internal static bool ShouldUseDeepZoom(NovaState state) =>
         SupportsDeepZoom(state) && (ForceDeepZoomForTests ?? state.Zoom > DeepZoomThreshold);
 
-    /// <summary>
-    /// Разрядность мантиссы опорной орбиты: биты на разрешение соседних пикселей
-    /// (≈ log2 зума), удвоенный запас по длине орбиты на накопление округлений и 48 бит на
-    /// субпиксельную точность и общий люфт. Формула и её обоснование — те же, что у Феникса.
-    /// </summary>
-    internal static int PlanReferenceBits(NovaState state)
-    {
-        double zoomBits = state.Zoom > 0 && double.IsFinite(state.Zoom) ? Math.Log2(state.Zoom) : 0;
-        int iterationBits = 32 - BitOperations.LeadingZeroCount((uint)Math.Max(state.Iterations, 2));
-        int needed = (int)Math.Ceiling(zoomBits) + 2 * iterationBits + 48;
-        int rounded = Math.Max(BigFloat.MinimumPrecisionBits, (needed + 63) / 64 * 64);
-        return ForceReferenceBitsForTests ?? rounded;
-    }
+    /// <summary>Разрядность мантиссы опорной орбиты — общий план <see cref="PerturbationReference.PlanBits"/>.</summary>
+    internal static int PlanReferenceBits(NovaState state) =>
+        ForceReferenceBitsForTests ??
+        PerturbationReference.PlanBits(PerturbationReference.ZoomBits(state.Zoom), state.Iterations);
 
     // ------------------------------------------------------------------ reference orbit
 
@@ -147,28 +134,20 @@ public static partial class NovaRenderer
         public required int Length;
     }
 
-    private static readonly object _orbitLock = new();
-    private static string? _orbitKey;
-    private static ReferenceOrbit? _orbitCache;
+    private static readonly ReferenceOrbitCache<ReferenceOrbit> _orbits = new();
 
     /// <summary>
     /// Слишком короткая опорная орбита (центр вылетел или попал в полюс почти сразу) —
     /// единственный случай, когда пертурбации не на что опереться: ребазировать некуда.
     /// </summary>
-    private static bool IsDegenerateOrbit(ReferenceOrbit orbit) => orbit.Length < 4;
+    private static bool IsDegenerateOrbit(ReferenceOrbit orbit) => orbit.Length < PerturbationReference.MinimumOrbitLength;
 
     private static ReferenceOrbit GetReferenceOrbit(NovaState state, int referenceBits)
     {
-        string centerXRaw = state.CenterXExact is { Length: > 0 } exactX
-            ? exactX
-            : state.CenterX.ToString(CultureInfo.InvariantCulture);
-        string centerYRaw = state.CenterYExact is { Length: > 0 } exactY
-            ? exactY
-            : state.CenterY.ToString(CultureInfo.InvariantCulture);
+        string centerXRaw = PerturbationReference.CenterText(state.CenterXExact, state.CenterX);
+        string centerYRaw = PerturbationReference.CenterText(state.CenterYExact, state.CenterY);
 
-        // В ключе — всё, что участвует в построении орбиты. Пропущенное поле здесь однажды
-        // стоило семейству Мандельброта чёрного кадра (кэш отдавал орбиту другой степени),
-        // поэтому перечисление умышленно избыточно.
+        // В ключе — всё, что участвует в построении орбиты (см. ReferenceOrbitCache).
         string key = string.Join('|',
             centerXRaw,
             centerYRaw,
@@ -184,15 +163,7 @@ public static partial class NovaRenderer
             state.CImaginary.ToString(CultureInfo.InvariantCulture),
             referenceBits.ToString(CultureInfo.InvariantCulture));
 
-        lock (_orbitLock)
-        {
-            if (_orbitKey == key && _orbitCache is not null) return _orbitCache;
-
-            ReferenceOrbit orbit = ComputeReferenceOrbit(state, centerXRaw, centerYRaw, referenceBits);
-            _orbitKey = key;
-            _orbitCache = orbit;
-            return orbit;
-        }
+        return _orbits.GetOrCompute(key, () => ComputeReferenceOrbit(state, centerXRaw, centerYRaw, referenceBits));
     }
 
     /// <summary>

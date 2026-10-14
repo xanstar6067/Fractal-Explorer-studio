@@ -16,7 +16,7 @@ public static partial class MandelbrotFamilyRenderer
     // вырожденную опорную орбиту в Histogram/DistanceEstimation. Во всех остальных случаях
     // (включая Histogram — см. RenderDeepZoomHistogram — и DistanceEstimation — см.
     // RenderDeepZoomDistanceEstimation) ступень decimal пропускается.
-    private const double DecimalIterationZoomThreshold = 1_500_000_000d;
+    private const double DecimalIterationZoomThreshold = PerturbationReference.ZoomThreshold;
 
     // Mandelbrot/Julia: «второй двигатель» (пертурбация + опорная орбита в BigFloat)
     // включается там же, где кончается надёжный double. Фаза 2 опустила порог с 1e25:

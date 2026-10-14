@@ -29,7 +29,7 @@ public partial class CollatzWindow : Window
     private bool _isRendering, _controlsVisible = true, _updatingControls;
 
     /// <summary>Зум, с которого включается ступень BigFloat — тот же порог, что и у рендера.</summary>
-    private const double DeepZoomThreshold = 1e10;
+    private const double DeepZoomThreshold = CollatzRenderer.BigFloatZoomThreshold;
 
     private const double MinZoom = 1e-15;
 

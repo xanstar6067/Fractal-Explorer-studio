@@ -70,7 +70,7 @@ public static partial class PhoenixRenderer
     private static DeepZoomPlan PlanDeepZoom(PhoenixState state)
     {
         int power = Math.Max(2, Math.Max(state.PrimaryPower, state.SecondaryPower));
-        bool extended = ForceExtendedDeltaForTests ?? ZoomBits(state.Zoom) >= ExtendedDeltaBits(power);
+        bool extended = ForceExtendedDeltaForTests ?? PerturbationReference.ZoomBits(state.Zoom) >= ExtendedDeltaBits(power);
         return new DeepZoomPlan(PlanReferenceBits(state), extended);
     }
 

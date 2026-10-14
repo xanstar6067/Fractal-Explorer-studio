@@ -45,7 +45,7 @@ public partial class NovaWindow : Window
     /// центр раньше нет, а после — обязательно, иначе движку неоткуда взять положение области
     /// с нужным числом знаков.
     /// </summary>
-    private const double DeepZoomThreshold = 1.5e9;
+    private const double DeepZoomThreshold = NovaRenderer.DeepZoomThreshold;
 
     /// <summary>
     /// Потолок зума. Прежде здесь стояло 1e15 — не предел точности, а рубеж, за которым

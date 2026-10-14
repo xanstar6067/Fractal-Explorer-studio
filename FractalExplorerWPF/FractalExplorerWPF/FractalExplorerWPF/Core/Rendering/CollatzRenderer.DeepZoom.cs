@@ -31,7 +31,7 @@ public static partial class CollatzRenderer
     /// Зум, выше которого включается ступень BigFloat. Ниже — ровно прежнее поведение:
     /// double до 2e9 и decimal до этого порога.
     /// </summary>
-    private const double BigFloatZoomThreshold = 1e10;
+    internal const double BigFloatZoomThreshold = 1e10;
 
     /// <summary>
     /// Базовый запас точности сверх «цифр зума»: 53 бита — столько значащих бит несёт double

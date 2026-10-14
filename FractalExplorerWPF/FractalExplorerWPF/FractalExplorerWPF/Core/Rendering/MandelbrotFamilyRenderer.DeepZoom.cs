@@ -60,13 +60,10 @@ public static partial class MandelbrotFamilyRenderer
         public RealBlaTable? RealBla;
     }
 
-    // Критерий Pauldelbrot для rebasing: если |z|² падает ниже этой доли от |Zref|²,
-    // опорная точка считается ненадёжной. 1e-6 — общепринятое значение.
-    private const double GlitchToleranceSquared = 1e-6;
+    // Критерий Pauldelbrot для rebasing — общий для пертурбационных движков.
+    private const double GlitchToleranceSquared = PerturbationReference.GlitchToleranceSquared;
 
-    private static readonly object _orbitLock = new();
-    private static string? _orbitKey;
-    private static ReferenceOrbit? _orbitCache;
+    private static readonly ReferenceOrbitCache<ReferenceOrbit> _orbits = new();
 
     // Тестовый шов: принудительно включает/выключает пертурбационный движок независимо от
     // зума (в пределах поддерживаемых вариантов и режимов). null — по порогу зума.
@@ -207,26 +204,14 @@ public static partial class MandelbrotFamilyRenderer
     {
         // Log2 расширенного зума — его двоичная экспонента плюс log2 мантиссы, поэтому
         // формула одинаково работает и на 1e25, и на 1e1000.
-        double zoomBits = state.Zoom.Sign > 0 && state.Zoom.IsFinite ? state.Zoom.Log2() : 0;
-        if (!double.IsFinite(zoomBits) || zoomBits < 0) zoomBits = 0;
+        double zoomBits = PerturbationReference.ZoomBits(state.Zoom);
 
-        // Бит на разрешение соседних пикселей ≈ log2(zoom); удвоенный запас по числу
-        // итераций поглощает накопление ошибки округления вдоль опорной орбиты; +48 —
-        // суб-пиксельная точность и общий люфт. Ниже ~1e93 формула даёт < 384 и рабочая
-        // точность остаётся ровно 384 — прежнее поведение сохраняется бит-в-бит.
-        int iterationBits = BitLength(System.Math.Max(state.Iterations, 2));
-        int needed = (int)System.Math.Ceiling(zoomBits) + 2 * iterationBits + 48;
-        int referenceBits = System.Math.Max(BigFloat.MinimumPrecisionBits, RoundUpToMultiple(needed, 64));
+        // Ниже ~1e93 план даёт ровно 384 бита — прежнее поведение сохраняется бит-в-бит.
+        int referenceBits = PerturbationReference.PlanBits(zoomBits, state.Iterations);
 
         bool floatExpDelta = ForceFloatExpDeltaForTests ?? (zoomBits >= FloatExpDeltaZoomBits);
         return new DeepZoomPlan(referenceBits, floatExpDelta);
     }
-
-    private static int BitLength(int value) =>
-        32 - System.Numerics.BitOperations.LeadingZeroCount((uint)value);
-
-    private static int RoundUpToMultiple(int value, int multiple) =>
-        (value + multiple - 1) / multiple * multiple;
 
     /// <summary>
     /// Величина, обратная размеру пикселя — множитель нормировки расстояния для Distance
@@ -682,16 +667,13 @@ public static partial class MandelbrotFamilyRenderer
     // Короткая опорная орбита (центр ушёл за радиус почти сразу) — единственный случай,
     // когда пертурбации нечем оперировать. Рано вышедшая, но не мгновенно, орбита
     // отлично обслуживается rebasing'ом — это обычный случай для глубокого «внешнего» вида.
-    private static bool IsDegenerateOrbit(ReferenceOrbit orbit, int iterations) => orbit.Length < 4;
+    private static bool IsDegenerateOrbit(ReferenceOrbit orbit, int iterations) =>
+        orbit.Length < PerturbationReference.MinimumOrbitLength;
 
     private static ReferenceOrbit GetReferenceOrbit(MandelbrotState state, int referenceBits)
     {
-        string centerXRaw = state.CenterXExact is { Length: > 0 } exactX
-            ? exactX
-            : state.CenterX.ToString(CultureInfo.InvariantCulture);
-        string centerYRaw = state.CenterYExact is { Length: > 0 } exactY
-            ? exactY
-            : state.CenterY.ToString(CultureInfo.InvariantCulture);
+        string centerXRaw = PerturbationReference.CenterText(state.CenterXExact, state.CenterX);
+        string centerYRaw = PerturbationReference.CenterText(state.CenterYExact, state.CenterY);
 
         string key = string.Join('|',
             centerXRaw,
@@ -706,15 +688,7 @@ public static partial class MandelbrotFamilyRenderer
             state.UseInversion.ToString(CultureInfo.InvariantCulture),
             referenceBits.ToString(CultureInfo.InvariantCulture));
 
-        lock (_orbitLock)
-        {
-            if (_orbitKey == key && _orbitCache is not null) return _orbitCache;
-
-            ReferenceOrbit orbit = ComputeReferenceOrbit(state, centerXRaw, centerYRaw, referenceBits);
-            _orbitKey = key;
-            _orbitCache = orbit;
-            return orbit;
-        }
+        return _orbits.GetOrCompute(key, () => ComputeReferenceOrbit(state, centerXRaw, centerYRaw, referenceBits));
     }
 
     private static ReferenceOrbit ComputeReferenceOrbit(
@@ -752,7 +726,7 @@ public static partial class MandelbrotFamilyRenderer
 
         // Опорную орбиту гоняем до большого радиуса, чтобы она давала полезные точки как
         // можно дольше; настоящий bailout пикселя гораздо меньше, а хвост закрывает rebasing.
-        const double referenceEscapeSquared = 1e18;
+        const double referenceEscapeSquared = PerturbationReference.EscapeSquared;
         int length = 0;
         bool escaped = false;
 

@@ -43,22 +43,14 @@ namespace FractalExplorerWPF.Core.Rendering;
 /// </summary>
 public static partial class PhoenixRenderer
 {
-    /// <summary>
-    /// Зум, выше которого кадр считает пертурбационный движок. Значение то же, что у
-    /// семейства Мандельброта: около 1.5e9 шаг между пикселями перестаёт надёжно
-    /// отличаться от нуля в double-координатах порядка единицы.
-    /// </summary>
-    private const double DeepZoomThreshold = 1.5e9;
+    /// <summary>Зум, выше которого кадр считает пертурбационный движок, — общий порог.</summary>
+    internal const double DeepZoomThreshold = PerturbationReference.ZoomThreshold;
 
-    /// <summary>
-    /// Опорную орбиту гоняем до радиуса заведомо большего, чем радиус выхода пикселя: так она
-    /// даёт полезные точки как можно дольше, а хвост закрывает ребазирование. Предел выбран с
-    /// запасом от переполнения при старшей степени: |Z| ≤ 1e9 ⇒ |Z|¹² ≤ 1e108 ≪ 1.8e308.
-    /// </summary>
-    private const double ReferenceEscapeSquared = 1e18;
+    /// <inheritdoc cref="PerturbationReference.EscapeSquared"/>
+    private const double ReferenceEscapeSquared = PerturbationReference.EscapeSquared;
 
     /// <summary>Критерий Pauldelbrot: |z|² ниже этой доли от |Zref|² — опорная точка ненадёжна.</summary>
-    private const double GlitchToleranceSquared = 1e-6;
+    private const double GlitchToleranceSquared = PerturbationReference.GlitchToleranceSquared;
 
     /// <summary>Максимальная степень, которую принимает окно (a ∈ [2,12], b ∈ [0,12]).</summary>
     private const int MaximumPower = 12;
@@ -95,28 +87,10 @@ public static partial class PhoenixRenderer
     internal static bool ShouldUseDeepZoom(PhoenixState state) =>
         SupportsDeepZoom(state) && (ForceDeepZoomForTests ?? (state.Zoom > DeepZoomThreshold));
 
-    /// <summary>
-    /// Разрядность мантиссы опорной орбиты: биты на разрешение соседних пикселей
-    /// (≈ log2 зума), удвоенный запас по длине орбиты на накопление округлений и 48 бит на
-    /// субпиксельную точность и общий люфт. Ниже ~1e93 формула не поднимается выше
-    /// <see cref="BigFloat.MinimumPrecisionBits"/>.
-    /// </summary>
-    internal static int PlanReferenceBits(PhoenixState state)
-    {
-        double zoomBits = ZoomBits(state.Zoom);
-        int iterationBits = 32 - System.Numerics.BitOperations.LeadingZeroCount(
-            (uint)Math.Max(state.Iterations, 2));
-        int needed = (int)Math.Ceiling(zoomBits) + 2 * iterationBits + 48;
-        int rounded = Math.Max(BigFloat.MinimumPrecisionBits, (needed + 63) / 64 * 64);
-        return ForceReferenceBitsForTests ?? rounded;
-    }
-
-    /// <summary>Двоичный логарифм зума; для нуля, отрицательного и нечислового значения — 0.</summary>
-    private static double ZoomBits(FloatExp zoom)
-    {
-        double bits = zoom.Sign > 0 && zoom.IsFinite ? zoom.Log2() : 0;
-        return double.IsFinite(bits) ? bits : 0;
-    }
+    /// <summary>Разрядность мантиссы опорной орбиты — общий план <see cref="PerturbationReference.PlanBits"/>.</summary>
+    internal static int PlanReferenceBits(PhoenixState state) =>
+        ForceReferenceBitsForTests ??
+        PerturbationReference.PlanBits(PerturbationReference.ZoomBits(state.Zoom), state.Iterations);
 
     // ------------------------------------------------------------------ reference orbit
 
@@ -147,29 +121,21 @@ public static partial class PhoenixRenderer
         public required double C1Imaginary;
     }
 
-    private static readonly object _orbitLock = new();
-    private static string? _orbitKey;
-    private static ReferenceOrbit? _orbitCache;
+    private static readonly ReferenceOrbitCache<ReferenceOrbit> _orbits = new();
 
     /// <summary>
     /// Слишком короткая опорная орбита (центр вылетел почти сразу) — единственный случай, когда
     /// пертурбации не на что опереться: ребазировать некуда. Рано, но не мгновенно вышедшая
     /// орбита обслуживается ребазированием и вырожденной не считается.
     /// </summary>
-    private static bool IsDegenerateOrbit(ReferenceOrbit orbit) => orbit.Length < 4;
+    private static bool IsDegenerateOrbit(ReferenceOrbit orbit) => orbit.Length < PerturbationReference.MinimumOrbitLength;
 
     private static ReferenceOrbit GetReferenceOrbit(PhoenixState state, int referenceBits)
     {
-        string centerXRaw = state.CenterXExact is { Length: > 0 } exactX
-            ? exactX
-            : state.CenterX.ToString(CultureInfo.InvariantCulture);
-        string centerYRaw = state.CenterYExact is { Length: > 0 } exactY
-            ? exactY
-            : state.CenterY.ToString(CultureInfo.InvariantCulture);
+        string centerXRaw = PerturbationReference.CenterText(state.CenterXExact, state.CenterX);
+        string centerYRaw = PerturbationReference.CenterText(state.CenterYExact, state.CenterY);
 
-        // В ключе — всё, что участвует в построении орбиты. Пропущенное поле здесь однажды
-        // стоило семейству Мандельброта чёрного кадра (кэш отдавал орбиту другой степени),
-        // поэтому перечисление умышленно избыточно.
+        // В ключе — всё, что участвует в построении орбиты (см. ReferenceOrbitCache).
         string key = string.Join('|',
             centerXRaw,
             centerYRaw,
@@ -189,15 +155,7 @@ public static partial class PhoenixRenderer
             state.InitialPreviousImaginary.ToString(CultureInfo.InvariantCulture),
             referenceBits.ToString(CultureInfo.InvariantCulture));
 
-        lock (_orbitLock)
-        {
-            if (_orbitKey == key && _orbitCache is not null) return _orbitCache;
-
-            ReferenceOrbit orbit = ComputeReferenceOrbit(state, centerXRaw, centerYRaw, referenceBits);
-            _orbitKey = key;
-            _orbitCache = orbit;
-            return orbit;
-        }
+        return _orbits.GetOrCompute(key, () => ComputeReferenceOrbit(state, centerXRaw, centerYRaw, referenceBits));
     }
 
     private static ReferenceOrbit ComputeReferenceOrbit(
