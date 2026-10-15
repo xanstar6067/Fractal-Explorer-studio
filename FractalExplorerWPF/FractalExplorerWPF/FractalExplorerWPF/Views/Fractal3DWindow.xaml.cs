@@ -169,6 +169,7 @@ public partial class Fractal3DWindow : Window
         HyperbolicHoneycomb = CaptureHyperbolicHoneycomb(),
         Kifs = CaptureKifs(),
         Kleinian = Kind == Fractal3DKind.Kleinian ? KleinianEditor.Capture() : new(),
+        Antoine = Kind == Fractal3DKind.AntoineNecklace ? AntoineEditor.Capture() : new(),
         Dla = CaptureDla(),
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
@@ -336,6 +337,7 @@ public partial class Fractal3DWindow : Window
         }
         LoadKifs(state.Kifs);
         if (Kind == Fractal3DKind.Kleinian) KleinianEditor.Load(state.Kleinian ?? new());
+        if (Kind == Fractal3DKind.AntoineNecklace) AntoineEditor.Load(state.Antoine ?? new());
         LoadPeriodicSurface(state.PeriodicSurface);
         LoadImplicitSurface(state.ImplicitSurface);
         LoadHyperbolicHoneycomb(state.HyperbolicHoneycomb);
@@ -449,6 +451,7 @@ public partial class Fractal3DWindow : Window
         DlaPanel.Visibility = DlaGrowthPanel.Visibility = DlaGrowthOverlay.Visibility = Collapse(Kind == Fractal3DKind.Dla3D);
         KifsPanel.Visibility = Collapse(Kind == Fractal3DKind.Kifs);
         KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
+        AntoineEditor.Visibility = Collapse(Kind == Fractal3DKind.AntoineNecklace);
         PeriodicPanel.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
         ImplicitPanel.Visibility = Collapse(Kind == Fractal3DKind.ImplicitSurface);
         HyperbolicPanel.Visibility = Collapse(Kind == Fractal3DKind.HyperbolicHoneycomb);
@@ -1056,6 +1059,8 @@ public partial class Fractal3DWindow : Window
             OnDlaFrameDisplayed(state);
             if (Kind == Fractal3DKind.Kleinian)
                 KleinianEditor.OnFrameDisplayed(_renderer.KleinianBallCount, _renderer.KleinianBudgetLimited);
+            if (Kind == Fractal3DKind.AntoineNecklace)
+                AntoineEditor.OnFrameDisplayed(_renderer.AntoineRingCount);
             OnLichtenbergFrameDisplayed(state);
             _simulation?.OnFrameDisplayed(state);
             if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.OnFrameDisplayed(_renderer.AbcFlowSections, state);

@@ -365,11 +365,12 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).First().Item.LaunchKey == Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian),
-                "The spatial Kleinian mode must lead new arrivals.");
-            Check(ViewItems(window).Skip(1).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
+            Check(ViewItems(window).Take(2).Select(tile => tile.Item.LaunchKey).SequenceEqual(
+                new[] { Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
+                "Antoine must precede Kleinian within the same day.");
+            Check(ViewItems(window).Skip(2).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
                 "The two transcendental Julia modes must follow Kleinian.");
-            var previousArrivals = ViewItems(window).Skip(3).ToList();
+            var previousArrivals = ViewItems(window).Skip(4).ToList();
             Fractal3DKind[] recent3D = [Fractal3DKind.PhaseFieldCrystal3D, Fractal3DKind.SwiftHohenberg3D, Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
                 Fractal3DKind.HyperbolicHoneycomb, Fractal3DKind.ImplicitSurface, Fractal3DKind.PeriodicSurfaces,
                 Fractal3DKind.Excitable3D, Fractal3DKind.Lyapunov3D, Fractal3DKind.Kobayashi3D];

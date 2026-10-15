@@ -63,6 +63,7 @@ public sealed class Fractal3DState
 
     public KifsSettings Kifs { get; set; } = new();
     public KleinianSettings Kleinian { get; set; } = new();
+    public AntoineSettings Antoine { get; set; } = new();
 
     public Dla3DSettings Dla { get; set; } = new();
     public Lichtenberg3DSettings Lichtenberg { get; set; } = new();
@@ -161,6 +162,7 @@ public sealed class Fractal3DState
         clone.Palette = Palette?.Clone();
         clone.Kifs = Kifs?.Clone() ?? new();
         clone.Kleinian = Kleinian is null ? new() : Kleinian with { };
+        clone.Antoine = Antoine is null ? new() : Antoine with { };
         clone.Dla = Dla?.Normalized() ?? new();
         clone.Lichtenberg = Lichtenberg is null ? new() : Lichtenberg with { };
         clone.LSystem = LSystem is null ? new() : LSystem with { };

@@ -164,6 +164,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             EnsureLSystem(state, token);
             EnsureHopf(state, token);
             EnsureKleinian(state, token);
+            EnsureAntoine(state, token);
             EnsureAbcFlow(state, token);
             EnsureHyperbolic(state);
             if (state.Kind == Fractal3DKind.LSystem3D)
@@ -281,6 +282,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         EnsureLSystem(state, token);
         EnsureHopf(state, token);
         EnsureKleinian(state, token);
+        EnsureAntoine(state, token);
         EnsureAbcFlow(state, token);
         EnsureHyperbolic(state);
         if (state.Kind == Fractal3DKind.LSystem3D)
@@ -715,6 +717,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeLSystemResources();
         DisposeHopfResources();
         DisposeKleinianResources();
+        DisposeAntoineResources();
         DisposeAbcFlow();
         _hyperbolicConstants?.Dispose();
         _apollonianTreeBuffer?.Dispose();

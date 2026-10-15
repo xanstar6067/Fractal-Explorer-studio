@@ -41,7 +41,8 @@ public enum Fractal3DKind
     GinzburgLandau3D,
     SwiftHohenberg3D,
     PhaseFieldCrystal3D,
-    Kleinian
+    Kleinian,
+    AntoineNecklace
 }
 
 public sealed record Fractal3DDefinition(

@@ -168,6 +168,8 @@ float Map(float3 p, out float4 trap)
     return HopfMap(p, trap);
 #elif FRACTAL_KIND == KIND_Kleinian
     return KleinianMap(p, trap);
+#elif FRACTAL_KIND == KIND_AntoineNecklace
+    return AntoineMap(p, trap);
 #elif FRACTAL_KIND == KIND_HyperbolicHoneycomb
     return HyperbolicMap(p, trap);
 #elif FRACTAL_KIND == KIND_PeriodicSurfaces
@@ -989,6 +991,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
 #elif FRACTAL_KIND == KIND_Kleinian
     float radius = ShapeA.x;
+#elif FRACTAL_KIND == KIND_AntoineNecklace
+    float radius = ShapeA.x;
 #elif FRACTAL_KIND == KIND_Mandelbox
     // После кубической свёртки p превращается в -p + delta, |delta| <= 2*sqrt(3)*limit.
     // При scale != 1 за этой сферой первая итерация превышает радиус вылета.
@@ -1125,7 +1129,7 @@ float4 PSMain(PSInput input) : SV_TARGET
         float4 stepTrap;
         float3 samplePoint = rayOrigin + rayDirection * travelled;
         float stepDistance = Map(samplePoint, stepTrap);
-    #if FRACTAL_KIND == KIND_PeriodicSurfaces
+    #if FRACTAL_KIND == KIND_PeriodicSurfaces || FRACTAL_KIND == KIND_AntoineNecklace
         // A camera inside a filled region must trace its exit, not hit at distance zero.
         stepDistance = abs(stepDistance);
     #endif
