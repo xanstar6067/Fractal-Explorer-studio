@@ -152,6 +152,7 @@ internal static partial class Program
         Check(old.Kind == Fractal3DKind.Mandelbulb && old.Newton is not null, "Old numeric enum values and missing Newton settings remain valid.");
         Check(File.Exists(AppPaths.GetShaderCacheFile("newton3d-field")) && File.Exists(AppPaths.GetShaderCacheFile("newton3d-pixel")),
             "Compute and pixel shader use the common disk cache.");
+        await VerifyNewtonFormulasAsync(renderer, initial, output);
         await VerifyNewtonWindowAsync(loaded, output);
         Console.WriteLine("PASS (newton3d): independent algebra/orbits, grids, six presets, styles/colors, slices/probes, reuse, cancellation, saves/cloud and WPF.");
     }

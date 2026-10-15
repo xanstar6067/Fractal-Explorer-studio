@@ -10,13 +10,26 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
-        <TextBlock Text="qⁿ − 1 = 0 · бикомплексный Ньютон" FontWeight="SemiBold"/>
+        <TextBlock Text="Формула f(z) = 0" FontWeight="SemiBold"/>
+        <TextBlock Text="Примеры формул" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="FormulaExamplesBox" DisplayMemberPath="Name" SelectionChanged="ExampleChanged" Margin="0,6,0,4"/>
+        <TextBox x:Name="FormulaBox" Height="64" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                 Text="z^3-1" TextChanged="FormulaDraftChanged"
+                 ToolTip="z, i, pi, e, +, −, *, /, ^, sin, cos, tan, asin, acos, atan, sinh, cosh, tanh, exp, log, ln, sqrt. Производная вычисляется автоматически."/>
+        <TextBlock Text="Радиус поиска корней (1–64)" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="RootRadiusBox" Text="8" controls:NumericSpinner.IsEnabled="True" TextChanged="FormulaDraftChanged"/>
+        <WrapPanel Margin="0,6,0,0">
+            <Button x:Name="ApplyFormulaButton" Content="Применить формулу" Click="ApplyFormulaClicked" Margin="0,0,6,0"/>
+            <Button x:Name="RandomFormulaButton" Content="Случайная" Click="RandomFormulaClicked"/>
+            <Button x:Name="CancelFormulaButton" Content="Отмена" Visibility="Collapsed" Click="CancelFormulaClicked" Margin="6,0,0,0"/>
+        </WrapPanel>
+        <TextBlock x:Name="FormulaStatus" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,5,0,5"/>
         <TextBlock Text="Срез q = x + iy + jz + ijw. Каждый бассейн определяется парой комплексных корней."
                    TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,4"/>
         <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
             <StackPanel>
-                <TextBlock Text="Степень n (3–8)" Style="{StaticResource FieldCaption}"/>
+                <TextBlock Text="Быстро: zⁿ − 1" Style="{StaticResource FieldCaption}"/>
                 <ComboBox x:Name="DegreeBox" SelectionChanged="Changed"/>
             </StackPanel>
             <StackPanel Grid.Column="2">

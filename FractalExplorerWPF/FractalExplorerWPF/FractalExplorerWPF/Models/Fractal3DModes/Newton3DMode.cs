@@ -1,10 +1,11 @@
 using System.Numerics;
+using FractalExplorerWPF.Core.Rendering;
 
 namespace FractalExplorerWPF.Models.Fractal3DModes;
 
 internal sealed class Newton3DMode() : Fractal3DMode(Fractal3DKind.Newton3D, new(
     "Ньютон 3D", "Ньютон 3D",
-    "Трёхмерный срез четырёхмерного бикомплексного Ньютона qⁿ − 1: границы сходимости, отдельные бассейны и пары корней. Координата w меняет срез; отсечение открывает внутреннее строение.",
+    "Бикомплексный Ньютон с вводом формул: полиномы, sin, exp, log и другие комплексные функции. Границы сходимости, отдельные бассейны, пары корней и цветные сечения четырёхмерной динамики.",
     "Fractal3DNewton", "newton3d"))
 {
     public override bool UsesIterations => false;
@@ -52,15 +53,15 @@ internal sealed class Newton3DMode() : Fractal3DMode(Fractal3DKind.Newton3D, new
         })
     ];
 
-    public override void Validate(Fractal3DState state) => state.Newton.Validate();
+    public override void Validate(Fractal3DState state) => state.Newton = Newton3DFormula.Prepare(state.Newton);
     public override Fractal3DShapeConstants ShapeConstants(Fractal3DState state) => new(
-        new Vector3(state.Newton.Size, .5f, state.Newton.Degree),
+        new Vector3(state.Newton.Size, .5f, state.Newton.RootCount),
         new Vector4(state.Newton.CutAxis, (float)state.Newton.CutPosition, 0, 0), 0,
         new Vector4(0, state.Newton.SliceOnly ? 1 : 0, 0, 0));
     public override string Describe(Fractal3DState state, string prefix)
     {
         var s = state.Newton;
-        return $"{prefix} · q^{s.Degree} − 1 · {s.Size}³ · {s.MaxIterations} итераций\n" +
+        return $"{prefix} · {s.Expression} · {s.Size}³ · {s.MaxIterations} итераций\n" +
             $"w = {s.SliceW:G5}; полуразмер {s.Extent:G5}; релаксация {s.Relaxation:G5}\n" +
             (s.Region switch { Newton3DRegion.Boundary => $"Границы: от {s.BoundaryIterations} итераций",
                 Newton3DRegion.PlusBasin => $"Бассейн +: {s.PlusRoot + 1}",

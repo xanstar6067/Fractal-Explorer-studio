@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Core.Rendering;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
@@ -9,23 +10,31 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 public sealed partial class Fractal3DRenderer
 {
     private ID3D11ComputeShader? _newtonCompute;
+    private string? _newtonComputeKey;
     private ID3D11PixelShader? _newtonPixel;
     private ID3D11Buffer? _newtonConstants;
     private ID3D11ShaderResourceView? _newtonView;
     private Newton3DSettings? _newtonSource;
+    private bool _newtonExpressionProbe;
     internal int NewtonFieldBuilds { get; private set; }
-    internal bool NeedsNewtonField(Newton3DSettings settings) => _newtonSource?.SameField(settings) != true;
+    internal bool NeedsNewtonField(Newton3DSettings settings) => _newtonExpressionProbe || _newtonSource?.SameField(settings) != true;
 
     private ID3D11ShaderResourceView NewtonVolumeView(Fractal3DState state, CancellationToken token,
-        IProgress<int>? progress = null)
+        IProgress<int>? progress = null, bool expressionProbe = false)
     {
         var settings = state.Newton;
         settings.Validate();
+        if (!expressionProbe) settings = state.Newton = Newton3DFormula.Prepare(settings, token);
         token.ThrowIfCancellationRequested();
-        if (!NeedsNewtonField(settings)) return _newtonView!;
-        _newtonCompute ??= _device!.CreateComputeShader(Compile(Newton3DComputeShader.CacheEntry).Span);
+        if (_newtonExpressionProbe == expressionProbe && _newtonSource?.SameField(settings) == true) return _newtonView!;
+        var entry = Newton3DComputeShader.Entry(settings, expressionProbe);
+        if (_newtonComputeKey != entry.Key)
+        {
+            var shader = _device!.CreateComputeShader(Compile(entry).Span);
+            _newtonCompute?.Dispose(); _newtonCompute = shader; _newtonComputeKey = entry.Key;
+        }
         _newtonConstants ??= _device!.CreateBuffer(new BufferDescription {
-            ByteWidth = 48, Usage = ResourceUsage.Dynamic, BindFlags = BindFlags.ConstantBuffer,
+            ByteWidth = 560, Usage = ResourceUsage.Dynamic, BindFlags = BindFlags.ConstantBuffer,
             CPUAccessFlags = CpuAccessFlags.Write });
         uint side = (uint)settings.Size;
         using var texture = _device!.CreateTexture3D(new Texture3DDescription {
@@ -33,9 +42,17 @@ public sealed partial class Fractal3DRenderer
             Usage = ResourceUsage.Default, BindFlags = BindFlags.UnorderedAccess | BindFlags.ShaderResource });
         using var output = _device.CreateUnorderedAccessView(texture);
         using var fence = _device.CreateQuery(new QueryDescription(QueryType.Event, QueryFlags.None));
-        float[] parameters = [side, settings.Degree, settings.MaxIterations, 0,
+        var parameters = new float[140];
+        float[] header = [side, settings.RootCount, settings.MaxIterations, 0,
             (float)settings.Extent, (float)settings.SliceW, (float)settings.Relaxation, settings.BoundaryIterations,
             (int)settings.Region, settings.PlusRoot, settings.MinusRoot, 0];
+        header.CopyTo(parameters, 0);
+        if (settings.Formula is not null && settings.Roots is not null)
+            for (int i = 0; i < settings.Roots.Values.Count; i++)
+            {
+                parameters[12 + i * 4] = (float)settings.Roots.Values[i].Real;
+                parameters[13 + i * 4] = (float)settings.Roots.Values[i].Imaginary;
+            }
         var context = _context!;
         context.PSSetShaderResource(0, null!);
         try
@@ -76,17 +93,18 @@ public sealed partial class Fractal3DRenderer
         _newtonView?.Dispose();
         _newtonView = view;
         _newtonSource = settings with { };
+        _newtonExpressionProbe = expressionProbe;
         NewtonFieldBuilds++;
         return view;
     }
 
-    internal float[] ReadNewtonField(Fractal3DState state, CancellationToken token)
+    internal float[] ReadNewtonField(Fractal3DState state, CancellationToken token, bool expressionProbe = false)
     {
         Gate.Wait(token);
         try
         {
             EnsureDevice();
-            var view = NewtonVolumeView(state, token);
+            var view = NewtonVolumeView(state, token, expressionProbe: expressionProbe);
             uint side = (uint)state.Newton.Size;
             using var resource = view.Resource;
             using var texture = resource.QueryInterface<ID3D11Texture3D>();
