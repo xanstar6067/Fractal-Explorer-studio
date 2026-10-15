@@ -168,6 +168,7 @@ public partial class Fractal3DWindow : Window
         ImplicitSurface = CaptureImplicitSurface(),
         HyperbolicHoneycomb = CaptureHyperbolicHoneycomb(),
         Kifs = CaptureKifs(),
+        Kleinian = Kind == Fractal3DKind.Kleinian ? KleinianEditor.Capture() : new(),
         Dla = CaptureDla(),
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
@@ -334,6 +335,7 @@ public partial class Fractal3DWindow : Window
             HopfEditor.SetColoring(state);
         }
         LoadKifs(state.Kifs);
+        if (Kind == Fractal3DKind.Kleinian) KleinianEditor.Load(state.Kleinian ?? new());
         LoadPeriodicSurface(state.PeriodicSurface);
         LoadImplicitSurface(state.ImplicitSurface);
         LoadHyperbolicHoneycomb(state.HyperbolicHoneycomb);
@@ -446,6 +448,7 @@ public partial class Fractal3DWindow : Window
         LichtenbergPanel.Visibility = LichtenbergOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lichtenberg3D);
         DlaPanel.Visibility = DlaGrowthPanel.Visibility = DlaGrowthOverlay.Visibility = Collapse(Kind == Fractal3DKind.Dla3D);
         KifsPanel.Visibility = Collapse(Kind == Fractal3DKind.Kifs);
+        KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
         PeriodicPanel.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
         ImplicitPanel.Visibility = Collapse(Kind == Fractal3DKind.ImplicitSurface);
         HyperbolicPanel.Visibility = Collapse(Kind == Fractal3DKind.HyperbolicHoneycomb);
@@ -1051,6 +1054,8 @@ public partial class Fractal3DWindow : Window
 
             InitialPreparationLayer.Visibility = Visibility.Collapsed;
             OnDlaFrameDisplayed(state);
+            if (Kind == Fractal3DKind.Kleinian)
+                KleinianEditor.OnFrameDisplayed(_renderer.KleinianBallCount, _renderer.KleinianBudgetLimited);
             OnLichtenbergFrameDisplayed(state);
             _simulation?.OnFrameDisplayed(state);
             if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.OnFrameDisplayed(_renderer.AbcFlowSections, state);

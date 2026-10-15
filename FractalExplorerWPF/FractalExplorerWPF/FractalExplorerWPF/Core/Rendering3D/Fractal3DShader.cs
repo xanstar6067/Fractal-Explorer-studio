@@ -17,6 +17,7 @@ internal static class Fractal3DShader
     {
         string geometry = kind switch
         {
+            Fractal3DKind.Kleinian => ShaderSource.Load("Kleinian.hlsl"),
             Fractal3DKind.HyperbolicHoneycomb => HyperbolicHoneycombShader.Geometry,
             Fractal3DKind.ImplicitSurface => ImplicitSurfaceShader.Build(implicitSurface ?? new()),
             Fractal3DKind.PeriodicSurfaces => PeriodicSurfaceShader.Source,

@@ -166,6 +166,8 @@ float Map(float3 p, out float4 trap)
     return LMap(p, trap);
 #elif FRACTAL_KIND == KIND_Hopf
     return HopfMap(p, trap);
+#elif FRACTAL_KIND == KIND_Kleinian
+    return KleinianMap(p, trap);
 #elif FRACTAL_KIND == KIND_HyperbolicHoneycomb
     return HyperbolicMap(p, trap);
 #elif FRACTAL_KIND == KIND_PeriodicSurfaces
@@ -659,6 +661,18 @@ float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDi
 #if FRACTAL_KIND == KIND_ImplicitSurface
     float distance; int steps; float4 trap;
     return TraceImplicit(origin+direction*minDistance,direction,maxDistance,distance,steps,trap) ? .2 : 1;
+#elif FRACTAL_KIND == KIND_Kleinian
+    float3 tangent = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
+    float3 bitangent = cross(direction, tangent);
+    float visibility = 0;
+    [unroll] for (int sample = 0; sample < 4; sample++)
+    {
+        float2 offset = float2((sample & 1) == 0 ? -1 : 1, (sample & 2) == 0 ? -1 : 1) / max(sharpness, 1);
+        float3 ray = normalize(direction + tangent * offset.x + bitangent * offset.y);
+        float distance; int steps; float4 trap;
+        visibility += TraceKleinian(origin + ray * minDistance, ray, maxDistance, distance, steps, trap) ? 0 : .25;
+    }
+    return visibility;
 #elif (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     float distance; int steps; float4 trap;
     float3 axis = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
@@ -973,6 +987,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     float radius = ShapeA.w;
 #elif FRACTAL_KIND == KIND_Juliabulb
     float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
+#elif FRACTAL_KIND == KIND_Kleinian
+    float radius = ShapeA.x;
 #elif FRACTAL_KIND == KIND_Mandelbox
     // После кубической свёртки p превращается в -p + delta, |delta| <= 2*sqrt(3)*limit.
     // При scale != 1 за этой сферой первая итерация превышает радиус вылета.
@@ -1086,6 +1102,12 @@ float4 PSMain(PSInput input) : SV_TARGET
     epsilon = max(pixelRadius * travelled * .15, 2e-6);
     if(hit && volumetric)
         proximity = .04/max(abs(dot(ImplicitNormal(rayOrigin+rayDirection*travelled,epsilon),rayDirection)),.1);
+#elif FRACTAL_KIND == KIND_Kleinian
+    hit = TraceKleinian(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
+    exhausted = false;
+    epsilon = max(pixelRadius * travelled * .05, 1e-7);
+    if (hit && volumetric)
+        proximity = .04 / max(abs(dot(EstimateNormal(rayOrigin + rayDirection * travelled, epsilon), rayDirection)), .1);
 #else
 #if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     if (!volumetric || Probe.x > .5)

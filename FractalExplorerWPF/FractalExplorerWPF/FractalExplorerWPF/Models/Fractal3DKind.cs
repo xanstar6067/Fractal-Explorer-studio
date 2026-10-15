@@ -40,7 +40,8 @@ public enum Fractal3DKind
     AbcFlow,
     GinzburgLandau3D,
     SwiftHohenberg3D,
-    PhaseFieldCrystal3D
+    PhaseFieldCrystal3D,
+    Kleinian
 }
 
 public sealed record Fractal3DDefinition(

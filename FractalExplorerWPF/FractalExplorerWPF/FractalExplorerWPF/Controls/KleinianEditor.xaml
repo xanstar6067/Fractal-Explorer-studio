@@ -1,0 +1,46 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.KleinianEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="Расположение сфер инверсии" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="ConfigurationBox" SelectedIndex="0" SelectionChanged="Changed">
+            <ComboBoxItem Content="Октаэдр + центр · 7 сфер"/>
+            <ComboBoxItem Content="Тетраэдр + центр · 5 сфер"/>
+            <ComboBoxItem Content="Куб + центр · 9 сфер"/>
+        </ComboBox>
+        <TextBlock Text="Относительный радиус (0,65–1)" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
+            <Slider x:Name="RadiusSlider" Minimum="0.65" Maximum="1" Value="1" Margin="0,0,8,0" ValueChanged="Changed"/>
+            <TextBox x:Name="RadiusBox" Grid.Column="1" Text="{Binding ElementName=RadiusSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     numeric:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        </Grid>
+        <TextBlock Text="1 — сферы касаются; меньший радиус открывает промежутки и разделяет множество на скопления."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,4"/>
+        <TextBlock Text="Минимальный радиус деталей (0,001–0,05)" Style="{StaticResource FieldCaption}" TextWrapping="Wrap"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
+            <Slider x:Name="MinRadiusSlider" Minimum="0.001" Maximum="0.05" Value="0.006" Margin="0,0,8,0" ValueChanged="Changed"/>
+            <TextBox x:Name="MinRadiusBox" Grid.Column="1" Text="{Binding ElementName=MinRadiusSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     numeric:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        </Grid>
+        <TextBlock Text="Утолщение множества (0–0,04)" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
+            <Slider x:Name="ThicknessSlider" Minimum="0" Maximum="0.04" Value="0.003" Margin="0,0,8,0" ValueChanged="Changed"/>
+            <TextBox x:Name="ThicknessBox" Grid.Column="1" Text="{Binding ElementName=ThicknessSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     numeric:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        </Grid>
+        <TextBlock Text="Глубина и минимальный радиус задают конечное приближение. Утолщение помогает рассмотреть тонкие связи; при 0 видны сами сферы приближения."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6,0,0"/>
+        <TextBlock x:Name="GeometryStatus" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6,0,0"/>
+    </StackPanel>
+</UserControl>

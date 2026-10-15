@@ -19,7 +19,7 @@ public static class Fractal3DCatalog
         new CahnHilliard3DMode(), new HopfMode(), new Lichtenberg3DMode(), new Physarum3DMode(), new Lenia3DMode(),
         new Kobayashi3DMode(), new Lyapunov3DMode(), new Excitable3DMode(), new PeriodicSurfacesMode(),
         new ImplicitSurfaceMode(), new HyperbolicHoneycombMode(), new AbcFlowMode(), new GinzburgLandau3DMode(), new SwiftHohenberg3DMode(),
-        new PhaseFieldCrystal3DMode());
+        new PhaseFieldCrystal3DMode(), new KleinianMode());
 
     /// <summary>Все режимы в порядке пунктов <see cref="Fractal3DKind"/>.</summary>
     public static IReadOnlyList<Fractal3DMode> Modes => ModesByKind;

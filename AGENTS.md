@@ -13,13 +13,6 @@
 
 Актуальная и единственная активно развиваемая версия проекта — **WPF-версия** в каталоге `FractalExplorerWPF/`. Если пользователь не указал технологию или версию явно, считай, что задача относится к WPF: ищи, анализируй, изменяй, собирай и проверяй только её. При неоднозначном запросе выбирай WPF без уточнения и кратко указывай это допущение в результате.
 
-Каталог `FractalExplorer/` содержит устаревшую **WinForms-версию**. Она заморожена:
-
-- не вноси в неё изменения по умолчанию и не дублируй в неё исправления и возможности из WPF;
-- не используй её solution или project для сборки и проверки обычных задач;
-- не выбирай её только потому, что там уже есть похожая реализация; как справочный материал она допустима, но итоговая реализация — в WPF;
-- работать с `FractalExplorer/` можно, только если пользователь прямо и однозначно попросил изменить именно WinForms-версию.
-
 ## Расположение актуального проекта
 
 - Решение: `FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF.slnx`
@@ -27,7 +20,7 @@
 - Исходный код: `FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/`
 - Точка входа и ресурсы приложения: `App.xaml`, `App.xaml.cs`; главное окно: `MainWindow.xaml`, `MainWindow.xaml.cs`
 
-`net10.0-windows`, nullable reference types, implicit usings. Framework reference на `Microsoft.WindowsDesktop.App.WindowsForms` нужна для ограниченной совместимости с Windows API и не означает, что legacy WinForms-версию нужно обновлять.
+`net10.0-windows`, nullable reference types, implicit usings. Framework reference на `Microsoft.WindowsDesktop.App.WindowsForms` нужна для ограниченной совместимости с Windows API.
 
 Единственная внешняя зависимость — NuGet-пакеты `Vortice.Direct3D11`, `Vortice.DXGI`, `Vortice.D3DCompiler` (обёртки Direct3D 11). Трёхмерные режимы и вычислительные шейдеры считаются на ГП (`Core/Rendering3D/`, общее устройство окна — `Direct3DDeviceHost.cs`); двумерные — на ЦП, кроме Тьюринга и Gray–Scott (ЦП или ГП) и Жюлиа с картой выбора C (ГП на малом зуме).
 
@@ -76,7 +69,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 ## Каталог WPF-окон
 
-В WPF нет классов `Form`: интерфейс состоит из `Window` и вложенных `UserControl`. Для окна `NameWindow` разметка — `Views/NameWindow.xaml`, логика — `Views/NameWindow.xaml.cs` (главное окно — в корне проекта). WinForms-формы не включены. **Подробное описание каждого окна, его файлов и поведения — в [FractalExplorerWPF/WINDOWS.md](FractalExplorerWPF/WINDOWS.md).** При добавлении, удалении, переименовании или изменении назначения окна либо общего контрола обновляй строку здесь и раздел в `WINDOWS.md` в том же изменении (и список инструмента скриншотов — см. ниже).
+В WPF нет классов `Form`: интерфейс состоит из `Window` и вложенных `UserControl`. Для окна `NameWindow` разметка — `Views/NameWindow.xaml`, логика — `Views/NameWindow.xaml.cs` (главное окно — в корне проекта). **Подробное описание каждого окна, его файлов и поведения — в [FractalExplorerWPF/WINDOWS.md](FractalExplorerWPF/WINDOWS.md).** При добавлении, удалении, переименовании или изменении назначения окна либо общего контрола обновляй строку здесь и раздел в `WINDOWS.md` в том же изменении (и список инструмента скриншотов — см. ниже).
 
 ### Исследовательские окна
 
@@ -91,7 +84,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `DomainColoringWindow` | Раскраска комплексных функций с циклической палитрой аргумента. |
 | `DynamicSystemWindow` | Ляпунов, Лоренц, Рёсслер, логистическое отображение, бифуркации, Хенон, Икэда, 2D-аттракторы, Спротт, Symmetric Icons (`SYMMETRIC_ICONS.md`), Popcorn (`POPCORN.md`), Hopalong (`HOPALONG.md`). |
 | `FlameWindow` | Fractal Flame. |
-| `Fractal3DWindow` | Тридцать восемь трёхмерных режимов (`Fractal3DKind`): поверхности по оценке расстояния, объёмы плотности, десять живых моделирований на ГП, аналитические сцены. Общие камера и навигация (`Fractal3DWindow.Navigation.cs`), сохраняемые настройки качества, теней и управления (`Fractal3DPreferencesStore`), подготовка, палитры, сохранения, экспорт; рендер — `Core/Rendering3D/Fractal3DRenderer*.cs`. Документы режимов — `FractalExplorerWPF/*3D*.md`, `HOPF.md`, `KIFS.md`, `TERRAIN.md`, `ABC_FLOW.md` и др. |
+| `Fractal3DWindow` | Тридцать девять трёхмерных режимов (`Fractal3DKind`): поверхности по оценке расстояния, объёмы плотности, десять живых моделирований на ГП, аналитические сцены. Общие камера и навигация (`Fractal3DWindow.Navigation.cs`), сохраняемые настройки качества, теней и управления (`Fractal3DPreferencesStore`), подготовка, палитры, сохранения, экспорт; рендер — `Core/Rendering3D/Fractal3DRenderer*.cs`. Документы режимов — `FractalExplorerWPF/*3D*.md`, `HOPF.md`, `KIFS.md`, `KLEINIAN3D.md`, `TERRAIN.md`, `ABC_FLOW.md` и др. |
 | `Fractal3DConstantPickerWindow` | Выбор константы C Жюлиабульба и горящего корабля 3D — Жюлиа на карте исходного фрактала. |
 | `GrayScottWindow` | Gray–Scott 2D на ЦП/ГП с поиском узоров (`GRAY_SCOTT.md`). |
 | `IfsWindow` | IFS Барнсли/Хейуэя. |
@@ -117,7 +110,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 ### Общие контролы
 
-`ColorPickerPanel`, `ColorSelectorControl`, `SaveManagerControl`, `FractalControlPanel`, `UniformWrapPanel`, `NumericSpinner`, `DirectionCompass`, `TurtleTurnDial`, `PreparationOverlay`, `RenderProgressOverlay`, `TiledRenderSession` (прогрессивный тайловый предпросмотр двумерных окон), `DeepZoomViewport` (центр, зум, колесо и перетаскивание двумерных окон), `FullscreenToggle` (F11/Esc), `RenderThreadsBox` (выбор числа потоков), `PanelFields` (чтение числовых полей). Панели режимов `Fractal3DWindow`: `Buddhabrot4DEditor`, `LSystem3DEditor`, `LSystemRandomizerPanel`, `HyperbolicHoneycombEditor`, `HopfEditor`, `AbcFlowEditor`, `TuringReactionEditor`, редакторы моделирований `GrayScott3DEditor`, `Turing3DEditor`, `CahnHilliard3DEditor`, `Lenia3DEditor`, `Physarum3DEditor`, `Kobayashi3DEditor`, `Excitable3DEditor`, `GinzburgLandau3DEditor`, `SwiftHohenberg3DEditor`, `PhaseFieldCrystal3DEditor` с общим циклом `Fractal3DLiveSimulation`, стиль подписей `Fractal3DPanelStyles.xaml`.
+`ColorPickerPanel`, `ColorSelectorControl`, `SaveManagerControl`, `FractalControlPanel`, `UniformWrapPanel`, `NumericSpinner`, `DirectionCompass`, `TurtleTurnDial`, `PreparationOverlay`, `RenderProgressOverlay`, `TiledRenderSession` (прогрессивный тайловый предпросмотр двумерных окон), `DeepZoomViewport` (центр, зум, колесо и перетаскивание двумерных окон), `FullscreenToggle` (F11/Esc), `RenderThreadsBox` (выбор числа потоков), `PanelFields` (чтение числовых полей). Панели режимов `Fractal3DWindow`: `Buddhabrot4DEditor`, `LSystem3DEditor`, `LSystemRandomizerPanel`, `HyperbolicHoneycombEditor`, `KleinianEditor`, `HopfEditor`, `AbcFlowEditor`, `TuringReactionEditor`, редакторы моделирований `GrayScott3DEditor`, `Turing3DEditor`, `CahnHilliard3DEditor`, `Lenia3DEditor`, `Physarum3DEditor`, `Kobayashi3DEditor`, `Excitable3DEditor`, `GinzburgLandau3DEditor`, `SwiftHohenberg3DEditor`, `PhaseFieldCrystal3DEditor` с общим циклом `Fractal3DLiveSimulation`, стиль подписей `Fractal3DPanelStyles.xaml`.
 
 ## Пользовательские данные, сохранения и миграции
 
@@ -145,10 +138,6 @@ data-version.json                      # достигнутая версия к�
 - Проверки и инструменты не трогают настоящие данные: `AppPaths.OverrideDataRoot` перенаправляет каталог (Verification — в `bin/.../VerificationData`, ScreenshotGen — в `bin/.../ScreenshotData`), `RecycleBin.SendOverrideForTests` подменяет Корзину.
 
 Статусы замечаний аудита от 5 октября 2026 — в `FractalExplorerWPF/AUDIT_STATUS.md`. Оба замечания галереи Жюлиа не актуальны после удаления `JuliaGalleryWindow` (`fe82c37`); не переносить их автоматически на карту выбора C.
-
-## Отдельный эксперимент perturbation theory
-
-По отдельному запросу пользователя создан самостоятельный WPF / .NET 10 эксперимент в `perturbation theory/`: упрощённый исследователь классического Мандельброта для сравнения perturbation-движка (`Core/Rendering/PerturbationRenderer.cs`) с классическим движком основной версии. Он не заменяет основную WPF-версию; обычные задачи по-прежнему относятся к `FractalExplorerWPF/`. Описание и команды — `perturbation theory/README.md`, численная проверка — `perturbation theory/Verification/Verification.csproj`.
 
 ## Скриншоты окон для документации
 
@@ -181,7 +170,7 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 - Сохранения, данные, облако, каталог: `manager`, `cloud`, `cloud-live` (только анонимные GET к настоящему серверу), `catalog [--out папка]`, `catalog-cache`, `numeric`, `shadercache`.
 - Двумерные режимы и глубокий зум: `deep`, `extreme`, `phoenix`, `newton`, `mandelbrot-saves`, `julia-saves`, `julia-family`, `julia-gpu`, `perpendicular-family`, `folded-cubic`, `folded-polynomials`, `basins`, `transcendental-julia`, `transcendental-rays`, `planar`, `sprott`, `symmetric-icons`, `popcorn`, `hopalong`, `snow-crystal`, `lsystemrandom`, `tiled-preview [--record|--compare файл]` (попиксельная сверка тайлового предпросмотра до и после правки), `deep-viewport [--record|--compare файл]` (центр и зум окон с глубоким зумом), `deep-frames [--record|--compare файл] [--time]` (хеши кадров всех пертурбационных ядер, полминуты), `laboratory [--record|--compare файл]` (хеши кадров всех лабораторий во всех режимах, меньше минуты), `shader-sources [--record|--compare файл] [--compile префикс]` (хеши исходников всех GPU-шейдеров без ГП, секунды; `--compile ""` — и байткода, около трёх минут), `poi [фильтр] [--out папка]` (при добавлении или правке точки интереса прогоняй её группу и смотри PNG), `poi-probe`.
 - Gray–Scott и Тьюринг: `gray-scott`, `gray-scott-gpu`, `gray-scott-random`, `turing`, `turing-gpu`, `turing-reactions`.
-- Трёхмерные режимы: `fractal3d`, `fractal3d-modes [--record|--compare файл]` (всё, что зависит от режима, без ГП), `preparation3d`, `picker-marker`, `terrain`, `kifs`, `flame3d`, `attractors`, `buddhabrot4d`, `lsystem3d`, `dla3d`, `lichtenberg3d`, `hopf`, `abc-flow`, `hyperbolic-honeycomb`, `implicit-surface`, `periodic-surfaces`, `lyapunov3d`, `gray-scott3d`, `turing3d`, `cahn-hilliard3d`, `lenia3d`, `physarum3d`, `physarum-random`, `kobayashi3d`, `kobayashi-random`, `excitable3d`, `ginzburg-landau3d`, `swift-hohenberg3d`, `phase-field-crystal3d` (нужен Direct3D 11).
+- Трёхмерные режимы: `fractal3d`, `fractal3d-modes [--record|--compare файл]` (всё, что зависит от режима, без ГП), `preparation3d`, `picker-marker`, `terrain`, `kifs`, `kleinian`, `flame3d`, `attractors`, `buddhabrot4d`, `lsystem3d`, `dla3d`, `lichtenberg3d`, `hopf`, `abc-flow`, `hyperbolic-honeycomb`, `implicit-surface`, `periodic-surfaces`, `lyapunov3d`, `gray-scott3d`, `turing3d`, `cahn-hilliard3d`, `lenia3d`, `physarum3d`, `physarum-random`, `kobayashi3d`, `kobayashi-random`, `excitable3d`, `ginzburg-landau3d`, `swift-hohenberg3d`, `phase-field-crystal3d` (нужен Direct3D 11).
 - Замеры в Release (`dotnet run -c Release …`): `gray-scott-perf`, `turing-perf`, `cahn-hilliard-perf`, `catalog-perf [папка отчёта]` (не входят в `all` и не меняют настоящие данные).
 
 Сценарии ручной проверки — в `FractalExplorerWPF/Verification/README.md`. Не редактируй `bin/` и `obj/` и не добавляй их содержимое в репозиторий.
