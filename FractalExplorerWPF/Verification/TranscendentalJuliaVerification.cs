@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF;
@@ -136,6 +138,29 @@ internal static partial class Program
                 captured.Timestamp = loaded.Timestamp;
                 Check(JsonSerializer.Serialize(captured, JsonOptionsFactory.Create()) == JsonSerializer.Serialize(loaded, JsonOptionsFactory.Create()),
                     "LoadState/CaptureState must preserve the full view and numerical settings.");
+                // Настоящее событие клавиши проходит через NumericSpinner, как стрелка поля.
+                // Проверяем весь CaptureState: дробное значение в любом счётчике блокирует рендер.
+                using (var inputSource = new HwndSource(new HwndSourceParameters("Julia spinner verification")
+                {
+                    Width = 1, Height = 1, WindowStyle = 0
+                }))
+                {
+                    foreach (string field in new[] { "RayLimitBox", "IterationsBox", "PeriodBox", "DepthBox", "BranchesBox", "BudgetBox" })
+                    {
+                        var box = (TextBox)window.FindName(field);
+                        int before = int.Parse(box.Text);
+                        box.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, inputSource, Environment.TickCount, Key.Up)
+                        {
+                            RoutedEvent = Keyboard.PreviewKeyDownEvent
+                        });
+                        Check(int.TryParse(box.Text, out int after) && after == before + 1,
+                            $"{field}: the spinner must increment by one, keeping render parameters valid.");
+                        _ = window.CaptureState("spinner");
+                    }
+                }
+                var editedPreview = await window.RenderStatePreviewAsync(window.CaptureState("spinner"), 96, 72, CancellationToken.None);
+                Check(editedPreview.IsFrozen, "Parameters changed with spinners must render successfully in both Julia modes.");
+                window.LoadState(loaded);
                 var configuration = SaveManagerConfigurations.ForTranscendentalJulia(window, store);
                 Check(configuration.PointsOfInterest.Count == 3 && configuration.GetDetails(loaded).Contains("λ"), "Save manager must expose presets and meaningful details.");
                 var preview = await window.RenderStatePreviewAsync(loaded, 96, 72, CancellationToken.None);

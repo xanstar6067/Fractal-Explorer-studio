@@ -88,8 +88,6 @@ public partial class TranscendentalJuliaWindow : Window
         KindBox.SelectedIndex = (int)Kind;
         Title = TranscendentalJuliaCatalog.Title(Kind);
         FormulaText.Text = TranscendentalJuliaCatalog.Formula(Kind);
-        PresetBox.ItemsSource = TranscendentalJuliaCatalog.Presets(Kind);
-        PresetBox.SelectedIndex = -1;
         LambdaRealBox.Text = FormatValue(state.LambdaReal);
         LambdaImaginaryBox.Text = FormatValue(state.LambdaImaginary);
         IterationsBox.Text = state.MaxIterations.ToString(CultureInfo.InvariantCulture);
@@ -125,10 +123,6 @@ public partial class TranscendentalJuliaWindow : Window
     {
         if (!_updating && KindBox.SelectedIndex >= 0)
             LoadState(TranscendentalJuliaCatalog.CreateDefault((TranscendentalJuliaKind)KindBox.SelectedIndex));
-    }
-    private void Preset_OnChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_updating && PresetBox.SelectedItem is TranscendentalJuliaState state) LoadState(state.Clone());
     }
     private void Parameter_OnChanged(object sender, EventArgs e) { if (!_updating) ScheduleRender(); }
     private void Plane_OnChanged(object sender, SelectionChangedEventArgs e)

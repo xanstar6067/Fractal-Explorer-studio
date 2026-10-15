@@ -38,8 +38,6 @@
                         <ComboBoxItem Content="Динамическая плоскость z"/><ComboBoxItem Content="Карта параметра λ"/>
                     </ComboBox>
                     <TextBlock x:Name="PlaneDescriptionText" Style="{StaticResource Hint}"/>
-                    <TextBlock Text="Готовый пример"/>
-                    <ComboBox x:Name="PresetBox" DisplayMemberPath="SaveName" SelectionChanged="Preset_OnChanged"/>
                     <TextBlock Text="Отображение" Margin="0,8,0,0"/>
                     <ComboBox x:Name="LayerBox" SelectionChanged="Parameter_OnChanged">
                         <ComboBoxItem Content="Карта орбит"/><ComboBoxItem Content="Жюлиа: обратные итерации"/>
@@ -52,7 +50,7 @@
                     </ComboBox>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Частей лучей" VerticalAlignment="Center"/>
-                        <TextBox x:Name="RayLimitBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                        <TextBox x:Name="RayLimitBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Точность, пиксели" VerticalAlignment="Center"/>
@@ -68,11 +66,11 @@
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Итерации" VerticalAlignment="Center"/>
-                        <TextBox x:Name="IterationsBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                        <TextBox x:Name="IterationsBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Макс. период" VerticalAlignment="Center"/>
-                        <TextBox x:Name="PeriodBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                        <TextBox x:Name="PeriodBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Допуск сходимости" VerticalAlignment="Center"/>
@@ -80,15 +78,15 @@
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Глубина прообразов" VerticalAlignment="Center"/>
-                        <TextBox x:Name="DepthBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                        <TextBox x:Name="DepthBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Радиус ветвей" VerticalAlignment="Center"/>
-                        <TextBox x:Name="BranchesBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                        <TextBox x:Name="BranchesBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Бюджет точек" VerticalAlignment="Center"/>
-                        <TextBox x:Name="BudgetBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Parameter_OnChanged"/>
+                        <TextBox x:Name="BudgetBox" Grid.Column="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="Parameter_OnChanged"/>
                     </Grid>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <TextBlock Text="Центр X" VerticalAlignment="Center"/>
@@ -105,19 +103,22 @@
                     <TextBlock Style="{StaticResource Hint}" Text="Бюджет ограничивает выборку точек и уточнение кривых. Радиус ветвей задаёт выборку около начала координат и текущего вида; дальние вспомогательные ветви подбираются по виду."/>
                     <TextBlock Text="Потоки ЦП"/>
                     <ComboBox x:Name="ThreadsBox" SelectionChanged="Parameter_OnChanged"/>
-                    <TextBlock Text="Сглаживание"/>
+                    <TextBlock Text="Сглаживание предпросмотра"/>
                     <ComboBox x:Name="SsaaBox" SelectedIndex="0" SelectionChanged="Parameter_OnChanged">
                         <ComboBoxItem Content="1×" Tag="1"/><ComboBoxItem Content="2×" Tag="2"/><ComboBoxItem Content="4×" Tag="4"/>
                     </ComboBox>
-                    <Button Content="Пересчитать" Click="Render_OnClick"/>
-                    <Button x:Name="CancelButton" Content="Отмена" IsEnabled="False" Click="Cancel_OnClick"/>
-                    <Button Content="Сбросить вид" Click="Reset_OnClick"/>
                     <Button Content="Настроить палитру" Click="Palette_OnClick"/>
                     <Button Content="Менеджер сохранений" Click="Saves_OnClick"/>
                     <Button Content="Сохранить изображение" Click="Export_OnClick"/>
+                    <UniformGrid Columns="2">
+                        <Button Margin="0,3,3,3" Content="Сбросить вид" Click="Reset_OnClick"/>
+                        <Button Margin="3,3,0,3" Content="Рендер" Click="Render_OnClick"/>
+                    </UniformGrid>
+                    <Button x:Name="CancelButton" Content="Отмена" IsEnabled="False" Click="Cancel_OnClick"/>
+                    <TextBlock Margin="0,10,0,4" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Text="Прогресс"/>
+                    <ProgressBar x:Name="RenderProgress" Height="18" Minimum="0" Maximum="100"/>
+                    <TextBlock x:Name="StatusText" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}" TextWrapping="Wrap" Text="Подготовка…"/>
                     <TextBlock Style="{StaticResource Hint}" Text="Карта орбит: яркость — скорость сходимости. Нераспознанные орбиты и численный предел имеют отдельные цвета. Большой модуль не доказывает убегание."/>
-                    <ProgressBar x:Name="RenderProgress" Height="16" Minimum="0" Maximum="100" Margin="0,6"/>
-                    <TextBlock x:Name="StatusText" Style="{StaticResource Hint}" Text="Подготовка…"/>
                     <TextBlock x:Name="CoordinateText" Style="{StaticResource Hint}" FontFamily="Consolas"/>
                     <TextBlock Text="Орбита выбранной точки" Margin="0,6"/>
                     <TextBox x:Name="OrbitText" IsReadOnly="True" TextWrapping="Wrap" Height="100" VerticalScrollBarVisibility="Auto"/>
