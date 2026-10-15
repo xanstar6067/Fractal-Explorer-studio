@@ -1,9 +1,0 @@
-<Project>
-  <Target Name="AutoRemoveUnusedUsings"
-          BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(AutoRemoveUnusedUsings)' == 'true'">
-    <Message Text="Auto-removing unused using directives (IDE0005) with dotnet format..."
-             Importance="High" />
-    <Exec Command="dotnet format &quot;$(MSBuildProjectFullPath)&quot; --diagnostics IDE0005 --severity info --no-restore" />
-  </Target>
-</Project>
