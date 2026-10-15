@@ -9,6 +9,7 @@ internal sealed class Lyapunov3DMode() : Fractal3DMode(Fractal3DKind.Lyapunov3D,
     "Fractal3DLyapunov", "lyapunov3d"))
 {
     public override bool IsDensityVolume => true;
+    public override int VolumePreparationProgress => 60;
 
     public override bool UsesIterations => false;
 

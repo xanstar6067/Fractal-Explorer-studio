@@ -40,6 +40,7 @@ public partial class Fractal3DWindow
             Fractal3DRenderStage.WaitingForDevice => "Ожидаем видеокарту…",
             Fractal3DRenderStage.PreparingDevice => "Подготовка видеокарты и программ рендера…",
             Fractal3DRenderStage.PreparingData when Kind == Fractal3DKind.Lyapunov3D => "Расчёт объёма Ляпунова…",
+            Fractal3DRenderStage.PreparingData when Kind == Fractal3DKind.Newton3D => "Расчёт бассейнов Ньютона…",
             Fractal3DRenderStage.PreparingData => "Подготовка геометрии и данных фрактала…",
             Fractal3DRenderStage.PreparingShaders => "Подготовка программы изображения…",
             _ => "Рендеринг первого кадра…"
@@ -53,7 +54,7 @@ public partial class Fractal3DWindow
         InitialPreparationOverlay.IsIndeterminate = false;
         InitialPreparationOverlay.Progress = value;
         InitialPreparationOverlay.Message = preparingLyapunov && value <= 60
-            ? $"Расчёт объёма Ляпунова · {Math.Min(100, value * 100 / 60)}%"
+            ? $"{(Kind == Fractal3DKind.Newton3D ? "Расчёт бассейнов Ньютона" : "Расчёт объёма Ляпунова")} · {Math.Min(100, value * 100 / 60)}%"
             : $"Рендеринг первого кадра · {value}%";
     }
 

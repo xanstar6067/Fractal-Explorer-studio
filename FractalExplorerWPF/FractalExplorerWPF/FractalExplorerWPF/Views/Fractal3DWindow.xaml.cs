@@ -173,6 +173,7 @@ public partial class Fractal3DWindow : Window
         Dla = CaptureDla(),
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
+        Newton = Kind == Fractal3DKind.Newton3D ? NewtonEditor.Capture() : new(),
         Power = ReadField(PowerBox, _mode.PowerField),
         BurningShipFormula = SelectedBurningShipFormula,
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
@@ -345,6 +346,7 @@ public partial class Fractal3DWindow : Window
         LoadLichtenberg(state.Lichtenberg);
         _simulation?.Load(state);
         LoadLyapunov(state.Lyapunov);
+        if (Kind == Fractal3DKind.Newton3D) NewtonEditor.Load(state.Newton ?? new());
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
         DetailBox.Text = Format(state.Detail);
@@ -452,6 +454,7 @@ public partial class Fractal3DWindow : Window
         KifsPanel.Visibility = Collapse(Kind == Fractal3DKind.Kifs);
         KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
         AntoineEditor.Visibility = Collapse(Kind == Fractal3DKind.AntoineNecklace);
+        NewtonEditor.Visibility = Collapse(Kind == Fractal3DKind.Newton3D);
         PeriodicPanel.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
         ImplicitPanel.Visibility = Collapse(Kind == Fractal3DKind.ImplicitSurface);
         HyperbolicPanel.Visibility = Collapse(Kind == Fractal3DKind.HyperbolicHoneycomb);
@@ -668,6 +671,7 @@ public partial class Fractal3DWindow : Window
         if (!_updatingUi)
         {
             RememberPreference(sender);
+            if (ReferenceEquals(sender, NewtonEditor)) _renderCts?.Cancel();
             if (Kind == Fractal3DKind.Lyapunov3D)
             {
                 UpdateLyapunovCutLabel();
@@ -958,14 +962,15 @@ public partial class Fractal3DWindow : Window
 
         var watch = Stopwatch.StartNew();
         bool preparingLyapunov = Kind == Fractal3DKind.Lyapunov3D && _renderer.NeedsLyapunovField(state.Lyapunov);
-        if (CanvasImage.Source is null || preparingLyapunov) BeginInitialPreparation();
-        SetRendering(true, preparingLyapunov ? "Расчёт объёма Ляпунова…" : quality == FrameQuality.Draft ? null : "Рендеринг...");
+        bool preparingNewton = Kind == Fractal3DKind.Newton3D && _renderer.NeedsNewtonField(state.Newton);
+        if (CanvasImage.Source is null || preparingLyapunov || preparingNewton) BeginInitialPreparation();
+        SetRendering(true, preparingNewton ? "Расчёт бассейнов Ньютона…" : preparingLyapunov ? "Расчёт объёма Ляпунова…" : quality == FrameQuality.Draft ? null : "Рендеринг...");
 
         void ReportProgress(int value)
         {
             if (_isClosing || cts.IsCancellationRequested || !ReferenceEquals(_renderCts, cts)) return;
             RenderProgress.Value = value;
-            ReportInitialPreparationProgress(value, preparingLyapunov);
+            ReportInitialPreparationProgress(value, preparingLyapunov || preparingNewton);
             if (SimulationPreparationOverlay is { Visibility: Visibility.Visible } overlay)
             {
                 overlay.IsIndeterminate = false;
@@ -988,7 +993,7 @@ public partial class Fractal3DWindow : Window
                 var progress = new Progress<int>(ReportProgress);
                 BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
                 cts.Token.ThrowIfCancellationRequested();
-                if (!IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
+                if (!IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
                 RenderOptions.SetBitmapScalingMode(CanvasImage, BitmapScalingMode.HighQuality);
                 CanvasImage.Source = bitmap;
                 StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {width}×{height}, " +
@@ -999,7 +1004,7 @@ public partial class Fractal3DWindow : Window
                 bool draft = quality == FrameQuality.Draft;
                 Fractal3DState frameState = draft && moving ? ApplyMotionQuality(state) : state;
                 simplified = !ReferenceEquals(frameState, state);
-                IProgress<int>? progress = draft && !preparingLyapunov && InitialPreparationLayer.Visibility != Visibility.Visible && SimulationPreparationOverlay.Visibility != Visibility.Visible
+                IProgress<int>? progress = draft && !preparingNewton && !preparingLyapunov && InitialPreparationLayer.Visibility != Visibility.Visible && SimulationPreparationOverlay.Visibility != Visibility.Visible
                     ? null
                     : new Progress<int>(ReportProgress);
 
@@ -1034,7 +1039,7 @@ public partial class Fractal3DWindow : Window
                     if (!_frameRequested) ShowPreparationError("Подготовка отменена");
                     return;
                 }
-                if (!IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
+                if (!IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
 
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
                 RenderOptions.SetBitmapScalingMode(CanvasImage,

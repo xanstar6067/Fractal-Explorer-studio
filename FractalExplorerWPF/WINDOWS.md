@@ -16,6 +16,16 @@
 
 ## Окна
 
+### Ньютон 3D
+
+Режим `Fractal3DKind.Newton3D` общего `Fractal3DWindow`: срез бикомплексного
+Ньютона `qⁿ − 1`, границы медленной сходимости, отдельная компонента и пара
+корней. `Controls/Newton3DEditor.xaml` / `.xaml.cs` задаёт степень, сетку,
+итерации, область, координату w, релаксацию, маску и цветные сечения.
+Поле считается на GPU в `Fractal3DRenderer.Newton.cs` / `Newton3DCompute.hlsl`,
+изображение — общим `Volume.hlsl`. Камера, подготовка, палитры, зонд,
+сохранения и экспорт общие. Подробности — [NEWTON3D.md](NEWTON3D.md).
+
 ### Ожерелье Антуана
 
 Режим `Fractal3DKind.AntoineNecklace` общего `Fractal3DWindow`: конечные поколения

@@ -39,6 +39,9 @@ public abstract class Fractal3DMode(Fractal3DKind kind, Fractal3DDefinition defi
     /// <summary>Живое моделирование на ГП с паузой, шагами и точным полем в сохранении.</summary>
     public virtual bool IsGpuSimulation => false;
 
+    /// <summary>Доля прогресса, отведённая построению статического поля перед трассировкой.</summary>
+    public virtual int VolumePreparationProgress => 0;
+
     /// <summary>Подпись, имя в сообщении об ошибке и диапазон общего поля «Итерации».</summary>
     public virtual Fractal3DField IterationsField { get; } = new("Итерации", "Итерации", 1, 64, IsInteger: true);
 

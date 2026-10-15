@@ -8,7 +8,7 @@
     VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D || \
     VOLUME_KIND == KIND_SwiftHohenberg3D || VOLUME_KIND == KIND_Lenia3D || \
-    VOLUME_KIND == KIND_Physarum3D || VOLUME_KIND == KIND_Lyapunov3D)
+    VOLUME_KIND == KIND_Physarum3D || VOLUME_KIND == KIND_Lyapunov3D || VOLUME_KIND == KIND_Newton3D)
 // Срез и грани — как у моделирований; у Тьюринга своя маска области и порог 0,5.
 #define VOLUME_CUT (VOLUME_GPU_FIELD || VOLUME_KIND == KIND_Turing3D)
 // Излучение и поглощение по цвету текселя (rgb — сумма цветов, a — плотность).
@@ -40,7 +40,7 @@ cbuffer Frame : register(b0)
     float4 Palette[16];
 };
 
-#if VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D
+#if VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || VOLUME_KIND == KIND_Newton3D
 Texture3D<float4> Density : register(t0);
 #elif VOLUME_KIND == KIND_Dla3D || VOLUME_KIND == KIND_Turing3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D
@@ -125,6 +125,21 @@ float ExponentColor(float3 p) {
 }
 #endif
 
+#if VOLUME_KIND == KIND_Newton3D
+// Дискретные номера корней не интерполируются: иначе на границе возникают чужие бассейны.
+float NewtonColor(float3 p, int mode)
+{
+    int side = (int)ShapeA.x;
+    int3 cell = clamp((int3)((p*.5+.5)*side), 0, side-1);
+    float4 field = Density.Load(int4(cell,0));
+    float degree = ShapeA.z;
+    if (mode == 5) return field.z;
+    if (mode == 4) return field.y > .5 ? (field.y-1)/max(degree-1,1) : -1;
+    if (mode == 6) return field.w > .5 ? (field.w-1)/max(degree-1,1) : -1;
+    return field.y > .5 && field.w > .5 ? ((field.y-1)*degree+field.w-1)/max(degree*degree-1,1) : -1;
+}
+#endif
+
 float SampleDensity(float3 samplePosition)
 {
 #if VOLUME_KIND == KIND_Turing3D
@@ -174,6 +189,8 @@ float SampleDensity(float3 samplePosition)
     int region = (int)ShapeB.z;
     if (region == 2) return saturate(1-abs(delta)/(2*ShapeB.w));
     return saturate(.5+(region == 1 ? delta : -delta)/(2*ShapeA.z));
+#elif VOLUME_KIND == KIND_Newton3D
+    return Density.SampleLevel(DensitySampler, saturate(samplePosition*.5+.5), 0).x;
 #else
     return Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0);
 #endif
@@ -252,6 +269,11 @@ float3 SurfaceAlbedo(float3 normal, float3 surfacePoint, float3 rayDirection,
     else if (mode == 4) value = surfacePoint.x*.5+.5;
     else if (mode == 5) value = surfacePoint.y*.5+.5;
     else if (mode == 6) value = surfacePoint.z*.5+.5;
+#elif VOLUME_KIND == KIND_Newton3D
+    if (mode == 2 || mode == 4 || mode == 5 || mode == 6) {
+        value = NewtonColor(surfacePoint,mode);
+        if (value < 0) return float3(.18,.18,.18);
+    }
 #else
     if (mode == 2) value = Density.SampleLevel(DensitySampler, saturate(surfacePoint * .5 + .5), 0);
 #endif
@@ -413,7 +435,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float entry = max(0.0, max(lo.x, max(lo.y, lo.z)));
     float exitDistance = min(hi.x, min(hi.y, hi.z));
     float3 sky = SkyAt(direction);
-#if VOLUME_KIND == KIND_Lyapunov3D
+#if VOLUME_KIND == KIND_Lyapunov3D || VOLUME_KIND == KIND_Newton3D
     // Плоское сечение (BoxInversion.y): цвет λ на плоскости среза без трассировки объёма.
     if (BoxInversion.y > .5) {
         int axis = (int)ShapeB.x-1;
@@ -424,7 +446,11 @@ float4 PSMain(PSInput input) : SV_TARGET
         if (hit < 0 || any(abs(p)>1.0001))
             return Probe.x > .5 ? PackFloat(-1) : float4(LinearToSrgb(sky),1);
         if (Probe.x > .5) return PackFloat(hit);
+#if VOLUME_KIND == KIND_Newton3D
+        float3 tint = SurfaceAlbedo(axis == 0 ? float3(1,0,0) : axis == 1 ? float3(0,1,0) : float3(0,0,1),p,direction,0,1,0);
+#else
         float3 tint = SamplePalette(ExponentColor(p)*ShapeC.y+ShapeC.z,(int)PaletteInfo.y);
+#endif
         return float4(LinearToSrgb(tint),1);
     }
 #endif

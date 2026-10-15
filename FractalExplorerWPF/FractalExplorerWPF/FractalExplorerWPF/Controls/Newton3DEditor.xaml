@@ -1,0 +1,67 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.Newton3DEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="qⁿ − 1 = 0 · бикомплексный Ньютон" FontWeight="SemiBold"/>
+        <TextBlock Text="Срез q = x + iy + jz + ijw. Каждый бассейн определяется парой комплексных корней."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,4,0,4"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Степень n (3–8)" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="DegreeBox" SelectionChanged="Changed"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Сетка поля" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="SizeBox" SelectionChanged="Changed"/>
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="Итерации (16–128)" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="IterationsBox" Text="64" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <TextBlock Text="Полуразмер области (0,2–4)" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="ExtentBox" Text="1.8" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <TextBlock Text="Координата 4D-среза w (−2…2)" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="SliceWBox" Text="0.22" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <TextBlock Text="Релаксация шага (0,2–1,8)" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="RelaxationBox" Text="1" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <TextBlock Text="Показывать" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="RegionBox" SelectedIndex="0" SelectionChanged="Changed">
+            <ComboBoxItem Content="Границы · медленная сходимость"/>
+            <ComboBoxItem Content="Один бассейн компоненты +"/>
+            <ComboBoxItem Content="Пересечение · пара корней + / −"/>
+        </ComboBox>
+        <StackPanel x:Name="BoundaryPanel">
+            <TextBlock Text="Граница: от скольких итераций" Style="{StaticResource FieldCaption}"/>
+            <TextBox x:Name="BoundaryBox" Text="12" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        </StackPanel>
+        <Grid x:Name="RootsPanel" Visibility="Collapsed">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Корень +" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="PlusRootBox" SelectionChanged="Changed"/>
+            </StackPanel>
+            <StackPanel x:Name="MinusRootPanel" Grid.Column="2">
+                <TextBlock Text="Корень −" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="MinusRootBox" SelectionChanged="Changed"/>
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="Отсечение объёма" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="CutBox" SelectedIndex="3" SelectionChanged="Changed">
+            <ComboBoxItem Content="Без отсечения"/><ComboBoxItem Content="По X"/>
+            <ComboBoxItem Content="По Y"/><ComboBoxItem Content="По Z"/>
+        </ComboBox>
+        <Slider x:Name="CutSlider" Minimum="-1" Maximum="1" Value="0.2" ValueChanged="Changed" Margin="0,6,0,0"/>
+        <TextBlock x:Name="CutLabel" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <CheckBox x:Name="SliceBox" Content="Только цветная плоскость среза" Margin="0,6,0,0" Checked="Changed" Unchecked="Changed"/>
+        <TextBlock Text="Границы — приближение по скорости сходимости на сетке. Для тонких деталей увеличьте сетку; серый цвет при окраске по корням означает отсутствие сходимости."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,8,0,0"/>
+    </StackPanel>
+</UserControl>

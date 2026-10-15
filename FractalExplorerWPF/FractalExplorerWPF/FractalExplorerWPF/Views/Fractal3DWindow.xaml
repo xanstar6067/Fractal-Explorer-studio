@@ -99,6 +99,7 @@
                             <controls:Buddhabrot4DEditor x:Name="BuddhabrotEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
                             <controls:KleinianEditor x:Name="KleinianEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
                             <controls:AntoineEditor x:Name="AntoineEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
+                            <controls:Newton3DEditor x:Name="NewtonEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
                             <StackPanel x:Name="DlaPanel" Visibility="Collapsed">
                                 <TextBlock Text="Затравка" Style="{StaticResource FieldCaption}"/>
                                 <ListBox x:Name="DlaSeedShapeBox" SelectionChanged="DlaGrowth_OnChanged" SelectedIndex="0" Margin="0,4,0,6">

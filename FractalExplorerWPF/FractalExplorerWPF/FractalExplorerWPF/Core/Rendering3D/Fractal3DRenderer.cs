@@ -248,8 +248,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
             {
                 Gate.Release();
             }
-            progress?.Report(state.Kind == Fractal3DKind.Lyapunov3D
-                ? 60 + (index + 1) * 40 / strips : (index + 1) * 100 / strips);
+            int preparation = Fractal3DCatalog.Mode(state.Kind).VolumePreparationProgress;
+            progress?.Report(preparation + (index + 1) * (100 - preparation) / strips);
         }
         return true;
     }
@@ -495,6 +495,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private static ShaderCacheEntry LyapunovPixelShaderEntry() =>
         new("lyapunov3d-pixel", VolumeShader.Build(Fractal3DKind.Lyapunov3D), "PSMain", "ps_5_0");
 
+    private static ShaderCacheEntry NewtonPixelShaderEntry() =>
+        new("newton3d-pixel", VolumeShader.Build(Fractal3DKind.Newton3D), "PSMain", "ps_5_0");
+
     private static ShaderCacheEntry LeniaPixelShaderEntry() =>
         new("lenia3d-pixel", VolumeShader.Build(Fractal3DKind.Lenia3D), "PSMain", "ps_5_0");
 
@@ -575,6 +578,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(IfsPixelShaderEntry());
         entries.Add(LyapunovPixelShaderEntry());
         entries.Add(Lyapunov3DComputeShader.CacheEntry);
+        entries.Add(NewtonPixelShaderEntry());
+        entries.Add(Newton3DComputeShader.CacheEntry);
         entries.Add(AbcFlowComputeShader.CacheEntry);
         entries.Add(FlamePixelShaderEntry());
         entries.Add(BuddhabrotPixelShaderEntry());
