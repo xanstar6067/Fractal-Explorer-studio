@@ -734,6 +734,9 @@ internal static class Program
                 case "SnowCrystal":
                     await CaptureAsync(() => new SnowCrystalWindow(), "snow-crystal", 15000);
                     return;
+                case "Sandpile":
+                    await CaptureAsync(() => new SandpileWindow(), "sandpile", 15000);
+                    return;
                 case "SprottQuadratic":
                 {
                     Window? w = await CaptureAsync(

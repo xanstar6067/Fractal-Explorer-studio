@@ -282,6 +282,16 @@ public static class SaveManagerConfigurations
                                     $"Затравка: {state.SeedMode} · прилипание: {state.Stickiness:G4} · seed: {state.RandomSeed}"
     };
 
+    public static SaveManagerConfiguration<SandpileState> ForSandpile(SandpileWindow window, SandpileSaveStore store) => new()
+    {
+        WindowTitle = "Сохранение/Загрузка: абелева песочная куча", Store = store,
+        CaptureState = window.CaptureState, CapturePreview = window.CaptureCurrentPreview,
+        LoadState = window.LoadState, RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName, GetTimestamp = state => state.Timestamp,
+        GetDetails = state => $"{Prefix(state.Timestamp)} · {state.Size} × {state.Size} · соседей: {state.Degree}\n" +
+            $"В поле: {(state.Checkpoint is { } c ? c.Added - c.Lost : state.InitialGrains):N0} · активных: {state.Checkpoint?.Queue.Length ?? 0:N0}"
+    };
+
     public static SaveManagerConfiguration<SnowCrystalState> ForSnowCrystal(
         SnowCrystalWindow window, SnowCrystalSaveStore store) => new()
     {

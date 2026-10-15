@@ -279,7 +279,7 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + Enum.GetValues<TranscendentalJuliaKind>().Length + 120,
+                    Enum.GetValues<Fractal3DKind>().Length + Enum.GetValues<TranscendentalJuliaKind>().Length + 121,
                 "Laboratories, 3D fractals, simulations, orbit renderers and polynomial/transcendental Julia modes must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
@@ -365,12 +365,12 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(3).Select(tile => tile.Item.LaunchKey).SequenceEqual(
-                new[] { Fractal3DCatalog.LaunchKey(Fractal3DKind.Newton3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
-                "Newton, Antoine and Kleinian must follow their introduction times within the same day.");
-            Check(ViewItems(window).Skip(3).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
+            Check(ViewItems(window).Take(4).Select(tile => tile.Item.LaunchKey).SequenceEqual(
+                new[] { "Sandpile", Fractal3DCatalog.LaunchKey(Fractal3DKind.Newton3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
+                "Sandpile, Newton, Antoine and Kleinian must follow their introduction times within the same day.");
+            Check(ViewItems(window).Skip(4).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
                 "The two transcendental Julia modes must follow Kleinian.");
-            var previousArrivals = ViewItems(window).Skip(5).ToList();
+            var previousArrivals = ViewItems(window).Skip(6).ToList();
             Fractal3DKind[] recent3D = [Fractal3DKind.PhaseFieldCrystal3D, Fractal3DKind.SwiftHohenberg3D, Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
                 Fractal3DKind.HyperbolicHoneycomb, Fractal3DKind.ImplicitSurface, Fractal3DKind.PeriodicSurfaces,
                 Fractal3DKind.Excitable3D, Fractal3DKind.Lyapunov3D, Fractal3DKind.Kobayashi3D];

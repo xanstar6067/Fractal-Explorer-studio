@@ -564,6 +564,7 @@ public partial class MainWindow : Window
             "GrayScott" => () => new GrayScottWindow(),
             "TuringPatterns" => () => new TuringWindow(),
             "SnowCrystal" => () => new SnowCrystalWindow(),
+            "Sandpile" => () => new SandpileWindow(),
             "SprottQuadratic" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SprottQuadratic),
             "SymmetricIcon" => () => new DynamicSystemWindow(DynamicSystemKind.Attractors2D, Attractor2DKind.SymmetricIcon),
             "Popcorn" => () => new DynamicSystemWindow(DynamicSystemKind.Popcorn),

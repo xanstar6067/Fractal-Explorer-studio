@@ -56,7 +56,7 @@ internal sealed class CatalogPreviewLoader
             or "PerpendicularMandelbrot" or "PerpendicularBurningShip" or "PerpendicularCeltic" or "PerpendicularBuffalo" or "JuliaPerpendicularMandelbrot" or "JuliaPerpendicularBurningShip" or "JuliaPerpendicularCeltic" or "JuliaPerpendicularBuffalo"
             or "CelticMandelbar" or "CubicQuasiBurningShip" or "CubicFlyingSquirrel"
             or "JuliaCelticMandelbar" or "JuliaCubicQuasiBurningShip" or "JuliaCubicFlyingSquirrel"
-            or GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong";
+            or GrayScottLaunchKey or "TuringPatterns" or "SprottQuadratic" or "SymmetricIcon" or "Popcorn" or "SnowCrystal" or "Hopalong" or "Sandpile";
 
     /// <summary>Встроенный ресурс по пути из каталога; работает и вне самого приложения (проверки, генератор скриншотов).</summary>
     public static BitmapSource? DecodeResource(string resourcePath, int decodePixelWidth)
@@ -126,6 +126,10 @@ internal sealed class CatalogPreviewLoader
         {
             return SnowCrystalRenderer.RenderStateAsync(
                 SnowCrystalPresets.All[0].CreateState(), RenderedPixelSize, RenderedPixelSize, token);
+        }
+        if (item.LaunchKey == "Sandpile")
+        {
+            return SandpileRenderer.RenderStateAsync(SandpilePresets.All[0].CreateState(), RenderedPixelSize, RenderedPixelSize, token);
         }
         if (item.LaunchKey == "SymmetricIcon")
         {
