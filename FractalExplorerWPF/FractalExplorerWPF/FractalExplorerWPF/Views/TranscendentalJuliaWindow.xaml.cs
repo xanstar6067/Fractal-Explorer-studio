@@ -184,6 +184,8 @@ public partial class TranscendentalJuliaWindow : Window
     private void BakePreview()
     {
         _renderCts?.Cancel();
+        PreparationOverlay.Visibility = Visibility.Collapsed;
+        PreparationOverlay.IsBusy = false;
         if (_session is not { } session) return;
         session.Flush();
         if (TiledRenderSession.TryCaptureLayer(SavePreviewLayer) is { } baked)
@@ -209,6 +211,18 @@ public partial class TranscendentalJuliaWindow : Window
         _renderCts = cts;
         _rendering = true; CancelButton.IsEnabled = true;
         StatusText.Text = "Поиск циклов и подготовка прообразов Жюлиа…";
+        PreparationOverlay.Heading = Title;
+        PreparationOverlay.Message = state.Plane == TranscendentalJuliaPlane.Parameter
+            ? "Подготовка карты параметра λ…"
+            : "Поиск циклов и построение структуры Жюлиа…";
+        PreparationOverlay.Detail = "Вычисления идут. После подготовки изображение начнёт появляться по частям.";
+        PreparationOverlay.ActionText = "Отменить";
+        PreparationOverlay.IsBusy = true;
+        if (StablePreviewImage.Source is not null)
+            PreparationOverlay.Background = Brushes.Transparent;
+        else
+            PreparationOverlay.SetResourceReference(BackgroundProperty, "Theme.PanelBackgroundBrush");
+        PreparationOverlay.Visibility = Visibility.Visible;
         var watch = Stopwatch.StartNew();
         TiledRenderSession? session = null;
         try
@@ -222,6 +236,8 @@ public partial class TranscendentalJuliaWindow : Window
             var bitmap = ProgressiveRenderBitmap.CreateOverlay(width, height, surface.Dpi.PixelsPerInchX, surface.Dpi.PixelsPerInchY);
             session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress);
             _session = session; CanvasImage.Source = bitmap;
+            PreparationOverlay.Visibility = Visibility.Collapsed;
+            PreparationOverlay.IsBusy = false;
             StatusText.Text = renderer.Description;
             await session.RenderTilesAsync(tiles, RenderThreadsBox.Read(ThreadsBox),
                 (tile, token) => renderer.RenderTile(tile, token), cts.Token);
@@ -233,9 +249,26 @@ public partial class TranscendentalJuliaWindow : Window
             StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F2} с. {renderer.Description}";
         }
         catch (OperationCanceledException) { if (!_closed) StatusText.Text = "Рендер отменён."; }
-        catch (Exception ex) { if (!_closed) StatusText.Text = $"Ошибка: {ex.Message}"; CrashLogger.Log("TranscendentalJulia.Render", ex); }
+        catch (Exception ex)
+        {
+            if (!_closed)
+            {
+                StatusText.Text = $"Ошибка: {ex.Message}";
+                PreparationOverlay.Message = StatusText.Text;
+                PreparationOverlay.Detail = "Проверьте параметры и запустите рендер снова.";
+                PreparationOverlay.IsBusy = false;
+                PreparationOverlay.ActionText = "Закрыть";
+                PreparationOverlay.Visibility = Visibility.Visible;
+            }
+            CrashLogger.Log("TranscendentalJulia.Render", ex);
+        }
         finally
         {
+            if (PreparationOverlay.IsBusy)
+            {
+                PreparationOverlay.Visibility = Visibility.Collapsed;
+                PreparationOverlay.IsBusy = false;
+            }
             session?.End();
             if (ReferenceEquals(_session, session)) _session = null;
             CanvasImage.Source = null;

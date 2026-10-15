@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF;
+using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
@@ -179,9 +180,42 @@ internal static partial class Program
                 var content = (FrameworkElement)window.Content; content.Measure(new(1100, 740)); content.Arrange(new Rect(0, 0, 1100, 740));
                 var render = typeof(TranscendentalJuliaWindow).GetMethod("RenderPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 var pending = (Task)render.Invoke(window, null)!;
+                var preparation = (PreparationOverlay)window.FindName("PreparationOverlay");
+                Check(preparation.Visibility == Visibility.Visible && preparation.IsBusy && preparation.IsIndeterminate,
+                    "Both Julia modes must show animated preparation before awaiting the renderer.");
+                Check(preparation.Background is SolidColorBrush firstBackground && firstBackground.Color.A > 0,
+                    "Preparation without a previous frame must cover the empty canvas.");
                 window.LoadState(loaded);
                 await pending;
+                Check(preparation.Visibility == Visibility.Collapsed && !preparation.IsBusy,
+                    "Cancelled preparation must not leave a loading indicator over the restored state.");
                 Check(((Image)window.FindName("StablePreviewImage")).Source is null, "A cancelled frame must not replace the restored view.");
+                // Малый реальный кадр: успешное завершение убирает экран подготовки.
+                var quick = loaded.Clone(); quick.Layer = TranscendentalJuliaLayer.Orbits; quick.MaxIterations = 16;
+                window.LoadState(quick);
+                content.Measure(new(650, 260)); content.Arrange(new Rect(0, 0, 650, 260));
+                await (Task)render.Invoke(window, null)!;
+                Check(((Image)window.FindName("StablePreviewImage")).Source is not null &&
+                    preparation.Visibility == Visibility.Collapsed && !preparation.IsBusy,
+                    "A successful Julia frame must replace preparation with the rendered image.");
+                var previousFrame = ((Image)window.FindName("StablePreviewImage")).Source;
+                var repeated = (Task)render.Invoke(window, null)!;
+                Check(preparation.Visibility == Visibility.Visible && preparation.IsBusy &&
+                    preparation.Background is SolidColorBrush repeatedBackground && repeatedBackground.Color.A == 0 &&
+                    ReferenceEquals(previousFrame, ((Image)window.FindName("StablePreviewImage")).Source),
+                    "Repeated preparation must show its card over the retained frame with a transparent surrounding background.");
+                ((Button)preparation.FindName("ActionButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await repeated;
+                Check(preparation.Visibility == Visibility.Collapsed &&
+                    ReferenceEquals(previousFrame, ((Image)window.FindName("StablePreviewImage")).Source),
+                    "Cancelling repeated preparation must preserve the previous frame.");
+                ((ComboBox)window.FindName("SsaaBox")).SelectedIndex = -1;
+                await (Task)render.Invoke(window, null)!;
+                Check(preparation.Visibility == Visibility.Visible && !preparation.IsBusy &&
+                    preparation.Message.StartsWith("Ошибка:") && preparation.ActionText == "Закрыть",
+                    "A failed frame must show its error without an endless loading animation.");
+                ((Button)preparation.FindName("ActionButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check(preparation.Visibility == Visibility.Collapsed, "The error overlay must be dismissible.");
             }
             finally { window.Close(); }
         }

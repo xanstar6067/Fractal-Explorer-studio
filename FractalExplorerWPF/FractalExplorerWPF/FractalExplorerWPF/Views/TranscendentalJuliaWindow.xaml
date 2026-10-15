@@ -140,6 +140,10 @@
                 </Grid>
                 <Canvas x:Name="OrbitCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
                 <controls:RenderProgressOverlay x:Name="RenderOverlay" IsHitTestVisible="False"/>
+                <controls:PreparationOverlay x:Name="PreparationOverlay" Visibility="Collapsed"
+                    Heading="Подготовка Жюлиа" Message="Поиск циклов и построение структуры Жюлиа…"
+                    Detail="Вычисления идут. После подготовки изображение начнёт появляться по частям."
+                    ActionText="Отменить" ActionClick="Cancel_OnClick"/>
             </Grid>
         </Border>
         <Button x:Name="ToggleControlsButton" Grid.Column="1" Style="{StaticResource FractalPanelToggleButtonStyle}"
