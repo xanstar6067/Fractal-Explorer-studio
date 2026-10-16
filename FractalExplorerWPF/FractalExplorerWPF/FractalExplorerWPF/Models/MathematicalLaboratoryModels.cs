@@ -19,7 +19,8 @@ public enum MathematicalLaboratoryKind
     RecamanSequence,
     KnotStudio,
     StochasticMotion,
-    KleinianSchottky
+    KleinianSchottky,
+    Rauzy
 }
 
 public readonly record struct LaboratoryPoint(double X, double Y);
@@ -219,6 +220,13 @@ public static class MathematicalLaboratoryCatalog
             "Число точек", "Прогрев / глубина", "Seed", "Параметр деформации",
             "Колесо: масштаб. ЛКМ: перемещение. Направляющие показывают порождающие окружности. Seed выбирает воспроизводимую орбиту.",
             2_000, 2_000_000, 1, 200, int.MinValue, int.MaxValue, 0.05, 3),
+        MathematicalLaboratoryKind.Rauzy => new(
+            "Фрактал Раузи · плитки Трибоначчи",
+            "Проекция слова a → aᵏb, b → ac, c → a на сжимающую плоскость. При k = 1 — классический фрактал Раузи: три под-плитки с самоподобной границей и периодическая мозаика.",
+            ["Три под-плитки", "Под-плитка a", "Под-плитка b", "Под-плитка c", "Периодическая мозаика", "Порядок построения"],
+            "Точек на кадр", "Подстановка k", "Радиус мозаики", "Радиус точки, px",
+            "k = 1: Трибоначчи; k = 2…4: родственные подстановки. Радиус мозаики r даёт (2r+1)² плиток. Анимация раскрывает префиксы слова, цвет соответствует следующей букве. Колесо: масштаб. ЛКМ: перемещение.",
+            100, 2_000_000, 1, 4, 1, 4, 0.3, 2.5),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 
@@ -277,6 +285,10 @@ public static class MathematicalLaboratoryCatalog
                 state.PrimaryValue = 280_000; state.SecondaryValue = 24; state.TertiaryValue = 271828; state.Parameter = 1.25;
                 state.Zoom = 0.82;
                 state.Filled = true;
+                break;
+            case MathematicalLaboratoryKind.Rauzy:
+                state.PrimaryValue = 450_000; state.SecondaryValue = 1; state.TertiaryValue = 1; state.Parameter = 0.85;
+                state.ShowGuides = false;
                 break;
         }
         return state;

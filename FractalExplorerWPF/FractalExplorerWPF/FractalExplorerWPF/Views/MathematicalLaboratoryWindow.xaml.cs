@@ -236,6 +236,7 @@ public partial class MathematicalLaboratoryWindow : Window
             or MathematicalLaboratoryKind.RecamanSequence
             or MathematicalLaboratoryKind.KnotStudio
             or MathematicalLaboratoryKind.StochasticMotion
+            or MathematicalLaboratoryKind.Rauzy
             or MathematicalLaboratoryKind.KleinianSchottky ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -291,7 +292,10 @@ public partial class MathematicalLaboratoryWindow : Window
             or MathematicalLaboratoryKind.ChladniWaveInterference
             or MathematicalLaboratoryKind.VoronoiLloyd
             or MathematicalLaboratoryKind.KnotStudio
+            or MathematicalLaboratoryKind.Rauzy
             or MathematicalLaboratoryKind.KleinianSchottky;
+        if (LaboratoryKind == MathematicalLaboratoryKind.Rauzy)
+            TertiaryBox.IsEnabled = ModeBox.SelectedIndex == 4;
         if (LaboratoryKind == MathematicalLaboratoryKind.FourierEpicycles)
             ShowGuidesCheck.Content = "Показывать окружности эпициклов";
         else if (LaboratoryKind == MathematicalLaboratoryKind.PascalModulo)
@@ -347,6 +351,11 @@ public partial class MathematicalLaboratoryWindow : Window
             ParameterLabel.Text = mode == 1 ? "Показатель α Леви" :
                 mode == 4 ? "Инерция направления" : "Коэффициент диффузии";
         }
+        else if (LaboratoryKind == MathematicalLaboratoryKind.Rauzy)
+        {
+            ShowGuidesCheck.Content = "Границы плиток / базис мозаики";
+            FilledCheck.Content = "Заливка (выключить: контуры)";
+        }
         else if (LaboratoryKind == MathematicalLaboratoryKind.KleinianSchottky)
         {
             ShowGuidesCheck.Content = "Показывать окружности генераторов";
@@ -398,6 +407,7 @@ public partial class MathematicalLaboratoryWindow : Window
                 case MathematicalLaboratoryKind.VoronoiLloyd:
                 case MathematicalLaboratoryKind.RecamanSequence:
                 case MathematicalLaboratoryKind.StochasticMotion:
+                case MathematicalLaboratoryKind.Rauzy:
                     _phase = (_phase + 0.025) % 1;
                     break;
                 case MathematicalLaboratoryKind.KnotStudio:

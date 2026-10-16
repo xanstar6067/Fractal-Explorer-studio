@@ -93,6 +93,9 @@ public static class MathematicalLaboratoryRenderer
             case MathematicalLaboratoryKind.KleinianSchottky:
                 KleinianSchottkyLaboratory.Render(canvas, state, token, progress);
                 break;
+            case MathematicalLaboratoryKind.Rauzy:
+                RauzyLaboratory.Render(canvas, state, token, progress);
+                break;
         }
         progress?.Report(98);
         return canvas.Pixels;

@@ -490,6 +490,7 @@ internal static class Program
         {
             if (MathematicalLaboratoryCatalog.TryParseLaunchKey(key, out MathematicalLaboratoryKind labKind))
             {
+                // Включая MathLab:Rauzy → lab-rauzy.png; список берётся из каталога.
                 await CaptureAsync(() => new MathematicalLaboratoryWindow(labKind), "lab-" + Kebab(labKind.ToString()), 1600);
                 return;
             }

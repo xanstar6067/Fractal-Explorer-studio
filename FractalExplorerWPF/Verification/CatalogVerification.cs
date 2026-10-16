@@ -365,12 +365,15 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(4).Select(tile => tile.Item.LaunchKey).SequenceEqual(
+            Check(ViewItems(window)[0].Item.LaunchKey == MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy),
+                "Rauzy must appear first with its October 16 introduction date.");
+            var earlierArrivals = ViewItems(window).Skip(1).ToList();
+            Check(earlierArrivals.Take(4).Select(tile => tile.Item.LaunchKey).SequenceEqual(
                 new[] { "Sandpile", Fractal3DCatalog.LaunchKey(Fractal3DKind.Newton3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
                 "Sandpile, Newton, Antoine and Kleinian must follow their introduction times within the same day.");
-            Check(ViewItems(window).Skip(4).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
+            Check(earlierArrivals.Skip(4).Take(2).Select(tile => tile.Item.LaunchKey).ToHashSet().SetEquals(["JuliaExponential", "JuliaSine"]),
                 "The two transcendental Julia modes must follow Kleinian.");
-            var previousArrivals = ViewItems(window).Skip(6).ToList();
+            var previousArrivals = earlierArrivals.Skip(6).ToList();
             Fractal3DKind[] recent3D = [Fractal3DKind.PhaseFieldCrystal3D, Fractal3DKind.SwiftHohenberg3D, Fractal3DKind.GinzburgLandau3D, Fractal3DKind.AbcFlow,
                 Fractal3DKind.HyperbolicHoneycomb, Fractal3DKind.ImplicitSurface, Fractal3DKind.PeriodicSurfaces,
                 Fractal3DKind.Excitable3D, Fractal3DKind.Lyapunov3D, Fractal3DKind.Kobayashi3D];

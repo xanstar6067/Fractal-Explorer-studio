@@ -62,6 +62,8 @@ internal static partial class Program
         {
             try
             {
+                if (group is "all" or "rauzy") await VerifyRauzyAsync(args);
+                if (group == "rauzy") return;
                 if (group == "transcendental-rays")
                 {
                     await VerifyTranscendentalRaysAsync(args);
