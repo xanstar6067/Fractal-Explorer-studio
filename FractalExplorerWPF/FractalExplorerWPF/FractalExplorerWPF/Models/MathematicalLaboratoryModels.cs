@@ -20,7 +20,8 @@ public enum MathematicalLaboratoryKind
     KnotStudio,
     StochasticMotion,
     KleinianSchottky,
-    Rauzy
+    Rauzy,
+    Percolation
 }
 
 public readonly record struct LaboratoryPoint(double X, double Y);
@@ -227,6 +228,13 @@ public static class MathematicalLaboratoryCatalog
             "Точек на кадр", "Подстановка k", "Радиус мозаики", "Радиус точки, px",
             "k = 1: Трибоначчи; k = 2…4: родственные подстановки. Радиус мозаики r даёт (2r+1)² плиток. Анимация раскрывает префиксы слова, цвет соответствует следующей букве. Колесо: масштаб. ЛКМ: перемещение.",
             100, 2_000_000, 1, 4, 1, 4, 0.3, 2.5),
+        MathematicalLaboratoryKind.Percolation => new(
+            "Критическая перколяция",
+            "Случайно занятые узлы соединяются в кластеры. Около критической вероятности возникают фрактальные структуры и сквозные пути. Открытые границы, независимая перколяция узлов.",
+            ["Квадратная · 4 соседа", "Треугольная · 6 соседей"],
+            "Размер N × N", "Окраска", "Seed", "Вероятность p",
+            "Ползунок p сохраняет случайные пороги узлов: увеличение p только добавляет узлы. Светлый путь — кратчайший сверху вниз, а при его отсутствии — слева направо. Колесо: масштаб. ЛКМ: перемещение.",
+            16, 768, 0, 3, int.MinValue, int.MaxValue, 0, 1),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
     };
 
@@ -285,6 +293,10 @@ public static class MathematicalLaboratoryCatalog
                 state.PrimaryValue = 280_000; state.SecondaryValue = 24; state.TertiaryValue = 271828; state.Parameter = 1.25;
                 state.Zoom = 0.82;
                 state.Filled = true;
+                break;
+            case MathematicalLaboratoryKind.Percolation:
+                state.PrimaryValue = 256; state.SecondaryValue = 0; state.TertiaryValue = 1729;
+                state.Parameter = 0.592746050792; state.ShowGuides = false;
                 break;
             case MathematicalLaboratoryKind.Rauzy:
                 state.PrimaryValue = 450_000; state.SecondaryValue = 1; state.TertiaryValue = 1; state.Parameter = 0.85;

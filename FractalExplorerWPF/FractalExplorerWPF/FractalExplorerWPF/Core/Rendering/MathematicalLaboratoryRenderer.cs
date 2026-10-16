@@ -2,6 +2,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF.Core.Rendering.Laboratories;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Core.PercolationMath;
 
 namespace FractalExplorerWPF.Core.Rendering;
 
@@ -16,13 +17,14 @@ public static class MathematicalLaboratoryRenderer
         int width,
         int height,
         CancellationToken token,
-        IProgress<int>? progress = null)
+        IProgress<int>? progress = null,
+        IProgress<PercolationStatistics>? percolationStatistics = null)
     {
         width = Math.Clamp(width, 64, 8_192);
         height = Math.Clamp(height, 64, 8_192);
         MathematicalLaboratoryState snapshot = state.Clone();
         progress?.Report(2);
-        byte[] pixels = await Task.Run(() => RenderPixels(snapshot, width, height, token, progress), token);
+        byte[] pixels = await Task.Run(() => RenderPixels(snapshot, width, height, token, progress, percolationStatistics), token);
         token.ThrowIfCancellationRequested();
         BitmapSource bitmap = BitmapSource.Create(
             width, height, 96, 96, PixelFormats.Bgra32, null, pixels, width * 4);
@@ -36,7 +38,8 @@ public static class MathematicalLaboratoryRenderer
         int width,
         int height,
         CancellationToken token,
-        IProgress<int>? progress)
+        IProgress<int>? progress,
+        IProgress<PercolationStatistics>? percolationStatistics)
     {
         LineSampling lines = state.Kind is MathematicalLaboratoryKind.VoronoiLloyd or
             MathematicalLaboratoryKind.RecamanSequence or MathematicalLaboratoryKind.KnotStudio or
@@ -92,6 +95,9 @@ public static class MathematicalLaboratoryRenderer
                 break;
             case MathematicalLaboratoryKind.KleinianSchottky:
                 KleinianSchottkyLaboratory.Render(canvas, state, token, progress);
+                break;
+            case MathematicalLaboratoryKind.Percolation:
+                PercolationLaboratory.Render(canvas, state, token, progress, percolationStatistics);
                 break;
             case MathematicalLaboratoryKind.Rauzy:
                 RauzyLaboratory.Render(canvas, state, token, progress);

@@ -60,6 +60,8 @@
                         <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="RotationBox" Grid.Column="1" TextChanged="Parameter_OnChanged"/>
                     </Grid>
 
+                    <controls:PercolationEditor x:Name="PercolationPanel" Visibility="Collapsed"/>
+
                     <CheckBox x:Name="ShowGuidesCheck" Margin="0,8,0,3" Content="Направляющие / связи"
                               Checked="Parameter_OnChanged" Unchecked="Parameter_OnChanged"/>
                     <CheckBox x:Name="FilledCheck" Margin="0,3" Content="Заливка элементов"

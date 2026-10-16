@@ -365,10 +365,10 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(2).Select(tile => tile.Item.LaunchKey).SequenceEqual(
-                new[] { "McMullen", MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy) }),
-                "McMullen and Rauzy must lead arrivals in their October 16 introduction order.");
-            var earlierArrivals = ViewItems(window).Skip(2).ToList();
+            Check(ViewItems(window).Take(3).Select(tile => tile.Item.LaunchKey).SequenceEqual(
+                new[] { MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Percolation), "McMullen", MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy) }),
+                "Percolation, McMullen and Rauzy must lead arrivals in their October 16 introduction order.");
+            var earlierArrivals = ViewItems(window).Skip(3).ToList();
             Check(earlierArrivals.Take(4).Select(tile => tile.Item.LaunchKey).SequenceEqual(
                 new[] { "Sandpile", Fractal3DCatalog.LaunchKey(Fractal3DKind.Newton3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
                 "Sandpile, Newton, Antoine and Kleinian must follow their introduction times within the same day.");

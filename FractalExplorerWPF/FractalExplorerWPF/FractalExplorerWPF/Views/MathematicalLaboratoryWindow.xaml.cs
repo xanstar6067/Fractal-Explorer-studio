@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Core.Rendering;
+using FractalExplorerWPF.Core.PercolationMath;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using Point = System.Windows.Point;
@@ -54,6 +55,8 @@ public partial class MathematicalLaboratoryWindow : Window
         _definition = MathematicalLaboratoryCatalog.GetDefinition(kind);
         _saveStore = new MathematicalLaboratorySaveStore(kind);
         InitializeComponent();
+        PercolationPanel.ProbabilityChanged += value => ParameterBox.Text = Format(value);
+        PercolationPanel.ColoringChanged += value => SecondaryBox.Text = value.ToString(CultureInfo.InvariantCulture);
         _previewTransform.Children.Add(_previewScale);
         _previewTransform.Children.Add(_previewRotation);
         _previewTransform.Children.Add(_previewTranslation);
@@ -103,6 +106,9 @@ public partial class MathematicalLaboratoryWindow : Window
             return $"{sourceDetails} · Частота: {state.SecondaryValue:N0} · " +
                    $"Сдвиг фазы: {state.TertiaryValue:N0}° · Геометрия: {state.Parameter:G7}";
         }
+
+        if (LaboratoryKind == MathematicalLaboratoryKind.Percolation)
+            return $"{state.PrimaryValue} × {state.PrimaryValue} · p: {state.Parameter:G7} · Seed: {state.TertiaryValue}";
 
         return $"{_definition.PrimaryLabel}: {state.PrimaryValue:N0} · " +
                $"{_definition.SecondaryLabel}: {state.SecondaryValue:N0} · " +
@@ -221,13 +227,21 @@ public partial class MathematicalLaboratoryWindow : Window
         TertiaryLabel.Text = _definition.TertiaryLabel;
         ParameterLabel.Text = _definition.ParameterLabel;
         ModeBox.ItemsSource = _definition.Modes;
+        if (LaboratoryKind == MathematicalLaboratoryKind.Percolation)
+        {
+            PercolationPanel.Visibility = Visibility.Visible;
+            ((FrameworkElement)SecondaryBox.Parent).Visibility = Visibility.Collapsed;
+            AnimateCheck.Content = "Анимация заполнения p";
+        }
         ClearInputButton.Visibility = LaboratoryKind is MathematicalLaboratoryKind.CircleInversion
             or MathematicalLaboratoryKind.FourierEpicycles
             or MathematicalLaboratoryKind.VoronoiLloyd ? Visibility.Visible : Visibility.Collapsed;
         NewVariantButton.Visibility = LaboratoryKind is MathematicalLaboratoryKind.VoronoiLloyd
+            or MathematicalLaboratoryKind.Percolation
             or MathematicalLaboratoryKind.StochasticMotion
             or MathematicalLaboratoryKind.KleinianSchottky ? Visibility.Visible : Visibility.Collapsed;
         AnimateCheck.Visibility = LaboratoryKind is MathematicalLaboratoryKind.ModularArithmetic
+            or MathematicalLaboratoryKind.Percolation
             or MathematicalLaboratoryKind.Phyllotaxis
             or MathematicalLaboratoryKind.FourierEpicycles
             or MathematicalLaboratoryKind.HyperbolicGeometry
@@ -245,6 +259,7 @@ public partial class MathematicalLaboratoryWindow : Window
         if (_syncing) return;
         if (ReferenceEquals(sender, ModeBox)) ApplyModeDefaults();
         UpdateModeUi();
+        if (LaboratoryKind == MathematicalLaboratoryKind.Percolation) PercolationPanel.ClearStatistics();
         UpdatePreviewTransform();
         ScheduleRender();
     }
@@ -253,6 +268,16 @@ public partial class MathematicalLaboratoryWindow : Window
     {
         int newMode = Math.Clamp(ModeBox.SelectedIndex, 0, _definition.Modes.Length - 1);
         if (newMode == _lastModeIndex) return;
+        if (LaboratoryKind == MathematicalLaboratoryKind.Percolation)
+        {
+            _syncing = true;
+            try
+            {
+                ParameterBox.Text = Format(Percolation.CriticalProbability(
+                    newMode == 1 ? PercolationLattice.Triangular : PercolationLattice.Square));
+            }
+            finally { _syncing = false; }
+        }
         if (LaboratoryKind == MathematicalLaboratoryKind.StochasticMotion)
         {
             _syncing = true;
@@ -286,6 +311,7 @@ public partial class MathematicalLaboratoryWindow : Window
         ParameterLabel.Text = _definition.ParameterLabel;
         FilledCheck.Content = "Заливка элементов";
         FilledCheck.IsEnabled = LaboratoryKind is MathematicalLaboratoryKind.RationalNumbers
+            or MathematicalLaboratoryKind.Percolation
             or MathematicalLaboratoryKind.CircleInversion
             or MathematicalLaboratoryKind.AperiodicTilings
             or MathematicalLaboratoryKind.HyperbolicGeometry
@@ -294,9 +320,18 @@ public partial class MathematicalLaboratoryWindow : Window
             or MathematicalLaboratoryKind.KnotStudio
             or MathematicalLaboratoryKind.Rauzy
             or MathematicalLaboratoryKind.KleinianSchottky;
+        if (LaboratoryKind == MathematicalLaboratoryKind.Percolation &&
+            ReadDouble(ParameterBox.Text, out double probability) && double.IsFinite(probability) &&
+            int.TryParse(SecondaryBox.Text, out int coloring))
+            PercolationPanel.SetParameters(ModeBox.SelectedIndex, probability, coloring);
         if (LaboratoryKind == MathematicalLaboratoryKind.Rauzy)
             TertiaryBox.IsEnabled = ModeBox.SelectedIndex == 4;
-        if (LaboratoryKind == MathematicalLaboratoryKind.FourierEpicycles)
+        if (LaboratoryKind == MathematicalLaboratoryKind.Percolation)
+        {
+            ShowGuidesCheck.Content = "Границы ячеек при увеличении";
+            FilledCheck.Content = "Показывать кратчайший сквозной путь";
+        }
+        else if (LaboratoryKind == MathematicalLaboratoryKind.FourierEpicycles)
             ShowGuidesCheck.Content = "Показывать окружности эпициклов";
         else if (LaboratoryKind == MathematicalLaboratoryKind.PascalModulo)
             ShowGuidesCheck.Content = "Показывать границы разрядов";
@@ -379,6 +414,16 @@ public partial class MathematicalLaboratoryWindow : Window
         {
             switch (LaboratoryKind)
             {
+                case MathematicalLaboratoryKind.Percolation:
+                    if (ReadDouble(ParameterBox.Text, out double probability))
+                    {
+                        double direction = _phase < 0 ? -1 : 1;
+                        double next = probability + direction * 0.002;
+                        if (next >= 1 || next <= 0) _phase = -direction;
+                        ParameterBox.Text = Format(Math.Clamp(next, 0, 1));
+                        UpdateModeUi();
+                    }
+                    break;
                 case MathematicalLaboratoryKind.ModularArithmetic:
                     if (++_animationStep % 4 != 0) return;
                     if (int.TryParse(SecondaryBox.Text, out int coefficient))
@@ -480,8 +525,12 @@ public partial class MathematicalLaboratoryWindow : Window
                 ProgressText.Text = $"Построение: {value}%";
                 RenderBadgeText.Text = $"{value}%";
             });
+            var statistics = new Progress<PercolationStatistics>(value =>
+            {
+                if (!token.IsCancellationRequested) PercolationPanel.SetStatistics(value, state.PrimaryValue);
+            });
             BitmapSource bitmap = await MathematicalLaboratoryRenderer.RenderBitmapAsync(
-                state, surface.PixelWidth, surface.PixelHeight, token, progress);
+                state, surface.PixelWidth, surface.PixelHeight, token, progress, statistics);
             if (token.IsCancellationRequested) return;
             CanvasImage.Source = bitmap;
             _renderedCenterX = state.ViewCenterX;
