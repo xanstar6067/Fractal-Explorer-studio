@@ -183,14 +183,14 @@ internal static class Program
             }
             throw new TimeoutException("Карта C не завершила рендер перед захватом.");
         }
-        string renderFlag = win is DynamicSystemWindow or TranscendentalJuliaWindow ? "_rendering" : "_isRendering";
+        string renderFlag = win is DynamicSystemWindow or TranscendentalJuliaWindow or McMullenWindow ? "_rendering" : "_isRendering";
         if (GetMember(win, renderFlag) is not bool) return;
 
         bool IsBusy() => GetMember(win, renderFlag) is true ||
             GetMember(win, "_frameRequested") is true ||
             // Live GPU simulation of Fractal3DWindow: steps in flight or the first field not shown yet.
             GetMember(win, "_simulation") is FractalExplorerWPF.Controls.IFractal3DSimulationMode { IsBusy: true } or FractalExplorerWPF.Controls.IFractal3DSimulationMode { IsPreparing: true } ||
-            (win is DynamicSystemWindow or TranscendentalJuliaWindow) && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
+            (win is DynamicSystemWindow or TranscendentalJuliaWindow or McMullenWindow) && GetMember(win, "_timer") is DispatcherTimer { IsEnabled: true };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < maxExtraMs)
@@ -735,6 +735,24 @@ internal static class Program
                 case "SnowCrystal":
                     await CaptureAsync(() => new SnowCrystalWindow(), "snow-crystal", 15000);
                     return;
+                case "McMullen":
+                {
+                    Window? w = await CaptureAsync(() => new McMullenWindow(), "mcmullen", 3000);
+                    if (w != null)
+                    {
+                        var manager = (NewtonPaletteManager)GetMember(w, "_palettes")!;
+                        await CaptureChildAsync(w, new NewtonPaletteWindow(manager,
+                            Enumerable.Repeat(System.Numerics.Complex.Zero, 6).ToArray(),
+                            ["Цвет 1", "Цвет 2", "Цвет 3", "Цвет 4", "Цвет 5", "Цвет 6"],
+                            "Циклическая шкала", true, "Палитра Макмаллена"), "mcmullen-palette");
+                        ((System.Windows.Controls.ComboBox)w.FindName("PlaneBox")).SelectedIndex = 1;
+                        await Task.Delay(500);
+                        await WaitForRenderIdleAsync(w);
+                        Capture(w, "mcmullen-lambda");
+                    }
+                    SafeCloseIfAny(w);
+                    break;
+                }
                 case "Sandpile":
                     await CaptureAsync(() => new SandpileWindow(), "sandpile", 15000);
                     return;

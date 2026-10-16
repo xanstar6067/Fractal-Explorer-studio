@@ -136,6 +136,9 @@ internal static partial class Program
         yield return Group("Newton", () => new NewtonPoolsWindow(), PresetManager.GetNewtonPresets, s => s.SaveName,
             (w, s, width, height) => ((NewtonPoolsWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
             (w, s) => { ((NewtonPoolsWindow)w).LoadState(s); return ((NewtonPoolsWindow)w).CaptureState(s.SaveName); });
+        yield return Group("McMullen", () => new McMullenWindow(), () => McMullenPresets.All, s => s.SaveName,
+            (w, s, width, height) => ((McMullenWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
+            (w, s) => { ((McMullenWindow)w).LoadState(s); return ((McMullenWindow)w).CaptureState(s.SaveName); });
         foreach (TranscendentalJuliaKind kind in Enum.GetValues<TranscendentalJuliaKind>())
             yield return Group($"TranscendentalJulia-{kind}", () => new TranscendentalJuliaWindow(kind),
                 () => TranscendentalJuliaCatalog.Presets(kind), s => s.SaveName,

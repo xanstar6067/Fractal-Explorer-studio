@@ -279,7 +279,7 @@ internal static partial class Program
             // ----- Превью -----
             List<CatalogTile> rendered = window.Tiles.Where(tile => CatalogPreviewLoader.IsRendered(tile.Item)).ToList();
             Check(rendered.Count == Enum.GetValues<MathematicalLaboratoryKind>().Length +
-                    Enum.GetValues<Fractal3DKind>().Length + Enum.GetValues<TranscendentalJuliaKind>().Length + 121,
+                    Enum.GetValues<Fractal3DKind>().Length + Enum.GetValues<TranscendentalJuliaKind>().Length + 122,
                 "Laboratories, 3D fractals, simulations, orbit renderers and polynomial/transcendental Julia modes must be rendered on the fly.");
             foreach (CatalogTile tile in window.Tiles.Except(rendered))
             {
@@ -365,9 +365,10 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window)[0].Item.LaunchKey == MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy),
-                "Rauzy must appear first with its October 16 introduction date.");
-            var earlierArrivals = ViewItems(window).Skip(1).ToList();
+            Check(ViewItems(window).Take(2).Select(tile => tile.Item.LaunchKey).SequenceEqual(
+                new[] { "McMullen", MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy) }),
+                "McMullen and Rauzy must lead arrivals in their October 16 introduction order.");
+            var earlierArrivals = ViewItems(window).Skip(2).ToList();
             Check(earlierArrivals.Take(4).Select(tile => tile.Item.LaunchKey).SequenceEqual(
                 new[] { "Sandpile", Fractal3DCatalog.LaunchKey(Fractal3DKind.Newton3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
                 "Sandpile, Newton, Antoine and Kleinian must follow their introduction times within the same day.");

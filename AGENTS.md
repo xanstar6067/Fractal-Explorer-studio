@@ -92,6 +92,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `LSystemWindow` | L-системы и черепашья графика, генератор форм. |
 | `MandelbrotWindow` | 61 режим семейства Мандельброта и 61 — Жюлиа, гибриды; глубокий зум до 1e1000 (`FOLDED_*.md`, `PERPENDICULAR_FRACTALS.md`, `JULIA_GPU.md`). |
 | `MathematicalLaboratoryWindow` | Математические лаборатории (модульная арифметика, Паскаль, Рекаман, филлотаксис, мозаики, фрактал Раузи (`RAUZY.md`), Вороной, узлы, Фурье, Хладни и др.). |
+| `McMullenWindow` | Семейство Макмаллена zᵖ + λ/zᑫ: Жюлиа, карта λ, орбиты, ловушки и палитры (`MCMULLEN.md`); проверка — `mcmullen`. |
 | `NewtonPoolsWindow` | Бассейны Ньютона/Галлея/Хаусхолдера, глубокий зум до 1e1000. |
 | `NovaWindow` | Семейство Nova, глубокий зум до 1e50. |
 | `PhoenixWindow` | Семейство Phoenix, сверхглубокий зум до 1e1000. |
@@ -103,7 +104,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 ### Редакторы параметров и палитр
 
-`BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow` и `TranscendentalJuliaWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
+`BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна
 

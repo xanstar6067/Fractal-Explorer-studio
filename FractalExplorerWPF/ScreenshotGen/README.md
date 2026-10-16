@@ -22,6 +22,10 @@ Physarum 3D (`Fractal3D:Physarum3D`) входит в общий обход ка�
 
 # Генератор скриншотов окон WPF
 
+`McMullen` входит в общий обход: `McMullenWindow` (`mcmullen`), общий редактор палитры
+(`mcmullen-palette`) и карта λ (`mcmullen-lambda`). Фильтр — `--only=McMullen`;
+ожидание учитывает отложенный старт и завершение тайлового рендера.
+
 Фрактал Раузи включён в общий обход математических лабораторий: ключ MathLab:Rauzy, файл lab-rauzy.png; фильтр --only=MathLab:Rauzy. Отдельных окон редакторов нет.
 
 `Sandpile` входит в полный обход: `SandpileWindow` (`sandpile`) снимается после

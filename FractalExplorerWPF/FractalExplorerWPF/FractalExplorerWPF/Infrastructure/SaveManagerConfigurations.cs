@@ -5,6 +5,18 @@ namespace FractalExplorerWPF.Infrastructure;
 
 public static class SaveManagerConfigurations
 {
+    public static SaveManagerConfiguration<McMullenState> ForMcMullen(McMullenWindow window, McMullenSaveStore store) => new()
+    {
+        WindowTitle = "Сохранение/Загрузка: семейство Макмаллена", Store = store,
+        CaptureState = window.CaptureState, CapturePreview = window.CaptureCurrentPreview,
+        LoadState = window.LoadState, RenderPreviewAsync = window.RenderStatePreviewAsync,
+        GetName = state => state.SaveName, GetTimestamp = state => state.Timestamp,
+        GetDetails = state => $"{Prefix(state.Timestamp)} · z^{state.P} + λ/z^{state.Q}\n" +
+            $"λ = {state.LambdaReal:G9} + ({state.LambdaImaginary:G9})i · {(state.Plane == McMullenPlane.Julia ? "Жюлиа" : "Карта λ")}\n" +
+            $"Итерации: {state.MaxIterations} · масштаб: {state.ViewZoom:G6}",
+        PointsOfInterest = McMullenPresets.All
+    };
+
     public static SaveManagerConfiguration<TranscendentalJuliaState> ForTranscendentalJulia(
         TranscendentalJuliaWindow window, TranscendentalJuliaSaveStore store) => new()
     {
