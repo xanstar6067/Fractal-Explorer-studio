@@ -73,6 +73,13 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
             BuildLayerRows(s.Layers);
         }
         finally { _loading = false; }
+        if (!NumericInput.IsRegistered(TuringSizeBox))
+        {
+            NumericInput.Integer(this, TuringSizeBox, "Размер сетки", Turing3DField.MinSize, Turing3DField.MaxSize);
+            NumericInput.Integer(this, TuringSeedBox, "Seed", int.MinValue, int.MaxValue);
+            NumericInput.Integer(this, TuringWarmupBox, "Начальное развитие", 0, 2000);
+            NumericInput.Include(this, TuringReactionEditor);
+        }
     }
 
     public Turing3DSettings CaptureView(Turing3DSettings applied) => applied with
@@ -101,6 +108,7 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
 
     private void BuildLayerRows(IReadOnlyList<Turing3DScale> layers)
     {
+        foreach (var old in _layerRows) { NumericInput.Forget(this, old.Radius); NumericInput.Forget(this, old.Amount); }
         TuringLayersPanel.Children.Clear(); _layerRows.Clear();
         foreach (Turing3DScale layer in layers)
         {
@@ -115,6 +123,8 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
             row.Children.Add(enabled); row.Children.Add(radius); row.Children.Add(amount);
             TuringLayersPanel.Children.Add(row);
             _layerRows.Add((enabled, radius, amount));
+            NumericInput.Real(this, radius, "Радиус масштаба", .5, 64);
+            NumericInput.Real(this, amount, "Отклик масштаба", .001, .15);
         }
     }
 
@@ -178,6 +188,7 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
 
     private void TuringLayersApply_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var layers = _layerRows.Select((row, index) => new Turing3DScale(row.Enabled.IsChecked == true,
@@ -206,6 +217,7 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
     /// <summary>Текущее поле пересчитывается на новую сетку без сброса времени.</summary>
     private void TuringResize_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             int size = ReadInt(TuringSizeBox, "Сетка", Turing3DField.MinSize, Turing3DField.MaxSize);
@@ -229,6 +241,7 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
 
     private void TuringRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             // The view as shown, the rule from the form, and a fresh field from the typed grid and number.

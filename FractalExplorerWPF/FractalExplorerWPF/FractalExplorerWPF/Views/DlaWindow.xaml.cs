@@ -58,16 +58,19 @@ public partial class DlaWindow : Window
             _ = RenderAsync();
         };
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public DlaState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (TryCaptureState(name, out DlaState state, out string error)) return state;
         throw new InvalidOperationException(error);
     }
 
     private bool TryCaptureState(string name, out DlaState state, out string error)
     {
+        NumericInput.Prepare(this);
         state = new DlaState();
         if (!int.TryParse(ParticlesBox.Text, out int particles) || particles is < 500 or > 100_000)
         {
@@ -220,6 +223,7 @@ public partial class DlaWindow : Window
 
     private void Render_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         _renderTimer.Stop();
         _renderCts?.Cancel();
         _ = RenderAsync();
@@ -370,11 +374,11 @@ public partial class DlaWindow : Window
         ScheduleRender();
     }
 
-    private void Saves_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForDla(this, _saveStore));
+    private void Saves_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForDla(this, _saveStore)); }
 
     private void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         if (!TryCaptureState("export", out DlaState exportState, out string validationError))

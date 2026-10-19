@@ -124,6 +124,7 @@ public partial class Fractal3DWindow : Window
             ScheduleRender(immediate: true);
             ScheduleJuliabulbMapRender();
         };
+        InitializeNumericInput();
     }
 
     public Fractal3DKind Kind { get; }
@@ -138,6 +139,7 @@ public partial class Fractal3DWindow : Window
     /// </summary>
     public Fractal3DState CaptureState(string saveName)
     {
+        NumericInput.Prepare(this);
         Fractal3DState state = CaptureViewState(saveName);
         _simulation?.CheckpointInto(state);
         return state;
@@ -150,7 +152,13 @@ public partial class Fractal3DWindow : Window
         return state;
     }
 
-    private Fractal3DState CaptureViewFields(string saveName) => new()
+    private Fractal3DState CaptureViewFields(string saveName)
+    {
+        NumericInput.Prepare(this);
+        return ReadViewFields(saveName);
+    }
+
+    private Fractal3DState ReadViewFields(string saveName) => new()
     {
         SaveName = saveName,
         Timestamp = DateTime.Now,
@@ -734,18 +742,18 @@ public partial class Fractal3DWindow : Window
 
     private void Camera_OnChanged(object sender, TextChangedEventArgs e)
     {
-        if (_updatingUi) return;
+        if (_updatingUi || sender is TextBox edited && !NumericInput.IsValid(edited)) return;
         (double yaw, double pitch, double roll) = CameraAngles;
-        if (TryReadDouble(YawBox.Text, out double typedYaw)) yaw = typedYaw;
-        if (TryReadDouble(PitchBox.Text, out double typedPitch)) pitch = Math.Clamp(typedPitch, -90, 90);
-        if (TryReadDouble(RollBox.Text, out double typedRoll)) roll = typedRoll;
-        _orientation = Fractal3DCamera.Orientation(yaw, pitch, roll);
-        if (TryReadDouble(DistanceBox.Text, out double distance) && distance > 0) _distance = distance;
-        if (TryReadDouble(FieldOfViewBox.Text, out double fieldOfView) && fieldOfView is >= 5 and <= 160)
+        if (NumericInput.IsValid(YawBox) && TryReadDouble(YawBox.Text, out double typedYaw)) yaw = typedYaw;
+        if (NumericInput.IsValid(PitchBox) && TryReadDouble(PitchBox.Text, out double typedPitch)) pitch = Math.Clamp(typedPitch, -90, 90);
+        if (NumericInput.IsValid(RollBox) && TryReadDouble(RollBox.Text, out double typedRoll)) roll = typedRoll;
+        _orientation = Fractal3DCamera.Orientation(yaw % 360, pitch, roll % 360);
+        if (NumericInput.IsValid(DistanceBox) && TryReadDouble(DistanceBox.Text, out double distance) && distance > 0) _distance = distance;
+        if (NumericInput.IsValid(FieldOfViewBox) && TryReadDouble(FieldOfViewBox.Text, out double fieldOfView) && fieldOfView is >= 5 and <= 160)
             _fieldOfView = fieldOfView;
-        if (TryReadDouble(TargetXBox.Text, out double x)) _target.X = (float)x;
-        if (TryReadDouble(TargetYBox.Text, out double y)) _target.Y = (float)y;
-        if (TryReadDouble(TargetZBox.Text, out double z)) _target.Z = (float)z;
+        if (NumericInput.IsValid(TargetXBox) && TryReadDouble(TargetXBox.Text, out double x)) _target.X = (float)x;
+        if (NumericInput.IsValid(TargetYBox) && TryReadDouble(TargetYBox.Text, out double y)) _target.Y = (float)y;
+        if (NumericInput.IsValid(TargetZBox) && TryReadDouble(TargetZBox.Text, out double z)) _target.Z = (float)z;
         StopCameraMotion();
         InvalidateCursorHit();
 
@@ -753,7 +761,7 @@ public partial class Fractal3DWindow : Window
         ScheduleRender();
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => ScheduleRender(immediate: true);
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); ScheduleRender(immediate: true); }
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -772,8 +780,7 @@ public partial class Fractal3DWindow : Window
 
     private void LevelHorizonButton_OnClick(object sender, RoutedEventArgs e) => LevelHorizon();
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SuspendLive(() => SaveManagerWindow.Open(this, SaveManagerConfigurations.ForFractal3D(this, _saveStore)));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SuspendLive(() => SaveManagerWindow.Open(this, SaveManagerConfigurations.ForFractal3D(this, _saveStore))); }
 
     /// <summary>
     /// Останавливает живое превью на время модального окна: менеджер сохранений и экспорт считают
@@ -805,6 +812,7 @@ public partial class Fractal3DWindow : Window
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         Fractal3DState state;
         try
         {

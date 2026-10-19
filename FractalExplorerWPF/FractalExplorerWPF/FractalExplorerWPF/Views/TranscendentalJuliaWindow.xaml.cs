@@ -41,10 +41,12 @@ public partial class TranscendentalJuliaWindow : Window
         _timer.Tick += (_, _) => { _timer.Stop(); _ = RenderPreviewAsync(); };
         LoadState(TranscendentalJuliaCatalog.CreateDefault(kind));
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public TranscendentalJuliaState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         var state = new TranscendentalJuliaState
         {
             SaveName = name, Timestamp = DateTime.Now, Kind = Kind,
@@ -277,7 +279,7 @@ public partial class TranscendentalJuliaWindow : Window
         }
     }
 
-    private void Render_OnClick(object sender, RoutedEventArgs e) { BakePreview(); _ = RenderPreviewAsync(); }
+    private void Render_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _timer.Stop(); BakePreview(); _ = RenderPreviewAsync(); }
     private void Cancel_OnClick(object sender, RoutedEventArgs e) { _timer.Stop(); BakePreview(); }
     private void Reset_OnClick(object sender, RoutedEventArgs e)
     {
@@ -297,8 +299,7 @@ public partial class TranscendentalJuliaWindow : Window
         ZoomBox.Text = FormatValue(ActiveView.Zoom.ToDouble());
         _updating = previous;
     }
-    private void Saves_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForTranscendentalJulia(this, new(Kind)));
+    private void Saves_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForTranscendentalJulia(this, new(Kind))); }
     private void Palette_OnClick(object sender, RoutedEventArgs e)
     {
         _palettes.ReloadCustomPalettes();
@@ -310,6 +311,7 @@ public partial class TranscendentalJuliaWindow : Window
     }
     private void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var state = CaptureState("export");

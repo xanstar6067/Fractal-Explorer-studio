@@ -66,6 +66,7 @@ public partial class Lenia3DEditor : UserControl, IFractal3DSimulationEditor<Len
             LeniaCutBox.SelectedIndex = s.CutAxis; LeniaCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public Lenia3DSettings CaptureView(Lenia3DSettings applied) => applied with
@@ -83,6 +84,7 @@ public partial class Lenia3DEditor : UserControl, IFractal3DSimulationEditor<Len
 
     private void LeniaRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             Simulation.Restart(new Lenia3DSettings

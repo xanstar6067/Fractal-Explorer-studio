@@ -67,6 +67,7 @@ public partial class Physarum3DEditor : UserControl, IFractal3DSimulationEditor<
             PhysarumCutBox.SelectedIndex = s.CutAxis; PhysarumCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public Physarum3DSettings CaptureView(Physarum3DSettings applied) => applied with
@@ -85,6 +86,7 @@ public partial class Physarum3DEditor : UserControl, IFractal3DSimulationEditor<
 
     private void PhysarumRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             Simulation.Restart(new Physarum3DSettings

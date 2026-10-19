@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -49,6 +50,11 @@ public partial class PhoenixParameterExplorerWindow : Window
         SetText();
         UpdateLabels();
         Loaded += (_, _) => { SchedulePlane(true); SchedulePlane(false); };
+        NumericInput.Decimal(this, C1RealBox, "Re C1", decimal.MinValue, decimal.MaxValue);
+        NumericInput.Decimal(this, C1ImaginaryBox, "Im C1", decimal.MinValue, decimal.MaxValue);
+        NumericInput.Decimal(this, C2RealBox, "Re C2", decimal.MinValue, decimal.MaxValue);
+        NumericInput.Decimal(this, C2ImaginaryBox, "Im C2", decimal.MinValue, decimal.MaxValue);
+
     }
 
     private void SetText()
@@ -325,6 +331,7 @@ public partial class PhoenixParameterExplorerWindow : Window
 
     private void Apply_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (!ReadSelectedValues()) return;
         DialogResult = true;
     }

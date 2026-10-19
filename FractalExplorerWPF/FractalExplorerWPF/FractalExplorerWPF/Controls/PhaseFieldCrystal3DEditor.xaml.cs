@@ -46,6 +46,7 @@ public partial class PhaseFieldCrystal3DEditor : UserControl, IFractal3DSimulati
             PfcCutBox.SelectedIndex=s.CutAxis; PfcCutSlider.Value=s.CutPosition;
         }
         finally { _loading=false; }
+        InitializeNumericInput();
     }
     public PhaseFieldCrystal3DSettings CaptureView(PhaseFieldCrystal3DSettings applied)=>applied with
     {
@@ -60,6 +61,7 @@ public partial class PhaseFieldCrystal3DEditor : UserControl, IFractal3DSimulati
     }
     private void PfcRestart_OnClick(object sender,RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var s=CaptureView(new()) with

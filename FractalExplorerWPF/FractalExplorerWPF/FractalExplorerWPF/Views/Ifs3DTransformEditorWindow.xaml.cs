@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -53,6 +54,11 @@ public partial class Ifs3DTransformEditorWindow : Window
         InitializeRandomSettings();
         Rebind(0);
         EnableEditor(_transforms.Count > 0);
+        foreach (var box in MatrixBoxes())
+        {
+            if (box.Text.Length == 0) box.Text = "0";
+            NumericInput.Real(this, box, "Коэффициент матрицы", -1000, 1000);
+        }
     }
 
     private static List<Ifs3DTransform> CloneTransforms(IEnumerable<Ifs3DTransform> source) =>
@@ -259,6 +265,7 @@ public partial class Ifs3DTransformEditorWindow : Window
 
     private bool Commit()
     {
+        NumericInput.CommitAll(this);
         _previewTimer.Stop();
         if (!Validate(out string error))
         {
@@ -272,6 +279,7 @@ public partial class Ifs3DTransformEditorWindow : Window
 
     private bool Validate(out string error)
     {
+        NumericInput.CommitAll(this);
         if (_transforms.Count == 0) { error = "Добавьте хотя бы одно преобразование."; return false; }
         if (_transforms.Sum(transform => transform.Probability) <= 0)
         { error = "Сумма весов должна быть положительной."; return false; }

@@ -54,10 +54,12 @@ public partial class DomainColoringWindow : Window
         _updatingControls = false;
 
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public DomainColoringState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         return new DomainColoringState
         {
             SaveName = name,
@@ -182,13 +184,14 @@ public partial class DomainColoringWindow : Window
 
     private void ZoomBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (_updatingControls || !TryReadDouble(ZoomBox.Text, out double zoom) || zoom <= 0) return;
         _viewport.SetZoom(zoom);
         UpdatePreviewTransform();
         ScheduleRender();
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
     private void ResetViewButton_OnClick(object sender, RoutedEventArgs e)
@@ -199,8 +202,7 @@ public partial class DomainColoringWindow : Window
         ScheduleRender();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForDomainColoring(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForDomainColoring(this, _saveStore)); }
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -211,6 +213,7 @@ public partial class DomainColoringWindow : Window
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         DomainColoringState state;
         try
         {
@@ -293,10 +296,21 @@ public partial class DomainColoringWindow : Window
         try
         {
             state = CaptureState("preview");
-            renderer = new DomainColoringRenderer(state);
         }
         catch (Exception ex)
         {
+            StatusText.Text = ex.Message;
+            return;
+        }
+
+        try
+        {
+            renderer = new DomainColoringRenderer(state);
+            NumericInput.ShowIssue(FormulaBox, "");
+        }
+        catch (Exception ex)
+        {
+            NumericInput.ShowIssue(FormulaBox, ex.Message);
             StatusText.Text = ex.Message;
             return;
         }
@@ -454,9 +468,8 @@ public partial class DomainColoringWindow : Window
         Mouse.OverrideCursor = null;
     }
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private static double ReadDouble(string text, string name, double minimum, double maximum)
     {

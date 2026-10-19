@@ -124,6 +124,7 @@ public partial class MandelbrotWindow : Window
             ScheduleRender();
             if (_definition.HasJuliaConstant) _ = RenderJuliaMapPreviewAsync();
         };
+        InitializeNumericInput();
     }
 
     private void InitializeControls()
@@ -186,6 +187,7 @@ public partial class MandelbrotWindow : Window
 
     public MandelbrotState CaptureState(string saveName)
     {
+        NumericInput.Prepare(this);
         // Потолок совпадает с BlaMaxOrbitLength: за ним таблица BLA не строится и глубокий
         // зум проваливается в рендер без пропуска итераций, то есть становится неприменимо
         // медленным. На 1e1000 счёт идёт о сотнях тысяч итераций, так что запас есть.
@@ -377,6 +379,7 @@ public partial class MandelbrotWindow : Window
     // показателя — основной способ попасть на большую глубину.
     private void ZoomBox_OnTextChanged(object sender, EventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (!_updatingControls && FloatExp.TryParse(ZoomBox.Text, out FloatExp zoom) && zoom.Sign > 0)
         {
             _viewport.SetZoom(zoom);
@@ -558,11 +561,11 @@ public partial class MandelbrotWindow : Window
         JuliaMapVerticalMarker.Y2 = height;
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForMandelbrot(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForMandelbrot(this, _saveStore)); }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         (int canvasPixelWidth, int canvasPixelHeight, _, _) = GetCanvasPixelSize();
         if (_activeSession is not null) CommitAndBakePreview();
         else _renderCts?.Cancel();
@@ -585,7 +588,7 @@ public partial class MandelbrotWindow : Window
         });
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
     private void ResetButton_OnClick(object sender, RoutedEventArgs e) => ResetView(true);
 
@@ -1015,9 +1018,8 @@ public partial class MandelbrotWindow : Window
         return value;
     }
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private static decimal ReadDecimal(string text, string name, decimal minimum, decimal maximum)
     {

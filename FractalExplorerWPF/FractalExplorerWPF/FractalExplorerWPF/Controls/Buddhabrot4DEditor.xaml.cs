@@ -9,10 +9,22 @@ public partial class Buddhabrot4DEditor : UserControl
 {
     private bool _loading = true;
     public event EventHandler? SettingsChanged;
-    public Buddhabrot4DEditor() { InitializeComponent(); Load(new()); }
+    public Buddhabrot4DEditor()
+    {
+        InitializeComponent(); Load(new());
+        NumericInput.Integer(this, SamplesBox, "Сэмплы", 1000, 2000000);
+        NumericInput.Integer(this, SeedBox, "Seed", int.MinValue, int.MaxValue);
+        NumericInput.Integer(this, MinIterationsBox, "Минимум итераций", 1, 9999);
+        NumericInput.Integer(this, MaxIterationsBox, "Максимум итераций", 2, 10000);
+        NumericInput.Integer(this, RedBox, "Красный канал", 1, 10000);
+        NumericInput.Integer(this, GreenBox, "Зелёный канал", 1, 10000);
+        NumericInput.Integer(this, BlueBox, "Синий канал", 1, 10000);
+        NumericInput.OrderedPair(this, MinIterationsBox, MaxIterationsBox);
+    }
 
     public Buddhabrot4DSettings Capture()
     {
+        NumericInput.Prepare(this);
         var result = new Buddhabrot4DSettings
         {
             SampleCount = Integer(SamplesBox), Seed = Integer(SeedBox),

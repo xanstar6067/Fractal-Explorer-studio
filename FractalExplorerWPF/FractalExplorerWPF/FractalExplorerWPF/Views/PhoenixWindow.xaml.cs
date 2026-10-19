@@ -79,10 +79,12 @@ public partial class PhoenixWindow : Window
         OrbitTrapBox.SelectedIndex = 0; SsaaBox.SelectedIndex = 0;
         UpdatePlaneUi(); UpdateColoringPanels();
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public PhoenixState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (!TryRead(C1RealBox.Text, out decimal c1r) || !TryRead(C1ImaginaryBox.Text, out decimal c1i) ||
             !TryRead(C2RealBox.Text, out decimal c2r) || !TryRead(C2ImaginaryBox.Text, out decimal c2i) ||
             !TryRead(InitialZRealBox.Text, out decimal initialZr) || !TryRead(InitialZImaginaryBox.Text, out decimal initialZi) ||
@@ -199,6 +201,7 @@ public partial class PhoenixWindow : Window
     private void Parameter_OnChanged(object sender, EventArgs e) { UpdatePlaneUi(); ScheduleRender(); }
     private void ZoomBox_OnChanged(object sender, TextChangedEventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         // Выход до всего остального: поле заполняет само окно после колеса, и обратное чтение
         // округлило бы зум уже после того, как по прежнему значению посчитан сдвиг центра.
         if (_updatingControls) return;
@@ -209,7 +212,7 @@ public partial class PhoenixWindow : Window
             ScheduleRender();
         }
     }
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
@@ -218,11 +221,11 @@ public partial class PhoenixWindow : Window
         dialog.PaletteApplied += (_, _) => ScheduleRender(); dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForPhoenix(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForPhoenix(this, _saveStore)); }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         PhoenixState state;

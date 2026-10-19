@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -47,6 +48,7 @@ public partial class IfsTransformEditorWindow : Window
             TransformList.SelectedIndex = 0;
         else
             EnableEditor(false);
+        InitializeNumericInput();
     }
 
     private void Rebind(int? selected = null)
@@ -99,6 +101,7 @@ public partial class IfsTransformEditorWindow : Window
 
     private void Editor_OnChanged(object sender, EventArgs e)
     {
+        if (sender is TextBox edited && !NumericInput.IsValid(edited)) return;
         if (_syncing || _selectedIndex < 0 || sender is not TextBox box || !Read(box.Text, out double value))
             return;
 
@@ -255,6 +258,7 @@ public partial class IfsTransformEditorWindow : Window
 
     private void Commit()
     {
+        NumericInput.CommitAll(this);
         if (_transforms.Count == 0)
             return;
 
@@ -450,9 +454,8 @@ public partial class IfsTransformEditorWindow : Window
 
     private static string F(double value) => value.ToString("0.########", CultureInfo.InvariantCulture);
 
-    private static bool Read(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool Read(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private sealed record NamedOption<T>(T Value, string Name)
     {

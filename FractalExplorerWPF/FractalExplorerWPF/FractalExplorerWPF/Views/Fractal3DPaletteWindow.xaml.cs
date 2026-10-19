@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -101,6 +102,7 @@ public partial class Fractal3DPaletteWindow : Window
         _updatingUi = false;
         RefreshColors(0);
         UpdateEditState();
+        InitializeNumericInput();
     }
 
     private void New_OnClick(object sender, RoutedEventArgs e)
@@ -221,6 +223,7 @@ public partial class Fractal3DPaletteWindow : Window
 
     private bool ApplyEdits()
     {
+        NumericInput.CommitAll(this);
         if (_selected is null) return false;
         if (_selected.IsBuiltIn) return true;
         if (string.IsNullOrWhiteSpace(NameBox.Text) || _editingColors.Count == 0 ||
@@ -249,7 +252,7 @@ public partial class Fractal3DPaletteWindow : Window
         Name = NameBox.Text,
         Colors = _editingColors.Count > 0 ? [.. _editingColors] : [Colors.White],
         IsGradient = GradientBox.IsChecked == true,
-        Gamma = double.TryParse(GammaBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double gamma)
+        Gamma = NumericInput.IsValid(GammaBox) && double.TryParse(GammaBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double gamma)
             ? Math.Clamp(gamma, 0.1, 5)
             : 1,
         OverridesEnvironment = EnvironmentBox.IsChecked == true,

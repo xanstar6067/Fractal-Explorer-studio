@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -62,6 +63,7 @@ public partial class DynamicPaletteWindow : Window
         ColorList.SelectedIndex = _editingColors.Count > 0 ? 0 : -1;
         RefreshPreview();
         UpdateEditState();
+        InitializeNumericInput();
     }
 
     private void Clone_OnClick(object sender, RoutedEventArgs e)
@@ -137,6 +139,7 @@ public partial class DynamicPaletteWindow : Window
 
     private bool SaveEditor()
     {
+        NumericInput.CommitAll(this);
         if (SelectedPalette is not { } palette) return false;
         if (palette.IsBuiltIn) return true;
         if (string.IsNullOrWhiteSpace(NameBox.Text) ||

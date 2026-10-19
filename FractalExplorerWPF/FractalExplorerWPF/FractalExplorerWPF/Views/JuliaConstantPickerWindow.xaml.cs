@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
@@ -94,6 +95,9 @@ public partial class JuliaConstantPickerWindow : Window
         SetConstantText();
         ResetView();
         Loaded += (_, _) => { ScheduleRender(); _liveTimer.Start(); };
+        NumericInput.Decimal(this, RealBox, "Re C", _minReal, _maxReal);
+        NumericInput.Decimal(this, ImaginaryBox, "Im C", _minImaginary, _maxImaginary);
+
     }
 
     internal void UpdateFormulaParameters(decimal power, bool useInversion, HybridFormulaSettings? hybrid = null)
@@ -427,6 +431,7 @@ public partial class JuliaConstantPickerWindow : Window
 
     private void Accept_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (!TryReadDecimal(RealBox.Text, out decimal real) || !TryReadDecimal(ImaginaryBox.Text, out decimal imaginary) ||
             real < _minReal || real > _maxReal || imaginary < _minImaginary || imaginary > _maxImaginary)
         {

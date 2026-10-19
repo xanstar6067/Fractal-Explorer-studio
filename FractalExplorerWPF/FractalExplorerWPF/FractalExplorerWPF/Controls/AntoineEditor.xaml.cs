@@ -20,6 +20,7 @@ public partial class AntoineEditor : UserControl
 
     public AntoineSettings Capture()
     {
+        NumericInput.Prepare(this);
         var settings = new AntoineSettings
         {
             Links = LinksBox.SelectedItem is int links ? links : 24,
@@ -44,6 +45,7 @@ public partial class AntoineEditor : UserControl
             GeometryStatus.Text = "";
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     private static void Set(Slider slider, TextBox box, double value)

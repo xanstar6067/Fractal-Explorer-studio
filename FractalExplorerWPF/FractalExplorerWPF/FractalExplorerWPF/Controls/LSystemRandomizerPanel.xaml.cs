@@ -28,6 +28,12 @@ public partial class LSystemRandomizerPanel : UserControl
     public LSystemRandomizerPanel()
     {
         InitializeComponent();
+        NumericInput.Integer(this, SeedBox, "Seed", 0, int.MaxValue);
+        foreach (var box in new[] { AngleMinBox, AngleMaxBox, PitchMinBox, PitchMaxBox, RollMinBox, RollMaxBox })
+            NumericInput.Real(this, box, "Угол", 1, 180);
+        NumericInput.OrderedPair(this, AngleMinBox, AngleMaxBox, allowEqual: true);
+        NumericInput.OrderedPair(this, PitchMinBox, PitchMaxBox, allowEqual: true);
+        NumericInput.OrderedPair(this, RollMinBox, RollMaxBox, allowEqual: true);
         Unloaded += (_, _) => CancelWork();
     }
     public Window OpenWindow(Window owner)
@@ -60,6 +66,7 @@ public partial class LSystemRandomizerPanel : UserControl
 
     private async Task GenerateAsync(bool nearby)
     {
+        NumericInput.CommitAll(this);
         _generation?.Cancel();
         using var cts = new CancellationTokenSource();
         _generation = cts;

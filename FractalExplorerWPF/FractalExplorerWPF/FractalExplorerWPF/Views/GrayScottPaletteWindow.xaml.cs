@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -49,6 +50,7 @@ public partial class GrayScottPaletteWindow : Window
         _editingColors.AddRange(palette.Colors);
         RefreshColors(0);
         UpdateEditState();
+        InitializeNumericInput();
     }
 
     private void New_OnClick(object sender, RoutedEventArgs e)
@@ -147,6 +149,7 @@ public partial class GrayScottPaletteWindow : Window
 
     private bool ApplyEdits()
     {
+        NumericInput.CommitAll(this);
         if (_selected is null) return false;
         if (_selected.IsBuiltIn) return true;
         if (string.IsNullOrWhiteSpace(NameBox.Text) || _editingColors.Count == 0 ||

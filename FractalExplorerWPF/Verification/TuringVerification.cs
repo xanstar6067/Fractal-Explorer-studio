@@ -200,11 +200,13 @@ internal static partial class Program
             var layersExpander = (Expander)window.FindName("LayersExpander"); layersExpander.IsExpanded = true; content.UpdateLayout();
             var layers = (ItemsControl)window.FindName("LayersItems");
             var numericFields = FindTuringVisuals<TextBox>(layers).ToList();
+            foreach (var field in numericFields) field.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
             TextBox amountBox = numericFields.First(b => BindingOperations.GetBinding(b, TextBox.TextProperty)?.Path.Path == "Amount");
             amountBox.Text = "0,027"; Invoke("ApplyLayers_OnClick", window, new RoutedEventArgs());
             Check(window.CaptureState("comma").Layers[0].Amount == .027, "Scale editors must accept decimal commas.");
             amountBox.Text = "invalid"; Invoke("ApplyLayers_OnClick", window, new RoutedEventArgs());
-            Check(window.CaptureState("invalid").Layers[0].Amount == .027 && !string.IsNullOrWhiteSpace(((TextBlock)window.FindName("LayersError")).Text), "Invalid edits must not silently reuse the old value as an applied setting.");
+            Check(window.CaptureState("corrected").Layers[0].Amount == .027 && amountBox.Text != "invalid" && !Validation.GetHasError(amountBox),
+                "Apply must correct the draft, update its binding and use the restored value in one command.");
             amountBox.Text = "0.012"; Invoke("ApplyLayers_OnClick", window, new RoutedEventArgs());
             await Reset(grown); layersExpander.IsExpanded = false; Layout(1280, 800);
             if (output is not null)

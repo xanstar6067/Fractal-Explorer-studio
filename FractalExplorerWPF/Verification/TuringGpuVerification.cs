@@ -166,8 +166,9 @@ internal static partial class Program
             ((CheckBox)window.FindName("AutoFrameBox")).IsChecked=false;
             ((TextBox)window.FindName("FrameWidthBox")).Text="336"; ((TextBox)window.FindName("FrameHeightBox")).Text="192"; Invoke("FrameSize_OnApply",window,new RoutedEventArgs()); await Idle();
             bitmap=Field<WriteableBitmap>("_bitmap"); Check(bitmap.PixelWidth==336&&bitmap.PixelHeight==192,"Manual buffer dimensions must reach the renderer.");
-            ((TextBox)window.FindName("FrameWidthBox")).Text="99999"; Invoke("FrameSize_OnApply",window,new RoutedEventArgs());
-            Check(window.CaptureState("invalid").FrameWidth==336&&!string.IsNullOrWhiteSpace(((TextBlock)window.FindName("FrameSizeError")).Text),"Invalid buffer input must leave the current buffer intact.");
+            ((TextBox)window.FindName("FrameWidthBox")).Text="0"; Invoke("FrameSize_OnApply",window,new RoutedEventArgs()); await Idle();
+            Check(window.CaptureState("corrected").FrameWidth==32&&((TextBox)window.FindName("FrameWidthBox")).Text=="32",
+                "Buffer input must clamp and apply without a second click.");
             ((CheckBox)window.FindName("AutoFrameBox")).IsChecked=true; Invoke("FrameSize_OnApply",window,new RoutedEventArgs()); Layout(1400,900); await Idle();
             bitmap=Field<WriteableBitmap>("_bitmap"); Check(bitmap.PixelWidth==(int)Math.Ceiling(canvas.ActualWidth*dpi.DpiScaleX),"Auto mode must resume resizing after manual mode.");
             var warming = new TuringState { GridSize=128, WarmupSteps=2000 };

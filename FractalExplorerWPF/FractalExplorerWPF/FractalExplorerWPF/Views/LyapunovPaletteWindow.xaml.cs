@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -63,6 +64,7 @@ public partial class LyapunovPaletteWindow : Window
         _syncing = false;
         UpdatePreview();
         UpdateEditState();
+        InitializeNumericInput();
     }
 
     private void New_OnClick(object sender, RoutedEventArgs e)
@@ -207,6 +209,7 @@ public partial class LyapunovPaletteWindow : Window
 
     private bool SaveChanges()
     {
+        NumericInput.CommitAll(this);
         if (SelectedPalette is { IsBuiltIn: false } current && !CaptureEditor(current)) return false;
         if (_palettes.Any(p => string.IsNullOrWhiteSpace(p.Name)) ||
             _palettes.GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
@@ -221,6 +224,7 @@ public partial class LyapunovPaletteWindow : Window
 
     private bool CaptureEditor(DynamicPalette palette)
     {
+        NumericInput.CommitAll(this);
         string name = NameBox.Text.Trim();
         if (string.IsNullOrEmpty(name) || !TryDouble(RangeBox.Text, out double range) || range <= 0 ||
             !TryDouble(ZeroBox.Text, out double zero) || zero <= 0 || palette.Colors.Count < 2)
@@ -324,9 +328,8 @@ public partial class LyapunovPaletteWindow : Window
     }
 
     private static byte Channel(double value) => (byte)Math.Clamp((int)Math.Round(value * 255), 0, 255);
-    private static bool TryDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private sealed record ModeChoice(string Value, string DisplayName);
 }

@@ -84,6 +84,7 @@ public partial class MathematicalLaboratoryWindow : Window
                 ScheduleRender();
             }
         };
+        InitializeNumericInput();
     }
 
     public MathematicalLaboratoryKind LaboratoryKind { get; }
@@ -117,6 +118,7 @@ public partial class MathematicalLaboratoryWindow : Window
 
     public MathematicalLaboratoryState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (!int.TryParse(PrimaryBox.Text, NumberStyles.Integer, CultureInfo.CurrentCulture, out int primary) ||
             primary < _definition.PrimaryMinimum || primary > _definition.PrimaryMaximum)
             throw new InvalidOperationException(
@@ -479,6 +481,7 @@ public partial class MathematicalLaboratoryWindow : Window
 
     private void Render_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         _renderTimer.Stop();
         _renderPending = false;
         _renderCts?.Cancel();
@@ -599,11 +602,11 @@ public partial class MathematicalLaboratoryWindow : Window
         ScheduleRender();
     }
 
-    private void Saves_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForMathematicalLaboratory(this, _saveStore));
+    private void Saves_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForMathematicalLaboratory(this, _saveStore)); }
 
     private void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         MathematicalLaboratoryState state;
         try
         {

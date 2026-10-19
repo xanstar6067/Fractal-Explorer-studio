@@ -230,8 +230,11 @@ internal static partial class Program
             await Display(); window.LoadState(state); await Display(); var loaded=window.CaptureState("loaded").PhaseFieldCrystal;
             Check(loaded.Field!.Density.SequenceEqual(state.PhaseFieldCrystal.Field!.Density),"Loaded PFC must pause on its exact checkpoint.");
             ((TextBox)FindAny(window,"PfcMeanBox")).Text="invalid"; InvokeEditor(editor,"PfcRestart_OnClick",window,new RoutedEventArgs());
-            Check(window.CaptureState("invalid").PhaseFieldCrystal.Field!.Density.SequenceEqual(loaded.Field.Density),"Invalid drafts must preserve the shown conserved field.");
-            live.StepOnce(); await Display(); Check(window.CaptureState("step").PhaseFieldCrystal.Field!.Step==loaded.Field.Step+loaded.StepsPerFrame,"One frame must advance exactly once.");
+            await Display();
+            var corrected = window.CaptureState("corrected").PhaseFieldCrystal;
+            Check(FractalExplorerWPF.Controls.NumericInput.IsValid((TextBox)FindAny(window,"PfcMeanBox")) && corrected.Field is not null,
+                "Restart must correct the numeric draft and publish a fresh usable field.");
+            live.StepOnce(); await Display(); Check(window.CaptureState("step").PhaseFieldCrystal.Field!.Step==corrected.Field!.Step+corrected.StepsPerFrame,"One frame must advance exactly once.");
             var before=window.CaptureState("before").PhaseFieldCrystal.Field!; InvokeEditor(editor,"Brush",.5,.5,.5); await Display();
             var brushed=window.CaptureState("brush").PhaseFieldCrystal.Field!; Check(brushed.Step==before.Step && brushed.Mean==before.Mean,"The UI brush must preserve time and mean.");
             ((ComboBox)FindAny(window,"PfcViewBox")).SelectedIndex=2;

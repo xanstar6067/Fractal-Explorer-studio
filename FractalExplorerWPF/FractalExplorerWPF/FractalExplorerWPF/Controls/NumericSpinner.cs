@@ -60,10 +60,12 @@ public static class NumericSpinner
     private static void Change(TextBox box, int direction)
     {
         if (!box.IsEnabled || box.IsReadOnly || !GetIsEnabled(box)) return;
+        NumericInput.Commit(box);
         string? next = Step(box.Text, direction, GetIsInteger(box), GetIntegerStep(box));
         if (next is null) return;
         box.SetCurrentValue(TextBox.TextProperty, next);
         box.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        NumericInput.Commit(box);
     }
 
     // Decimal string arithmetic avoids losing digits in coordinates or overflowing deep zooms.

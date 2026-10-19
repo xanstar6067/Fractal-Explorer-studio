@@ -11,7 +11,14 @@ public partial class TuringReactionEditor : UserControl
     public TuringReactionSettings Settings { get; private set; } = new();
     public event EventHandler? Changed;
 
-    public TuringReactionEditor() { InitializeComponent(); Load(Settings); }
+    public TuringReactionEditor()
+    {
+        InitializeComponent(); Load(Settings);
+        NumericInput.Real(this, ABox, "A", .001, 5);
+        NumericInput.Real(this, BBox, "B", .01, 8);
+        NumericInput.Real(this, DuBox, "Диффузия U", .01, 4);
+        NumericInput.Real(this, DvBox, "Диффузия V", .01, 40);
+    }
 
     public void Load(TuringReactionSettings settings)
     {
@@ -47,6 +54,7 @@ public partial class TuringReactionEditor : UserControl
 
     private void Apply_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             double Read(TextBox box) => double.TryParse(box.Text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double value)

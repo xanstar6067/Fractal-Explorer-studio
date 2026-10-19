@@ -39,6 +39,7 @@ public partial class SnowCrystalWindow : Window
         _timer.Tick += async (_, _) => { if (_running) await ProduceFrameAsync(_state.StepsPerFrame); };
         ApplyState(SnowCrystalPresets.All[0].CreateState());
         Loaded += async (_, _) => await ResetAsync(_state, true);
+        InitializeNumericInput();
     }
 
     public SnowCrystalState CaptureState(string name)
@@ -77,6 +78,7 @@ public partial class SnowCrystalWindow : Window
 
     private bool TryReadConditions(bool newField, out SnowCrystalState state)
     {
+        NumericInput.Prepare(this);
         state = _state.Clone();
         try
         {
@@ -206,6 +208,7 @@ public partial class SnowCrystalWindow : Window
 
     private void Apply_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (_resetting || !TryReadConditions(false, out SnowCrystalState state)) return;
         state.PresetId = null; _state = state; PendingText.Visibility = Visibility.Collapsed;
         _syncing = true; PresetBox.SelectedItem = null; _syncing = false;
@@ -214,7 +217,8 @@ public partial class SnowCrystalWindow : Window
     }
 
     private async void Reset_OnClick(object sender, RoutedEventArgs e)
-    { if (TryReadConditions(true, out SnowCrystalState state)) await ResetAsync(state, true); }
+    {
+        NumericInput.CommitAll(this); if (TryReadConditions(true, out SnowCrystalState state)) await ResetAsync(state, true); }
 
     private void Run_OnClick(object sender, RoutedEventArgs e) => SetRunning(!_running);
     private async void Step_OnClick(object sender, RoutedEventArgs e) { if (!_running) await ProduceFrameAsync(1); }
@@ -305,6 +309,7 @@ public partial class SnowCrystalWindow : Window
 
     private async void Saves_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         SetRunning(false);
         await RefreshPausedAsync();
         if (_closed || _resetting || _presented is null) return;
@@ -313,6 +318,7 @@ public partial class SnowCrystalWindow : Window
 
     private async void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         SetRunning(false);
         await RefreshPausedAsync();
         if (_closed || _resetting || _presented is null) return;

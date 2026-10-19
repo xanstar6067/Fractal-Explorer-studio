@@ -88,10 +88,12 @@ public partial class NewtonPoolsWindow : Window
         UpdateMethodControls();
         UpdateDiagnosticModeHint();
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public NewtonState CaptureState(string saveName)
     {
+        NumericInput.Prepare(this);
         if (!int.TryParse(IterationsBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int iterations) || iterations is < 1 or > 100_000)
             throw new InvalidOperationException("Итерации должны быть целым числом от 1 до 100000.");
         int order = ReadHouseholderOrder();
@@ -597,6 +599,7 @@ public partial class NewtonPoolsWindow : Window
 
     private void ZoomBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (_updatingZoomText) return;
         if (FloatExp.TryParse(ZoomBox.Text.Trim().Replace(',', '.'), out FloatExp zoom) && zoom.Sign > 0)
         {
@@ -606,7 +609,7 @@ public partial class NewtonPoolsWindow : Window
         }
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
@@ -625,11 +628,11 @@ public partial class NewtonPoolsWindow : Window
         dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForNewton(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForNewton(this, _saveStore)); }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         NewtonState state;
@@ -896,7 +899,6 @@ public partial class NewtonPoolsWindow : Window
         _renderCts?.Dispose();
     }
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 }

@@ -253,9 +253,12 @@ internal static partial class Program
             Check(editor.Visibility==Visibility.Visible && ((FrameworkElement)window.FindName("IterationsBox")).Visibility==Visibility.Collapsed,"The mode must use its simulation editor.");
             ((TextBox)FindAny(window,"ShRBox")).Text="invalid";
             InvokeEditor(editor,"ShRestart_OnClick",window,new RoutedEventArgs());
-            Check(window.CaptureState("invalid").SwiftHohenberg.Field!.Samples.SequenceEqual(loaded.Field.Samples),"Invalid drafts must preserve the displayed field.");
+            await Display();
+            var corrected = window.CaptureState("corrected").SwiftHohenberg;
+            Check(FractalExplorerWPF.Controls.NumericInput.IsValid((TextBox)FindAny(window,"ShRBox")) && corrected.Field is not null,
+                "Restart must correct the numeric draft and publish a fresh usable field.");
             live.StepOnce(); await Display();
-            Check(window.CaptureState("step").SwiftHohenberg.Field!.Step==loaded.Field.Step+loaded.StepsPerFrame,"One frame must advance the shown checkpoint exactly once.");
+            Check(window.CaptureState("step").SwiftHohenberg.Field!.Step==corrected.Field!.Step+corrected.StepsPerFrame,"One frame must advance the shown checkpoint exactly once.");
             var before=window.CaptureState("before").SwiftHohenberg.Field!; InvokeEditor(editor,"Brush",.5,.5,.5); await Display();
             Check(window.CaptureState("brush").SwiftHohenberg.Field!.Step==before.Step,"Brush projection must not advance time.");
             ((ComboBox)FindAny(window,"ShViewBox")).SelectedIndex=1;

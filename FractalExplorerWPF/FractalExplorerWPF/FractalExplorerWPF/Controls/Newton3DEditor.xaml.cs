@@ -29,6 +29,7 @@ public partial class Newton3DEditor : UserControl
 
     public Newton3DSettings Capture()
     {
+        NumericInput.Prepare(this);
         var settings = new Newton3DSettings {
             Degree = DegreeBox.SelectedItem is int degree ? degree : 3,
             Formula = _appliedFormula, Roots = _appliedRoots, RootSearchRadius = _appliedRadius,
@@ -71,10 +72,12 @@ public partial class Newton3DEditor : UserControl
             AppliedMessage(); UpdateView();
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     internal async Task<bool> ApplyFormulaAsync()
     {
+        NumericInput.CommitAll(this);
         _formulaCts?.Cancel();
         var cts = new CancellationTokenSource(); _formulaCts = cts;
         var token = cts.Token;

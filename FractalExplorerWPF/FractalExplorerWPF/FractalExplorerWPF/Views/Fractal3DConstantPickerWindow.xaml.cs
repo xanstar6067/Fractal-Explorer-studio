@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Numerics;
 using System.Diagnostics;
@@ -67,6 +68,10 @@ public partial class Fractal3DConstantPickerWindow : Window
         SetConstantText();
         ResetView();
         Loaded += (_, _) => RequestFrame(full: true);
+        NumericInput.Real(this, XBox, "C X", -8, 8);
+        NumericInput.Real(this, YBox, "C Y", -8, 8);
+        NumericInput.Real(this, ZBox, "C Z", -8, 8);
+
     }
 
     /// <summary>Кадры запускаются подряд, пока камера движется; события мыши больше не откладывают рендер.</summary>
@@ -342,6 +347,7 @@ public partial class Fractal3DConstantPickerWindow : Window
 
     private void Accept_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (!TryRead(XBox.Text, out double x) || !TryRead(YBox.Text, out double y) ||
             !TryRead(ZBox.Text, out double z))
         {

@@ -87,10 +87,12 @@ public partial class NovaWindow : Window
         ThresholdBox.Text = "10"; ZoomBox.Text = "1"; ColoringBox.SelectedIndex = 1; SsaaBox.SelectedIndex = 0;
         RenderThreadsBox.Fill(ThreadsBox);
         Loaded += (_, _) => { ScheduleRender(); ScheduleMapRender(); };
+        InitializeNumericInput();
     }
 
     public NovaState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (!TryRead(PRealBox.Text, out decimal pRe) || !TryRead(PImaginaryBox.Text, out decimal pIm) || pRe is < -10 or > 10 || pIm is < -10 or > 10)
             throw new InvalidOperationException("Компоненты степени P должны быть от −10 до 10.");
         if (!TryRead(Z0RealBox.Text, out decimal zRe) || !TryRead(Z0ImaginaryBox.Text, out decimal zIm) || zRe is < -10 or > 10 || zIm is < -10 or > 10)
@@ -136,6 +138,7 @@ public partial class NovaWindow : Window
     private void JuliaMapParameter_OnChanged(object sender, EventArgs e) { ScheduleRender(); DrawMapMarker(); }
     private void ZoomBox_OnChanged(object sender, TextChangedEventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (_updatingControls) return;
         if (!double.TryParse(ZoomBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double zoom) &&
             !double.TryParse(ZoomBox.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out zoom)) return;
@@ -143,11 +146,10 @@ public partial class NovaWindow : Window
         UpdatePreviewTransform();
         ScheduleRender();
     }
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e) { var dialog = new MandelbrotPaletteWindow(_paletteManager) { Owner = this }; dialog.PaletteApplied += (_, _) => ScheduleRender(); dialog.ShowDialog(); }
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForNova(this, _saveStore, _variant));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForNova(this, _saveStore, _variant)); }
 
     private void ScheduleRender() { if (!IsLoaded) return; if (_isRendering) CommitAndBakePreview(); else _renderCts?.Cancel(); _renderTimer.Stop(); _renderTimer.Start(); }
 
@@ -266,6 +268,7 @@ public partial class NovaWindow : Window
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         NovaState state;

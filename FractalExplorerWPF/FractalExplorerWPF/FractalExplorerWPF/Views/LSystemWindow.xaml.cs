@@ -80,6 +80,7 @@ public partial class LSystemWindow : Window
         };
         PresetBox.SelectedIndex = 0;
         Loaded += async (_, _) => await BuildSceneAsync(false);
+        InitializeNumericInput();
     }
 
     private void Preset_OnChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -170,7 +171,7 @@ public partial class LSystemWindow : Window
         ScheduleRedraw();
     }
 
-    private void Build_OnClick(object sender, RoutedEventArgs e) => _ = BuildSceneAsync(false);
+    private void Build_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _ = BuildSceneAsync(false); }
 
     private void Animate_OnClick(object sender, RoutedEventArgs e)
     {
@@ -552,6 +553,7 @@ public partial class LSystemWindow : Window
 
     private void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (!TryReadDefinition(out LSystemDefinition definition, out _))
         {
             return;
@@ -582,6 +584,7 @@ public partial class LSystemWindow : Window
 
     private bool TryReadDefinition(out LSystemDefinition definition, out double animationDuration)
     {
+        NumericInput.Prepare(this);
         definition = new LSystemDefinition();
         animationDuration = 6;
         if (!int.TryParse(DepthBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int depth) ||
@@ -642,9 +645,8 @@ public partial class LSystemWindow : Window
         MessageBox.Show(this, message, "Параметры L‑системы", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private static string BuildReadyStatus(LSystemScene scene, TimeSpan elapsed) =>
         $"Готово: {scene.ExpandedSymbolCount:N0} символов, {scene.Segments.Count:N0} отрезков, {elapsed.TotalSeconds:F2} сек.";

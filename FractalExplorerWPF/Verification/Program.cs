@@ -176,6 +176,8 @@ internal static partial class Program
                 if (group == "basins" && args.Length == 3 && args[1] == "--previews") WriteNewBasinPreviews(args[2]);
                 if (group == "basins" && args.Length == 3 && args[1] == "--physical-previews") WriteNewBasinPreviews(args[2], physicalOnly: true);
                 if (group is "all" or "numeric") VerifyNumericSpinners();
+                if (group is "all" or "numeric-input") await VerifyNumericInputAsync();
+                if (group == "numeric-input") return;
                 if (group is "all" or "catalog")
                 {
                     int outIndex = group == "catalog" ? Array.IndexOf(args, "--out") : -1;

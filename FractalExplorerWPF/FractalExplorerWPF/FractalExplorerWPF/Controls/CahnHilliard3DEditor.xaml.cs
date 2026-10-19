@@ -57,6 +57,7 @@ public partial class CahnHilliard3DEditor : UserControl, IFractal3DSimulationEdi
             CahnInvertBox.IsChecked = s.Invert; CahnCutBox.SelectedIndex = s.CutAxis; CahnCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public CahnHilliard3DSettings CaptureView(CahnHilliard3DSettings applied) => applied with
@@ -73,6 +74,7 @@ public partial class CahnHilliard3DEditor : UserControl, IFractal3DSimulationEdi
 
     private void CahnRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             Simulation.Restart(new CahnHilliard3DSettings

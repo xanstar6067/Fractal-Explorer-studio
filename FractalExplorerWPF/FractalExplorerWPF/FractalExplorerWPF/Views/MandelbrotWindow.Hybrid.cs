@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Controls;
 
 namespace FractalExplorerWPF.Views;
 
@@ -24,6 +25,7 @@ public partial class MandelbrotWindow
         _hybridSettings = settings.Clone();
         if (!FoldedFormulaCatalog.IsHybrid(_definition.Variant)) return;
         _hybridSettings.Validate();
+        foreach (var old in _hybridRows) { NumericInput.Forget(this, old.Power); NumericInput.Forget(this, old.Repeats); }
         _loadingHybrid = true; _hybridRows.Clear(); HybridRowsPanel.Children.Clear();
         for (int i = 0; i < settings.Steps.Count; i++)
         {
@@ -57,6 +59,8 @@ public partial class MandelbrotWindow
             formula.SelectionChanged += (_, _) => { SetHybridPowerMode(formula, power); HybridControlsChanged(); };
             power.TextChanged += (_, _) => HybridControlsChanged(); repeats.TextChanged += (_, _) => HybridControlsChanged();
             SetHybridPowerMode(formula, power);
+            NumericInput.Integer(this, power, "Степень шага", 2, 5);
+            NumericInput.Integer(this, repeats, "Повторы шага", 1, 32);
         }
         _loadingHybrid = false; HybridAddButton.IsEnabled = settings.Steps.Count < 16;
         HybridValidationText.Text = $"В цикле {_hybridSettings.Steps.Sum(s => s.Repeats)} шагов";

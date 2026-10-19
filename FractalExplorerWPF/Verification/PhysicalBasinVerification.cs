@@ -160,10 +160,10 @@ internal static partial class Program
                     strength.Text = "NaN";
                     for (int attempt = 0; attempt < 2; attempt++)
                     {
-                        bool rejected = false;
-                        try { window.CaptureState("invalid"); }
-                        catch (InvalidOperationException) { rejected = true; }
-                        Check(rejected, "Invalid physical input must never silently save old values.");
+                        var corrected = window.CaptureState("corrected");
+                        Check(corrected.Physics.Centers[0].Strength == 2.3 && strength.Text != "NaN" &&
+                            FractalExplorerWPF.Controls.NumericInput.GetHasNotice(strength),
+                            "Invalid physical input must restore and explain the last correct value in the field.");
                     }
                     strength.Text = "1.7";
                 }

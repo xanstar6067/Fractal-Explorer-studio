@@ -71,10 +71,12 @@ public partial class InverseCollatzTreeWindow : Window
         _renderTimer.Tick += RenderTimer_OnTick;
         _updatingControls = false;
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public InverseCollatzState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         int depth = ReadInt(DepthBox.Text, "максимальная глубина", 1, 500);
         int maxNodes = ReadInt(MaxNodesBox.Text, "лимит узлов", 10, 1_000_000);
         int interval = ReadInt(AnimationIntervalBox.Text, "интервал роста", 30, 5_000);
@@ -193,7 +195,7 @@ public partial class InverseCollatzTreeWindow : Window
         ResiduePanel.Visibility = modulus > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderCurrentAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderCurrentAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
@@ -203,11 +205,11 @@ public partial class InverseCollatzTreeWindow : Window
         dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForInverseCollatz(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForInverseCollatz(this, _saveStore)); }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         InverseCollatzState state;
         try { state = CaptureState("export"); }
         catch (Exception ex)

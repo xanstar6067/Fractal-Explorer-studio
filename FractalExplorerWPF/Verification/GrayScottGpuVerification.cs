@@ -217,15 +217,17 @@ internal static partial class Program
             Check(window.CaptureState("GPU").Checkpoint!.U.SequenceEqual(cpu.Checkpoint!.U), "Switching back to GPU must preserve all concentration bits.");
             ((TextBox)window.FindName("GridSizeBox")).Text = "192"; Invoke("GridSize_OnApply",window,new RoutedEventArgs()); await Idle();
             Check(window.CaptureState("resized").Checkpoint!.StepCount == cpu.Checkpoint.StepCount && window.CaptureState("resized").GridSize == 192, "Resizing must preserve time.");
-            ((TextBox)window.FindName("GridSizeBox")).Text = "99999"; Invoke("GridSize_OnApply",window,new RoutedEventArgs());
-            Check(window.CaptureState("invalid").GridSize == 192 && !string.IsNullOrWhiteSpace(((TextBlock)window.FindName("GridSizeError")).Text), "Invalid grids must not change the field.");
-            ((TextBox)window.FindName("GridSizeBox")).Text = "192";
+            ((TextBox)window.FindName("GridSizeBox")).Text = "0"; Invoke("GridSize_OnApply",window,new RoutedEventArgs()); await Idle();
+            Check(window.CaptureState("corrected").GridSize == 32 && ((TextBox)window.FindName("GridSizeBox")).Text == "32",
+                "Grid input must clamp and transfer the current field without a second apply.");
+            ((TextBox)window.FindName("GridSizeBox")).Text = "192"; Invoke("GridSize_OnApply",window,new RoutedEventArgs()); await Idle();
             ((CheckBox)window.FindName("AutoFrameBox")).IsChecked = false;
             ((TextBox)window.FindName("FrameWidthBox")).Text = "336"; ((TextBox)window.FindName("FrameHeightBox")).Text = "192";
             Invoke("FrameSize_OnApply",window,new RoutedEventArgs()); await Idle(); bitmap = Field<WriteableBitmap>("_bitmap");
             Check(bitmap.PixelWidth == 336 && bitmap.PixelHeight == 192, "Manual frame size must reach the renderer.");
-            ((TextBox)window.FindName("FrameWidthBox")).Text = "99999"; Invoke("FrameSize_OnApply",window,new RoutedEventArgs());
-            Check(window.CaptureState("invalid frame").FrameWidth == 336 && !string.IsNullOrWhiteSpace(((TextBlock)window.FindName("FrameSizeError")).Text), "Invalid buffers must preserve the previous size.");
+            ((TextBox)window.FindName("FrameWidthBox")).Text = "0"; Invoke("FrameSize_OnApply",window,new RoutedEventArgs()); await Idle();
+            Check(window.CaptureState("corrected frame").FrameWidth == 32 && ((TextBox)window.FindName("FrameWidthBox")).Text == "32",
+                "Buffer input must clamp and apply without a second click.");
             ((CheckBox)window.FindName("AutoFrameBox")).IsChecked = true; Invoke("FrameSize_OnApply",window,new RoutedEventArgs()); Layout(1400,900); await Idle();
             Check(Field<WriteableBitmap>("_bitmap").PixelWidth == (int)Math.Ceiling(canvas.ActualWidth * dpi.DpiScaleX), "Auto mode must resume following resize.");
             var count = window.CaptureState("colour before").Checkpoint!.StepCount;

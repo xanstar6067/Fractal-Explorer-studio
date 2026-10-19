@@ -66,10 +66,12 @@ public partial class ApollonianWindow : Window
             _ = RenderAsync();
         };
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public ApollonianState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (!int.TryParse(DepthBox.Text, out int depth) || depth is < 1 or > 18)
             throw new InvalidOperationException("Глубина должна быть от 1 до 18.");
         if (!int.TryParse(CircleLimitBox.Text, out int circleLimit) || circleLimit is < 20 or > 150_000)
@@ -163,6 +165,7 @@ public partial class ApollonianWindow : Window
 
     private void Render_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         _renderTimer.Stop();
         _renderCts?.Cancel();
         _ = RenderAsync();
@@ -289,11 +292,11 @@ public partial class ApollonianWindow : Window
         ScheduleRender();
     }
 
-    private void Saves_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForApollonian(this, _saveStore));
+    private void Saves_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForApollonian(this, _saveStore)); }
 
     private void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         try
@@ -429,9 +432,8 @@ public partial class ApollonianWindow : Window
         _renderCts?.Dispose();
     }
 
-    private static bool ReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool ReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private static string Format(double value) => value.ToString("G15", CultureInfo.InvariantCulture);
 }

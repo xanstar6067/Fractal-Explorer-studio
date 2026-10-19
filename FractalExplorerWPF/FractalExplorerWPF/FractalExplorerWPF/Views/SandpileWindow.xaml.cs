@@ -55,6 +55,7 @@ public partial class SandpileWindow : Window
             await ProduceFrameAsync(_state.OperationsPerFrame, true);
         };
         Loaded += async (_, _) => await ResetAsync(_state.Clone(), true);
+        InitializeNumericInput();
     }
 
     public SandpileState CaptureState(string name)
@@ -194,6 +195,7 @@ public partial class SandpileWindow : Window
     }
     private async void Reset_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var state = _state.Clone(); state.Size = int.Parse(SizeBox.Text, CultureInfo.InvariantCulture);
@@ -302,11 +304,13 @@ public partial class SandpileWindow : Window
     }
     private async void Saves_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         await FreezeAsync();
         if (!_closed && !_resetting && _shown is not null) SaveManagerWindow.Open(this, SaveManagerConfigurations.ForSandpile(this, _store));
     }
     private async void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         await FreezeAsync();
         if (_closed || _resetting || _shown is null) return;
         var state = CaptureState("export"); var surface = RenderSurfaceMetrics.Measure(CanvasHost);

@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -28,6 +29,7 @@ public partial class FlameTransformEditorWindow : Window
         InitializeComponent(); _transforms = transforms.Select(t => t.Clone()).ToList(); ResultTransforms = _transforms;
         VariationBox.ItemsSource = Enum.GetValues<FlameVariation>(); InitializeRandomSettings(); Rebind();
         if (_transforms.Count > 0) TransformList.SelectedIndex = 0; else EnableEditor(false);
+        InitializeNumericInput();
     }
 
     private void Rebind(int? selected = null)
@@ -47,6 +49,7 @@ public partial class FlameTransformEditorWindow : Window
     private void EnableEditor(bool value) { EditorPanel.IsEnabled = value; if (!value) EditorTitle.Text = "Нет трансформаций — нажмите «Добавить»"; }
     private void Editor_OnChanged(object sender, EventArgs e)
     {
+        if (sender is TextBox edited && !NumericInput.IsValid(edited)) return;
         if (_syncing || _selectedIndex < 0) return; FlameTransform t = _transforms[_selectedIndex];
         PushUndo(); if (sender == VariationBox && VariationBox.SelectedItem is FlameVariation v) t.Variation = v;
         else if (sender is TextBox box && TryRead(box.Text, out double value))
@@ -89,12 +92,12 @@ public partial class FlameTransformEditorWindow : Window
     }
     private void Apply_OnClick(object sender, RoutedEventArgs e) => Commit();
     private void Done_OnClick(object sender, RoutedEventArgs e) { Commit(); DialogResult = true; }
-    private void Commit() { ResultTransforms = _transforms.Where(t => t.Weight > 0).Select(t => t.Clone()).ToList(); TransformsApplied?.Invoke(ResultTransforms); }
+    private void Commit() { NumericInput.CommitAll(this); ResultTransforms = _transforms.Where(t => t.Weight > 0).Select(t => t.Clone()).ToList(); TransformsApplied?.Invoke(ResultTransforms); }
     private void UpdateTotal() { double total = _transforms.Sum(t => t.Weight); TotalWeightText.Text = $"Σ {total:F2}"; TotalWeightText.Foreground = Math.Abs(total - 1) < .001 || _transforms.Count == 0 ? (Brush)FindResource("Theme.SecondaryTextBrush") : Brushes.OrangeRed; }
     private void UpdateWeightLabels(double weight) { WeightText.Text = weight.ToString("F3"); double total = _transforms.Sum(t => t.Weight); if (_selectedIndex >= 0) total = total - _transforms[_selectedIndex].Weight + weight; WeightPercentText.Text = total > 0 ? $"{Math.Round(weight / total * 100):0}%" : "—"; }
     private void UpdateMatrix() { if (_selectedIndex < 0) return; FlameTransform t = _transforms[_selectedIndex]; MatrixText.Text = $"┌ {t.A,10:F6}  {t.B,10:F6}  {t.C,10:F6} ┐\n└ {t.D,10:F6}  {t.E,10:F6}  {t.F,10:F6} ┘\n\n{t.Variation}"; }
     private static string F(double v) => v.ToString("0.########", CultureInfo.InvariantCulture);
-    private static bool TryRead(string text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryRead(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private void InitializeRandomSettings()
     {

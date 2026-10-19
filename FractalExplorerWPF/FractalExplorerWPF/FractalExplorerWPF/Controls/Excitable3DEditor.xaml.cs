@@ -60,6 +60,7 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
             ExCutBox.SelectedIndex = s.CutAxis; ExCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     private void FillEquation(Excitable3DSettings s)
@@ -101,6 +102,7 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
 
     private void ExRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var settings = new Excitable3DSettings

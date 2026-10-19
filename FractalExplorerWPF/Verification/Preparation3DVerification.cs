@@ -78,8 +78,13 @@ internal static partial class Program
                 }
                 ((TextBox)window.FindName("IterationsBox")).Text = "invalid";
                 await Render();
-                Check(image.Source is null && layer.Visibility == Visibility.Visible && !overlay.IsBusy && overlay.Message.Contains("Итерации"),
-                    "An invalid first frame must show an explanation, without an endless loading indicator.");
+                Check(image.Source is BitmapSource && layer.Visibility == Visibility.Collapsed &&
+                    ((TextBox)window.FindName("IterationsBox")).Text != "invalid",
+                    "An invalid numeric draft must be corrected before the first frame is displayed.");
+                image.Source = null;
+                typeof(Fractal3DWindow).GetMethod("ShowPreparationError", flags)!.Invoke(window, ["Контрольная ошибка подготовки"]);
+                Check(layer.Visibility == Visibility.Visible && !overlay.IsBusy && overlay.Message.Contains("ошибка"),
+                    "A preparation failure must still leave an explanation without an endless indicator.");
 
                 var state = Fractal3DCatalog.CreateDefaultState(kind);
                 state.Lyapunov = state.Lyapunov with { Size = 32, Transient = 32, Samples = 32 };

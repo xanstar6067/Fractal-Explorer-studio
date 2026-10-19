@@ -222,6 +222,7 @@
     </Style>
 
     <Style TargetType="TextBox">
+        <Setter Property="controls:NumericInput.UseSliderBounds" Value="True"/>
         <Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/>
         <Setter Property="Background" Value="{DynamicResource Theme.ControlBackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource Theme.InputBorderBrush}"/>
@@ -272,6 +273,12 @@
                         </Trigger>
                         <Trigger Property="IsReadOnly" Value="True">
                             <Setter TargetName="InputBorder" Property="Background" Value="{DynamicResource Theme.ControlBackgroundAltBrush}"/>
+                        </Trigger>
+                        <Trigger Property="controls:NumericInput.HasNotice" Value="True">
+                            <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource Theme.WarningBrush}"/>
+                            <Setter Property="ToolTipService.InitialShowDelay" Value="0"/>
+                            <Setter TargetName="InputBorder" Property="BorderThickness" Value="2"/>
+                            <Setter Property="ToolTip" Value="{Binding Path=(controls:NumericInput.Message), RelativeSource={RelativeSource Self}}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

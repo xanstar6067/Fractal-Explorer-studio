@@ -47,6 +47,7 @@ public partial class SwiftHohenberg3DEditor : UserControl, IFractal3DSimulationE
             ShThresholdSlider.Value = s.Threshold; ShCutBox.SelectedIndex = s.CutAxis; ShCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public SwiftHohenberg3DSettings CaptureView(SwiftHohenberg3DSettings applied) => applied with
@@ -64,6 +65,7 @@ public partial class SwiftHohenberg3DEditor : UserControl, IFractal3DSimulationE
 
     private void ShRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var s = CaptureView(new()) with

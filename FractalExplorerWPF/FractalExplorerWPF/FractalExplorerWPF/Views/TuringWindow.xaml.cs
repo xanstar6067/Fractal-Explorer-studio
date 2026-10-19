@@ -66,6 +66,7 @@ public partial class TuringWindow : Window
         DpiChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
         ApplyState(TuringPresets.All[0].CreateState());
         Loaded += async (_, _) => { if (_simulation is null && !_resetting) await ResetAsync(_state, true); };
+        InitializeNumericInput();
     }
 
     public TuringState CaptureState(string name)
@@ -307,12 +308,14 @@ public partial class TuringWindow : Window
     }
     private async void New_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (_resetting) return; FlushShape(); Remember();
         var state = _state.Clone(includeCheckpoint: false); state.RandomSeed = Random.Shared.Next(); state.Zoom = 1; state.PanX = state.PanY = 0;
         await ResetAsync(state, true);
     }
     private async void Restart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (!int.TryParse(SeedBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int seed))
         { StatusText.Text = "Введите целое число для случайного старта."; SeedBox.Focus(); return; }
         FlushShape(); Remember(); var state = _state.Clone(includeCheckpoint: false);
@@ -442,10 +445,19 @@ public partial class TuringWindow : Window
         var frame = ResolveFrameSize(_state); FrameSizeInputs.IsEnabled = !_state.AutoFrameSize;
         FrameSizeHint.Text = _state.AutoFrameSize ? $"Авто: {frame.Width} × {frame.Height} пикселей, с учётом DPI." : $"Вручную: {frame.Width} × {frame.Height} пикселей. Пропорции узора сохраняются.";
     }
+    private void LayerNumber_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        var box = (TextBox)sender;
+        bool radius = box.GetBindingExpression(TextBox.TextProperty)?.ResolvedSourcePropertyName == "Radius";
+        NumericInput.Real(this, box, radius ? "Радиус масштаба" : "Отклик масштаба", radius ? 1 : .001, radius ? 100 : .15);
+    }
+    private void LayerNumber_OnUnloaded(object sender, RoutedEventArgs e) => NumericInput.Forget(this, (TextBox)sender);
+
     private void Layers_OnEdited(object sender, RoutedEventArgs e)
     { if (!_syncing && (sender is not TextBox box || box.IsLoaded)) { ApplyLayersButton.IsEnabled = true; LayersError.Text = "Есть неприменённые правки масштабов."; } }
     private void ApplyLayers_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         var layers = ((IEnumerable<TuringScale>)LayersItems.ItemsSource).Select(l => l.Clone()).ToList();
         var state = _state.Clone(includeCheckpoint: false); state.Layers = layers; state.InhibitorRatio = InhibitorSlider.Value;
         try
@@ -619,6 +631,7 @@ public partial class TuringWindow : Window
 
     private async void Saves_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         bool run = _running; int generation = _generation; SetRunning(false); FlushShape(); await WaitForFrameIdleAsync(); await ProduceFrameAsync(0);
         if (_closed || _resetting || _presented is null) return;
         SaveManagerWindow.Open(this, SaveManagerConfigurations.ForTuring(this, _saveStore));
@@ -626,6 +639,7 @@ public partial class TuringWindow : Window
     }
     private async void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         bool run = _running; SetRunning(false); FlushShape(); await WaitForFrameIdleAsync(); await ProduceFrameAsync(0);
         if (_closed || _resetting || _presented is null) return;
         TuringState state = CaptureState("export"); RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);

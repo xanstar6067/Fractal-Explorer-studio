@@ -206,9 +206,12 @@ internal static partial class Program
             ((ComboBox)FindAny(window, "ExModelBox")).SelectedIndex=0;
             ((TextBox)FindAny(window, "ExABox")).Text="invalid";
             InvokeEditor(SimulationEditor<Excitable3DEditor>(window), "ExRestart_OnClick", window, new RoutedEventArgs());
-            Check(window.CaptureState("invalid").Excitable.Field!.Concentrations.SequenceEqual(loaded.Field.Concentrations),"Invalid Apply must preserve the shown field.");
+            await Display();
+            var corrected = window.CaptureState("corrected").Excitable;
+            Check(FractalExplorerWPF.Controls.NumericInput.IsValid((TextBox)FindAny(window,"ExABox")) && corrected.Field is not null,
+                "Restart must correct the numeric draft and publish a fresh usable field.");
             ExLive(window).StepOnce(); await Display();
-            Check(window.CaptureState("step").Excitable.Field!.Step==loaded.Field.Step+loaded.StepsPerFrame,"One frame must advance the displayed snapshot exactly once.");
+            Check(window.CaptureState("step").Excitable.Field!.Step==corrected.Field!.Step+corrected.StepsPerFrame,"One frame must advance the displayed snapshot exactly once.");
             var before=window.CaptureState("before").Excitable.Field!;
             InvokeEditor(SimulationEditor<Excitable3DEditor>(window), "Brush",.5,.5,.5); await Display();
             Check(window.CaptureState("brush").Excitable.Field!.Step==before.Step,"Brush must not advance time.");

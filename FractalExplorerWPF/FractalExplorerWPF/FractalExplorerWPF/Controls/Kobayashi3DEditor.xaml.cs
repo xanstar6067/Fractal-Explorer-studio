@@ -66,6 +66,7 @@ public partial class Kobayashi3DEditor : UserControl, IFractal3DSimulationEditor
             KobCutBox.SelectedIndex = s.CutAxis; KobCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public Kobayashi3DSettings CaptureView(Kobayashi3DSettings applied) => applied with
@@ -85,6 +86,7 @@ public partial class Kobayashi3DEditor : UserControl, IFractal3DSimulationEditor
 
     private void KobRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             Simulation.Restart(new Kobayashi3DSettings

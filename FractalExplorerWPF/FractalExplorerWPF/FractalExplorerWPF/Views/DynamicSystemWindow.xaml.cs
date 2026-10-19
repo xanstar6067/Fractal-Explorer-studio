@@ -78,6 +78,7 @@ public partial class DynamicSystemWindow : Window
         Title = DisplayName(kind);
         BuildParameterPanel(); LoadPalettes(); SyncControls(); UpdateAttractorPresentation(); UpdateSwatches();
         _timer.Tick += (_, _) => { _timer.Stop(); _ = RenderAsync(); };
+        InitializeNumericInput();
         Loaded += (_, _) => Schedule();
     }
 
@@ -396,6 +397,7 @@ public partial class DynamicSystemWindow : Window
 
     private DynamicSystemState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         foreach ((string key, TextBox box) in _boxes)
         {
             if (_fieldPanels[key].Visibility == Visibility.Collapsed) continue;
@@ -411,7 +413,13 @@ public partial class DynamicSystemWindow : Window
         if (_kind == DynamicSystemKind.Popcorn) ReadPopcornSettings();
         if (_kind == DynamicSystemKind.Hopalong) ReadHopalongSettings();
         if (_state.Zoom <= 0 || _state.Threads < 1 || _state.Threads > Environment.ProcessorCount) throw new InvalidOperationException($"Масштаб должен быть положительным, число потоков — от 1 до {Environment.ProcessorCount}.");
-        if (_kind == DynamicSystemKind.Lyapunov && (_state.AMax <= _state.AMin || _state.BMax <= _state.BMin || !_state.Pattern.Any(c => c is 'A' or 'a' or 'B' or 'b'))) throw new InvalidOperationException("Проверьте диапазоны A/B и паттерн.");
+        if (_kind == DynamicSystemKind.Lyapunov)
+        {
+            bool validPattern = _state.Pattern.Any(c => c is 'A' or 'a' or 'B' or 'b');
+            NumericInput.ShowIssue(_boxes["Pattern"], validPattern ? "" : "Паттерн должен содержать A или B.");
+            if (!validPattern) throw new InvalidOperationException("Паттерн должен содержать A или B.");
+            if (_state.AMax <= _state.AMin || _state.BMax <= _state.BMin) throw new InvalidOperationException("Проверьте диапазоны A/B.");
+        }
         if (_kind == DynamicSystemKind.Attractors2D && (_state.Iterations < 1 || _state.DensityGamma is < .05 or > 8)) throw new InvalidOperationException("Число точек должно быть положительным, гамма плотности — от 0.05 до 8.");
         DynamicSystemState result = _state.Clone(name); result.Timestamp = DateTime.Now; result.PaletteName = ActivePalette?.Name ?? string.Empty; return result;
     }
@@ -507,7 +515,7 @@ public partial class DynamicSystemWindow : Window
     private DynamicPalette? FindPalette(string name)=>_palettes.FirstOrDefault(p=>p.Name==name)??(_kind is DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn or DynamicSystemKind.Hopalong?null:_palettes.FirstOrDefault());
 
     private void Schedule(){if(!IsLoaded)return;_timer.Stop();_timer.Start();}
-    private void Render_OnClick(object sender,RoutedEventArgs e){_timer.Stop();_cts?.Cancel();_=RenderAsync();}
+    private void Render_OnClick(object sender,RoutedEventArgs e){ NumericInput.CommitAll(this);_timer.Stop();_cts?.Cancel();_=RenderAsync();}
     private void Cancel_OnClick(object sender,RoutedEventArgs e)=>_cts?.Cancel();
     private void Reset_OnClick(object sender,RoutedEventArgs e)
     {
@@ -561,6 +569,7 @@ public partial class DynamicSystemWindow : Window
 
     private void Saves_OnClick(object sender,RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         IReadOnlyList<DynamicSystemState> presets=_kind switch
         {
             DynamicSystemKind.Lyapunov =>
@@ -607,6 +616,7 @@ public partial class DynamicSystemWindow : Window
 
     private void Export_OnClick(object sender,RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         int w=Math.Max(1,(int)CanvasSurface.ActualWidth),h=Math.Max(1,(int)CanvasSurface.ActualHeight);_cts?.Cancel();try{_=CaptureState("export");}catch(Exception ex){MessageBox.Show(this,ex.Message,"Параметры экспорта",MessageBoxButton.OK,MessageBoxImage.Warning);return;}
         ImageExportManagerWindow.Open(this,new ImageExportConfiguration{FileNamePrefix=_kind.ToString(),InitialWidth=w,InitialHeight=h,MaxSsaaFactor=4,ReleaseMemoryAfterExport=_kind==DynamicSystemKind.Lyapunov,RenderAsync=(request,token,progress)=>{DynamicSystemState state=CaptureState("export");state.SsaaFactor=request.SsaaFactor;return DynamicSystemRenderer.RenderAsync(state,request.Width,request.Height,ActivePalette,token,progress,null,false);}});
     }

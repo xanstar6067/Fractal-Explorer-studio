@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -34,6 +35,11 @@ public partial class Flame3DTransformEditorWindow : Window
         _previewTimer.Tick += (_, _) => { _previewTimer.Stop(); if (Validate()) TransformsApplied?.Invoke(_transforms.Select(t => t.Clone()).ToList()); };
         VariationBox.ItemsSource = Enum.GetValues<Flame3DVariation>().Select(v => new VariationOption(v, Flame3DPresets.Name(v))).ToList(); InitializeRandomSettings(); Rebind();
         if (_transforms.Count > 0) TransformList.SelectedIndex = 0; else EnableEditor(false);
+        foreach (var box in MatrixBoxes())
+        {
+            if (box.Text.Length == 0) box.Text = "0";
+            NumericInput.Real(this, box, "Коэффициент матрицы", -1000, 1000);
+        }
     }
 
     private void Rebind(int? selected = null)
@@ -120,6 +126,7 @@ public partial class Flame3DTransformEditorWindow : Window
     private void Done_OnClick(object sender, RoutedEventArgs e) { if (!Commit()) return; _accepted = true; DialogResult = true; }
     private bool Commit()
     {
+        NumericInput.CommitAll(this);
         _previewTimer.Stop();
         if (!Validate()) return false;
         ResultTransforms = _transforms.Select(t => t.Clone()).ToList();
@@ -129,6 +136,7 @@ public partial class Flame3DTransformEditorWindow : Window
     }
     private bool Validate()
     {
+        NumericInput.CommitAll(this);
         try
         {
             if (_selectedIndex >= 0 && MatrixBoxes().Any(b => !TryRead(b.Text, out double v) || !double.IsFinite(v) || Math.Abs(v) > 1000))

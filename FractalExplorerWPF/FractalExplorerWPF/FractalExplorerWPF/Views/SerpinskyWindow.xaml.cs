@@ -66,10 +66,13 @@ public partial class SerpinskyWindow : Window
         RenderThreadsBox.Fill(ThreadsBox);
 
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
-    public SerpinskySaveState CaptureState(string saveName) =>
-        new()
+    public SerpinskySaveState CaptureState(string saveName)
+    {
+        NumericInput.Prepare(this);
+        return new()
         {
             SaveName = saveName,
             Timestamp = DateTime.Now,
@@ -81,6 +84,7 @@ public partial class SerpinskyWindow : Window
             FractalColor = _paletteManager.ActivePalette.FractalColor,
             BackgroundColor = _paletteManager.ActivePalette.BackgroundColor
         };
+    }
 
     public void LoadState(SerpinskySaveState state)
     {
@@ -134,6 +138,7 @@ public partial class SerpinskyWindow : Window
 
     private void ZoomBox_OnTextChanged(object sender, EventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (TryReadDouble(ZoomBox.Text, out double zoom))
         {
             _zoom = Math.Clamp(zoom, 0.01, 10_000_000);
@@ -142,7 +147,7 @@ public partial class SerpinskyWindow : Window
         }
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
@@ -158,11 +163,13 @@ public partial class SerpinskyWindow : Window
 
     private void SavesButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         SaveManagerWindow.Open(this, SaveManagerConfigurations.ForSerpinsky(this, _saveStore));
     }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         SerpinskySaveState state;
@@ -490,9 +497,8 @@ public partial class SerpinskyWindow : Window
             _centerY + viewHeight / 2.0 - point.Y / height * viewHeight);
     }
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {

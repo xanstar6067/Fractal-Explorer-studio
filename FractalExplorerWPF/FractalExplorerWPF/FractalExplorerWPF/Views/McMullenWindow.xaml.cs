@@ -37,10 +37,12 @@ public partial class McMullenWindow : Window
         _timer.Tick += (_, _) => { _timer.Stop(); _ = RenderPreviewAsync(); };
         LoadState(McMullenPresets.All[0]);
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public McMullenState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         // Validate visible navigation fields too: incomplete text must not save an older view.
         _ = Read(CenterXBox, "центр X", -1e6, 1e6); _ = Read(CenterYBox, "центр Y", -1e6, 1e6);
         _ = Read(ZoomBox, "приближение", 1e-4, 1e10);
@@ -205,14 +207,14 @@ public partial class McMullenWindow : Window
         SavePreviewCapture.Capture(SavePreviewLayer, CanvasHost.Background, width, height, StablePreviewImage, CanvasImage);
     public Task<BitmapSource> RenderStatePreviewAsync(McMullenState state, int width, int height, CancellationToken token, IProgress<int>? progress = null) =>
         McMullenRenderer.RenderStateAsync(state, width, height, token, progress, threads: RenderThreadsBox.Read(ThreadsBox));
-    private void Render_OnClick(object sender, RoutedEventArgs e) { BakePreview(); _ = RenderPreviewAsync(); }
+    private void Render_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _timer.Stop(); BakePreview(); _ = RenderPreviewAsync(); }
     private void Cancel_OnClick(object sender, RoutedEventArgs e) { _timer.Stop(); BakePreview(); }
     private void Reset_OnClick(object sender, RoutedEventArgs e)
     {
         BakePreview(); ActiveView.Reset(0, 0, _plane == McMullenPlane.Parameter ? 8 : 1);
         SetViewText(); ActiveView.UpdatePreview(); DrawMarkers(); ScheduleRender();
     }
-    private void Saves_OnClick(object sender, RoutedEventArgs e) => SaveManagerWindow.Open(this, SaveManagerConfigurations.ForMcMullen(this, new()));
+    private void Saves_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForMcMullen(this, new())); }
     private void Palette_OnClick(object sender, RoutedEventArgs e)
     {
         _palettes.ReloadCustomPalettes();
@@ -222,6 +224,7 @@ public partial class McMullenWindow : Window
     }
     private void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var state = CaptureState("export"); var surface = RenderSurfaceMetrics.Measure(CanvasHost);

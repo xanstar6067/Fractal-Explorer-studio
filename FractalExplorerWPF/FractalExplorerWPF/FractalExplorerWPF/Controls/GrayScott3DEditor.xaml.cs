@@ -64,6 +64,7 @@ public partial class GrayScott3DEditor : UserControl, IFractal3DSimulationEditor
             GrayCutBox.SelectedIndex = s.CutAxis; GrayCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public GrayScott3DSettings CaptureView(GrayScott3DSettings applied) => applied with
@@ -82,6 +83,7 @@ public partial class GrayScott3DEditor : UserControl, IFractal3DSimulationEditor
 
     private void GrayRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             Simulation.Restart(new GrayScott3DSettings

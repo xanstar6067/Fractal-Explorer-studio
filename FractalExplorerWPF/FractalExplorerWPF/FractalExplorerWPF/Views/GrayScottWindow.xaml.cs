@@ -58,10 +58,12 @@ public partial class GrayScottWindow : Window
         CanvasHost.SizeChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
         DpiChanged += (_, _) => { _sizeTimer.Stop(); _sizeTimer.Start(); };
         Loaded += async (_, _) => { if (_simulation is null && !_resetting) await ResetSimulationAsync(startAfterReset: true); };
+        InitializeNumericInput();
     }
 
     public GrayScottState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (_activeState is null || _presented is null || _resetting) throw new InvalidOperationException("Дождитесь подготовки поля.");
         var state = _activeState.Clone(name, false); state.Timestamp = DateTime.Now; state.Checkpoint = _presented.Copy(); return state;
     }
@@ -81,6 +83,7 @@ public partial class GrayScottWindow : Window
 
     private bool TryCaptureState(string name, out GrayScottState state, out string error)
     {
+        NumericInput.Prepare(this);
         state = new GrayScottState();
         if (!ReadFiniteDouble(DiffusionUBox.Text, out double diffusionU) || diffusionU is <= 0 or > 1 ||
             !ReadFiniteDouble(DiffusionVBox.Text, out double diffusionV) || diffusionV is <= 0 or > 1)
@@ -259,6 +262,7 @@ public partial class GrayScottWindow : Window
 
     private async void GridSize_OnApply(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (_resetting || _activeState is null) return;
         if (!int.TryParse(GridSizeBox.Text, out int size) || size is < 32 or > GrayScottState.MaxGridSize)
         { GridSizeError.Text = "Введите целое число от 32 до 2048."; return; }
@@ -281,6 +285,7 @@ public partial class GrayScottWindow : Window
 
     private void FrameSize_OnApply(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (_syncing || _resetting || _activeState is null) return;
         bool automatic = AutoFrameBox.IsChecked == true;
         if (!automatic)
@@ -323,6 +328,7 @@ public partial class GrayScottWindow : Window
 
     private async void Reset_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         CancelSearch();
         await ResetSimulationAsync(startAfterReset: _running);
     }
@@ -572,6 +578,7 @@ public partial class GrayScottWindow : Window
 
     private async void Saves_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         bool resume = _running; int generation = _generation; SetRunning(false); await _frameIdleTask;
         if (_closed || _resetting || _presented is null) return;
         SaveManagerWindow.Open(this, SaveManagerConfigurations.ForGrayScott(this, _saveStore));
@@ -580,6 +587,7 @@ public partial class GrayScottWindow : Window
 
     private async void Export_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         bool resume = _running;
         SetRunning(false);
         await _frameIdleTask;

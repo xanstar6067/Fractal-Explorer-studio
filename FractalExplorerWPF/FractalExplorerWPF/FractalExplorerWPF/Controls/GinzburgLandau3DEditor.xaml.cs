@@ -49,6 +49,7 @@ public partial class GinzburgLandau3DEditor : UserControl, IFractal3DSimulationE
             GlThresholdSlider.Value = s.Threshold; GlCutBox.SelectedIndex = s.CutAxis; GlCutSlider.Value = s.CutPosition;
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     public GinzburgLandau3DSettings CaptureView(GinzburgLandau3DSettings applied) => applied with
@@ -65,6 +66,7 @@ public partial class GinzburgLandau3DEditor : UserControl, IFractal3DSimulationE
 
     private void GlRestart_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var s = CaptureView(new()) with

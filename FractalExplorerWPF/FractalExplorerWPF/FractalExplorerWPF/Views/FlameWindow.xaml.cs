@@ -34,9 +34,11 @@ public partial class FlameWindow : Window
         ThreadsBox.Items.Add("Auto");for(int i=1;i<=Environment.ProcessorCount;i++)ThreadsBox.Items.Add(i);ThreadsBox.SelectedIndex=0;
         _timer.Tick+=(_,_)=>{_timer.Stop();_ = RenderAsync();};Loaded+=(_,_)=>Schedule();
         _memoryReliefTimer.Tick+=(_,_)=>{_memoryReliefTimer.Stop();_ = ReleaseMemoryIfIdleAsync();};
+        InitializeNumericInput();
     }
     public FlameState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if(!int.TryParse(SamplesBox.Text,out int samples)||samples is<1000 or>20000000)throw new InvalidOperationException("Сэмплы должны быть от 1 000 до 20 000 000.");
         if(!int.TryParse(IterationsBox.Text,out int iterations)||iterations<1)throw new InvalidOperationException("Число итераций должно быть положительным.");
         if(!int.TryParse(WarmupBox.Text,out int warmup)||warmup<0)throw new InvalidOperationException("Прогрев не может быть отрицательным.");
@@ -56,7 +58,7 @@ public partial class FlameWindow : Window
         FlameState state, int width, int height, CancellationToken token, IProgress<int>? progress = null) =>
         RenderBitmapAsync(state.Clone(), width, height, token, progress);
     private void Parameter_OnChanged(object sender,EventArgs e){if(!_syncing)Schedule();}
-    private void Viewport_OnChanged(object sender,EventArgs e){if(_syncing)return;if(Read(CenterXBox.Text,out double x))_centerX=x;if(Read(CenterYBox.Text,out double y))_centerY=y;if(Read(ScaleBox.Text,out double scale)&&Math.Abs(scale)>=1e-9)_worldScale=Math.Abs(scale);UpdateTransform();Schedule();}
+    private void Viewport_OnChanged(object sender,EventArgs e){if (sender is System.Windows.Controls.TextBox edited && !NumericInput.IsValid(edited)) return;if(_syncing)return;if(Read(CenterXBox.Text,out double x))_centerX=x;if(Read(CenterYBox.Text,out double y))_centerY=y;if(Read(ScaleBox.Text,out double scale)&&Math.Abs(scale)>=1e-9)_worldScale=Math.Abs(scale);UpdateTransform();Schedule();}
     private void Coverage_OnChanged(object sender,RoutedEventArgs e){if(!IsInitialized||CoverageImage is null)return;if(CoverageCheck.IsChecked!=true)CoverageImage.Source=null;}
     private void Schedule(){if(!IsLoaded)return;_cts?.Cancel();_memoryReliefTimer.Stop();_timer.Stop();_timer.Start();}
     private async Task ReleaseMemoryIfIdleAsync()
@@ -65,7 +67,7 @@ public partial class FlameWindow : Window
         if(GC.GetTotalMemory(false)<MemoryReliefThresholdBytes)return;
         await MemoryPressureRelief.CompactAsync();
     }
-    private void Render_OnClick(object sender,RoutedEventArgs e){_timer.Stop();_cts?.Cancel();_ = RenderAsync();} private void Cancel_OnClick(object sender,RoutedEventArgs e)=>_cts?.Cancel();
+    private void Render_OnClick(object sender,RoutedEventArgs e){ NumericInput.CommitAll(this);_timer.Stop();_cts?.Cancel();_ = RenderAsync();} private void Cancel_OnClick(object sender,RoutedEventArgs e)=>_cts?.Cancel();
     private async Task RenderAsync()
     {
         _memoryReliefTimer.Stop();
@@ -97,9 +99,10 @@ public partial class FlameWindow : Window
     }
     private void Transforms_OnClick(object sender,RoutedEventArgs e){var editor=new FlameTransformEditorWindow(_transforms){Owner=this};editor.TransformsApplied+=ApplyTransforms;editor.ShowDialog();}
     private void ApplyTransforms(IReadOnlyList<FlameTransform> transforms){_transforms.Clear();_transforms.AddRange(transforms.Select(t=>t.Clone()));Schedule();}
-    private void Saves_OnClick(object sender,RoutedEventArgs e)=>SaveManagerWindow.Open(this,SaveManagerConfigurations.ForFlame(this,_saves));
+    private void Saves_OnClick(object sender,RoutedEventArgs e){ NumericInput.CommitAll(this); SaveManagerWindow.Open(this,SaveManagerConfigurations.ForFlame(this,_saves)); }
     private void Export_OnClick(object sender,RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface=RenderSurfaceMetrics.Measure(CanvasHost);int sourceW=surface.PixelWidth,sourceH=surface.PixelHeight;_cts?.Cancel();try{_=CaptureState("export");}catch(Exception ex){MessageBox.Show(this,ex.Message,"Параметры экспорта",MessageBoxButton.OK,MessageBoxImage.Warning);return;}
         ImageExportManagerWindow.Open(this,new ImageExportConfiguration{FileNamePrefix="flame",InitialWidth=sourceW,InitialHeight=sourceH,MaxSsaaFactor=4,HasNativeSsaa=false,ReleaseMemoryAfterExport=true,RenderAsync=(request,token,progress)=>{FlameState state=CaptureState("export");double factor=Math.Max(1,request.Width*(double)request.Height/(sourceW*(double)sourceH));state.Samples=(int)Math.Min(int.MaxValue,Math.Ceiling(state.Samples*factor));return RenderBitmapAsync(state,request.Width,request.Height,token,progress);}});
     }
@@ -122,5 +125,5 @@ public partial class FlameWindow : Window
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,300,Schedule);
     private void Window_OnKeyDown(object sender,KeyEventArgs e){_fullscreen.HandleKey(this,e.Key);}
         private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){_timer.Stop();_memoryReliefTimer.Stop();_cts?.Cancel();_cts?.Dispose();}
-    private static bool Read(string text,out double value)=>double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out value)||double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value);private static string F(double value)=>value.ToString("G15",CultureInfo.InvariantCulture);
+    private static bool Read(string text,out double value)=> (double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out value)||double.TryParse(text,NumberStyles.Float,CultureInfo.CurrentCulture,out value)) && double.IsFinite(value);private static string F(double value)=>value.ToString("G15",CultureInfo.InvariantCulture);
 }

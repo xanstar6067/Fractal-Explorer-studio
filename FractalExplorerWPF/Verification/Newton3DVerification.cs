@@ -201,8 +201,9 @@ internal static partial class Program
             ((CheckBox)editor.FindName("SliceBox")).IsChecked = true;
             Check(editor.Capture().CutAxis == 3, "Slice mode selects a valid plane automatically.");
             ((TextBox)editor.FindName("ExtentBox")).Text = "bad";
-            bool invalid = false; try { editor.Capture(); } catch (InvalidOperationException) { invalid = true; }
-            Check(invalid, "Invalid input is rejected without overwriting saved state.");
+            var correctedExtent = editor.Capture().Extent;
+            Check(double.IsFinite(correctedExtent) && ((TextBox)editor.FindName("ExtentBox")).Text != "bad",
+                "Numeric input must restore the last correct extent before capture.");
             window.LoadState(state);
             var root = (FrameworkElement)window.Content;
             root.Measure(new Size(1200, 800)); root.Arrange(new Rect(0, 0, 1200, 800)); root.UpdateLayout();

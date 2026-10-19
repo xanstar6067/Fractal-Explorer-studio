@@ -195,9 +195,11 @@ internal static partial class Program
                 Check(JsonSerializer.Serialize(state.Planar, JsonOptionsFactory.Create()) == JsonSerializer.Serialize(restored.Planar, JsonOptionsFactory.Create()),
                     $"{kind}: every planar parameter must survive serialization.");
                 ((TextBox)window.FindName("PlanarToleranceBox")).Text = "NaN";
-                bool rejected = false;
-                try { window.CaptureState("invalid"); } catch (InvalidOperationException) { rejected = true; }
-                Check(rejected, "Invalid planar UI input must not silently capture a stale model.");
+                var corrected = window.CaptureState("corrected");
+                Check(corrected.Planar.ConvergenceTolerance == state.Planar.ConvergenceTolerance &&
+                    ((TextBox)window.FindName("PlanarToleranceBox")).Text != "NaN" &&
+                    FractalExplorerWPF.Controls.NumericInput.GetHasNotice((TextBox)window.FindName("PlanarToleranceBox")),
+                    "Invalid planar input must visibly restore the last correct value before capture.");
             }
             finally { window.Close(); }
         }

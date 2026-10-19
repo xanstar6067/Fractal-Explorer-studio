@@ -1,3 +1,4 @@
+using FractalExplorerWPF.Controls;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -63,6 +64,7 @@ public partial class InverseCollatzPaletteWindow : Window
         UpdateEditState();
         UpdateColorButtons();
         UpdatePreview();
+        InitializeNumericInput();
     }
 
     private void New_OnClick(object sender, RoutedEventArgs e)
@@ -117,6 +119,7 @@ public partial class InverseCollatzPaletteWindow : Window
 
     private bool ApplyEdits()
     {
+        NumericInput.CommitAll(this);
         if (_selected is null || _selected.IsBuiltIn) return _selected is not null;
         bool gammaValid = double.TryParse(GammaBox.Text, NumberStyles.Float,
             CultureInfo.InvariantCulture, out double gamma) && gamma is >= 0.1 and <= 5;

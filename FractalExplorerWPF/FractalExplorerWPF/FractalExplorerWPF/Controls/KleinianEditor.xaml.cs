@@ -14,6 +14,7 @@ public partial class KleinianEditor : UserControl
 
     public KleinianSettings Capture()
     {
+        NumericInput.Prepare(this);
         var settings = new KleinianSettings
         {
             Configuration = (KleinianConfiguration)ConfigurationBox.SelectedIndex,
@@ -38,6 +39,7 @@ public partial class KleinianEditor : UserControl
             GeometryStatus.Text = "";
         }
         finally { _loading = false; }
+        InitializeNumericInput();
     }
 
     private static void Set(Slider slider, TextBox box, double value)

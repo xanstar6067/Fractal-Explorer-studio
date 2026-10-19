@@ -74,10 +74,12 @@ public partial class CollatzWindow : Window
         UpdateColoringControls();
         _updatingControls = false;
         Loaded += (_, _) => ScheduleRender();
+        InitializeNumericInput();
     }
 
     public CollatzState CaptureState(string name)
     {
+        NumericInput.Prepare(this);
         if (!int.TryParse(IterationsBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int iterations) || iterations is < 10 or > 100_000)
             throw new InvalidOperationException("Итерации должны быть целым числом от 10 до 100000.");
         if (!TryRead(ThresholdBox.Text, out decimal threshold) || threshold is < 2 or > 10_000)
@@ -248,6 +250,7 @@ public partial class CollatzWindow : Window
 
     private void ZoomBox_OnChanged(object sender, TextChangedEventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (_updatingControls || !TryReadDouble(ZoomBox.Text, out double zoom) ||
             !double.IsFinite(zoom) || zoom <= 0) return;
         _viewport.SetZoom(zoom);
@@ -255,7 +258,7 @@ public partial class CollatzWindow : Window
         ScheduleRender();
     }
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
     private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
@@ -265,11 +268,11 @@ public partial class CollatzWindow : Window
         dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForCollatz(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForCollatz(this, _saveStore)); }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         if (_isRendering) CommitAndBakePreview();
         else _renderCts?.Cancel();
@@ -534,9 +537,8 @@ public partial class CollatzWindow : Window
         _ => "Текущий режим: цвет по числу итераций до выхода."
     };
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private static bool TryRead(string text, out decimal value) =>
         decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||

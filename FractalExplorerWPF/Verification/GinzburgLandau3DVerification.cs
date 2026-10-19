@@ -272,9 +272,12 @@ internal static partial class Program
             Check(editor.Visibility==Visibility.Visible && ((FrameworkElement)window.FindName("IterationsBox")).Visibility==Visibility.Collapsed,"Simulation editor must replace the generic iteration controls.");
             ((TextBox)FindAny(window,"GlC1Box")).Text="invalid";
             InvokeEditor(editor,"GlRestart_OnClick",window,new RoutedEventArgs());
-            Check(window.CaptureState("invalid").GinzburgLandau.Field!.Components.SequenceEqual(loaded.Field.Components),"Invalid Apply and equation drafts must preserve the shown field.");
+            await Display();
+            var corrected = window.CaptureState("corrected").GinzburgLandau;
+            Check(FractalExplorerWPF.Controls.NumericInput.IsValid((TextBox)FindAny(window,"GlC1Box")) && corrected.Field is not null,
+                "Restart must correct the numeric draft and publish a fresh usable field.");
             live.StepOnce(); await Display();
-            Check(window.CaptureState("step").GinzburgLandau.Field!.Step==loaded.Field.Step+loaded.StepsPerFrame,"One frame must advance the snapshot exactly once.");
+            Check(window.CaptureState("step").GinzburgLandau.Field!.Step==corrected.Field!.Step+corrected.StepsPerFrame,"One frame must advance the snapshot exactly once.");
             var before=window.CaptureState("before").GinzburgLandau.Field!;
             InvokeEditor(editor,"Brush",.5,.5,.5); await Display();
             Check(window.CaptureState("brush").GinzburgLandau.Field!.Step==before.Step,"Brush must preserve time.");

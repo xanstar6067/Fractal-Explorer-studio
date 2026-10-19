@@ -91,6 +91,7 @@ public partial class BasinExplorerWindow : Window
             UpdateOverlay();
             ScheduleRender();
         };
+        InitializeNumericInput();
     }
 
     public BasinExplorerKind Kind { get; }
@@ -105,6 +106,7 @@ public partial class BasinExplorerWindow : Window
 
     public BasinExplorerState CaptureState(string saveName)
     {
+        NumericInput.Prepare(this);
         EnsureFormulaApplied();
         var state = new BasinExplorerState
         {
@@ -920,6 +922,7 @@ public partial class BasinExplorerWindow : Window
 
     private void ZoomBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
+        if (!NumericInput.IsValid(ZoomBox)) return;
         if (_updatingUi) return;
         if (!TryReadDouble(ZoomBox.Text.Trim(), out double zoom) || !(zoom > 0) || !double.IsFinite(zoom)) return;
         _viewport.SetZoom(zoom);
@@ -1002,11 +1005,11 @@ public partial class BasinExplorerWindow : Window
         dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) =>
-        SaveManagerWindow.Open(this, SaveManagerConfigurations.ForBasinExplorer(this, _saveStore));
+    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForBasinExplorer(this, _saveStore)); }
 
     private void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         BasinExplorerState state;
@@ -1031,7 +1034,7 @@ public partial class BasinExplorerWindow : Window
 
     #region Rendering
 
-    private void RenderButton_OnClick(object sender, RoutedEventArgs e) => _ = RenderPreviewAsync();
+    private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
 
     private void ScheduleRender()
@@ -1548,9 +1551,8 @@ public partial class BasinExplorerWindow : Window
         return true;
     }
 
-    private static bool TryReadDouble(string text, out double value) =>
-        double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-        double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+    private static bool TryReadDouble(string text, out double value) => (double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+        double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out value)) && double.IsFinite(value);
 
     private static double ReadDouble(TextBox box, string name, double minimum, double maximum)
     {
