@@ -38,6 +38,7 @@ internal static partial class Program
         await ExpectCloudAsync<CloudLoginRequiredException>(() => client.ListAsync(default));
         Check(vault.Value is null, "Failed refresh must clear persistent credentials.");
         server.FailRefresh = false;
+        await VerifyRefreshRecoveryAsync();
         server.LoginLifetime = 1;
         await client.LoginAsync("test@example.invalid", "test-password", default);
         int beforeExpiry = server.Refreshes;
@@ -306,6 +307,20 @@ internal static partial class Program
         manager.ShowEntriesForPreview(client.Email!, (await LoadAsync(sync)).Entries, "Verification");
         manager.ShowLoginForPreview("Verification");
         manager.Close();
+        // Change the local file after the PUT body was captured, before the response arrives.
+        CloudSyncEntry renameEntry = Entry(await LoadAsync(sync), "Test renamed");
+        var renameSlot = store.LoadSlots().Slots.Single(s => s.State.SaveName == "Test renamed");
+        CloudLink renameLink = index.Find(renameEntry.Local!)!;
+        server.BeforePut = () => store.Save(new("Test renamed", 99), renameSlot);
+        await ExpectCloudAsync<InvalidOperationException>(() => sync.RenameAsync(renameEntry, "Raced rename", default));
+        Check(store.Load().Single(s => s.SaveName == "Test renamed").Iterations == 99 &&
+              index.Find(CloudSaveRepository.ReadLocal(renameSlot.FilePath)) == renameLink &&
+              server.Saves[renameEntry.Remote!.Id].Name == "Raced rename" &&
+              server.Iterations(renameEntry.Remote.Id) == renameSlot.State.Iterations &&
+              (await LoadAsync(sync)).Entries.Single(e => e.Remote?.Id == renameEntry.Remote.Id).State == CloudEntryState.BothChanged,
+            "A local edit during rename must survive and must not be indexed as synchronized.");
+
+        Console.WriteLine("PASS cloud regressions: refresh recovery and concurrent rename.");
         await VerifyCloudTlsAsync();
         await client.LogoutAsync();
         Console.WriteLine("PASS cloud: rotation, concurrency, expiry, retry limit, DPAPI, JSON limits, sync states, upload/download all, name collisions, apply to all, conflicts, deletions, rename, unsupported format, account isolation, safe import, TLS, XAML.");
@@ -319,6 +334,42 @@ internal static partial class Program
     }
 
     private sealed record CloudTestState(string SaveName, int Iterations);
+
+    private static async Task VerifyRefreshRecoveryAsync()
+    {
+        foreach (string failure in new[] { "network", "cancel", "timeout", "server", "malformed" })
+        {
+            var vault = new MemoryCloudVault { Value = new() { Email = "retry@example.invalid", RefreshToken = "initial" } };
+            var server = new FakeCloudServer();
+            using var client = new FractalCloudClient(new HttpClient(server) { BaseAddress = new("https://cloud.invalid") }, vault);
+            using var cancellation = new CancellationTokenSource();
+            server.RefreshResponse = () => failure switch
+            {
+                "network" => throw new HttpRequestException("Offline"),
+                "cancel" => Cancel(),
+                "timeout" => throw new TaskCanceledException("Timeout"),
+                "server" => new(HttpStatusCode.ServiceUnavailable),
+                _ => new(HttpStatusCode.OK) { Content = new StringContent("not-json") }
+            };
+            HttpResponseMessage Cancel()
+            {
+                cancellation.Cancel();
+                throw new OperationCanceledException(cancellation.Token);
+            }
+            switch (failure)
+            {
+                case "network": await ExpectCloudAsync<HttpRequestException>(() => client.ListAsync(cancellation.Token)); break;
+                case "cancel" or "timeout": await ExpectCloudAsync<OperationCanceledException>(() => client.ListAsync(cancellation.Token)); break;
+                case "server": await ExpectCloudAsync<CloudApiException>(() => client.ListAsync(cancellation.Token)); break;
+                default: await ExpectCloudAsync<JsonException>(() => client.ListAsync(cancellation.Token)); break;
+            }
+            Check(client.HasSession && client.Email == "retry@example.invalid" && vault.Value?.RefreshToken == "initial",
+                $"Refresh {failure} must preserve the session and persistent token.");
+            server.RefreshResponse = null;
+            await client.ListAsync(default);
+            Check(vault.Value?.RefreshToken == "refresh-2", $"Refresh must recover after {failure}.");
+        }
+    }
     private sealed class MemoryCloudVault : ICloudCredentialStore
     {
         public CloudCredential? Value;
@@ -334,6 +385,8 @@ internal static partial class Program
         public bool FailRefresh, LastLoginHasPassword, JsonDataWasString, RaceNextPut;
         public int LoginLifetime = 3600;
         public HttpStatusCode? ForcedStatus;
+        public Func<HttpResponseMessage>? RefreshResponse;
+        public Action? BeforePut;
         public Dictionary<Guid, CloudSave> Saves { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
@@ -352,6 +405,7 @@ internal static partial class Program
                 Interlocked.Decrement(ref _inFlight);
                 Refreshes++;
                 Check(body?["refreshToken"] is not null, "refresh contract");
+                if (RefreshResponse is { } refreshResponse) return refreshResponse();
                 return FailRefresh ? new(HttpStatusCode.Unauthorized) : Json(new
                 { tokenType = "Bearer", accessToken = "access-" + Refreshes, refreshToken = "refresh-" + Refreshes, expiresIn = 3600 });
             }
@@ -375,6 +429,9 @@ internal static partial class Program
             if (request.Method == HttpMethod.Get) return Json(current);
             if (request.Method == HttpMethod.Put)
             {
+                Action? beforePut = BeforePut;
+                BeforePut = null;
+                beforePut?.Invoke();
                 if (RaceNextPut) { RaceNextPut = false; Edit(id, 99); current = Saves[id]; }
                 if (body!["revision"]!.GetValue<long>() != current.Revision) return new(HttpStatusCode.Conflict);
                 current = current with { Name = body["name"]!.GetValue<string>(), JsonData = body["jsonData"]!.GetValue<string>(), Revision = current.Revision + 1 };

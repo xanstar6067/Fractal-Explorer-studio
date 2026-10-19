@@ -17,8 +17,54 @@ using FractalExplorerWPF.Views;
 // Менеджер сохранений, хранилище по файлу на сохранение, Корзина и миграции.
 internal static partial class Program
 {
+    private static void VerifyImageExportAtomicWrite()
+    {
+        using var sandbox = DataSandbox.Create("image-export");
+        string directory = AppPaths.GetSavesDirectory("ExportVerification");
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "export.png");
+        byte[] original = [1, 2, 3, 4];
+        File.WriteAllBytes(path, original);
+        try
+        {
+            ImageExportFile.Write(path, stream =>
+            {
+                stream.WriteByte(99);
+                throw new IOException("Simulated encoder/write failure.");
+            });
+            throw new InvalidOperationException("Export failure was swallowed.");
+        }
+        catch (IOException) { }
+        Check(File.ReadAllBytes(path).SequenceEqual(original) && Directory.GetFiles(directory).Length == 1,
+            "Failed export must preserve the destination and remove its temporary file.");
+
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            try
+            {
+                ImageExportManagerWindow.SaveBitmap(Pixel(17), path, ImageExportFormat.Png, 90);
+                throw new InvalidOperationException("Export to locked file unexpectedly succeeded.");
+            }
+            catch (IOException) { }
+        }
+        Check(File.ReadAllBytes(path).SequenceEqual(original) && Directory.GetFiles(directory).Length == 1,
+            "Failed publication must preserve the destination and remove its temporary file.");
+        foreach (ImageExportFormat format in Enum.GetValues<ImageExportFormat>())
+        {
+            string imagePath = Path.Combine(directory, "export." + format.ToString().ToLowerInvariant());
+            // Exercise both creation and replacement with real encoders.
+            ImageExportManagerWindow.SaveBitmap(Pixel(17), imagePath, format, 90);
+            ImageExportManagerWindow.SaveBitmap(Pixel(42), imagePath, format, 90);
+            using var stream = File.OpenRead(imagePath);
+            BitmapFrame frame = BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0];
+            Check(frame.PixelWidth == 1 && frame.PixelHeight == 1, $"Export must produce a readable {format} image.");
+        }
+        Check(!Directory.GetFiles(directory, "*.tmp").Any(), "Successful export must leave no temporary files.");
+    }
+
     private static async Task VerifyManagerAsync()
     {
+        VerifyImageExportAtomicWrite();
         using var sandbox = DataSandbox.Create("manager");
         var styles = new Uri("pack://application:,,,/FractalExplorerWPF;component/Theming/ThemeStyles.xaml");
         if (!Application.Current.Resources.MergedDictionaries.Any(d => d.Source == styles))

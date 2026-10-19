@@ -338,7 +338,7 @@ public partial class ImageExportManagerWindow : Window
         RemainingText.Text = $"До завершения рендера ≈ {(long)remaining.TotalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
     }
 
-    private static void SaveBitmap(BitmapSource bitmap, string path, ImageExportFormat format, int jpegQuality)
+    internal static void SaveBitmap(BitmapSource bitmap, string path, ImageExportFormat format, int jpegQuality)
     {
         BitmapEncoder encoder = format switch
         {
@@ -347,8 +347,7 @@ public partial class ImageExportManagerWindow : Window
             _ => new PngBitmapEncoder()
         };
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using FileStream stream = File.Create(path);
-        encoder.Save(stream);
+        ImageExportFile.Write(path, encoder.Save);
     }
 
     private bool TryCreatePlan(out ExportPlan plan)

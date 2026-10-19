@@ -110,10 +110,9 @@ public sealed class FractalCloudClient : IDisposable
             Check(response);
             SetTokens(await ReadTokensAsync(response, token));
         }
-        catch
+        catch (CloudApiException error) when (error.Status == HttpStatusCode.Unauthorized)
         {
             ClearTokens();
-            if (token.IsCancellationRequested) throw new OperationCanceledException(token);
             throw new CloudLoginRequiredException();
         }
     }

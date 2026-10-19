@@ -410,7 +410,13 @@ public sealed class CloudSyncService(FractalCloudClient client, CloudSyncIndex i
                 CloudSave updated = await client.UpdateAsync(current.Id, newName, json, current.Revision, token);
                 cache.Set(CloudSaveRepository.Describe(updated with { Name = newName, JsonData = json }));
                 cache.Save();
-                if (local is not null) index.Set(updated, CloudSaveRepository.RenameLocal(local, newName));
+                if (local is not null)
+                {
+                    // The PUT may have completed while this PC was saving a newer version.
+                    // Keep the old link on failure so the next load exposes changes on both sides.
+                    EnsureUnchanged(local);
+                    index.Set(updated, CloudSaveRepository.RenameLocal(local, newName));
+                }
                 return;
             default:
                 throw new InvalidOperationException("Переименовать можно синхронизированную запись или запись, которая есть только на одной стороне. Сначала синхронизируйте её.");
