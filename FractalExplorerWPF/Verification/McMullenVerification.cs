@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FractalExplorerWPF;
+using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Infrastructure.Cloud;
@@ -149,10 +150,14 @@ internal static partial class Program
             Check(configuration.PointsOfInterest.Count == 8 && configuration.GetDetails(loaded).Contains("λ"), "Save manager must contain presets and readable details.");
             ((TextBox)window.FindName("PBox")).Text = "4";
             Check(window.CaptureState("edited").P == 4, "Power edits must reach the state.");
-            ((TextBox)window.FindName("QBox")).Text = "2.5";
-            rejected = false;
-            try { window.CaptureState("bad"); } catch (InvalidOperationException) { rejected = true; }
-            Check(rejected, "Fractional pole orders must block saving and rendering.");
+            var qBox = (TextBox)window.FindName("QBox");
+            qBox.Text = "2.5";
+            var corrected = window.CaptureState("corrected pole order");
+            Check(corrected.Q == chosen.Q && qBox.Text == chosen.Q.ToString() && NumericInput.GetHasNotice(qBox),
+                $"A fractional pole order must visibly restore the last valid integer before saving or rendering. Expected {chosen.Q}; state {corrected.Q}; text '{qBox.Text}'; notice '{NumericInput.GetMessage(qBox)}'.");
+            var correctedSlot = store.Save(corrected);
+            Check(Json(store.LoadSlots().Slots.Single(s => s.FilePath == correctedSlot.FilePath).State) == Json(corrected),
+                "Saving and loading a corrected draft must preserve the corrected state exactly.");
             window.LoadState(defaults);
             var root = (FrameworkElement)window.Content;
             root.Measure(new(720, 360)); root.Arrange(new Rect(0, 0, 720, 360));

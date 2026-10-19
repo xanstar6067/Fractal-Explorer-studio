@@ -98,6 +98,7 @@ public partial class LSystem3DEditor : UserControl
 
     private async void Apply_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         _validation?.Cancel();
         using var cts = new CancellationTokenSource();
         _validation = cts;

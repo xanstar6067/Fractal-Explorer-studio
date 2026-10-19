@@ -13,10 +13,17 @@ public partial class HyperbolicHoneycombEditor : UserControl
     private (double X,double Y,double Z) _observer;
     public event EventHandler? SettingsChanged;
 
-    public HyperbolicHoneycombEditor() { InitializeComponent(); _loading=false; UpdateControls(); }
+    public HyperbolicHoneycombEditor()
+    {
+        InitializeComponent(); _loading=false; UpdateControls();
+        NumericInput.Real(this, ObserverXBox, "Положение наблюдателя X", -.85, .85, appliedValue: () => _observer.X);
+        NumericInput.Real(this, ObserverYBox, "Положение наблюдателя Y", -.85, .85, appliedValue: () => _observer.Y);
+        NumericInput.Real(this, ObserverZBox, "Положение наблюдателя Z", -.85, .85, appliedValue: () => _observer.Z);
+    }
 
     public HyperbolicHoneycombSettings Capture()
     {
+        NumericInput.Prepare(this);
         var s=new HyperbolicHoneycombSettings {
             Tessellation=(HyperbolicHoneycombKind)Math.Max(0,KindBox.SelectedIndex), Depth=(int)DepthSlider.Value,
             ShowEdges=EdgesCheck.IsChecked==true, ShowFaces=FacesCheck.IsChecked==true,
@@ -74,13 +81,19 @@ public partial class HyperbolicHoneycombEditor : UserControl
     }
     private void ApplyPosition(object sender,RoutedEventArgs e)
     {
+        NumericInput.ShowIssue(ObserverXBox, ""); NumericInput.ShowIssue(ObserverYBox, ""); NumericInput.ShowIssue(ObserverZBox, "");
+        NumericInput.CommitAll(this);
         try
         {
             var current=Capture() with { ObserverX=Read(ObserverXBox),ObserverY=Read(ObserverYBox),ObserverZ=Read(ObserverZBox) };
             current.Validate(); _observer=(current.ObserverX,current.ObserverY,current.ObserverZ);
             WriteObserver(); SettingsChanged?.Invoke(this,EventArgs.Empty);
         }
-        catch(ArgumentException error) { PositionStatus.Text=error.Message; }
+        catch(ArgumentException error)
+        {
+            PositionStatus.Text=error.Message;
+            NumericInput.ShowIssue(ObserverXBox,error.Message); NumericInput.ShowIssue(ObserverYBox,error.Message); NumericInput.ShowIssue(ObserverZBox,error.Message);
+        }
     }
     private void ResetPosition(object sender,RoutedEventArgs e)
     {

@@ -402,6 +402,7 @@ public partial class TuringWindow : Window
     }
     private async void GridSize_OnApply(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (_resetting || _presented is null) return;
         if (!int.TryParse(GridSizeBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int size) || size is < 32 or > TuringState.MaxGridSize)
         { GridSizeError.Text = "Введите целое число от 32 до 2048."; GridSizeBox.Focus(); return; }
@@ -411,6 +412,7 @@ public partial class TuringWindow : Window
     }
     private void FrameSize_OnApply(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         if (_syncing || _resetting) return;
         bool automatic = AutoFrameBox.IsChecked == true;
         if (!automatic)

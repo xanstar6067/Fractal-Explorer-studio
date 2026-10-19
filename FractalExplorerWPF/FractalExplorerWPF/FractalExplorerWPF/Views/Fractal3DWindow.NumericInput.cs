@@ -112,6 +112,7 @@ public partial class Fractal3DWindow
         NumericInput.Include(this, KleinianEditor);
         NumericInput.Include(this, AntoineEditor);
         NumericInput.Include(this, NewtonEditor);
+        NumericInput.Include(this, HyperbolicEditor);
         RegisterModeField(IterationsBox, _mode.IterationsField);
         RegisterModeField(PowerBox, _mode.PowerField);
     }

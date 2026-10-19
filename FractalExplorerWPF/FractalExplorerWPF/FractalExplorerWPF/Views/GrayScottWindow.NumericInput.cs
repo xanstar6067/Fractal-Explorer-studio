@@ -12,8 +12,8 @@ public partial class GrayScottWindow
         NumericInput.Real(this, FeedBox, "Подача F", 0, .2);
         NumericInput.Real(this, KillBox, "Убыль K", 0, .2);
         NumericInput.Real(this, DeltaTimeBox, "Шаг времени", .05, 1.5);
-        NumericInput.Real(this, RangeMinimumBox, "Минимум окраски", -double.MaxValue / 4, double.MaxValue / 4);
-        NumericInput.Real(this, RangeMaximumBox, "Максимум окраски", -double.MaxValue / 4, double.MaxValue / 4);
+        NumericInput.Real(this, RangeMinimumBox, "Минимум окраски", -double.MaxValue, double.MaxValue);
+        NumericInput.Real(this, RangeMaximumBox, "Максимум окраски", -double.MaxValue, double.MaxValue);
         NumericInput.Integer(this, GridSizeBox, "Размер сетки", 32, GrayScottState.MaxGridSize);
         NumericInput.Integer(this, StepsPerFrameBox, "Шаги на кадр", 1, 64);
         NumericInput.Integer(this, RandomSeedBox, "Seed", int.MinValue, int.MaxValue);
@@ -23,6 +23,11 @@ public partial class GrayScottWindow
         NumericInput.Integer(this, FrameWidthBox, "Ширина кадра", 32, 8192);
         NumericInput.Integer(this, FrameHeightBox, "Высота кадра", 32, 8192);
         NumericInput.Pair(this, FrameWidthBox, FrameHeightBox, (w, h) => (long)int.Parse(w) * int.Parse(h) <= 16777216, "Не более 16 млн пикселей в кадре.");
-        NumericInput.OrderedPair(this, RangeMinimumBox, RangeMaximumBox);
+        NumericInput.Pair(this, RangeMinimumBox, RangeMaximumBox, (a, b) =>
+        {
+            PanelFields.TryReadDouble(a.Replace(',', '.'), out double minimum);
+            PanelFields.TryReadDouble(b.Replace(',', '.'), out double maximum);
+            return maximum > minimum && double.IsFinite(maximum - minimum);
+        }, "Максимум окраски должен быть больше минимума, а разность — конечным числом.");
     }
 }

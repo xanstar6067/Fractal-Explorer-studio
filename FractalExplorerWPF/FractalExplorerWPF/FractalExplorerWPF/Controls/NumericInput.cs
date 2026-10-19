@@ -50,7 +50,10 @@ public static class NumericInput
             box.GetBindingExpression(TextBox.TextProperty) is not { ResolvedSource: Slider slider, ResolvedSourcePropertyName: "Value" }) return;
         // A direct slider binding already declares its numeric domain. Share that contract.
         string name = AutomationProperties.GetName(box);
-        Real(box, box, string.IsNullOrWhiteSpace(name) ? "Значение" : name,
+        FrameworkElement scope = box;
+        for (DependencyObject? parent = box.Parent; parent is not null; parent = LogicalTreeHelper.GetParent(parent))
+            if (parent is UserControl editor) { scope = editor; break; }
+        Real(scope, box, string.IsNullOrWhiteSpace(name) ? "Значение" : name,
             () => slider.Minimum, () => slider.Maximum, null, false, () => slider.Value.ToString("R", Invariant));
     }
     public static bool IsRegistered(TextBox box) => box.GetValue(RuleProperty) is Rule;
@@ -215,6 +218,10 @@ public static class NumericInput
         if (box.GetValue(RuleProperty) is not Rule rule || rule.Writing) return;
         string? normalized = rule.Normalize(box.Text);
         bool valid = normalized is not null && Canonical(normalized) == Canonical(box.Text);
+        // An earlier TextChanged handler may capture parameters and correct the text
+        // synchronously. The original event must not erase that correction's feedback.
+        if (valid && box.Text == rule.CorrectedText) return;
+        rule.CorrectedText = null;
         Notice(box, valid ? "" : $"«{rule.Name}»: нужно {rule.Requirement()}. Значение будет исправлено при завершении ввода.");
         // Loads, presets and camera navigation establish a new fallback too. Focused drafts do not.
         if (valid && !box.IsKeyboardFocusWithin) rule.LastGood = normalized!;
@@ -225,6 +232,7 @@ public static class NumericInput
         rule.Writing = true;
         try
         {
+            rule.CorrectedText = text;
             box.SetCurrentValue(TextBox.TextProperty, text);
             box.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         }
@@ -247,6 +255,7 @@ public static class NumericInput
         public readonly Func<bool>? Active = active;
         public readonly Func<string>? AppliedText = appliedText;
         public string LastGood = lastGood;
+        public string? CorrectedText;
         public bool Writing;
     }
 

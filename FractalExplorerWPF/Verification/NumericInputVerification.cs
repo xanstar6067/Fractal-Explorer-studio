@@ -70,6 +70,19 @@ internal static partial class Program
         Require(!NumericInput.IsValid(preciseBox), "Slider limits were captured once instead of following the current domain.");
         NumericInput.Commit(preciseBox);
         Require(preciseSlider.Value == .75, "Changed slider bounds were not used for correction.");
+        var nestedEditor = new UserControl();
+        var nestedPanel = new StackPanel();
+        nestedEditor.Content = nestedPanel;
+        var nestedBox = new TextBox();
+        nestedPanel.Children.Add(nestedBox);
+        nestedBox.SetBinding(TextBox.TextProperty, new Binding("Value")
+        { Source = slider, Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.Explicit });
+        NumericInput.SetUseSliderBounds(nestedBox, true);
+        nestedBox.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
+        nestedBox.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+        nestedBox.Text = "abc"; NumericInput.CommitAll(nestedEditor);
+        Require(nestedBox.Text == "1" && slider.Value == 1 && NumericInput.GetHasNotice(nestedBox),
+            "An editor's apply command did not complete its automatically registered slider field.");
         var conditionalScope = new StackPanel();
         var inactiveMinimum = new TextBox { Text = "0" };
         var inactiveMaximum = new TextBox { Text = "1" };
@@ -83,6 +96,15 @@ internal static partial class Program
         Require(inactiveMinimum.Text == "2", "Inactive group modified the active parameters.");
         pairActive = true; NumericInput.CommitAll(conditionalScope);
         Require(inactiveMinimum.Text == "0" && inactiveMaximum.Text == "1", "Activating a group did not restore its last valid pair.");
+        var reactiveScope = new StackPanel();
+        var reactiveBox = new TextBox { Text = "3" };
+        reactiveBox.TextChanged += (_, _) => NumericInput.Prepare(reactiveScope);
+        NumericInput.Integer(reactiveScope, reactiveBox, "Порядок полюса", 1, 12);
+        reactiveBox.Text = "2.5";
+        Require(reactiveBox.Text == "3" && NumericInput.GetHasNotice(reactiveBox),
+            "A synchronous capture in TextChanged erased the correction feedback.");
+        reactiveBox.Text = "4";
+        Require(!NumericInput.GetHasNotice(reactiveBox), "Editing a corrected field did not clear its old feedback.");
         foreach (string culture in new[] { "ru-RU", "en-US" })
         {
             var previous = CultureInfo.CurrentCulture;

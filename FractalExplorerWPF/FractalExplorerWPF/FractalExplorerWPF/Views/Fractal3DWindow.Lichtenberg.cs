@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Models;
 
 using static FractalExplorerWPF.Controls.PanelFields;
@@ -51,6 +52,7 @@ public partial class Fractal3DWindow
 
     private void LichtenbergApply_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
         try
         {
             var settings = new Lichtenberg3DSettings
