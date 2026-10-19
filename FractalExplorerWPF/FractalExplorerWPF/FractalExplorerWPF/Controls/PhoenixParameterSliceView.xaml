@@ -1,0 +1,22 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.PhoenixParameterSliceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FractalExplorerWPF.Controls"
+             xmlns:theme="clr-namespace:FractalExplorerWPF.Theming">
+    <Border x:Name="MapHost" Background="#0C0E13" ClipToBounds="True" theme:ThemeContract.IgnoreAudit="True"
+            SizeChanged="Map_OnSizeChanged" MouseLeftButtonDown="Map_OnMouseDown"
+            MouseMove="Map_OnMouseMove" MouseLeftButtonUp="Map_OnMouseUp"
+            LostMouseCapture="Map_OnLostMouseCapture" MouseWheel="Map_OnMouseWheel">
+        <Grid>
+            <Image x:Name="PreviewImage" Stretch="Fill" IsHitTestVisible="False"/>
+            <StackPanel VerticalAlignment="Bottom" IsHitTestVisible="False" Margin="8">
+                <TextBlock x:Name="AxesText" Foreground="White" TextWrapping="Wrap"/>
+                <TextBlock x:Name="MessageText" Foreground="White" TextWrapping="Wrap"/>
+                <ProgressBar x:Name="Progress" Height="3" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+            </StackPanel>
+            <local:PreparationOverlay x:Name="Preparation" Heading="Подготовка среза Phoenix"
+                Message="Построение объёма параметров…" ActionText=""
+                Detail="Трёхмерный срез пространства C1/C2. Качество кадра 100%."/>
+        </Grid>
+    </Border>
+</UserControl>

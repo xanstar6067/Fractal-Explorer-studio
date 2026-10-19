@@ -96,7 +96,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `McMullenWindow` | Семейство Макмаллена zᵖ + λ/zᑫ: Жюлиа, карта λ, орбиты, ловушки и палитры (`MCMULLEN.md`); проверка — `mcmullen`. |
 | `NewtonPoolsWindow` | Бассейны Ньютона/Галлея/Хаусхолдера, глубокий зум до 1e1000. |
 | `NovaWindow` | Семейство Nova, глубокий зум до 1e50. |
-| `PhoenixWindow` | Семейство Phoenix, сверхглубокий зум до 1e1000. |
+| `PhoenixWindow` | Семейство Phoenix, сверхглубокий зум до 1e1000; выбор C1/C2 в 2D и 3D-срезах (`PHOENIX.md`, `PhoenixParameterExplorerWindow`, `PhoenixParameterSliceView`), проверка `phoenix-slices`. |
 | `SerpinskyWindow` | Треугольник Серпинского и игра хаоса. |
 | `SandpileWindow` | Абелева песочная куча: две решётки, лавины, кисть и точное продолжение (`SANDPILE.md`). |
 | `SnowCrystalWindow` | Снежные кристаллы Рейтера (`SNOW_CRYSTALS.md`). |

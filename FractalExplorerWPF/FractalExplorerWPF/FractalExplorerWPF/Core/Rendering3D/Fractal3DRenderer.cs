@@ -613,6 +613,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.AddRange(TuringComputeShader.CacheEntries);
         entries.AddRange(GrayScottComputeShader.CacheEntries);
         entries.Add(MandelbrotPreviewShader.CacheEntry);
+        entries.AddRange(PhoenixParameterSliceRenderer.CacheEntries);
         return entries;
     }
 

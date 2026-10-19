@@ -62,6 +62,11 @@ internal static partial class Program
         {
             try
             {
+                if (group == "phoenix-slices")
+                {
+                    await VerifyPhoenixParameterSlicesAsync(args);
+                    return;
+                }
                 if (group is "all" or "mcmullen") await VerifyMcMullenAsync(args);
                 if (group == "mcmullen") return;
                 if (group is "all" or "rauzy") await VerifyRauzyAsync(args);
