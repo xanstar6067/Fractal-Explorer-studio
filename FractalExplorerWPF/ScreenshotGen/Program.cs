@@ -183,6 +183,15 @@ internal static class Program
             }
             throw new TimeoutException("Карта C не завершила рендер перед захватом.");
         }
+        if (win is JuliaParameterAtlasWindow)
+        {
+            var atlasWait = System.Diagnostics.Stopwatch.StartNew();
+            while (GetMember(win, "_renderCts") is not null && atlasWait.ElapsedMilliseconds < maxExtraMs)
+                await Task.Delay(150);
+            if (GetMember(win, "_renderCts") is not null)
+                throw new TimeoutException("Атлас Жюлиа не завершил рендер перед захватом.");
+            return;
+        }
         string renderFlag = win is DynamicSystemWindow or TranscendentalJuliaWindow or McMullenWindow ? "_rendering" : "_isRendering";
         if (GetMember(win, renderFlag) is not bool) return;
 
@@ -844,6 +853,8 @@ internal static class Program
                         MandelbrotVariantDefinition.ParameterVariant(variant), definition.DefaultJuliaReal,
                         definition.DefaultJuliaImaginary, definition.DefaultPower), slug + "-constant-picker");
                 }
+                if (w is MandelbrotWindow julia && variant == MandelbrotVariant.Julia)
+                    await CaptureChildAsync(w, new JuliaParameterAtlasWindow(julia.CaptureState("atlas")), "julia-parameter-atlas");
                 SafeCloseIfAny(w);
                 return;
             }

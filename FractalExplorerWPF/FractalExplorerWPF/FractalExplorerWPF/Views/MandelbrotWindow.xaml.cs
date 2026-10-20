@@ -136,6 +136,7 @@ public partial class MandelbrotWindow : Window
         PowerPanel.Visibility = _definition.HasPower ? Visibility.Visible : Visibility.Collapsed;
         InversionBox.Visibility = _definition.HasInversion ? Visibility.Visible : Visibility.Collapsed;
         JuliaConstantPanel.Visibility = _definition.HasJuliaConstant ? Visibility.Visible : Visibility.Collapsed;
+        ParameterAtlasButton.Visibility = _definition.Variant == MandelbrotVariant.Julia ? Visibility.Visible : Visibility.Collapsed;
         JuliaRealBox.Text = _definition.DefaultJuliaReal.ToString(CultureInfo.InvariantCulture);
         JuliaImaginaryBox.Text = _definition.DefaultJuliaImaginary.ToString(CultureInfo.InvariantCulture);
 
@@ -996,6 +997,7 @@ public partial class MandelbrotWindow : Window
     {
         _closed = true;
         _constantPicker?.Close();
+        _parameterAtlas?.Close();
         _renderTimer.Stop();
         _activeSession?.End();
         _renderCts?.Cancel();

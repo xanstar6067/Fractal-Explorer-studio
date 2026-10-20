@@ -294,6 +294,14 @@ public sealed class MandelbrotPalette
 
 public sealed class MandelbrotState
 {
+    public MandelbrotState Clone()
+    {
+        var copy = (MandelbrotState)MemberwiseClone();
+        copy.Palette = Palette.Clone(Palette.Name);
+        copy.Hybrid = Hybrid.Clone();
+        return copy;
+    }
+
     public string SaveName { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
     public MandelbrotVariant Variant { get; set; }
