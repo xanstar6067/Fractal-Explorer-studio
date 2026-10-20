@@ -11,7 +11,7 @@ public partial class MandelbrotWindow
 
     private void ParameterAtlasButton_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_definition.Variant != MandelbrotVariant.Julia) return;
+        if (!_definition.HasJuliaConstant) return;
         if (_parameterAtlas is { } existing) { existing.Activate(); return; }
         CreateParameterAtlas().Show();
     }
@@ -28,7 +28,7 @@ public partial class MandelbrotWindow
 
     private void ApplyAtlasConstant(decimal real, decimal imaginary)
     {
-        if (_closed || _definition.Variant != MandelbrotVariant.Julia) return;
+        if (_closed || !_definition.HasJuliaConstant) return;
         _updatingControls = true;
         JuliaRealBox.Text = real.ToString(CultureInfo.InvariantCulture);
         JuliaImaginaryBox.Text = imaginary.ToString(CultureInfo.InvariantCulture);

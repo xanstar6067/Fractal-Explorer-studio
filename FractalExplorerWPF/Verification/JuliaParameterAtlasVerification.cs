@@ -41,12 +41,12 @@ internal static partial class Program
         }
 
         var main = new MandelbrotWindow(MandelbrotVariant.Julia);
-        var other = new MandelbrotWindow(MandelbrotVariant.JuliaBurningShip);
+        var other = new MandelbrotWindow(MandelbrotVariant.Mandelbrot);
         JuliaParameterAtlasWindow? atlas = null;
         try
         {
             Check(Field<Button>(main, "ParameterAtlasButton").Visibility == Visibility.Visible, "Classic Julia has no atlas button.");
-            Check(Field<Button>(other, "ParameterAtlasButton").Visibility == Visibility.Collapsed, "Prototype leaked to another Julia variant.");
+            Check(Field<Button>(other, "ParameterAtlasButton").Visibility == Visibility.Collapsed, "Atlas leaked to the parameter plane.");
             Invoke(main, "ToggleControlsButton_OnClick", main, new RoutedEventArgs());
             Check(Field<Button>(main, "ParameterAtlasButton").Visibility == Visibility.Visible, "Hiding the menu hid the atlas button.");
             main.LoadState(source);
@@ -111,6 +111,95 @@ internal static partial class Program
             await closingBuild;
         }
         finally { atlas?.Close(); other.Close(); main.Close(); }
-        Console.WriteLine("PASS (julia-atlas): ranges, previews, cancellation, stale generations, numeric input and applying C in the existing window.");
+
+        int variantsChecked = 0;
+        foreach (var variant in Enum.GetValues<MandelbrotVariant>().Where(MandelbrotVariantDefinition.IsJulia))
+        {
+            var window = new MandelbrotWindow(variant);
+            JuliaParameterAtlasWindow? familyAtlas = null;
+            try
+            {
+                var definition = MandelbrotVariantDefinition.For(variant);
+                Button button = Field<Button>(window, "ParameterAtlasButton");
+                Check(button.Visibility == Visibility.Visible && button.Content is System.Windows.Shapes.Path { Data: not null }
+                    && System.Windows.Automation.AutomationProperties.GetName(button) == "Атлас параметров",
+                    $"{variant}: atlas icon or its accessible label is missing.");
+                var state = window.CaptureState("atlas-family");
+                state.Iterations = 50;
+                if (definition.HasPower) state.Power = 2.5m;
+                if (definition.HasInversion) state.UseInversion = true;
+                if (FoldedFormulaCatalog.IsHybrid(variant)) state.Hybrid = new()
+                {
+                    Steps = [new() { Formula = MandelbrotVariant.Tricorn, Power = 3, Repeats = 2 },
+                        new() { Formula = MandelbrotVariant.Buffalo, Power = 2 }]
+                };
+                window.LoadState(state);
+                var before = window.CaptureState("before-family");
+                familyAtlas = new JuliaParameterAtlasWindow(before);
+                Check(familyAtlas.Title.Contains(definition.DisplayName) && Field<TextBlock>(familyAtlas, "HeaderText").Text.Contains(definition.DisplayName),
+                    $"{variant}: atlas still displays the classical Julia title.");
+                Check(ParameterAtlasRange.JuliaOverview(variant).IsValid, $"{variant}: overview range is invalid.");
+
+                // Tiny frames exercise the atlas adapter for each family without full renders or save tests.
+                var expected = before.Clone();
+                expected.CenterX = expected.CenterY = 0;
+                expected.CenterXExact = expected.CenterYExact = null;
+                expected.Zoom = .8;
+                expected.Threads = 1;
+                const int width = 32, height = 24;
+                byte[] pixels = JuliaParameterAtlasRenderer.Render(before, before.JuliaCReal, before.JuliaCImaginary,
+                    width, height, CancellationToken.None);
+                var reference = new byte[width * height * 4];
+                MandelbrotFamilyRenderer.Render(expected, reference, width, height, width * 4, CancellationToken.None);
+                Check(pixels.SequenceEqual(reference), $"{variant}: atlas dropped the variant, power, inversion or hybrid formula.");
+                Invoke(window, "ApplyAtlasConstant", -.45m, .125m);
+                var applied = window.CaptureState("after-family");
+                Check(applied.Variant == variant && applied.JuliaCReal == -.45m && applied.JuliaCImaginary == .125m
+                    && applied.Power == before.Power && applied.UseInversion == before.UseInversion
+                    && applied.Hybrid.Steps.Select(s => (s.Formula, s.Power, s.Repeats))
+                        .SequenceEqual(before.Hybrid.Steps.Select(s => (s.Formula, s.Power, s.Repeats))),
+                    $"{variant}: applying C changed the source formula.");
+                variantsChecked++;
+            }
+            finally { familyAtlas?.Close(); window.Close(); }
+            await Task.Yield();
+        }
+
+        // A formula change in the owner is forwarded to an already-open atlas.
+        foreach (var variant in new[] { MandelbrotVariant.JuliaGeneralized, MandelbrotVariant.JuliaSimonobrot, MandelbrotVariant.JuliaHybrid })
+        {
+            var window = new MandelbrotWindow(variant);
+            JuliaParameterAtlasWindow? formulaAtlas = null;
+            try
+            {
+                new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+                formulaAtlas = (JuliaParameterAtlasWindow)Invoke(window, "CreateParameterAtlas")!;
+                var previous = window.CaptureState("formula-before");
+                previous.Iterations = 50;
+                Field<ComboBox>(formulaAtlas, "GridSizeBox").SelectedIndex = 0;
+                Task inFlight = (Task)Invoke(formulaAtlas, "BuildAtlasAsync")!;
+                var changed = previous.Clone();
+                changed.Power = 2.5m;
+                changed.UseInversion = true;
+                changed.Hybrid.Steps[0].Formula = MandelbrotVariant.Tricorn;
+                window.LoadState(changed);
+                var copiedSource = (MandelbrotState)typeof(JuliaParameterAtlasWindow)
+                    .GetField("_source", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(formulaAtlas)!;
+                Check(copiedSource.Power == changed.Power && copiedSource.UseInversion == changed.UseInversion
+                    && copiedSource.Hybrid.Steps[0].Formula == MandelbrotVariant.Tricorn,
+                    $"{variant}: an open atlas kept obsolete formula parameters.");
+                await inFlight;
+                // The in-flight generation must keep its original formula for every tile.
+                var bitmap = (BitmapSource)Field<Image>(formulaAtlas, "SelectedPreview").Source;
+                var actual = new byte[144 * 108 * 4];
+                bitmap.CopyPixels(actual, 144 * 4, 0);
+                previous.Iterations = 500; // Initial owner state used by that generation (preview caps at 250).
+                var oldFrame = JuliaParameterAtlasRenderer.Render(previous, formulaAtlas.SelectedReal, formulaAtlas.SelectedImaginary,
+                    144, 108, CancellationToken.None);
+                Check(actual.SequenceEqual(oldFrame), $"{variant}: changing the owner mixed formulas in an in-flight generation.");
+            }
+            finally { formulaAtlas?.Close(); window.Close(); }
+        }
+        Console.WriteLine($"PASS (julia-atlas): {variantsChecked} Julia variants, icon, formula propagation, ranges, previews, cancellation, stale generations, numeric input and applying C in the existing window.");
     }
 }

@@ -190,11 +190,18 @@
                 Content="✕" ToolTip="Скрыть панель параметров"
                 Click="ToggleControlsButton_OnClick"/>
 
-        <Button x:Name="ParameterAtlasButton" Grid.Column="1" Panel.ZIndex="10"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="50,18,0,0"
-                MinHeight="34" Padding="10,0" Visibility="Collapsed"
-                Content="Атлас параметров" ToolTip="Сравнить варианты Re(C) и Im(C)"
-                Click="ParameterAtlasButton_OnClick"/>
+        <Button x:Name="ParameterAtlasButton" Grid.Column="1"
+                Style="{StaticResource FractalPanelToggleButtonStyle}"
+                Margin="50,18,0,0" Visibility="Collapsed"
+                ToolTip="Атлас параметров — сравнить варианты Re(C) и Im(C)"
+                AutomationProperties.Name="Атлас параметров"
+                Click="ParameterAtlasButton_OnClick">
+            <Path Width="18" Height="18" Stretch="Uniform" IsHitTestVisible="False"
+                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  Data="M0,0 H4 V4 H0 Z M7,0 H11 V4 H7 Z M14,0 H18 V4 H14 Z
+                        M0,7 H4 V11 H0 Z M7,7 H11 V11 H7 Z M14,7 H18 V11 H14 Z
+                        M0,14 H4 V18 H0 Z M7,14 H11 V18 H7 Z M14,14 H18 V18 H14 Z"/>
+        </Button>
 
         <Border x:Name="CanvasHost" Grid.Column="1" Margin="0,10,10,10" Background="Black"
                 BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7"

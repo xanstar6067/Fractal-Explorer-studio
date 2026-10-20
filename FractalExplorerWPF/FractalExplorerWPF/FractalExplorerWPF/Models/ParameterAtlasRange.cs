@@ -3,6 +3,18 @@ namespace FractalExplorerWPF.Models;
 /// <summary>Диапазон двух осей атласа. Верхняя строка соответствует максимуму Y.</summary>
 public readonly record struct ParameterAtlasRange(decimal MinX, decimal MaxX, decimal MinY, decimal MaxY)
 {
+    public static ParameterAtlasRange JuliaOverview(MandelbrotVariant variant)
+    {
+        if (!MandelbrotVariantDefinition.IsJulia(variant))
+            throw new ArgumentException("Требуется вариант семейства Жюлиа.", nameof(variant));
+        return MandelbrotVariantDefinition.ParameterVariant(variant) switch
+        {
+            MandelbrotVariant.Mandelbrot => new(-2m, 1m, -1.2m, 1.2m),
+            MandelbrotVariant.BurningShip => new(-2m, 1.5m, -1m, 1.5m),
+            _ => new(-2m, 2m, -1.5m, 1.5m)
+        };
+    }
+
     public bool IsValid => MinX >= -10m && MaxX <= 10m && MinY >= -10m && MaxY <= 10m
         && MinX < MaxX && MinY < MaxY;
 

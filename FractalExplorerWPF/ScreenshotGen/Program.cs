@@ -853,8 +853,9 @@ internal static class Program
                         MandelbrotVariantDefinition.ParameterVariant(variant), definition.DefaultJuliaReal,
                         definition.DefaultJuliaImaginary, definition.DefaultPower), slug + "-constant-picker");
                 }
-                if (w is MandelbrotWindow julia && variant == MandelbrotVariant.Julia)
-                    await CaptureChildAsync(w, new JuliaParameterAtlasWindow(julia.CaptureState("atlas")), "julia-parameter-atlas");
+                if (w is MandelbrotWindow julia && MandelbrotVariantDefinition.IsJulia(variant))
+                    await CaptureChildAsync(w, new JuliaParameterAtlasWindow(julia.CaptureState("atlas")),
+                        variant == MandelbrotVariant.Julia ? "julia-parameter-atlas" : slug + "-parameter-atlas");
                 SafeCloseIfAny(w);
                 return;
             }

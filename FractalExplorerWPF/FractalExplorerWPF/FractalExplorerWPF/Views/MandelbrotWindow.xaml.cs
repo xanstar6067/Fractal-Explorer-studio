@@ -136,7 +136,7 @@ public partial class MandelbrotWindow : Window
         PowerPanel.Visibility = _definition.HasPower ? Visibility.Visible : Visibility.Collapsed;
         InversionBox.Visibility = _definition.HasInversion ? Visibility.Visible : Visibility.Collapsed;
         JuliaConstantPanel.Visibility = _definition.HasJuliaConstant ? Visibility.Visible : Visibility.Collapsed;
-        ParameterAtlasButton.Visibility = _definition.Variant == MandelbrotVariant.Julia ? Visibility.Visible : Visibility.Collapsed;
+        ParameterAtlasButton.Visibility = _definition.HasJuliaConstant ? Visibility.Visible : Visibility.Collapsed;
         JuliaRealBox.Text = _definition.DefaultJuliaReal.ToString(CultureInfo.InvariantCulture);
         JuliaImaginaryBox.Text = _definition.DefaultJuliaImaginary.ToString(CultureInfo.InvariantCulture);
 
@@ -316,6 +316,7 @@ public partial class MandelbrotWindow : Window
         if (_definition.HasJuliaConstant)
         {
             _constantPicker?.UpdateFormulaParameters(state.Power, state.UseInversion, _hybridSettings);
+            _parameterAtlas?.UpdateFormulaParameters(state.Power, state.UseInversion, _hybridSettings);
             if (IsLoaded) _ = RenderJuliaMapPreviewAsync();
         }
         ScheduleRender();
@@ -356,6 +357,7 @@ public partial class MandelbrotWindow : Window
                 try
                 {
                     _constantPicker?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true, _hybridSettings);
+                    _parameterAtlas?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true, _hybridSettings);
                     _ = RenderJuliaMapPreviewAsync();
                 }
                 catch (Exception ex) { StatusText.Text = ex.Message; }

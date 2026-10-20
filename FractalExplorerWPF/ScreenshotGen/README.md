@@ -22,9 +22,9 @@ Physarum 3D (`Fractal3D:Physarum3D`) входит в общий обход ка�
 
 # Генератор скриншотов окон WPF
 
-Классическое `Julia` дополнительно снимает `JuliaParameterAtlasWindow`
-(`julia-parameter-atlas.png`), с ожиданием завершения расчёта сетки. Другие варианты
-Жюлиа атлас пока не открывают. Генератор запускается только по просьбе пользователя.
+Каждый вариант Жюлиа дополнительно снимает `JuliaParameterAtlasWindow` с ожиданием
+расчёта сетки: `julia-parameter-atlas.png` для классического, для остальных —
+`mandelbrot-<вариант>-parameter-atlas.png`. Генератор запускается только по просьбе пользователя.
 
 `McMullen` входит в общий обход: `McMullenWindow` (`mcmullen`), общий редактор палитры
 (`mcmullen-palette`) и карта λ (`mcmullen-lambda`). Фильтр — `--only=McMullen`;

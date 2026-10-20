@@ -9,8 +9,8 @@ public static class JuliaParameterAtlasRenderer
     public static byte[] Render(MandelbrotState source, decimal real, decimal imaginary,
         int width, int height, CancellationToken token)
     {
-        if (source.Variant != MandelbrotVariant.Julia)
-            throw new ArgumentException("Опытный атлас поддерживает только классическое Жюлиа.", nameof(source));
+        if (!MandelbrotVariantDefinition.IsJulia(source.Variant))
+            throw new ArgumentException("Атлас поддерживает варианты семейства Жюлиа.", nameof(source));
         token.ThrowIfCancellationRequested();
         var state = source.Clone();
         // Сравниваем полные формы, независимо от глубокого зума основного окна.

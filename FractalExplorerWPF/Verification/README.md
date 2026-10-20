@@ -4,10 +4,12 @@
 
 # Проверка превью сохранений WPF
 
-Атлас параметров классического Жюлиа: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- julia-atlas`.
+Атлас параметров всех вариантов Жюлиа: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- julia-atlas`.
 Лёгкая адресная группа без показа окон: диапазоны и оси, различные C и неизменность
 исходного состояния, отмена и запоздалые результаты, числовой ввод, доступность кнопки,
-выбор ячейки и применение в исходное окно с сохранением центра и масштаба.
+выбор ячейки и применение в исходное окно с сохранением центра и масштаба. Для всех
+вариантов — пиктограмма, название, маленький кадр 32×24 с текущей формулой и применение C;
+для Multijulia, Симоноброта и гибрида — обновление параметров открытого атласа.
 Описание и ручная проверка — [JULIA_PARAMETER_ATLAS.md](../JULIA_PARAMETER_ATLAS.md).
 
 Семейство Макмаллена: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- mcmullen [папка PNG]`.

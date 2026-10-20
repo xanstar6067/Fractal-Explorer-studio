@@ -25,12 +25,13 @@ public partial class JuliaParameterAtlasWindow : Window
 
     public JuliaParameterAtlasWindow(MandelbrotState source)
     {
-        if (source.Variant != MandelbrotVariant.Julia)
-            throw new ArgumentException("Атлас доступен только для классического Жюлиа.", nameof(source));
+        if (!MandelbrotVariantDefinition.IsJulia(source.Variant))
+            throw new ArgumentException("Атлас доступен для вариантов семейства Жюлиа.", nameof(source));
         _source = source.Clone();
         SelectedReal = source.JuliaCReal;
         SelectedImaginary = source.JuliaCImaginary;
         InitializeComponent();
+        Title = HeaderText.Text = $"Атлас параметров · {MandelbrotVariantDefinition.For(source.Variant).DisplayName}";
         SetRange(ParameterAtlasRange.Around(SelectedReal, SelectedImaginary, 0.4m, 0.4m));
         NumericInput.Decimal(this, MinRealBox, "минимум Re(C)", -10m, 10m);
         NumericInput.Decimal(this, MaxRealBox, "максимум Re(C)", -10m, 10m);
@@ -39,6 +40,18 @@ public partial class JuliaParameterAtlasWindow : Window
         NumericInput.OrderedPair(this, MinRealBox, MaxRealBox);
         NumericInput.OrderedPair(this, MinImaginaryBox, MaxImaginaryBox);
         Loaded += async (_, _) => await BuildAtlasAsync();
+    }
+
+    internal void UpdateFormulaParameters(decimal power, bool useInversion, HybridFormulaSettings hybrid)
+    {
+        if (_closed || _source.Power == power && _source.UseInversion == useInversion
+            && _source.Hybrid.Steps.Select(s => (s.Formula, s.Power, s.Repeats))
+                .SequenceEqual(hybrid.Steps.Select(s => (s.Formula, s.Power, s.Repeats)))) return;
+        _source.Power = power;
+        _source.UseInversion = useInversion;
+        _source.Hybrid = hybrid.Clone();
+        // Обновление формулы не завершает черновики диапазонов: перестраиваем показанный диапазон.
+        if (IsLoaded) _ = RenderAtlasAsync(_range, TilesPanel.Columns);
     }
 
     private void SetRange(ParameterAtlasRange range)
@@ -50,17 +63,25 @@ public partial class JuliaParameterAtlasWindow : Window
         MaxImaginaryBox.Text = range.MaxY.ToString(CultureInfo.InvariantCulture);
     }
 
-    private async Task BuildAtlasAsync()
+    private Task BuildAtlasAsync()
     {
-        if (_closed) return;
+        if (_closed) return Task.CompletedTask;
         NumericInput.CommitAll(this);
         var range = new ParameterAtlasRange(Parse(MinRealBox), Parse(MaxRealBox), Parse(MinImaginaryBox), Parse(MaxImaginaryBox));
-        if (!range.IsValid) { StatusText.Text = "Укажите возрастающие диапазоны от −10 до 10."; return; }
+        if (!range.IsValid) { StatusText.Text = "Укажите возрастающие диапазоны от −10 до 10."; return Task.CompletedTask; }
+        int size = int.Parse((string)((ComboBoxItem)GridSizeBox.SelectedItem).Tag, CultureInfo.InvariantCulture);
+        return RenderAtlasAsync(range, size);
+    }
+
+    private async Task RenderAtlasAsync(ParameterAtlasRange range, int size)
+    {
+        if (_closed) return;
+        // Все ячейки поколения получают одну формулу, даже если владелец меняет её во время расчёта.
+        MandelbrotState renderSource = _source.Clone();
         if (range != _range) { _history.Push(_range); _range = range; }
         _renderCts?.Cancel();
         using var cts = new CancellationTokenSource();
         _renderCts = cts;
-        int size = int.Parse((string)((ComboBoxItem)GridSizeBox.SelectedItem).Tag, CultureInfo.InvariantCulture);
         TilesPanel.Children.Clear();
         TilesPanel.Columns = size;
         _selectedButton = null;
@@ -101,7 +122,7 @@ public partial class JuliaParameterAtlasWindow : Window
             foreach (var tile in tiles.OrderBy(t => Math.Abs(t.Row - size / 2) + Math.Abs(t.Column - size / 2)))
             {
                 cts.Token.ThrowIfCancellationRequested();
-                byte[] pixels = await Task.Run(() => JuliaParameterAtlasRenderer.Render(_source, tile.Real, tile.Imaginary, 144, 108, cts.Token), cts.Token);
+                byte[] pixels = await Task.Run(() => JuliaParameterAtlasRenderer.Render(renderSource, tile.Real, tile.Imaginary, 144, 108, cts.Token), cts.Token);
                 if (cts.IsCancellationRequested || _closed || !ReferenceEquals(_renderCts, cts)) return;
                 var bitmap = BitmapSource.Create(144, 108, 96, 96, PixelFormats.Bgra32, null, pixels, 144 * 4);
                 bitmap.Freeze();
@@ -109,7 +130,7 @@ public partial class JuliaParameterAtlasWindow : Window
                 tile.Button.IsEnabled = true;
                 done++;
                 if (_selectedButton is null) SelectTile(tile.Button, tile.Image, tile.Real, tile.Imaginary);
-                StatusText.Text = $"{done} / {size * size} · ЦП, 1 поток · до {Math.Min(_source.Iterations, JuliaParameterAtlasRenderer.PreviewIterations)} итераций";
+                StatusText.Text = $"{done} / {size * size} · ЦП, 1 поток · до {Math.Min(renderSource.Iterations, JuliaParameterAtlasRenderer.PreviewIterations)} итераций";
             }
         }
         catch (OperationCanceledException)
@@ -159,7 +180,7 @@ public partial class JuliaParameterAtlasWindow : Window
     }
     private async void Overview_OnClick(object sender, RoutedEventArgs e)
     {
-        var next = new ParameterAtlasRange(-2m, 1m, -1.2m, 1.2m);
+        var next = ParameterAtlasRange.JuliaOverview(_source.Variant);
         if (_range != next) _history.Push(_range);
         SetRange(next);
         await BuildAtlasAsync();

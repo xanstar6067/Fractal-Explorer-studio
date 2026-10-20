@@ -94,6 +94,7 @@ public partial class MandelbrotWindow
             HybridValidationText.Text = $"В цикле {_hybridSettings.Steps.Sum(s => s.Repeats)} шагов";
             if (!IsLoaded) return;
             _constantPicker?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true, _hybridSettings);
+            _parameterAtlas?.UpdateFormulaParameters(ReadFormulaPower(), InversionBox.IsChecked == true, _hybridSettings);
             if (_definition.HasJuliaConstant) _ = RenderJuliaMapPreviewAsync();
             ScheduleRender();
         }
