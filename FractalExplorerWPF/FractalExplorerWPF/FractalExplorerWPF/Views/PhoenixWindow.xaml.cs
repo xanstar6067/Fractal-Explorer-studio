@@ -198,7 +198,7 @@ public partial class PhoenixWindow : Window
         PeriodPanel.Visibility = mode == PhoenixColoringMode.Period ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void Parameter_OnChanged(object sender, EventArgs e) { UpdatePlaneUi(); ScheduleRender(); }
+    private void Parameter_OnChanged(object sender, EventArgs e) { if (_updatingControls) return; UpdatePlaneUi(); RefreshParameterAtlas(); ScheduleRender(); }
     private void ZoomBox_OnChanged(object sender, TextChangedEventArgs e)
     {
         if (!NumericInput.IsValid(ZoomBox)) return;
@@ -367,7 +367,7 @@ public partial class PhoenixWindow : Window
     private void UpdatePreviewTransform() => _viewport.UpdatePreview();
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e) => FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost, ToggleControlsButton, 310, ScheduleRender);
     private void Window_OnKeyDown(object sender, KeyEventArgs e) { _fullscreen.HandleKey(this, e.Key); }
-    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _renderTimer.Stop(); _activeSession?.End(); _renderCts?.Cancel(); _renderCts?.Dispose(); }
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e) { _parameterAtlas?.Close(); _renderTimer.Stop(); _activeSession?.End(); _renderCts?.Cancel(); _renderCts?.Dispose(); }
     /// <summary>Возврат к исходному виду: центр в нуле, зум 1.</summary>
     private void ResetView()
     {

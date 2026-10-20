@@ -183,13 +183,13 @@ internal static class Program
             }
             throw new TimeoutException("Карта C не завершила рендер перед захватом.");
         }
-        if (win is JuliaParameterAtlasWindow)
+        if (win is ParameterAtlasWindow atlas)
         {
             var atlasWait = System.Diagnostics.Stopwatch.StartNew();
-            while (GetMember(win, "_renderCts") is not null && atlasWait.ElapsedMilliseconds < maxExtraMs)
+            while (atlas.IsRendering && atlasWait.ElapsedMilliseconds < maxExtraMs)
                 await Task.Delay(150);
-            if (GetMember(win, "_renderCts") is not null)
-                throw new TimeoutException("Атлас Жюлиа не завершил рендер перед захватом.");
+            if (atlas.IsRendering)
+                throw new TimeoutException("Атлас параметров не завершил рендер перед захватом.");
             return;
         }
         string renderFlag = win is DynamicSystemWindow or TranscendentalJuliaWindow or McMullenWindow ? "_rendering" : "_isRendering";
@@ -631,6 +631,7 @@ internal static class Program
                         {
                             object state = Invoke(w, "CaptureState", "screenshot")!;
                             await CaptureChildAsync(w, new PhoenixParameterExplorerWindow((PhoenixState)state), "phoenix-parameter-explorer");
+                            await CaptureChildAsync(w, new PhoenixParameterAtlasWindow((PhoenixState)state), "phoenix-parameter-atlas");
                         }
                         catch (Exception ex) { Console.Error.WriteLine("  [warn] phoenix-parameter-explorer: " + ex.Message); }
                     }

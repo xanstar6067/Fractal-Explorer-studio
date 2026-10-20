@@ -32,8 +32,8 @@ public readonly record struct ParameterAtlasRange(decimal MinX, decimal MaxX, de
     {
         width = Math.Clamp(width, 0m, 20m);
         height = Math.Clamp(height, 0m, 20m);
-        decimal left = Math.Clamp(x - width / 2, -10m, 10m - width);
-        decimal bottom = Math.Clamp(y - height / 2, -10m, 10m - height);
+        decimal left = Math.Clamp(Math.Clamp(x, -10m, 10m) - width / 2, -10m, 10m - width);
+        decimal bottom = Math.Clamp(Math.Clamp(y, -10m, 10m) - height / 2, -10m, 10m - height);
         return new(left, left + width, bottom, bottom + height);
     }
 }

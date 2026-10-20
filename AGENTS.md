@@ -107,6 +107,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `JuliaParameterAtlasWindow` — атлас Re(C)/Im(C) всех вариантов Жюлиа в `MandelbrotWindow`, включая гибриды; пиктограмма сетки рядом со скрытием меню, применение C в исходное окно (`JULIA_PARAMETER_ATLAS.md`, проверка `julia-atlas`).
 
+`PhoenixParameterAtlasWindow` — атлас динамических форм Phoenix 2D: любые две компоненты C₁/C₂ на осях, остальные фиксированы; общая оболочка с Жюлиа — `ParameterAtlasWindow` (`PHOENIX.md`, проверка `phoenix-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

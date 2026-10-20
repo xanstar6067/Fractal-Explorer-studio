@@ -62,6 +62,11 @@ internal static partial class Program
         {
             try
             {
+                if (group == "phoenix-atlas")
+                {
+                    await VerifyPhoenixParameterAtlasAsync();
+                    return;
+                }
                 if (group == "julia-atlas")
                 {
                     await VerifyJuliaParameterAtlasAsync();

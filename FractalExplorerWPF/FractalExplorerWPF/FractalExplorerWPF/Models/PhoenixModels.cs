@@ -45,6 +45,13 @@ public enum PhoenixParameterPlane
 
 public sealed class PhoenixState
 {
+    public PhoenixState Clone()
+    {
+        var copy = (PhoenixState)MemberwiseClone();
+        copy.Palette = Palette.Clone(Palette.Name);
+        return copy;
+    }
+
     public string SaveName { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
     public string FractalType { get; set; } = "Phoenix";

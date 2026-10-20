@@ -1,8 +1,8 @@
-<Window x:Class="FractalExplorerWPF.Views.JuliaParameterAtlasWindow"
+<Window x:Class="FractalExplorerWPF.Views.ParameterAtlasWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FractalExplorerWPF.Controls"
-        Title="Атлас параметров · Жюлиа" Width="1060" Height="820"
+        Title="Атлас параметров" Width="1060" Height="820"
         MinWidth="860" MinHeight="640" WindowStartupLocation="CenterOwner"
         Icon="../Assets/Icons/FractalExplorer.ico" Closed="Window_OnClosed">
     <Grid Margin="14" Background="{DynamicResource Theme.BaseBackgroundBrush}">
@@ -12,14 +12,16 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="112"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="По горизонтали: Re(C), от / до"/>
+                    <TextBlock x:Name="XAxisLabel"/>
+                    <ComboBox x:Name="XAxisBox" SelectionChanged="Axes_OnChanged" Margin="0,4,0,0"/>
                     <UniformGrid Columns="2">
                         <TextBox x:Name="MinRealBox" controls:NumericSpinner.IsEnabled="True" Margin="0,4,4,0"/>
                         <TextBox x:Name="MaxRealBox" controls:NumericSpinner.IsEnabled="True" Margin="4,4,0,0"/>
                     </UniformGrid>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                    <TextBlock Text="По вертикали: Im(C), от / до"/>
+                    <TextBlock x:Name="YAxisLabel"/>
+                    <ComboBox x:Name="YAxisBox" SelectionChanged="Axes_OnChanged" Margin="0,4,0,0"/>
                     <UniformGrid Columns="2">
                         <TextBox x:Name="MinImaginaryBox" controls:NumericSpinner.IsEnabled="True" Margin="0,4,4,0"/>
                         <TextBox x:Name="MaxImaginaryBox" controls:NumericSpinner.IsEnabled="True" Margin="4,4,0,0"/>
@@ -33,6 +35,7 @@
                 </StackPanel>
                 <Button Grid.Column="3" Content="Построить" VerticalAlignment="Bottom" Padding="14,6" Click="Build_OnClick"/>
             </Grid>
+            <WrapPanel x:Name="FixedPointPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
             <WrapPanel Margin="0,10,0,10">
                 <Button Content="Общий диапазон" Click="Overview_OnClick" Padding="10,5" Margin="0,0,8,0"/>
                 <Button x:Name="BackButton" Content="Назад к диапазону" Click="Back_OnClick" IsEnabled="False" Padding="10,5"/>
@@ -57,8 +60,8 @@
                     <TextBlock x:Name="SelectedText" Margin="0,10,0,10" TextWrapping="Wrap"/>
                     <Button x:Name="ApplyButton" Content="Применить в текущем окне" Click="Apply_OnClick" IsEnabled="False" Padding="4,7"/>
                     <Button x:Name="NarrowButton" Content="Исследовать рядом" Click="Narrow_OnClick" IsEnabled="False" Padding="4,7" Margin="0,8,0,0"/>
-                    <TextBlock Text="Щелчок — выбор. Двойной щелчок — применение C." Margin="0,14,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
-                    <TextBlock Text="Общий обзор формы и текущая палитра. Применение меняет только C, сохраняя вид основного окна." Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock Text="Щелчок — выбор. Двойной щелчок — применить параметры." Margin="0,14,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+                    <TextBlock x:Name="ApplicationHintText" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
                 </StackPanel>
                 </ScrollViewer>
             </Border>

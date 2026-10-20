@@ -133,5 +133,14 @@
         </Border>
         <Button x:Name="ToggleControlsButton" Grid.Column="1" Style="{StaticResource FractalPanelToggleButtonStyle}"
                 Content="✕" ToolTip="Скрыть панель параметров" Click="ToggleControlsButton_OnClick"/>
+        <Button x:Name="ParameterAtlasButton" Grid.Column="1" Style="{StaticResource FractalPanelToggleButtonStyle}"
+                Margin="50,18,0,0" ToolTip="Атлас параметров Phoenix — C₁/C₂" AutomationProperties.Name="Атлас параметров"
+                Click="ParameterAtlasButton_OnClick">
+            <Path Width="18" Height="18" Stretch="Uniform" IsHitTestVisible="False"
+                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  Data="M0,0 H4 V4 H0 Z M7,0 H11 V4 H7 Z M14,0 H18 V4 H14 Z
+                        M0,7 H4 V11 H0 Z M7,7 H11 V11 H7 Z M14,7 H18 V11 H14 Z
+                        M0,14 H4 V18 H0 Z M7,14 H11 V18 H7 Z M14,14 H18 V18 H14 Z"/>
+        </Button>
     </Grid>
 </Window>

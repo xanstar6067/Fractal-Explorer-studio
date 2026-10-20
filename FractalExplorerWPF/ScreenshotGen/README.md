@@ -22,6 +22,10 @@ Physarum 3D (`Fractal3D:Physarum3D`) входит в общий обход ка�
 
 # Генератор скриншотов окон WPF
 
+`Phoenix` дополнительно снимает `PhoenixParameterAtlasWindow` (`phoenix-parameter-atlas.png`),
+с ожиданием расчёта сетки через общую оболочку `ParameterAtlasWindow`. Существующий
+исследователь C₁/C₂ продолжает сниматься отдельно. Фильтр — `--only=Phoenix`.
+
 Каждый вариант Жюлиа дополнительно снимает `JuliaParameterAtlasWindow` с ожиданием
 расчёта сетки: `julia-parameter-atlas.png` для классического, для остальных —
 `mandelbrot-<вариант>-parameter-atlas.png`. Генератор запускается только по просьбе пользователя.
