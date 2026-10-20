@@ -37,7 +37,8 @@ public static class SaveFormat
             JsonObject? settings = category == "TuringPatterns" ? save : category == "Fractal3DTuring" ? save["Turing"] as JsonObject : null;
             if (settings is not null && !settings.ContainsKey("Reaction")) settings["Reaction"] = new JsonObject { ["Model"] = 0 };
         }),
-        new("Константы C старых сохранений Жюлиа", RestoreLegacyJuliaConstant)
+        new("Константы C старых сохранений Жюлиа", RestoreLegacyJuliaConstant),
+        new("Константы C1/C2 старых сохранений Феникса", RestoreLegacyPhoenixConstants)
     ];
 
     /// <summary>Шов для проверок: подменяет список апгрейдов.</summary>
@@ -73,6 +74,24 @@ public static class SaveFormat
         // The legacy importer stamps the current version without converting old property names.
         // Normalize these aliases even for newly imported, already-stamped files.
         RestoreLegacyJuliaConstant(category, save);
+        RestoreLegacyPhoenixConstants(category, save);
+    }
+
+    private static void RestoreLegacyPhoenixConstants(string category, JsonObject save)
+    {
+        if (category != "Phoenix") return;
+        if (!save.ContainsKey("C1Re") && !save.ContainsKey("C1Im")) return;
+        // The old engine used C1 = (P, Q) for z² + P + Q*z(previous).
+        // Its C2 was reserved and never used. These are real coefficients, not complex C1.
+        foreach (var (legacy, current) in new[]
+                 { ("C1Re", "C1Real"), ("C1Im", "C2Real") })
+        {
+            // Imported files can already carry the current version. Explicit modern zeros win.
+            if (!save.ContainsKey(current) && save[legacy] is { } value)
+                save[current] = value.DeepClone();
+        }
+        if (!save.ContainsKey("C1Imaginary")) save["C1Imaginary"] = 0;
+        if (!save.ContainsKey("C2Imaginary")) save["C2Imaginary"] = 0;
     }
 
     private static void RestoreLegacyJuliaConstant(string category, JsonObject save)

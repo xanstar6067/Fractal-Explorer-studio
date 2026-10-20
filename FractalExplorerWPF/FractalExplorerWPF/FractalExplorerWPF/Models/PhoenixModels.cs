@@ -98,6 +98,9 @@ public sealed class PhoenixState
     public double StripeStrength { get; set; } = 0.65;
     public double CycleTolerance { get; set; } = 1e-7;
     public int MaximumDetectedPeriod { get; set; } = 32;
+    // Old saves stored only the palette name; keep it until the library can resolve it.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PaletteName { get; set; }
     public MandelbrotPalette Palette { get; set; } = new();
 }
 

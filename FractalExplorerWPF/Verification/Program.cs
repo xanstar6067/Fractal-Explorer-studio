@@ -62,6 +62,8 @@ internal static partial class Program
         {
             try
             {
+                if (group is "all" or "phoenix-saves") await VerifyLegacyPhoenixSavesAsync();
+                if (group == "phoenix-saves") return;
                 if (group == "phoenix-atlas")
                 {
                     await VerifyPhoenixParameterAtlasAsync();

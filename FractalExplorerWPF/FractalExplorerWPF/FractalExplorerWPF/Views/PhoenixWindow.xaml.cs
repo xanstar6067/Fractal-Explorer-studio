@@ -139,7 +139,8 @@ public partial class PhoenixWindow : Window
         MaximumPeriodBox.Text = state.MaximumDetectedPeriod.ToString(CultureInfo.InvariantCulture);
         SelectByTag(PlaneModeBox, state.PlaneMode); SelectByTag(VariantBox, state.Variant);
         SelectByTag(ColoringBox, state.ColoringMode); SelectByTag(OrbitTrapBox, state.OrbitTrapMode);
-        _paletteManager.ActivePalette = state.Palette.Clone($"Загружено: {state.SaveName}");
+        MandelbrotPalette palette = ResolveSavedPalette(state);
+        _paletteManager.ActivePalette = palette.Clone(palette.Name);
         UpdatePlaneUi(); UpdateColoringPanels();
         UpdatePreviewTransform(); ScheduleRender();
     }
@@ -149,7 +150,25 @@ public partial class PhoenixWindow : Window
 
     public Task<BitmapSource> RenderStatePreviewAsync(
         PhoenixState state, int width, int height, CancellationToken token, IProgress<int>? progress = null) =>
-        RenderBitmapAsync(state, width, height, 1, token, progress);
+        RenderBitmapAsync(PreparePreviewState(state), width, height, 1, token, progress);
+
+    private PhoenixState PreparePreviewState(PhoenixState state)
+    {
+        PhoenixState preview = state.Clone();
+        MandelbrotPalette palette = ResolveSavedPalette(state);
+        preview.Palette = palette.Clone(palette.Name);
+        return preview;
+    }
+
+    private MandelbrotPalette ResolveSavedPalette(PhoenixState state)
+    {
+        MandelbrotPalette palette = state.Palette;
+        if (!string.IsNullOrWhiteSpace(state.PaletteName) &&
+            (palette.Colors.Count == 0 || palette.Name == "Новая палитра"))
+            return _paletteManager.Palettes.FirstOrDefault(candidate =>
+                candidate.Name.Equals(state.PaletteName, StringComparison.OrdinalIgnoreCase)) ?? _paletteManager.Palettes[0];
+        return palette;
+    }
 
     private void ParameterSelector_OnClick(object sender, RoutedEventArgs e)
     {
