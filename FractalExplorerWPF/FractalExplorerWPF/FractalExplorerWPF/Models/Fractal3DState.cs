@@ -43,6 +43,9 @@ public sealed class Fractal3DState
     public Hybrid3DOrder HybridOrder { get; set; }
     public double SierpinskiScale { get; set; } = 2;
     public double CubeThickness { get; set; } = 1;
+    /// <summary>Своя маска 3×3×3; null сохраняет прежнюю формулу режима, 0 означает пустую сцену.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public uint? CubeRuleMask { get; set; }
     public List<Ifs3DTransform> IfsTransforms { get; set; } = [];
     public Attractor3DSettings Attractor { get; set; } = Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
 

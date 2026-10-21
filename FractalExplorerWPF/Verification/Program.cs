@@ -122,6 +122,8 @@ internal static partial class Program
                 if (group == "all") await VerifyTranscendentalRaysAsync(["transcendental-rays"]);
                 if (group is "all" or "preparation3d") await Verify3DPreparationAsync(args);
                 if (group is "all" or "fractal3d") await VerifyFractal3DAsync();
+                if (group is "all" or "cube-rules") await VerifyCubeRulesAsync(args);
+                if (group == "cube-rules") return;
                 if (group is "all" or "fractal3d-modes") await VerifyFractal3DModesAsync(args);
                 if (group is "all" or "flame3d") await VerifyFlame3DAsync(args);
                 if (group is "all" or "buddhabrot4d") await VerifyBuddhabrot4DAsync(args);

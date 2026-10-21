@@ -261,7 +261,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
     private static int ComputeStripRows(Fractal3DState state, int width, int height)
     {
         Fractal3DMode mode = Fractal3DCatalog.Mode(state.Kind);
-        if (mode.StripPixelBudget is int pixels)
+        if (mode.GetStripPixelBudget(state) is int pixels)
             return Math.Clamp(pixels / Math.Max(width, 1), 1, height);
         if (height <= 8) return height;
         if (mode.IsDensityVolume)

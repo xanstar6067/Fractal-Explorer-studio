@@ -113,7 +113,11 @@ public partial class Fractal3DWindow
         NumericInput.Include(this, AntoineEditor);
         NumericInput.Include(this, NewtonEditor);
         NumericInput.Include(this, HyperbolicEditor);
-        RegisterModeField(IterationsBox, _mode.IterationsField);
+        if (_mode.HasCubeRule)
+            NumericInput.Integer(this, IterationsBox, _mode.IterationsField.Name,
+                () => (int)_mode.IterationsField.Minimum,
+                () => CubeEditor.Capture().HasValue ? 12 : (int)_mode.IterationsField.Maximum);
+        else RegisterModeField(IterationsBox, _mode.IterationsField);
         RegisterModeField(PowerBox, _mode.PowerField);
     }
 

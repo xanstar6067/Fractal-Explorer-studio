@@ -112,6 +112,7 @@ public partial class Fractal3DWindow : Window
         PanelTitleText.Text = _definition.PanelTitle;
         KindDescriptionText.Text = _definition.Description;
         ConfigureKindLayout();
+        CubeEditor.LevelStepRequested += StepCubeGeneration;
 
         PresetBox.ItemsSource = _presets.Select(preset => preset.SaveName).ToArray();
         PresetBox.SelectedIndex = 0;
@@ -206,6 +207,7 @@ public partial class Fractal3DWindow : Window
         HybridOrder = SelectedHybridOrder,
         SierpinskiScale = ReadDouble(SierpinskiScaleBox, "Масштаб складывания", 1.05, 8),
         CubeThickness = ReadDouble(CubeThicknessBox, "Толщина элементов", 0.5, 1.5),
+        CubeRuleMask = _mode.HasCubeRule ? CubeEditor.Capture() : null,
 
         CameraYaw = CameraAngles.Yaw,
         CameraPitch = CameraAngles.Pitch,
@@ -332,6 +334,8 @@ public partial class Fractal3DWindow : Window
         HybridOrderBox.SelectedIndex = (int)state.HybridOrder;
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
         CubeThicknessBox.Text = Format(state.CubeThickness);
+        if (_mode.HasCubeRule) CubeEditor.Load(Kind, state.CubeRuleMask);
+        CubeThicknessPanel.IsEnabled = !_mode.HasCubeRule || !state.CubeRuleMask.HasValue;
         LoadFlame(state.Flame);
         if (Kind == Fractal3DKind.Buddhabrot4D) BuddhabrotEditor.Load(state.Buddhabrot ?? new());
         LoadIfsTransforms(state.IfsTransforms);
@@ -449,6 +453,7 @@ public partial class Fractal3DWindow : Window
         HybridPanel.Visibility = Collapse(Kind == Fractal3DKind.BulbBoxHybrid);
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
+        CubeEditor.Visibility = Collapse(_mode.HasCubeRule);
 
         // Панели отдельных режимов; живые моделирования ставят свой редактор сами (AttachSimulation).
         LyapunovPanel.Visibility = Collapse(Kind == Fractal3DKind.Lyapunov3D);
@@ -477,6 +482,14 @@ public partial class Fractal3DWindow : Window
         : ReadDouble(box, field.Name, field.Minimum, field.Maximum);
 
     private static Visibility Collapse(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
+
+    private void StepCubeGeneration(int step)
+    {
+        NumericInput.CommitAll(this);
+        int current = (int)ReadField(IterationsBox, _mode.IterationsField);
+        int maximum = CubeEditor.Capture().HasValue ? 12 : (int)_mode.IterationsField.Maximum;
+        IterationsBox.Text = Math.Clamp(current + step, (int)_mode.IterationsField.Minimum, maximum).ToString(CultureInfo.InvariantCulture);
+    }
 
     private Fractal3DColoringMode SelectedColoringMode =>
         (Fractal3DColoringMode)Math.Clamp(ColoringModeBox.SelectedIndex, 0, (int)Fractal3DColoringMode.Steps);
@@ -675,6 +688,7 @@ public partial class Fractal3DWindow : Window
 
     private void Parameter_OnChanged(object sender, EventArgs e)
     {
+        if (ReferenceEquals(sender, CubeEditor)) CubeThicknessPanel.IsEnabled = !CubeEditor.Capture().HasValue;
         if (ReferenceEquals(sender, ShadingStyleBox)) UpdateColoringPanels();
         if (!_updatingUi)
         {

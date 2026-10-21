@@ -3,7 +3,7 @@ using System.Numerics;
 namespace FractalExplorerWPF.Models.Fractal3DModes;
 
 /// <summary>Кубические решётки: на каждом уровне куб заменяется набором кубиков меньшего размера.</summary>
-internal abstract class CubeLatticeMode(Fractal3DKind kind, Fractal3DDefinition definition) : Fractal3DMode(kind, definition)
+internal abstract class CubeLatticeMode(Fractal3DKind kind, Fractal3DDefinition definition) : CubeRuleMode(kind, definition)
 {
     protected override void ConfigureDefault(Fractal3DState state)
     {
@@ -24,7 +24,8 @@ internal abstract class CubeLatticeMode(Fractal3DKind kind, Fractal3DDefinition 
     ];
 
     public override Fractal3DShapeConstants ShapeConstants(Fractal3DState state) =>
-        new(new Vector3((float)state.CubeThickness, 0f, 0f), JuliaConstant(state), 0, BoxInversion(state));
+        state.CubeRuleMask.HasValue ? base.ShapeConstants(state) :
+            new(new Vector3((float)state.CubeThickness, 0f, 0f), JuliaConstant(state), 0, BoxInversion(state));
 }
 
 internal sealed class VicsekMode() : CubeLatticeMode(Fractal3DKind.Vicsek, new(
@@ -32,7 +33,8 @@ internal sealed class VicsekMode() : CubeLatticeMode(Fractal3DKind.Vicsek, new(
     "На каждом уровне куб заменяется центральным кубиком и шестью кубиками на гранях.",
     "Fractal3DVicsek", "vicsek-3d"))
 {
-    protected override string ShapeSummary(Fractal3DState state) => $"Семь кубиков · Толщина: {state.CubeThickness:G4}";
+    protected override string ShapeSummary(Fractal3DState state) => state.CubeRuleMask.HasValue
+        ? base.ShapeSummary(state) : $"Семь кубиков · Толщина: {state.CubeThickness:G4}";
 }
 
 internal sealed class CantorDustMode() : CubeLatticeMode(Fractal3DKind.CantorDust, new(
@@ -40,5 +42,6 @@ internal sealed class CantorDustMode() : CubeLatticeMode(Fractal3DKind.CantorDus
     "На каждом уровне остаются восемь угловых кубиков из 27; структура повторяется в каждом из них.",
     "Fractal3DCantorDust", "cantor-dust-3d"))
 {
-    protected override string ShapeSummary(Fractal3DState state) => $"Восемь угловых кубиков · Толщина: {state.CubeThickness:G4}";
+    protected override string ShapeSummary(Fractal3DState state) => state.CubeRuleMask.HasValue
+        ? base.ShapeSummary(state) : $"Восемь угловых кубиков · Толщина: {state.CubeThickness:G4}";
 }

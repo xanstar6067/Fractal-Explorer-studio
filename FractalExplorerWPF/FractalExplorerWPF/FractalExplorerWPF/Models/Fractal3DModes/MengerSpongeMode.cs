@@ -1,6 +1,6 @@
 namespace FractalExplorerWPF.Models.Fractal3DModes;
 
-internal sealed class MengerSpongeMode() : Fractal3DMode(Fractal3DKind.MengerSponge, new(
+internal sealed class MengerSpongeMode() : CubeRuleMode(Fractal3DKind.MengerSponge, new(
     "Губка Менгера", "Губка Менгера",
     "Куб, из которого рекурсивно вырезаются крестообразные тоннели; классический самоподобный объект размерности log20/log3.",
     "Fractal3DMengerSponge", "menger-sponge"))
@@ -50,5 +50,6 @@ internal sealed class MengerSpongeMode() : Fractal3DMode(Fractal3DKind.MengerSpo
         })
     ];
 
-    protected override string ShapeSummary(Fractal3DState state) => "Рекурсивные тоннели куба";
+    protected override string ShapeSummary(Fractal3DState state) => state.CubeRuleMask.HasValue
+        ? base.ShapeSummary(state) : "Рекурсивные тоннели куба";
 }

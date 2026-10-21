@@ -149,6 +149,102 @@ static float StepScale = 1.0;
 // деталей, а полный шаг начинает проскакивать поверхность — 0.5 оставляет двойной запас.
 #define HYBRID_STEP 0.5
 
+#if FRACTAL_KIND == KIND_MengerSponge || FRACTAL_KIND == KIND_Vicsek || FRACTAL_KIND == KIND_CantorDust
+#define HAS_CUBE_RULE
+static float3 CubeNormal = float3(0, 0, 1);
+
+uint CubeMask() { return (uint)ShapeB.x | ((uint)ShapeB.y << 14); }
+
+// Находит самый крупный пустой кубик либо заполненный кубик конечного поколения.
+bool CubeCell(float3 p, out float3 lower, out float size, out float4 trap)
+{
+    lower = float3(-1, -1, -1);
+    size = 2;
+    trap = float4(length(p), MinAxis(p), 0, length(p));
+    uint mask = CubeMask();
+    [loop] for (int depth = 0; depth < min((int)March.w, 12); depth++)
+    {
+        size /= 3;
+        int3 digit = clamp((int3)floor((p - lower) / size), 0, 2);
+        lower += (float3)digit * size;
+        float3 local = (p - lower) / size * 2 - 1;
+        trap = float4(min(trap.x, length(local)), min(trap.y, MinAxis(local)), depth, length(local));
+        if ((mask & (1u << (digit.x + 3 * digit.y + 9 * digit.z))) == 0u) return false;
+    }
+    return true;
+}
+
+// Только локальная оценка для затенения и масштаба. Пересечения считаются точным
+// проходом по иерархии, поскольку периодический DE даёт ложные крышки у асимметричных правил.
+float CubeMap(float3 p, out float4 trap)
+{
+    trap = float4(length(p), MinAxis(p), 0, length(p));
+    float outer = BoxDistance(p, float3(1, 1, 1));
+    if (outer > 0) return outer;
+    float3 lower; float size;
+    bool filled = CubeCell(p, lower, size, trap);
+    float distance = max(-BoxDistance(p - lower - size * .5, size * .5), 0);
+    return filled ? -distance : distance;
+}
+
+bool TraceCubeRule(float3 origin, float3 direction, float maxDistance,
+                   out float travelled, out int usedSteps, out float4 trap)
+{
+    travelled = 0; usedSteps = 0; trap = 0;
+    if (CubeMask() == 0u) return false;
+    float3 safe = float3(abs(direction.x) > 1e-12 ? direction.x : 1e-12,
+        abs(direction.y) > 1e-12 ? direction.y : 1e-12, abs(direction.z) > 1e-12 ? direction.z : 1e-12);
+    float3 inverse = 1 / safe;
+    float3 t0 = (-1 - origin) * inverse;
+    float3 t1 = (1 - origin) * inverse;
+    float3 near = min(t0, t1), far = max(t0, t1);
+    float entry = max(near.x, max(near.y, near.z));
+    float exit = min(far.x, min(far.y, far.z));
+    if (exit <= max(entry, 0) || entry > maxDistance) return false;
+    if (CubeMask() == 134217727u)
+    {
+        bool inside = all(abs(origin) < 1);
+        travelled = inside ? exit : max(entry, 0);
+        int face = inside ? (far.x <= far.y && far.x <= far.z ? 0 : far.y <= far.z ? 1 : 2)
+            : (near.x >= near.y && near.x >= near.z ? 0 : near.y >= near.z ? 1 : 2);
+        CubeNormal = (inside ? 1 : -1) * sign(safe) * float3(face == 0, face == 1, face == 2);
+        trap = float4(length(origin + direction * travelled), 0, 0, 1);
+        usedSteps = 1;
+        return travelled <= maxDistance;
+    }
+    float3 lower; float size; float4 unused;
+    bool leaving = all(abs(origin) < 1) && CubeCell(origin, lower, size, unused);
+    travelled = max(entry, 0);
+    int axis = near.x >= near.y && near.x >= near.z ? 0 : near.y >= near.z ? 1 : 2;
+    CubeNormal = -sign(safe) * float3(axis == 0, axis == 1, axis == 2);
+    [loop] for (int step = 0; step < (int)March.x; step++)
+    {
+        usedSteps = step + 1;
+        float nudge = max(2e-7, abs(travelled) * 2e-7);
+        float3 p = origin + direction * (travelled + nudge);
+        bool inRoot = all(abs(p) < 1);
+        bool filled = inRoot && CubeCell(p, lower, size, trap);
+        if (filled != leaving)
+        {
+            CubeNormal = (leaving ? 1 : -1) * sign(safe) * float3(axis == 0, axis == 1, axis == 2);
+            return travelled <= maxDistance;
+        }
+        if (!inRoot) return false;
+        // Перескакиваем только заведомо пустой узел либо заполненный лист.
+        // Общие грани оставленных соседей не завершают луч изнутри.
+        float3 boundary = float3(direction.x >= 0 ? lower.x + size : lower.x,
+            direction.y >= 0 ? lower.y + size : lower.y, direction.z >= 0 ? lower.z + size : lower.z);
+        float3 next = (boundary - origin) * inverse;
+        next = float3(abs(direction.x) < 1e-12 ? 1e20 : next.x,
+            abs(direction.y) < 1e-12 ? 1e20 : next.y, abs(direction.z) < 1e-12 ? 1e20 : next.z);
+        axis = next.x <= next.y && next.x <= next.z ? 0 : next.y <= next.z ? 1 : 2;
+        travelled = max(next[axis], travelled + nudge);
+        if (travelled > maxDistance || travelled > exit + nudge) return false;
+    }
+    return false;
+}
+#endif
+
 // Дистанционная оценка до поверхности фрактала. trap — данные орбиты, из которых берётся
 // цвет: x — минимальный радиус, y — минимум по осям, z — номер последней итерации
 // (у вылетающих орбит это итерация вылета, у остальных — итерация минимума),
@@ -161,6 +257,10 @@ float Map(float3 p, out float4 trap)
     float trapRadius2 = 1e20;
     float trapAxis = 1e20;
     float trapIndex = 0.0;
+
+#ifdef HAS_CUBE_RULE
+    if (BoxInversion.w > .5) return CubeMap(p, trap);
+#endif
 
 #if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     return LMap(p, trap);
@@ -639,6 +739,9 @@ float Map(float3 p, out float4 trap)
 
 float3 EstimateNormal(float3 p, float epsilon)
 {
+#ifdef HAS_CUBE_RULE
+    if (BoxInversion.w > .5) return CubeNormal;
+#endif
 #if FRACTAL_KIND == KIND_ImplicitSurface
     return ImplicitNormal(p, epsilon);
 #endif
@@ -660,6 +763,13 @@ float3 EstimateNormal(float3 p, float epsilon)
 
 float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDistance, float sharpness)
 {
+#ifdef HAS_CUBE_RULE
+    if (BoxInversion.w > .5)
+    {
+        float distance; int steps; float4 trap;
+        return TraceCubeRule(origin + direction * minDistance, direction, maxDistance, distance, steps, trap) ? .2 : 1;
+    }
+#endif
 #if FRACTAL_KIND == KIND_ImplicitSurface
     float distance; int steps; float4 trap;
     return TraceImplicit(origin+direction*minDistance,direction,maxDistance,distance,steps,trap) ? .2 : 1;
@@ -883,6 +993,12 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
 #elif FRACTAL_KIND == KIND_ImplicitSurface
     hit = TraceImplicit(origin, reflected, March.z, distance, steps, reflectedTrap);
 #else
+#ifdef HAS_CUBE_RULE
+    if (BoxInversion.w > .5)
+        hit = TraceCubeRule(origin, reflected, March.z, distance, steps, reflectedTrap);
+    else
+    {
+#endif
     int limit = min((int)March.x, 128);
     [loop]
     for (int i = 0; i < limit; i++)
@@ -901,6 +1017,9 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
         distance += max(separation * StepScale, tolerance);
         if (distance > March.z) break;
     }
+#ifdef HAS_CUBE_RULE
+    }
+#endif
 #endif
     if (!hit)
     {
@@ -1113,6 +1232,17 @@ float4 PSMain(PSInput input) : SV_TARGET
     if (hit && volumetric)
         proximity = .04 / max(abs(dot(EstimateNormal(rayOrigin + rayDirection * travelled, epsilon), rayDirection)), .1);
 #else
+#ifdef HAS_CUBE_RULE
+    if (BoxInversion.w > .5)
+    {
+        hit = TraceCubeRule(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
+        exhausted = false;
+        epsilon = max(pixelRadius * travelled * .05, 1e-7);
+        if (hit && volumetric) proximity = .04 / max(abs(dot(CubeNormal, rayDirection)), .1);
+    }
+    else
+    {
+#endif
 #if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     if (!volumetric || Probe.x > .5)
     {
@@ -1164,6 +1294,9 @@ float4 PSMain(PSInput input) : SV_TARGET
         }
     }
 #if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
+    }
+#endif
+#ifdef HAS_CUBE_RULE
     }
 #endif
 #endif

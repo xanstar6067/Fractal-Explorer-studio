@@ -508,6 +508,7 @@ internal static class Program
             {
                 // Включая Newton3D (fractal3d-newton3-d) и его Newton3DEditor с вводом формул; AntoineNecklace (fractal3d-antoine-necklace), Kleinian (fractal3d-kleinian), PhaseFieldCrystal3D (fractal3d-phase-field-crystal3-d), SwiftHohenberg3D (fractal3d-swift-hohenberg3-d), GinzburgLandau3D (fractal3d-ginzburg-landau3-d), AbcFlow, HyperbolicHoneycomb, ImplicitSurface, Terrain, LSystem3D, Buddhabrot4D, Hopf, Lichtenberg3D, Physarum3D, Lenia3D, Lyapunov3D, Excitable3D, PeriodicSurfaces и Kobayashi3D (fractal3d-kobayashi3-d):
                 // параметры, пространственный редактор и экспорт встроены в окно.
+                // MengerSponge, Vicsek и CantorDust включают встроенный CubeRuleEditor (три слоя правила).
                 // Кадр считает GPU. Общий менеджер палитр снимается
                 // один раз — на Мандельбульбе; предпросмотр фрактала в нём отключён (null), чтобы
                 // снимок не зависел от того, успела ли видеокарта посчитать кадр.

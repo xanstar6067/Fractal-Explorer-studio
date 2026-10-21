@@ -24,6 +24,9 @@ public abstract class Fractal3DMode(Fractal3DKind kind, Fractal3DDefinition defi
     /// <summary>Поле «Степень» имеет смысл для формулы.</summary>
     public virtual bool UsesPower => false;
 
+    /// <summary>Редактор рекурсивного правила из 27 кубиков.</summary>
+    public virtual bool HasCubeRule => false;
+
     /// <summary>Формула берёт фиксированную константу C (Жюлиа-варианты, Феникс).</summary>
     public virtual bool UsesJuliaConstant => false;
 
@@ -137,6 +140,9 @@ public abstract class Fractal3DMode(Fractal3DKind kind, Fractal3DDefinition defi
     /// бюджет полосы считается по шагам луча и итерациям.
     /// </summary>
     public virtual int? StripPixelBudget => null;
+
+    /// <summary>Бюджет полосы с учётом выбранного варианта формы.</summary>
+    public virtual int? GetStripPixelBudget(Fractal3DState state) => StripPixelBudget;
 
     /// <summary>Во сколько раз пиксель режима дороже обычной формулы при расчёте бюджета полосы.</summary>
     public virtual double StripCostFactor => 1;
