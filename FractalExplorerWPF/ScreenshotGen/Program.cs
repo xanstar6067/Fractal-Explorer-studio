@@ -514,6 +514,8 @@ internal static class Program
                 // снимок не зависел от того, успела ли видеокарта посчитать кадр.
                 Window? w = await CaptureAsync(() => new Fractal3DWindow(fractal3DKind),
                     "fractal3d-" + Kebab(fractal3DKind.ToString()), 1600);
+                if (w is Fractal3DWindow quaternion && fractal3DKind == Fractal3DKind.QuaternionJulia)
+                    await CaptureChildAsync(w, new QuaternionJuliaAtlasWindow(quaternion.CaptureState("atlas")), "quaternion-julia-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;

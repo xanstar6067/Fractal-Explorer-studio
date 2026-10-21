@@ -31,9 +31,22 @@ public partial class ParameterAtlasWindow : Window
     protected ParameterAtlasWindow() => InitializeComponent();
 
     protected virtual int PreviewIterationCount => 250;
+    protected virtual decimal ComponentMinimum => decimal.MinValue;
+    protected virtual decimal ComponentMaximum => decimal.MaxValue;
+    protected virtual decimal RangeMinimum => -10m;
+    protected virtual decimal RangeMaximum => 10m;
     protected virtual ParameterAtlasRange OverviewRange => new(-2m, 2m, -2m, 2m);
     protected virtual Func<decimal[], CancellationToken, byte[]> CreateRenderSnapshot() =>
         throw new NotSupportedException("Не задан рендерер атласа.");
+
+    protected virtual Func<decimal[], CancellationToken, Task<byte[]>> CreateAsyncRenderSnapshot()
+    {
+        var render = CreateRenderSnapshot();
+        return (point, token) => Task.Run(() => render(point, token), token);
+    }
+    protected virtual string PreviewStatus(int completed, int total, int iterations) =>
+        $"{completed} / {total} · ЦП, 1 поток · до {iterations} итераций";
+    protected virtual void ReleaseRenderResources() { }
 
     protected void InitializeAtlas(string title, string[] names, decimal[] point, string hint)
     {
@@ -58,7 +71,7 @@ public partial class ParameterAtlasWindow : Window
                 var box = new TextBox { Text = Format(point[i]), Margin = new Thickness(0, 4, 0, 0) };
                 NumericSpinner.SetIsEnabled(box, true);
                 panel.Children.Add(box); FixedPointPanel.Children.Add(panel); _componentBoxes.Add(box);
-                NumericInput.Decimal(this, box, names[i], decimal.MinValue, decimal.MaxValue, active: () => index != _xAxis && index != _yAxis);
+                NumericInput.Decimal(this, box, names[i], ComponentMinimum, ComponentMaximum, active: () => index != _xAxis && index != _yAxis);
                 box.TextChanged += (_, _) =>
                 {
                     if (_changing || index == _xAxis || index == _yAxis) return;
@@ -69,10 +82,10 @@ public partial class ParameterAtlasWindow : Window
         }
         UpdateAxesUi();
         SetRange(ParameterAtlasRange.Around(point[0], point[1], .4m, .4m));
-        NumericInput.Decimal(this, MinRealBox, "минимум оси X", -10m, 10m);
-        NumericInput.Decimal(this, MaxRealBox, "максимум оси X", -10m, 10m);
-        NumericInput.Decimal(this, MinImaginaryBox, "минимум оси Y", -10m, 10m);
-        NumericInput.Decimal(this, MaxImaginaryBox, "максимум оси Y", -10m, 10m);
+        NumericInput.Decimal(this, MinRealBox, "минимум оси X", RangeMinimum, RangeMaximum);
+        NumericInput.Decimal(this, MaxRealBox, "максимум оси X", RangeMinimum, RangeMaximum);
+        NumericInput.Decimal(this, MinImaginaryBox, "минимум оси Y", RangeMinimum, RangeMaximum);
+        NumericInput.Decimal(this, MaxImaginaryBox, "максимум оси Y", RangeMinimum, RangeMaximum);
         NumericInput.OrderedPair(this, MinRealBox, MaxRealBox);
         NumericInput.OrderedPair(this, MinImaginaryBox, MaxImaginaryBox);
         _changing = false;
@@ -143,7 +156,8 @@ public partial class ParameterAtlasWindow : Window
         NumericInput.CommitAll(this);
         ReadPointFields();
         var range = new ParameterAtlasRange(Parse(MinRealBox), Parse(MaxRealBox), Parse(MinImaginaryBox), Parse(MaxImaginaryBox));
-        if (!range.IsValid) { StatusText.Text = "Укажите возрастающие диапазоны от −10 до 10."; return Task.CompletedTask; }
+        if (!range.IsValid || range.MinX < RangeMinimum || range.MinY < RangeMinimum || range.MaxX > RangeMaximum || range.MaxY > RangeMaximum)
+        { StatusText.Text = $"Укажите возрастающие диапазоны от {RangeMinimum} до {RangeMaximum}."; return Task.CompletedTask; }
         int size = int.Parse((string)((ComboBoxItem)GridSizeBox.SelectedItem).Tag, CultureInfo.InvariantCulture);
         return RenderAtlasAsync(range, size);
     }
@@ -151,7 +165,7 @@ public partial class ParameterAtlasWindow : Window
     protected async Task RenderAtlasAsync(ParameterAtlasRange range, int size)
     {
         if (_closed) return;
-        var render = CreateRenderSnapshot();
+        var render = CreateAsyncRenderSnapshot();
         var point = (decimal[])_point.Clone();
         int xAxis = _xAxis, yAxis = _yAxis, iterations = PreviewIterationCount;
         if (range != _range) { _history.Push(_range); _range = range; }
@@ -188,12 +202,12 @@ public partial class ParameterAtlasWindow : Window
             int done = 0;
             foreach (var tile in tiles.OrderBy(t => Math.Abs(t.Row - size / 2) + Math.Abs(t.Column - size / 2)))
             {
-                byte[] pixels = await Task.Run(() => render(tile.Point, cts.Token), cts.Token);
+                byte[] pixels = await render(tile.Point, cts.Token);
                 if (cts.IsCancellationRequested || _closed || !ReferenceEquals(_renderCts, cts)) return;
                 var bitmap = BitmapSource.Create(144, 108, 96, 96, PixelFormats.Bgra32, null, pixels, 144 * 4);
                 bitmap.Freeze(); tile.Image.Source = bitmap; tile.Button.IsEnabled = true; done++;
                 if (_selectedButton is null) SelectTile(tile.Button, tile.Image, tile.Point);
-                StatusText.Text = $"{done} / {size * size} · ЦП, 1 поток · до {iterations} итераций";
+                StatusText.Text = PreviewStatus(done, size * size, iterations);
             }
         }
         catch (OperationCanceledException)
@@ -247,5 +261,11 @@ public partial class ParameterAtlasWindow : Window
     { if (!_history.TryPop(out var range)) return; SetRange(range); await BuildAtlasAsync(); }
     private static string Format(decimal value) => value.ToString(CultureInfo.InvariantCulture);
     private static decimal Parse(TextBox box) => decimal.Parse(box.Text, NumberStyles.Float, CultureInfo.InvariantCulture);
-    private void Window_OnClosed(object? sender, EventArgs e) { _closed = true; _renderCts?.Cancel(); }
+    private async void Window_OnClosed(object? sender, EventArgs e)
+    {
+        _closed = true; _renderCts?.Cancel();
+        await _renderGate.WaitAsync();
+        try { ReleaseRenderResources(); }
+        finally { _renderGate.Release(); }
+    }
 }

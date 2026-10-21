@@ -1,3 +1,6 @@
+Кватернионное Жюлиа: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- quaternion-julia [--out папка]`.
+Наклон 4D-среза, аналитические и инвариантные GPU-лучи, идентичный кадр при нулевых углах, проход и пауза на показанном срезе, сохранения, NumericInput, GPU-атлас, отмена, применение и закрытие. Описание — [QUATERNION_JULIA.md](../QUATERNION_JULIA.md). После правок общей оболочки также проверяются `julia-atlas` и `phoenix-atlas`.
+
 Кубические правила Менгера, Виксека и Кантора: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- cube-rules [--out папка]`.
 Независимое явное построение первых трёх поколений против GPU-зонда, пустые/полные и несимметричные маски, внутренние грани, классические виды, панель WPF, отражения, случайные правила, отмена, поколения и сохранения. Только адресные небольшие кадры; описание — [CUBE_RULES.md](../CUBE_RULES.md).
 

@@ -31,6 +31,8 @@ public sealed class Fractal3DState
     [JsonIgnore]
     public Vector4 PickerMarker { get; set; }
     public double QuaternionSlice { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public QuaternionJuliaSettings? QuaternionJulia { get; set; }
     public double BoxScale { get; set; } = 2;
     public double BoxMinRadius { get; set; } = 0.5;
     public double BoxFoldingLimit { get; set; } = 1;

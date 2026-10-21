@@ -1,0 +1,36 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.QuaternionSliceEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+        </ResourceDictionary.MergedDictionaries></ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="Наклон среза в 4D · градусы" FontWeight="SemiBold" Margin="0,8,0,4"/>
+        <TextBlock Text="XW → YW → ZW. Камера вращает вид, эти углы меняют сам срез четырёхмерного множества." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Text="XW" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="XWBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <TextBlock Text="YW" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="YWBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <TextBlock Text="ZW" Style="{StaticResource FieldCaption}"/>
+        <TextBox x:Name="ZWBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+        <Button x:Name="ResetAnglesButton" Content="Обнулить наклон" Click="ResetClicked" HorizontalAlignment="Left" Margin="0,4"/>
+        <Expander Header="Проход по срезам w" IsExpanded="True" Margin="0,6">
+            <StackPanel>
+                <TextBlock Text="Диапазон w · от / до" Style="{StaticResource FieldCaption}"/>
+                <UniformGrid Columns="2">
+                    <TextBox x:Name="MinimumBox" Text="-0.8" Margin="0,0,4,0" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                    <TextBox x:Name="MaximumBox" Text="0.8" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                </UniformGrid>
+                <TextBlock Text="Скорость · единиц w в секунду" Style="{StaticResource FieldCaption}"/>
+                <TextBox x:Name="SpeedBox" Text="0.25" controls:NumericSpinner.IsEnabled="True" TextChanged="Changed"/>
+                <Button x:Name="PlayButton" Content="▶ Проход по срезам" Click="PlayClicked" Margin="0,6,0,0"/>
+                <TextBlock Text="Проход туда-обратно. Пауза сохраняет текущий срез; после загрузки воспроизведение включается вручную." FontSize="11" TextWrapping="Wrap" Margin="0,5" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+            </StackPanel>
+        </Expander>
+        <Button x:Name="AtlasButton" Content="Атлас константы C…" Click="AtlasClicked"/>
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

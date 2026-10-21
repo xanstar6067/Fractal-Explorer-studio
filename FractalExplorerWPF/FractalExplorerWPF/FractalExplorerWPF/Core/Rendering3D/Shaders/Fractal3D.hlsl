@@ -668,6 +668,14 @@ float Map(float3 p, out float4 trap)
 
     float bailout = ShapeA.w;
     float4 z = float4(p, ShapeC.x);
+    if (BoxInversion.w > .5)
+    {
+        // Поворот всего аффинного среза, включая его смещение w. Константа C фиксирована в 4D.
+        float3 co = cos(BoxInversion.xyz), si = sin(BoxInversion.xyz);
+        z.xw = float2(co.x * z.x - si.x * z.w, si.x * z.x + co.x * z.w);
+        z.yw = float2(co.y * z.y - si.y * z.w, si.y * z.y + co.y * z.w);
+        z.zw = float2(co.z * z.z - si.z * z.w, si.z * z.z + co.z * z.w);
+    }
     float4 c = ShapeB;
     float md2 = 1.0;
     float mz2 = dot(z, z);

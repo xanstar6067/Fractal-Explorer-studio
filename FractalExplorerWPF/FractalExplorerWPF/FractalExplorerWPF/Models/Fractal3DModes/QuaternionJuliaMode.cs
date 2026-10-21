@@ -1,13 +1,26 @@
+using System.Numerics;
+
 namespace FractalExplorerWPF.Models.Fractal3DModes;
 
 internal sealed class QuaternionJuliaMode() : Fractal3DMode(Fractal3DKind.QuaternionJulia, new(
     "Кватернионное Жюлиа", "Кватернионное Жюлиа",
-    "Множество Жюлиа в алгебре кватернионов: трёхмерный срез четырёхмерного множества с настраиваемой координатой среза.",
+    "Множество Жюлиа в алгебре кватернионов: координата и наклон трёхмерного среза в 4D, проход по срезам и атлас константы C.",
     "Fractal3DQuaternionJulia", "quaternion-julia"))
 {
     public override bool UsesJuliaConstant => true;
 
     public override bool UsesBailout => true;
+
+    public override void Validate(Fractal3DState state) => state.QuaternionJulia?.Validate();
+
+    public override Fractal3DShapeConstants ShapeConstants(Fractal3DState state)
+    {
+        var constants = base.ShapeConstants(state);
+        return state.QuaternionJulia is { HasRotation: true } slice
+            ? constants with { BoxInversion = new Vector4((float)(slice.XW * Math.PI / 180),
+                (float)(slice.YW * Math.PI / 180), (float)(slice.ZW * Math.PI / 180), 1) }
+            : constants;
+    }
 
     protected override void ConfigureDefault(Fractal3DState state)
     {
@@ -53,9 +66,19 @@ internal sealed class QuaternionJuliaMode() : Fractal3DMode(Fractal3DKind.Quater
             s.Palette = Fractal3DPalettes.Get("Лёд");
             s.EffectStrength = 1.5;
             s.Specular = 0.8;
+        }),
+        Preset("Косой срез в 4D", s =>
+        {
+            s.QuaternionJulia = new() { XW = 37, YW = -24, ZW = 51 };
+            s.QuaternionSlice = .15;
+        }),
+        Preset("Перпендикулярный срез · XW = 90°", s =>
+        {
+            s.QuaternionJulia = new() { XW = 90 };
         })
     ];
 
     protected override string ShapeSummary(Fractal3DState state) =>
-        $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}";
+        $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}; {state.JuliaCW:G5} · срез w: {state.QuaternionSlice:G5}" +
+        (state.QuaternionJulia is { HasRotation: true } s ? $" · наклон XW/YW/ZW: {s.XW:G5}°; {s.YW:G5}°; {s.ZW:G5}°" : "");
 }

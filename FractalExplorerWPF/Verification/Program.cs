@@ -124,6 +124,8 @@ internal static partial class Program
                 if (group is "all" or "fractal3d") await VerifyFractal3DAsync();
                 if (group is "all" or "cube-rules") await VerifyCubeRulesAsync(args);
                 if (group == "cube-rules") return;
+                if (group is "all" or "quaternion-julia") await VerifyQuaternionJuliaAsync(args);
+                if (group == "quaternion-julia") return;
                 if (group is "all" or "fractal3d-modes") await VerifyFractal3DModesAsync(args);
                 if (group is "all" or "flame3d") await VerifyFlame3DAsync(args);
                 if (group is "all" or "buddhabrot4d") await VerifyBuddhabrot4DAsync(args);

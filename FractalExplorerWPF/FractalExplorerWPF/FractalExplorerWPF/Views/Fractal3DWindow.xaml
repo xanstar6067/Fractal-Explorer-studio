@@ -238,6 +238,7 @@
                                     <TextBlock Style="{StaticResource FieldCaption}" Text="Координата среза w"/>
                                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SliceBox"
                                              TextChanged="Parameter_OnChanged"/>
+                                    <controls:QuaternionSliceEditor x:Name="QuaternionEditor" SettingsChanged="QuaternionEditor_OnChanged"/>
                                 </StackPanel>
                                 <StackPanel x:Name="JuliabulbPickerPanel" Margin="0,7,0,3">
                                     <Button x:Name="JuliaPickerButton" Content="Выбрать C на Мандельбульбе" Click="JuliabulbPicker_OnClick"/>
