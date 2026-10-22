@@ -64,9 +64,9 @@ float3 RepeatSpace(float3 v, float period)
 // Граница звездообразной формы задаётся однородной нормой q(z)=1.
 // Инверсия z/q(z)^2 совпадает с формулой I^2*z/|z|^2 из статьи,
 // где I — пересечение луча через z с выбранной границей.
-float ShapeInversionFactor(float3 z, float minRadius2, out float derivativeGain)
+float ShapeInversionFactorFor(float3 z, float minRadius2, float4 inversion, out float derivativeGain)
 {
-    int shape = (int)BoxInversion.x;
+    int shape = (int)inversion.x;
     float r2 = dot(z, z);
     if (shape == 0)
     {
@@ -76,7 +76,7 @@ float ShapeInversionFactor(float3 z, float minRadius2, out float derivativeGain)
         return factor;
     }
 
-    float stretch = shape == 1 ? 1.0 : max(BoxInversion.y, 0.5);
+    float stretch = shape == 1 ? 1.0 : max(inversion.y, 0.5);
     float3 axes = float3(1.0, 1.0, stretch);
     float3 a = z / axes;
     float3 aa = abs(a);
@@ -90,7 +90,7 @@ float ShapeInversionFactor(float3 z, float minRadius2, out float derivativeGain)
     }
     else
     {
-        float power = shape == 2 ? 2.0 : clamp(BoxInversion.z, 2.0, 16.0);
+        float power = shape == 2 ? 2.0 : clamp(inversion.z, 2.0, 16.0);
         float3 terms = pow(aa, power);
         float sum = max(terms.x + terms.y + terms.z, 1e-12);
         q = pow(sum, 1.0 / power);
@@ -109,6 +109,11 @@ float ShapeInversionFactor(float3 z, float minRadius2, out float derivativeGain)
         derivativeGain *= sqrt(1.0 + tangent * tangent) + tangent;
     }
     return factor;
+}
+
+float ShapeInversionFactor(float3 z, float minRadius2, out float derivativeGain)
+{
+    return ShapeInversionFactorFor(z, minRadius2, BoxInversion, derivativeGain);
 }
 #endif
 
@@ -148,6 +153,8 @@ static float StepScale = 1.0;
 // (изнутри, снаружи и у полюса) показала, что 0.5 уже сходится до шума субпиксельных
 // деталей, а полный шаг начинает проскакивать поверхность — 0.5 оставляет двойной запас.
 #define HYBRID_STEP 0.5
+
+#include "@HybridProgram"
 
 #if FRACTAL_KIND == KIND_MengerSponge || FRACTAL_KIND == KIND_Vicsek || FRACTAL_KIND == KIND_CantorDust
 #define HAS_CUBE_RULE
@@ -312,6 +319,8 @@ float Map(float3 p, out float4 trap)
     return length(z) / max(abs(dr), 1e-9);
 
 #elif FRACTAL_KIND == KIND_BulbBoxHybrid
+
+    if (HybridInfo.x > 0) return HybridMap(p, trap);
 
     float power = ShapeA.x;
     float minRadius2 = ShapeA.y;
@@ -1164,7 +1173,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     {
 #elif FRACTAL_KIND == KIND_BulbBoxHybrid
     // При масштабе бокса около 1 некоторые чередования имеют неограниченные орбиты.
-    if (abs(1.0 - ShapeB.x) >= 0.05)
+    if (HybridInfo.x == 0 && abs(1.0 - ShapeB.x) >= 0.05)
     {
 #endif
     // Сфера описана вплотную: вершины губки и тетраэдра лежат ровно на ней. Луч же

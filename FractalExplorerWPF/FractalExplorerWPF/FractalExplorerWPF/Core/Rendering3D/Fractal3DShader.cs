@@ -29,6 +29,7 @@ internal static class Fractal3DShader
         };
         string rendering = kind == Fractal3DKind.HyperbolicHoneycomb ? HyperbolicHoneycombShader.Rendering : "";
         return ShaderSource.KindDefines + $"#define FRACTAL_KIND KIND_{kind}\n" +
-            ShaderSource.Load("Fractal3D.hlsl", ("ModeGeometry", geometry), ("ModeRendering", rendering));
+            ShaderSource.Load("Fractal3D.hlsl", ("ModeGeometry", geometry), ("ModeRendering", rendering),
+                ("HybridProgram", kind == Fractal3DKind.BulbBoxHybrid ? ShaderSource.Load("BulbBoxHybrid.hlsl") : ""));
     }
 }

@@ -317,6 +317,8 @@
                             </StackPanel>
 
                             <StackPanel x:Name="HybridPanel" Margin="0,7,0,0">
+                              <controls:BulbBoxHybridEditor x:Name="HybridEditor" SettingsChanged="HybridEditorChanged"/>
+                              <StackPanel x:Name="HybridClassicPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Начало цикла"/>
                                 <ComboBox x:Name="HybridOrderBox" SelectionChanged="Parameter_OnChanged">
                                     <ComboBoxItem Content="Сначала Мандельбульб"/>
@@ -332,6 +334,7 @@
                                 <TextBox x:Name="HybridMixBox" numeric:NumericSpinner.IsEnabled="True"
                                          ToolTip="0 — строгое чередование; 0,5 — равная смесь; 1 — операции меняются местами"
                                          TextChanged="Parameter_OnChanged"/>
+                              </StackPanel>
                             </StackPanel>
 
                             <StackPanel x:Name="HyperbolicPanel" Visibility="Collapsed">

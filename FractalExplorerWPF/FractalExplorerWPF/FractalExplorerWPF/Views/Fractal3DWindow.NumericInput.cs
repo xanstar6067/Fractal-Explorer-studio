@@ -84,12 +84,13 @@ public partial class Fractal3DWindow
         NumericInput.Real(this, PhoenixMemoryYBox, "Координата i константы C₂", -8, 8);
         NumericInput.Real(this, PhoenixMemoryZBox, "Координата j константы C₂", -8, 8);
         NumericInput.Real(this, SliceBox, "Координата среза", -4, 4);
-        NumericInput.Real(this, BoxScaleBox, "Масштаб свёртки", -8, 8);
-        NumericInput.Real(this, BoxMinRadiusBox, "Минимальный радиус инверсии", 0.01, 4);
-        NumericInput.Real(this, BoxFoldingBox, "Предел свёртки по кубу", 0.1, 8);
-        NumericInput.Real(this, HybridMixBox, "Доля второй операции", 0, 1);
-        NumericInput.Integer(this, HybridBulbStepsBox, "Итерации Мандельбульба подряд", 1, 6);
-        NumericInput.Integer(this, HybridBoxStepsBox, "Итерации Мандельбокса подряд", 1, 6);
+        bool ClassicHybrid() => Kind != Fractal3DKind.BulbBoxHybrid || !HybridEditor.IsCustom;
+        NumericInput.Real(this, BoxScaleBox, "Масштаб свёртки", -8, 8, active: ClassicHybrid);
+        NumericInput.Real(this, BoxMinRadiusBox, "Минимальный радиус инверсии", 0.01, 4, active: ClassicHybrid);
+        NumericInput.Real(this, BoxFoldingBox, "Предел свёртки по кубу", 0.1, 8, active: ClassicHybrid);
+        NumericInput.Real(this, HybridMixBox, "Доля второй операции", 0, 1, active: ClassicHybrid);
+        NumericInput.Integer(this, HybridBulbStepsBox, "Итерации Мандельбульба подряд", 1, 6, active: ClassicHybrid);
+        NumericInput.Integer(this, HybridBoxStepsBox, "Итерации Мандельбокса подряд", 1, 6, active: ClassicHybrid);
         NumericInput.Real(this, SierpinskiScaleBox, "Масштаб складывания", 1.05, 8);
         NumericInput.Real(this, CubeThicknessBox, "Толщина элементов", 0.5, 1.5);
         NumericInput.Real(this, LightYawBox, "Азимут света", -720, 720);
@@ -113,6 +114,7 @@ public partial class Fractal3DWindow
         NumericInput.Include(this, AntoineEditor);
         NumericInput.Include(this, QuaternionEditor);
         NumericInput.Include(this, PhoenixExplorer);
+        NumericInput.Include(this, HybridEditor);
         NumericInput.Include(this, NewtonEditor);
         NumericInput.Include(this, HyperbolicEditor);
         if (_mode.HasCubeRule)
@@ -121,6 +123,9 @@ public partial class Fractal3DWindow
                 () => CubeEditor.Capture().HasValue ? 12 : (int)_mode.IterationsField.Maximum);
         else RegisterModeField(IterationsBox, _mode.IterationsField);
         RegisterModeField(PowerBox, _mode.PowerField);
+        if (Kind == Fractal3DKind.BulbBoxHybrid)
+            NumericInput.Real(this, PowerBox, _mode.PowerField.Name, _mode.PowerField.Minimum,
+                _mode.PowerField.Maximum, active: () => !HybridEditor.IsCustom);
     }
 
     private void RegisterModeField(System.Windows.Controls.TextBox box, Fractal3DField field)

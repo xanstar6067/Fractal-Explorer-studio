@@ -340,6 +340,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         Marshal.StructureToPtr(constants, mapped.DataPointer, false);
         Marshal.Copy(_palette, 0, IntPtr.Add(mapped.DataPointer, FrameConstants.SizeInBytes), _palette.Length);
         context.Unmap(_constantBuffer!, 0);
+        WriteHybridProgram(state);
     }
 
     /// <summary>Геометрия меняется только при смене числа поколений; камера и свет её не пересоздают.</summary>
@@ -729,6 +730,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeAbcFlow();
         _hyperbolicConstants?.Dispose();
         _apollonianTreeBuffer?.Dispose();
+        _hybridProgramBuffer?.Dispose();
         foreach (ID3D11PixelShader shader in _pixelShaders.Values) shader.Dispose();
         _pixelShaders.Clear();
         _vertexShader?.Dispose();

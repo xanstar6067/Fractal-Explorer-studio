@@ -114,6 +114,11 @@ public partial class Fractal3DWindow : Window
         ConfigureKindLayout();
         AttachQuaternionEditor();
         AttachPhoenixExplorer();
+        HybridEditor.ClassicState = () =>
+        {
+            NumericInput.CommitAll(this);
+            return CaptureViewState("sequence");
+        };
         CubeEditor.LevelStepRequested += StepCubeGeneration;
 
         PresetBox.ItemsSource = _presets.Select(preset => preset.SaveName).ToArray();
@@ -209,6 +214,7 @@ public partial class Fractal3DWindow : Window
         HybridBulbSteps = ReadInt(HybridBulbStepsBox, "Итерации Мандельбульба подряд", 1, 6),
         HybridBoxSteps = ReadInt(HybridBoxStepsBox, "Итерации Мандельбокса подряд", 1, 6),
         HybridOrder = SelectedHybridOrder,
+        HybridSequence = Kind == Fractal3DKind.BulbBoxHybrid ? HybridEditor.Capture() : null,
         SierpinskiScale = ReadDouble(SierpinskiScaleBox, "Масштаб складывания", 1.05, 8),
         CubeThickness = ReadDouble(CubeThicknessBox, "Толщина элементов", 0.5, 1.5),
         CubeRuleMask = _mode.HasCubeRule ? CubeEditor.Capture() : null,
@@ -286,6 +292,7 @@ public partial class Fractal3DWindow : Window
 
     private void ApplyState(Fractal3DState state)
     {
+        if (Kind == Fractal3DKind.BulbBoxHybrid) state.HybridSequence?.Validate();
         if (Kind == Fractal3DKind.Phoenix)
         {
             _phoenixHistory.Clear();
@@ -353,6 +360,11 @@ public partial class Fractal3DWindow : Window
         HybridBulbStepsBox.Text = state.HybridBulbSteps.ToString(CultureInfo.InvariantCulture);
         HybridBoxStepsBox.Text = state.HybridBoxSteps.ToString(CultureInfo.InvariantCulture);
         HybridOrderBox.SelectedIndex = (int)state.HybridOrder;
+        if (Kind == Fractal3DKind.BulbBoxHybrid)
+        {
+            HybridEditor.Load(state.HybridSequence);
+            UpdateHybridLayout();
+        }
         SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
         CubeThicknessBox.Text = Format(state.CubeThickness);
         if (_mode.HasCubeRule) CubeEditor.Load(Kind, state.CubeRuleMask);

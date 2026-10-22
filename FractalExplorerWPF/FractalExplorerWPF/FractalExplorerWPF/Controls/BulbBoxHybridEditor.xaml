@@ -1,0 +1,60 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.BulbBoxHybridEditor"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="clr-namespace:FractalExplorerWPF.Controls">
+ <UserControl.Resources>
+  <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+   <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+  </ResourceDictionary.MergedDictionaries></ResourceDictionary>
+ </UserControl.Resources>
+ <StackPanel>
+  <CheckBox x:Name="EnabledBox" Content="Своя последовательность операций" Checked="EnabledChanged" Unchecked="EnabledChanged" Margin="0,8"/>
+  <StackPanel x:Name="ProgramPanel" Visibility="Collapsed">
+   <TextBlock Text="Цепочка повторяется по кругу. Итерации считают бульбы и боксы; повороты и сдвиги между ними выполняются дополнительно." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+   <ListBox x:Name="StagesList" SelectionChanged="StageSelected" MaxHeight="170" Margin="0,6"/>
+   <WrapPanel>
+    <ComboBox x:Name="AddKindBox" SelectedIndex="0" MinWidth="90" Margin="0,0,4,4">
+     <ComboBoxItem Content="Бульб"/><ComboBoxItem Content="Бокс"/><ComboBoxItem Content="Поворот"/><ComboBoxItem Content="Сдвиг"/>
+    </ComboBox>
+    <Button x:Name="AddButton" Content="Добавить" Click="AddClicked" Margin="0,0,4,4"/>
+    <Button x:Name="UpButton" Content="↑" ToolTip="Выше в цепочке" Click="UpClicked" Margin="0,0,4,4"/>
+    <Button x:Name="DownButton" Content="↓" ToolTip="Ниже в цепочке" Click="DownClicked" Margin="0,0,4,4"/>
+    <Button x:Name="RemoveButton" Content="Удалить" Click="RemoveClicked" Margin="0,0,0,4"/>
+   </WrapPanel>
+   <TextBlock x:Name="SelectedText" Style="{StaticResource FieldCaption}"/>
+   <TextBlock Text="Повторов этапа (1–6)" Style="{StaticResource FieldCaption}"/>
+   <TextBox x:Name="RepeatsBox" Text="1" controls:NumericSpinner.IsEnabled="True" controls:NumericSpinner.IsInteger="True" TextChanged="FieldChanged"/>
+   <StackPanel x:Name="FormulaPanel">
+    <TextBlock Text="Степень бульба (2–12)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="PowerBox" Text="3" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Масштаб бокса (−8…8)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="ScaleBox" Text="-1.8" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Минимальный радиус инверсии (0,01–4)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="RadiusBox" Text="0.5" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Предел свёртки (0,1–8)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="FoldBox" Text="1" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Подмешивание другой операции (0–1)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="MixBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Форма инверсии бокса" Style="{StaticResource FieldCaption}"/>
+    <ComboBox x:Name="InversionBox" SelectedIndex="0" SelectionChanged="FieldChanged">
+     <ComboBoxItem Content="Сфера"/><ComboBoxItem Content="Куб"/><ComboBoxItem Content="Вытянутая сфера"/><ComboBoxItem Content="Скруглённый куб"/>
+    </ComboBox>
+    <TextBlock Text="Вытяжение Z (0,5–2)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="StretchBox" Text="1" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Округлость (2–16)" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="InversionPowerBox" Text="4" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+   </StackPanel>
+   <StackPanel x:Name="VectorPanel">
+    <TextBlock x:Name="VectorCaption" TextWrapping="Wrap" Style="{StaticResource FieldCaption}"/>
+    <TextBlock Text="X" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="XBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Y" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="YBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+    <TextBlock Text="Z" Style="{StaticResource FieldCaption}"/>
+    <TextBox x:Name="ZBox" Text="0" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+   </StackPanel>
+   <Button x:Name="UndoButton" Content="Вернуть предыдущую цепочку" Click="UndoClicked" Margin="0,8,0,0"/>
+  </StackPanel>
+  <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,5"/>
+ </StackPanel>
+</UserControl>

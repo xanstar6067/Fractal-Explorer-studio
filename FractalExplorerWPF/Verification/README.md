@@ -1,3 +1,6 @@
+Гибрид бульба и бокса: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- bulbbox-hybrid [--out папка]`.
+Независимый double/GPU-расчёт карты, четыре формы инверсии, преобразование старых серий в цепочку, восемь пресетов, девять стилей, сохранения/облако, глубокие снимки, поля NumericInput, команды редактора и отмена. Только небольшие адресные кадры. Подробности — [BULBBOX_HYBRID.md](../BULBBOX_HYBRID.md).
+
 Phoenix 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- phoenix3d [--out папка]`.
 Семь небольших GPU-кадров, все пары осей и фиксированные компоненты атласа, отмена поколений, применение/закрытие, вариации, точность и глубина возврата, NumericInput, сохранения и облачная оболочка. Подробности — [PHOENIX3D.md](../PHOENIX3D.md).
 

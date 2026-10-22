@@ -43,6 +43,8 @@ public sealed class Fractal3DState
     public int HybridBulbSteps { get; set; } = 1;
     public int HybridBoxSteps { get; set; } = 1;
     public Hybrid3DOrder HybridOrder { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BulbBoxSequence? HybridSequence { get; set; }
     public double SierpinskiScale { get; set; } = 2;
     public double CubeThickness { get; set; } = 1;
     /// <summary>Своя маска 3×3×3; null сохраняет прежнюю формулу режима, 0 означает пустую сцену.</summary>
@@ -165,6 +167,7 @@ public sealed class Fractal3DState
     public Fractal3DState Clone()
     {
         var clone = (Fractal3DState)MemberwiseClone();
+        clone.HybridSequence = HybridSequence?.Clone();
         clone.Palette = Palette?.Clone();
         clone.Kifs = Kifs?.Clone() ?? new();
         clone.Kleinian = Kleinian is null ? new() : Kleinian with { };

@@ -4,7 +4,7 @@ namespace FractalExplorerWPF.Models.Fractal3DModes;
 
 internal sealed class BulbBoxHybridMode() : Fractal3DMode(Fractal3DKind.BulbBoxHybrid, new(
     "Гибрид Мандельбульб × Мандельбокс", "Гибрид Мандельбульб × Мандельбокс",
-    "Бульб и бокс чередуются заданными сериями итераций. Доля смешивания подмешивает вторую операцию к каждой серии; порядок, длины серий и параметры обеих форм меняют геометрию.",
+    "Бульб и бокс чередуются сериями или собственной цепочкой. Настраивайте каждый этап, вставляйте повороты и сдвиги орбиты; порядок и смешивание операций меняют геометрию.",
     "Fractal3DBulbBoxHybrid", "bulb-box-hybrid"))
 {
     public override bool UsesPower => true;
@@ -62,8 +62,46 @@ internal sealed class BulbBoxHybridMode() : Fractal3DMode(Fractal3DKind.BulbBoxH
             s.Palette = Fractal3DPalettes.Get("Лёд");
             s.ColoringMode = Fractal3DColoringMode.CrossTrap;
             s.ColorScale = 0.6;
+        }),
+        Preset("Цепочка · закрученные складки", s =>
+        {
+            s.HybridSequence = new() { Stages = [
+                new() { Operation = BulbBoxOperation.Bulb },
+                new() { Operation = BulbBoxOperation.Rotate, Z = 45, X = 30 },
+                new() { Operation = BulbBoxOperation.Box, Scale = -2.2, FoldLimit = .8 }
+            ] };
+        }),
+        Preset("Цепочка · смещённые ветви", s =>
+        {
+            s.HybridSequence = new() { Stages = [
+                new() { Operation = BulbBoxOperation.Bulb },
+                new() { Operation = BulbBoxOperation.Translate, X = .65, Z = -.35 },
+                new() { Operation = BulbBoxOperation.Box }
+            ] };
+        }),
+        Preset("Цепочка · две степени", s =>
+        {
+            s.HybridSequence = new() { Stages = [
+                new() { Operation = BulbBoxOperation.Bulb, Power = 2 },
+                new() { Operation = BulbBoxOperation.Box, Scale = -1.6 },
+                new() { Operation = BulbBoxOperation.Bulb, Power = 5 },
+                new() { Operation = BulbBoxOperation.Rotate, Y = 12 }
+            ] };
         })
     ];
+
+    public override void Validate(Fractal3DState state) => state.HybridSequence?.Validate();
+
+    public override int? GetStripPixelBudget(Fractal3DState state)
+    {
+        if (state.HybridSequence is not { } sequence) return null;
+        sequence.Validate();
+        // Transform-only stages add work without consuming a fractal iteration.
+        double nonlinear = sequence.Stages.Where(s => s.Operation is BulbBoxOperation.Bulb or BulbBoxOperation.Box).Sum(s => s.Repeats);
+        double cost = Math.Max(.25, state.MaxSteps / 160.0 * Math.Max(state.Iterations, 1) / 8.0) *
+            (1 + sequence.OperationCount / nonlinear);
+        return (int)Math.Clamp(1_000_000 / cost, 8_000, 500_000);
+    }
 
     public override Fractal3DShapeConstants ShapeConstants(Fractal3DState state) => new(
         new Vector3(
@@ -76,6 +114,7 @@ internal sealed class BulbBoxHybridMode() : Fractal3DMode(Fractal3DKind.BulbBoxH
         BoxInversion(state));
 
     protected override string ShapeSummary(Fractal3DState state) =>
+        state.HybridSequence is { } sequence ? $"Цепочка: {sequence}" :
         $"Бульб n={state.Power:G4} × {state.HybridBulbSteps} · Бокс {state.BoxScale:G4} × {state.HybridBoxSteps} · " +
         $"смесь {state.HybridMix:G3} · инверсия {Fractal3DCatalog.BoxInversionShapeName(state.BoxInversionShape)} · " +
         (state.HybridOrder == Hybrid3DOrder.BulbFirst ? "сначала бульб" : "сначала бокс");

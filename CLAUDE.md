@@ -125,6 +125,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 Менгер, Виксек и пыль Кантора: общий `CubeRuleEditor` — редактор правила 3×3×3 (`CUBE_RULES.md`, проверка `cube-rules`).
 
+Гибрид бульба и бокса: `BulbBoxHybridEditor` — цепочка операций, повороты и сдвиги (`BULBBOX_HYBRID.md`, проверка `bulbbox-hybrid`).
+
 ## Пользовательские данные, сохранения и миграции
 
 Все данные пользователя лежат в `%LOCALAPPDATA%\Fractal Explorer Studio` (`Infrastructure/AppPaths.cs`), а не рядом с exe. Папку открывает кнопка «Открыть папку с данными» в панели «Настройки» главного окна.

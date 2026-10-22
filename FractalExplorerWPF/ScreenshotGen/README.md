@@ -22,6 +22,9 @@ Physarum 3D (`Fractal3D:Physarum3D`) входит в общий обход ка�
 
 # Генератор скриншотов окон WPF
 
+`Fractal3D:BulbBoxHybrid` включает встроенный `BulbBoxHybridEditor`: цепочку бульбов,
+боксов, поворотов и сдвигов. Отдельного окна нет; фильтр — `--only=Fractal3D:BulbBoxHybrid`.
+
 `Fractal3D:Phoenix` дополнительно снимает `Phoenix3DAtlasWindow` (`phoenix3d-atlas.png`);
 панель вариаций `Phoenix3DExplorer` встроена в основное окно. Фильтр — `--only=Fractal3D:Phoenix`.
 
