@@ -516,6 +516,8 @@ internal static class Program
                     "fractal3d-" + Kebab(fractal3DKind.ToString()), 1600);
                 if (w is Fractal3DWindow quaternion && fractal3DKind == Fractal3DKind.QuaternionJulia)
                     await CaptureChildAsync(w, new QuaternionJuliaAtlasWindow(quaternion.CaptureState("atlas")), "quaternion-julia-atlas");
+                if (w is Fractal3DWindow phoenix && fractal3DKind == Fractal3DKind.Phoenix)
+                    await CaptureChildAsync(w, new Phoenix3DAtlasWindow(phoenix.CaptureState("atlas")), "phoenix3d-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;

@@ -113,6 +113,7 @@ public partial class Fractal3DWindow : Window
         KindDescriptionText.Text = _definition.Description;
         ConfigureKindLayout();
         AttachQuaternionEditor();
+        AttachPhoenixExplorer();
         CubeEditor.LevelStepRequested += StepCubeGeneration;
 
         PresetBox.ItemsSource = _presets.Select(preset => preset.SaveName).ToArray();
@@ -285,6 +286,11 @@ public partial class Fractal3DWindow : Window
 
     private void ApplyState(Fractal3DState state)
     {
+        if (Kind == Fractal3DKind.Phoenix)
+        {
+            _phoenixHistory.Clear();
+            PhoenixExplorer.SetUndoAvailable(false);
+        }
         if (Kind == Fractal3DKind.QuaternionJulia)
         {
             _renderCts?.Cancel(); QuaternionEditor.Stop();
@@ -326,6 +332,7 @@ public partial class Fractal3DWindow : Window
         PhoenixMemoryXBox.Text = Format(state.PhoenixMemoryX);
         PhoenixMemoryYBox.Text = Format(state.PhoenixMemoryY);
         PhoenixMemoryZBox.Text = Format(state.PhoenixMemoryZ);
+        if (Kind == Fractal3DKind.Phoenix) WritePhoenixParameters(Phoenix3DParameters.FromState(state));
         SliceBox.Text = Format(state.QuaternionSlice);
         if (Kind == Fractal3DKind.QuaternionJulia)
         {

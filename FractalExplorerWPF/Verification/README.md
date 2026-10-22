@@ -1,3 +1,6 @@
+Phoenix 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- phoenix3d [--out папка]`.
+Семь небольших GPU-кадров, все пары осей и фиксированные компоненты атласа, отмена поколений, применение/закрытие, вариации, точность и глубина возврата, NumericInput, сохранения и облачная оболочка. Подробности — [PHOENIX3D.md](../PHOENIX3D.md).
+
 Кватернионное Жюлиа: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- quaternion-julia [--out папка]`.
 Наклон 4D-среза, аналитические и инвариантные GPU-лучи, идентичный кадр при нулевых углах, проход и пауза на показанном срезе, сохранения, NumericInput, GPU-атлас, отмена, применение и закрытие. Описание — [QUATERNION_JULIA.md](../QUATERNION_JULIA.md). После правок общей оболочки также проверяются `julia-atlas` и `phoenix-atlas`.
 

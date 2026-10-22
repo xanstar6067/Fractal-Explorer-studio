@@ -45,6 +45,32 @@ internal sealed class Phoenix3DMode() : Fractal3DMode(Fractal3DKind.Phoenix, new
             s.JuliaCY = 0.08;
             s.PhoenixMemoryX = -0.46;
             s.PhoenixSecondaryPower = 1;
+        }),
+        Preset("Кубическая степень · p = 3", s =>
+        {
+            s.Power = 3;
+            s.JuliaCX = -0.2;
+            s.PhoenixMemoryX = -0.35;
+        }),
+        Preset("Четвёртая степень · p = 4", s =>
+        {
+            s.Power = 4;
+            s.JuliaCX = 0.15;
+            s.PhoenixMemoryX = -0.4;
+        }),
+        Preset("Две мнимые компоненты", s =>
+        {
+            s.JuliaCX = 0.4;
+            s.JuliaCY = 0.12;
+            s.JuliaCZ = 0.08;
+            s.PhoenixMemoryY = 0.06;
+            s.PhoenixMemoryZ = 0.1;
+        }),
+        Preset("Без памяти · C₂ = 0", s =>
+        {
+            s.JuliaCX = -0.2;
+            s.JuliaCY = 0.65;
+            s.PhoenixMemoryX = 0;
         })
     ];
 

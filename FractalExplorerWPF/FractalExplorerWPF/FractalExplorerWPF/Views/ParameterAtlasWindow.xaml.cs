@@ -48,16 +48,19 @@ public partial class ParameterAtlasWindow : Window
         $"{completed} / {total} · ЦП, 1 поток · до {iterations} итераций";
     protected virtual void ReleaseRenderResources() { }
 
-    protected void InitializeAtlas(string title, string[] names, decimal[] point, string hint)
+    protected void InitializeAtlas(string title, string[] names, decimal[] point, string hint, int xAxis = 0, int yAxis = 1)
     {
         if (names.Length < 2 || names.Length != point.Length) throw new ArgumentException("Требуется не менее двух компонент.");
+        if ((uint)xAxis >= names.Length || (uint)yAxis >= names.Length || xAxis == yAxis)
+            throw new ArgumentException("Оси должны указывать на две разные компоненты.");
         _changing = true;
+        _xAxis = xAxis; _yAxis = yAxis;
         _componentNames = (string[])names.Clone();
         _point = (decimal[])point.Clone();
         Title = HeaderText.Text = title;
         ApplicationHintText.Text = hint;
         XAxisBox.ItemsSource = names; YAxisBox.ItemsSource = names;
-        XAxisBox.SelectedIndex = 0; YAxisBox.SelectedIndex = 1;
+        XAxisBox.SelectedIndex = xAxis; YAxisBox.SelectedIndex = yAxis;
         XAxisBox.Visibility = YAxisBox.Visibility = names.Length > 2 ? Visibility.Visible : Visibility.Collapsed;
         if (names.Length > 2)
         {
@@ -81,7 +84,7 @@ public partial class ParameterAtlasWindow : Window
             }
         }
         UpdateAxesUi();
-        SetRange(ParameterAtlasRange.Around(point[0], point[1], .4m, .4m));
+        SetRange(BoundedRange(ParameterAtlasRange.Around(point[xAxis], point[yAxis], .4m, .4m)));
         NumericInput.Decimal(this, MinRealBox, "минимум оси X", RangeMinimum, RangeMaximum);
         NumericInput.Decimal(this, MaxRealBox, "максимум оси X", RangeMinimum, RangeMaximum);
         NumericInput.Decimal(this, MinImaginaryBox, "минимум оси Y", RangeMinimum, RangeMaximum);
@@ -121,7 +124,7 @@ public partial class ParameterAtlasWindow : Window
         UpdateAxesUi();
         _changing = false;
         _history.Clear();
-        SetRange(ParameterAtlasRange.Around(_point[x], _point[y], .4m, .4m));
+        SetRange(BoundedRange(ParameterAtlasRange.Around(_point[x], _point[y], .4m, .4m)));
         InvalidateSelection("Оси изменены. Нажмите «Построить».");
         if (IsLoaded) _ = BuildAtlasAsync();
     }
@@ -149,6 +152,10 @@ public partial class ParameterAtlasWindow : Window
         MinRealBox.Text = Format(range.MinX); MaxRealBox.Text = Format(range.MaxX);
         MinImaginaryBox.Text = Format(range.MinY); MaxImaginaryBox.Text = Format(range.MaxY);
     }
+
+    private ParameterAtlasRange BoundedRange(ParameterAtlasRange range) => new(
+        Math.Max(RangeMinimum, range.MinX), Math.Min(RangeMaximum, range.MaxX),
+        Math.Max(RangeMinimum, range.MinY), Math.Min(RangeMaximum, range.MaxY));
 
     protected Task BuildAtlasAsync()
     {
@@ -251,7 +258,7 @@ public partial class ParameterAtlasWindow : Window
     private async void Narrow_OnClick(object sender, RoutedEventArgs e)
     {
         if (_selection is null) return;
-        var next = ParameterAtlasRange.Around(_selection[_xAxis], _selection[_yAxis], (_range.MaxX - _range.MinX) / 2, (_range.MaxY - _range.MinY) / 2);
+        var next = BoundedRange(ParameterAtlasRange.Around(_selection[_xAxis], _selection[_yAxis], (_range.MaxX - _range.MinX) / 2, (_range.MaxY - _range.MinY) / 2));
         if (!next.IsValid || next == _range) { StatusText.Text = "Достигнут предел точности диапазона."; return; }
         _history.Push(_range); SetRange(next); await BuildAtlasAsync();
     }

@@ -278,6 +278,7 @@
                                 <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"
                                            Foreground="{DynamicResource Theme.SecondaryTextBrush}"
                                            Text="Начальная предыдущая итерация равна нулю. При нулевых i, j у C₁ и C₂ срез z = 0 повторяет 2D Phoenix."/>
+                                <controls:Phoenix3DExplorer x:Name="PhoenixExplorer"/>
                             </StackPanel>
 
                             <StackPanel x:Name="BoxPanel">
