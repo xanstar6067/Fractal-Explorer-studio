@@ -9,6 +9,7 @@ public partial class Fractal3DWindow
     private void InitializeNumericInput()
     {
         NumericInput.Include(this, PeriodicEditor);
+        NumericInput.Include(this, TerrainPanel);
         NumericInput.Real(this, AttractorABox, "Параметр a", -100, 100);
         NumericInput.Real(this, AttractorBBox, "Параметр b", -100, 100);
         NumericInput.Real(this, AttractorCBox, "Параметр c", -100, 100);
@@ -61,13 +62,6 @@ public partial class Fractal3DWindow
         NumericInput.Real(this, MaxDistanceBox, "Дальность трассировки", 1, 1000);
         NumericInput.Real(this, ShadowSharpnessBox, "Жёсткость теней", 1, 128);
         NumericInput.Real(this, AoStrengthBox, "Сила затенения", 0, 1);
-        NumericInput.Integer(this, TerrainSeedBox, "Начальное число", 0, int.MaxValue);
-        NumericInput.Integer(this, TerrainOctavesBox, "Уровни деталей", 1, 12);
-        NumericInput.Real(this, TerrainRoughnessBox, "Шероховатость", 0.05, 0.95);
-        NumericInput.Real(this, TerrainLacunarityBox, "Отношение масштабов", 1.5, 3);
-        NumericInput.Real(this, TerrainScaleBox, "Масштаб деталей", 0.25, 16);
-        NumericInput.Real(this, TerrainHeightBox, "Высота", 0.05, 8);
-        NumericInput.Real(this, TerrainSizeBox, "Размер участка", 1, 20);
         NumericInput.Real(this, BailoutBox, "Радиус вылета", 1.01, 1e6);
         NumericInput.Real(this, JuliaCXBox, "Первая координата C", -8, 8);
         NumericInput.Real(this, JuliaCYBox, "Вторая координата C", -8, 8);

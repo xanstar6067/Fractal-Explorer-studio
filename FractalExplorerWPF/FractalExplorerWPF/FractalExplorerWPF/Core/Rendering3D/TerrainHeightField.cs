@@ -19,7 +19,7 @@ public static class TerrainHeightField
             frequency *= settings.Lacunarity;
             octaves++;
         }
-        Parallel.For(0, side, new ParallelOptions { CancellationToken = token }, z =>
+        Parallel.For(0, side, Options(token), z =>
         {
             for (int x = 0; x < side; x++)
             {
@@ -49,10 +49,81 @@ public static class TerrainHeightField
                     (px, pz) = ((0.8 * px - 0.6 * pz) * settings.Lacunarity,
                         (0.6 * px + 0.8 * pz) * settings.Lacunarity);
                 }
-                heights[z * side + x] = (float)(Math.Clamp(sum / norm, 0, 1) * settings.Height);
+                double terrainValue = Math.Clamp(sum / norm, 0, 1);
+                if (settings.Shape != TerrainShape.Patch && settings.ShapeStrength > 0)
+                {
+                    double nx = 2.0 * x / (side - 1) - 1;
+                    double nz = 2.0 * z / (side - 1) - 1;
+                    double radius = Math.Sqrt(nx * nx + nz * nz) / settings.ShapeRadius;
+                    double shaped;
+                    if (settings.Shape == TerrainShape.Island)
+                        shaped = terrainValue * (1 - SmoothStep(0.55, 1, radius));
+                    else
+                    {
+                        // A shallow floor, raised rim and original terrain outside the crater.
+                        double floor = 0.08 + terrainValue * 0.16;
+                        double rim = 0.72 + terrainValue * 0.28;
+                        double bowl = floor + (rim - floor) * SmoothStep(0.3, 1, radius);
+                        shaped = bowl + (terrainValue - bowl) * SmoothStep(1, 1.35, radius);
+                    }
+                    terrainValue += (shaped - terrainValue) * settings.ShapeStrength;
+                }
+                heights[z * side + x] = (float)(terrainValue * settings.Height);
             }
         });
-        return heights;
+        return ApplyThermalErosion(heights, side, settings.Size / (side - 1),
+            settings.ThermalIterations, settings.TalusAngle, token);
+    }
+
+    private static ParallelOptions Options(CancellationToken token) => new()
+    {
+        CancellationToken = token,
+        MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount)
+    };
+
+    private static double SmoothStep(double low, double high, double value)
+    {
+        double t = Math.Clamp((value - low) / (high - low), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>Closed boundaries; simultaneous, symmetric downhill transfers to eight neighbours.
+    /// Each edge exchanges 1/16 of the height difference above the talus threshold.
+    /// The update is a convex combination: no overshoot, no clipping or renormalization.
+    /// Input is unchanged; zero steps return it directly.</summary>
+    internal static float[] ApplyThermalErosion(float[] source, int side, double spacing,
+        int iterations, double talusAngle, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (iterations == 0) return source;
+        var current = (float[])source.Clone();
+        var next = new float[source.Length];
+        double threshold = spacing * Math.Tan(talusAngle * Math.PI / 180);
+        double diagonal = threshold * Math.Sqrt(2);
+        for (int step = 0; step < iterations; step++)
+        {
+            Parallel.For(0, side, Options(token), z =>
+            {
+                for (int x = 0; x < side; x++)
+                {
+                    if ((x & 127) == 0) token.ThrowIfCancellationRequested();
+                    int index = z * side + x;
+                    double height = current[index], transfer = 0;
+                    for (int dz = -1; dz <= 1; dz++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        if ((dx == 0 && dz == 0) || x + dx < 0 || x + dx >= side || z + dz < 0 || z + dz >= side)
+                            continue;
+                        double difference = height - current[(z + dz) * side + x + dx];
+                        double excess = Math.Max(0, Math.Abs(difference) - (dx != 0 && dz != 0 ? diagonal : threshold));
+                        transfer += Math.CopySign(excess, difference);
+                    }
+                    next[index] = (float)(height - transfer / 16);
+                }
+            });
+            (current, next) = (next, current);
+        }
+        return current;
     }
 
     private static double Noise(double x, double y, uint seed)

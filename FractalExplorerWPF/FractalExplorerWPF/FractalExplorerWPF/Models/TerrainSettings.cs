@@ -1,6 +1,7 @@
 namespace FractalExplorerWPF.Models;
 
 public enum TerrainKind { Fbm, Ridged, Hybrid }
+public enum TerrainShape { Patch, Island, Crater }
 
 /// <summary>Immutable geometry key; camera and lighting never invalidate the height field.</summary>
 public sealed record TerrainSettings
@@ -14,10 +15,18 @@ public sealed record TerrainSettings
     public double Height { get; init; } = 1.6;
     public double Size { get; init; } = 6;
     public int Resolution { get; init; } = 513;
+    // Neutral defaults preserve the height field of existing saves.
+    public TerrainShape Shape { get; init; }
+    public double ShapeStrength { get; init; } = 1;
+    public double ShapeRadius { get; init; } = 0.8;
+    public int ThermalIterations { get; init; }
+    public double TalusAngle { get; init; } = 30;
 
     public void Validate()
     {
-        if (!Enum.IsDefined(Type) || Seed < 0 || Octaves is < 1 or > 12 ||
+        if (!Enum.IsDefined(Type) || !Enum.IsDefined(Shape) || Seed < 0 || Octaves is < 1 or > 12 ||
+            ThermalIterations is < 0 or > 64 || !In(TalusAngle, 5, 60) ||
+            !In(ShapeStrength, 0, 1) || !In(ShapeRadius, 0.2, 1) ||
             Resolution is not (257 or 513 or 1025 or 2049) ||
             !In(Roughness, 0.05, 0.95) || !In(Lacunarity, 1.5, 3) ||
             !In(Scale, 0.25, 16) || !In(Height, 0.05, 8) || !In(Size, 1, 20))

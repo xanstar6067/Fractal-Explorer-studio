@@ -1,0 +1,83 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.TerrainEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Тип поверхности"/>
+        <ComboBox x:Name="TerrainTypeBox" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="Холмы — fBm"/>
+            <ComboBoxItem Content="Горные хребты"/>
+            <ComboBoxItem Content="Гибридный рельеф"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Начальное число (0–2 147 483 647)"/>
+        <TextBox x:Name="TerrainSeedBox" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" ToolTip="Одно и то же число воспроизводит тот же ландшафт" TextChanged="OnChanged"/>
+        <Button Content="Новый ландшафт" Click="RandomClicked" Margin="0,6,0,0"/>
+        <Expander Header="Детали шума" IsExpanded="False" Margin="0,6,0,0">
+            <StackPanel>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Уровни деталей (1–12)"/>
+                <TextBox x:Name="TerrainOctavesBox" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" ToolTip="Слишком мелкие для выбранной сетки уровни отсекаются" TextChanged="OnChanged"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Шероховатость (0,05–0,95)"/>
+                <TextBox x:Name="TerrainRoughnessBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Амплитуда следующего уровня: больше — грубее" TextChanged="OnChanged"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Отношение масштабов (1,5–3)"/>
+                <TextBox x:Name="TerrainLacunarityBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Рост частоты между соседними уровнями" TextChanged="OnChanged"/>
+                <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб деталей (0,25–16)"/>
+                <TextBox x:Name="TerrainScaleBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Число базовых волн на участке: больше — мельче" TextChanged="OnChanged"/>
+            </StackPanel>
+        </Expander>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Высота (0,05–8)"/>
+        <TextBox x:Name="TerrainHeightBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Белый цвет карты высот соответствует этой высоте" TextChanged="OnChanged"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Размер участка (1–20)"/>
+        <TextBox x:Name="TerrainSizeBox" numeric:NumericSpinner.IsEnabled="True" ToolTip="Ширина и длина участка в единицах мира" TextChanged="OnChanged"/>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка / размер карты высот"/>
+        <ComboBox x:Name="TerrainResolutionBox" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="257 × 257"/><ComboBoxItem Content="513 × 513"/>
+            <ComboBoxItem Content="1025 × 1025"/><ComboBoxItem Content="2049 × 2049"/>
+        </ComboBox>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Форма участка" Margin="0,12,0,0"/>
+        <ComboBox x:Name="TerrainShapeBox" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="Обычный участок"/>
+            <ComboBoxItem Content="Остров · пологий берег"/>
+            <ComboBoxItem Content="Кратер · чаша и кольцевой вал"/>
+        </ComboBox>
+        <StackPanel x:Name="ShapeFields">
+            <TextBlock Style="{StaticResource FieldCaption}" Text="Сила формы · 0–1"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                <Slider x:Name="StrengthSlider" Minimum="0" Maximum="1" SmallChange="0.05" ValueChanged="OnChanged" Margin="0,0,8,0"/>
+                <TextBox x:Name="StrengthBox" Grid.Column="1" Text="{Binding ElementName=StrengthSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+            </Grid>
+            <TextBlock Style="{StaticResource FieldCaption}" Text="Радиус / половина участка · 0,2–1"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                <Slider x:Name="RadiusSlider" Minimum="0.2" Maximum="1" SmallChange="0.05" ValueChanged="OnChanged" Margin="0,0,8,0"/>
+                <TextBox x:Name="RadiusBox" Grid.Column="1" Text="{Binding ElementName=RadiusSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+            </Grid>
+        </StackPanel>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Термическая эрозия · проходы 0–64" Margin="0,12,0,0"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+            <Slider x:Name="ErosionSlider" Minimum="0" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True" SmallChange="1" LargeChange="8" ValueChanged="OnChanged" Margin="0,0,8,0"/>
+            <TextBox x:Name="ErosionBox" Grid.Column="1" Text="{Binding ElementName=ErosionSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" numeric:NumericSpinner.IsInteger="True" TextChanged="OnChanged"/>
+        </Grid>
+        <StackPanel x:Name="TalusFields">
+            <TextBlock Style="{StaticResource FieldCaption}" Text="Угол осыпания · 5–60°"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="78"/></Grid.ColumnDefinitions>
+                <Slider x:Name="TalusSlider" Minimum="5" Maximum="60" SmallChange="1" ValueChanged="OnChanged" Margin="0,0,8,0"/>
+                <TextBox x:Name="TalusBox" Grid.Column="1" Text="{Binding ElementName=TalusSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+            </Grid>
+        </StackPanel>
+        <TextBlock Text="Материал осыпается с крутых склонов к соседним ячейкам. 0 проходов отключает эрозию; меньший угол усиливает осыпание. Результат зависит от сетки. На больших сетках расчёт дольше." TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <Button Content="Окрасить по уклону" Click="SlopeClicked" Margin="0,8,0,0"/>
+        <TextBlock Text="Уклон: начало палитры — горизонталь, конец — вертикальный склон. Палитра, масштаб и сдвиг — в разделе окраски." TextWrapping="Wrap" Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <Button x:Name="TerrainExportButton" Content="Экспорт карты высот…" Click="ExportClicked" Margin="0,8,0,0"/>
+        <TextBlock Text="PNG 16 бит включает форму и эрозию. Чёрный = 0, белый = высота. X слева направо, Z сверху вниз; весь участок без света и перспективы." TextWrapping="Wrap" Margin="0,5,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

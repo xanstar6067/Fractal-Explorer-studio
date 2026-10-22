@@ -959,7 +959,12 @@ float3 SurfaceAlbedo(
     if (mode == 1) return abs(normal);
 
     float value;
+#if FRACTAL_KIND == KIND_Terrain
+    // Normal may face the underside; slope is independent of camera and lighting.
+    if (mode == 2) value = acos(saturate(abs(normal.y))) * (2.0 / 3.14159265359);
+#else
     if (mode == 2) value = trap.x;
+#endif
     else if (mode == 3) value = travelled / depthSpan * 6.0;
     else if (mode == 4) value = trap.y * 3.0;
     else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
