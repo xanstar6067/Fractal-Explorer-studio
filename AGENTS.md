@@ -127,6 +127,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 Гибрид бульба и бокса: `BulbBoxHybridEditor` — цепочка операций, повороты и сдвиги (`BULBBOX_HYBRID.md`, проверка `bulbbox-hybrid`).
 
+Периодические поверхности: `PeriodicSurfaceEditor` — смешивание семейств, переменная толщина и два лабиринта (`PERIODIC_SURFACES.md`, проверка `periodic-surfaces`).
+
 ## Пользовательские данные, сохранения и миграции
 
 Все данные пользователя лежат в `%LOCALAPPDATA%\Fractal Explorer Studio` (`Infrastructure/AppPaths.cs`), а не рядом с exe. Папку открывает кнопка «Открыть папку с данными» в панели «Настройки» главного окна.

@@ -501,7 +501,7 @@ public partial class Fractal3DWindow : Window
         KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
         AntoineEditor.Visibility = Collapse(Kind == Fractal3DKind.AntoineNecklace);
         NewtonEditor.Visibility = Collapse(Kind == Fractal3DKind.Newton3D);
-        PeriodicPanel.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
+        PeriodicEditor.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
         ImplicitPanel.Visibility = Collapse(Kind == Fractal3DKind.ImplicitSurface);
         HyperbolicPanel.Visibility = Collapse(Kind == Fractal3DKind.HyperbolicHoneycomb);
         FlamePanel.Visibility = Collapse(Kind == Fractal3DKind.Flame3D);

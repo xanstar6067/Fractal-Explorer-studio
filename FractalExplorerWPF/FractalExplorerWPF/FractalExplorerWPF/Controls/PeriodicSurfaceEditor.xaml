@@ -1,0 +1,134 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:numeric="clr-namespace:FractalExplorerWPF.Controls" x:Class="FractalExplorerWPF.Controls.PeriodicSurfaceEditor">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Text="Семейство поверхности" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="PeriodicFamilyBox" SelectedIndex="0" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="Гироид · Gyroid"/>
+            <ComboBoxItem Content="Schwarz P · кубические каналы"/>
+            <ComboBoxItem Content="Schwarz D · алмазная сеть"/>
+        </ComboBox>
+        <TextBlock Text="Второе семейство" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="PeriodicBlendFamilyBox" SelectedIndex="1" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="Гироид"/>
+            <ComboBoxItem Content="Schwarz P"/>
+            <ComboBoxItem Content="Schwarz D"/>
+        </ComboBox>
+        <TextBlock Text="Доля второго семейства · 0–1" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicBlendSlider" Minimum="0" Maximum="1" Value="0" SmallChange="0.01" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicBlendBox" Text="{Binding ElementName=PeriodicBlendSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock x:Name="PeriodicFormulaText" TextWrapping="Wrap" Margin="0,6,0,4" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Text="Тригонометрические приближения минимальных поверхностей. Показан куб от −1 до +1 по каждой оси." TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Text="Показывать" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="PeriodicRegionBox" SelectedIndex="0" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="Стенки · слой вокруг F = уровня"/>
+            <ComboBoxItem Content="Поверхность · без толщины"/>
+            <ComboBoxItem Content="Лабиринт F ≥ уровня"/>
+            <ComboBoxItem Content="Лабиринт F ≤ уровня"/>
+            <ComboBoxItem Content="Оба лабиринта · разделены зазором"/>
+        </ComboBox>
+        <Button Content="Окрасить по лабиринту" Click="ColorLabyrinthsClicked" Margin="0,4"/>
+        <TextBlock Text="Два цвета берутся из палитры. В режиме двух лабиринтов толщина задаёт зазор между ними; срез открывает их внутреннее строение." TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Text="Период (мировые единицы)" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicPeriodSlider" Minimum="0.5" Maximum="4" Value="1" SmallChange="0.05" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicPeriodBox" Text="{Binding ElementName=PeriodicPeriodSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock Text="Уровень F" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicLevelSlider" Minimum="-0.9" Maximum="0.9" Value="0" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicLevelBox" Text="{Binding ElementName=PeriodicLevelSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock x:Name="PeriodicThicknessCaption" Text="Толщина стенки по F" Style="{StaticResource FieldCaption}"/>
+        <Grid x:Name="PeriodicThicknessPanel">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicThicknessSlider" Minimum="0.02" Maximum="1.2" Value="0.3" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicThicknessBox" Text="{Binding ElementName=PeriodicThicknessSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <StackPanel x:Name="PeriodicGradientPanel">
+            <TextBlock Text="Изменение толщины / зазора" Style="{StaticResource FieldCaption}"/>
+            <ComboBox x:Name="PeriodicThicknessAxisBox" SelectedIndex="0" SelectionChanged="OnChanged">
+                <ComboBoxItem Content="Постоянная толщина"/>
+                <ComboBoxItem Content="Вдоль X"/>
+                <ComboBoxItem Content="Вдоль Y"/>
+                <ComboBoxItem Content="Вдоль Z"/>
+            </ComboBox>
+            <TextBlock Text="Градиент · от тонкого к толстому" Style="{StaticResource FieldCaption}"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="78"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="PeriodicGradientSlider" Minimum="-0.9" Maximum="0.9" Value="0" SmallChange="0.01" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+                <TextBox Grid.Column="1" x:Name="PeriodicGradientBox" Text="{Binding ElementName=PeriodicGradientSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+            </Grid>
+            <TextBlock Text="При +0,9 ширина растёт от 10% на −1 до 190% на +1 выбранной оси. Минус меняет направление." TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        </StackPanel>
+        <TextBlock Text="Растяжение X" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicStretchXSlider" Minimum="0.5" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicStretchXBox" Text="{Binding ElementName=PeriodicStretchXSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock Text="Растяжение Y" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicStretchYSlider" Minimum="0.5" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicStretchYBox" Text="{Binding ElementName=PeriodicStretchYSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock Text="Растяжение Z" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicStretchZSlider" Minimum="0.5" Maximum="2" Value="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicStretchZBox" Text="{Binding ElementName=PeriodicStretchZSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock Text="Толщина задаётся в значениях F: |F − уровень| ≤ толщина / 2. Физическая толщина меняется вдоль стенки." TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <TextBlock Text="Срез · оставить нижнюю часть" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="PeriodicCutBox" SelectedIndex="0" SelectionChanged="OnChanged">
+            <ComboBoxItem Content="Без среза"/>
+            <ComboBoxItem Content="По X"/>
+            <ComboBoxItem Content="По Y"/>
+            <ComboBoxItem Content="По Z"/>
+        </ComboBox>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="78"/>
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="PeriodicCutPositionSlider" Minimum="-1" Maximum="1" SmallChange="0.01" LargeChange="0.1" VerticalAlignment="Center" Margin="0,0,8,0" ValueChanged="OnChanged"/>
+            <TextBox Grid.Column="1" x:Name="PeriodicCutPositionBox" Text="{Binding ElementName=PeriodicCutPositionSlider, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" numeric:NumericSpinner.IsEnabled="True" TextChanged="OnChanged"/>
+        </Grid>
+        <TextBlock Text="Готовые виды используют CAD: левая кнопка вращает камеру. Для прогулки по тоннелям можно вручную выбрать игровую камеру в разделе «Навигация»." TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

@@ -8,6 +8,7 @@ public partial class Fractal3DWindow
 {
     private void InitializeNumericInput()
     {
+        NumericInput.Include(this, PeriodicEditor);
         NumericInput.Real(this, AttractorABox, "Параметр a", -100, 100);
         NumericInput.Real(this, AttractorBBox, "Параметр b", -100, 100);
         NumericInput.Real(this, AttractorCBox, "Параметр c", -100, 100);
@@ -54,13 +55,6 @@ public partial class Fractal3DWindow
         NumericInput.Real(this, LyapunovLevelBox, "Уровень λ", -2, 1);
         NumericInput.Real(this, LyapunovBandBox, "Полуширина полосы", .005, .5);
         NumericInput.Real(this, LyapunovRangeBox, "Диапазон окраски", .05, 4);
-        NumericInput.Real(this, PeriodicPeriodBox, "Период", .5, 4);
-        NumericInput.Real(this, PeriodicLevelBox, "Уровень F", -.9, .9);
-        NumericInput.Real(this, PeriodicThicknessBox, "Толщина стенки по F", .02, 1.2);
-        NumericInput.Real(this, PeriodicStretchXBox, "Растяжение X", .5, 2);
-        NumericInput.Real(this, PeriodicStretchYBox, "Растяжение Y", .5, 2);
-        NumericInput.Real(this, PeriodicStretchZBox, "Растяжение Z", .5, 2);
-        NumericInput.Real(this, PeriodicCutPositionBox, "Положение среза", -1, 1);
         NumericInput.Real(this, AutoRotateSpeedBox, "Скорость автовращения", -720, 720);
         NumericInput.Integer(this, MaxStepsBox, "Шагов луча", 16, 1024);
         NumericInput.Real(this, DetailBox, "Детализация", 0.05, 8);

@@ -8,7 +8,7 @@
 
 Лаборатория поверхностей (`Fractal3D:ImplicitSurface`, `fractal3d-implicit-surface`) автоматически входит в обход каталога; формула, параметры и срез встроены в общее 3D-окно. Для одного снимка: `--only=Fractal3D:ImplicitSurface`.
 
-Гироид и периодические поверхности (`Fractal3D:PeriodicSurfaces`, `fractal3d-periodic-surfaces`) автоматически входят в обход каталога; выбор Gyroid/Schwarz P/Schwarz D и параметры встроены в общее 3D-окно.
+Гироид и периодические поверхности (`Fractal3D:PeriodicSurfaces`, `fractal3d-periodic-surfaces`) автоматически входят в обход каталога; панель `PeriodicSurfaceEditor` в общем 3D-окне включает Gyroid/Schwarz P/D, смеси, переменную толщину и два лабиринта. Отдельного окна редактора нет; фильтр `--only=Fractal3D:PeriodicSurfaces`.
 
 Свитковые волны 3D (`Fractal3D:Excitable3D`) автоматически входят в обход каталога; ожидание учитывает расчёт и публикацию поля. Выбор четырёх моделей встроен в 3D-окно.
 
