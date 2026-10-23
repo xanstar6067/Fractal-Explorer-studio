@@ -231,6 +231,9 @@
                                              x:Name="JuliaCZBox" ToolTip="Третья координата C"
                                              TextChanged="Parameter_OnChanged"/>
                                 </Grid>
+                                <Button x:Name="JuliabulbAtlasButton" Content="Атлас параметров C / степени…"
+                                        Margin="0,7,0,3" Visibility="Collapsed" Click="JuliabulbAtlas_OnClick"
+                                        ToolTip="Сравнить формы Жюлиабульба при разных компонентах C и степенях"/>
                                 <StackPanel x:Name="QuaternionPanel">
                                     <TextBlock Style="{StaticResource FieldCaption}" Text="Четвёртая координата C"/>
                                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="JuliaCWBox"

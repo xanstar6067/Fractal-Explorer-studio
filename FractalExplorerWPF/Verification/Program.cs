@@ -128,6 +128,8 @@ internal static partial class Program
                 if (group == "quaternion-julia") return;
                 if (group is "all" or "phoenix3d") await VerifyPhoenix3DAsync(args);
                 if (group == "phoenix3d") return;
+                if (group is "all" or "juliabulb-atlas") await VerifyJuliabulbAtlasAsync(args);
+                if (group == "juliabulb-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);
                 if (group == "bulbbox-hybrid") return;
                 if (group is "all" or "fractal3d-modes") await VerifyFractal3DModesAsync(args);

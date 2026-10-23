@@ -113,6 +113,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Phoenix3DAtlasWindow` и `Phoenix3DExplorer` — GPU-атлас шести компонент C₁/C₂ Phoenix 3D, локальные вариации и возврат констант (`PHOENIX3D.md`, проверка `phoenix3d`).
 
+`JuliabulbAtlasWindow` — GPU-атлас компонент C и степени Жюлиабульба (`JULIABULB_ATLAS.md`, проверка `juliabulb-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

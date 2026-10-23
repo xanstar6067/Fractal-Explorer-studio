@@ -1,3 +1,6 @@
+Атлас Жюлиабульба: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- juliabulb-atlas [--out папка]`.
+Шесть пар осей C/степени, разные границы NumericInput и переключение контрактов, точность фиксированных значений, небольшие GPU-превью против прямого рендера, отмена поколений, история диапазонов, применение/закрытие и сохранения. Описание — [JULIABULB_ATLAS.md](../JULIABULB_ATLAS.md). При изменении общей оболочки также запускать `julia-atlas`, `phoenix-atlas` и `numeric-input`.
+
 Гибрид бульба и бокса: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- bulbbox-hybrid [--out папка]`.
 Независимый double/GPU-расчёт карты, четыре формы инверсии, преобразование старых серий в цепочку, восемь пресетов, девять стилей, сохранения/облако, глубокие снимки, поля NumericInput, команды редактора и отмена. Только небольшие адресные кадры. Подробности — [BULBBOX_HYBRID.md](../BULBBOX_HYBRID.md).
 
