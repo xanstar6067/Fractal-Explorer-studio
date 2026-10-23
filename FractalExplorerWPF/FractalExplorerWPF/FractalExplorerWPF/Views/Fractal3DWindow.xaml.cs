@@ -363,7 +363,7 @@ public partial class Fractal3DWindow : Window
         BoxInversionPowerSlider.Value = double.IsFinite(state.BoxInversionPower)
             ? Math.Clamp(state.BoxInversionPower, 2, 16) : 4;
         UpdateBoxInversionPanels();
-        HybridMixBox.Text = Format(state.HybridMix);
+        HybridMixBox.Text = state.HybridMix.ToString("R", CultureInfo.InvariantCulture);
         HybridBulbStepsBox.Text = state.HybridBulbSteps.ToString(CultureInfo.InvariantCulture);
         HybridBoxStepsBox.Text = state.HybridBoxSteps.ToString(CultureInfo.InvariantCulture);
         HybridOrderBox.SelectedIndex = (int)state.HybridOrder;

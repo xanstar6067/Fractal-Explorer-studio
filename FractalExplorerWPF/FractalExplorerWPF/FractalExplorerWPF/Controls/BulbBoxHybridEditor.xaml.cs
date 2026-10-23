@@ -15,6 +15,7 @@ public partial class BulbBoxHybridEditor : UserControl
     public Func<Fractal3DState>? ClassicState { get; set; }
     public event EventHandler? SettingsChanged;
     public bool IsCustom => EnabledBox.IsChecked == true;
+    public int SelectedStageIndex => _selected;
     private BulbBoxStage? Selected => _sequence?.Stages.ElementAtOrDefault(_selected);
     private bool FormulaActive => IsCustom && Selected?.Operation is BulbBoxOperation.Bulb or BulbBoxOperation.Box;
 
@@ -54,6 +55,21 @@ public partial class BulbBoxHybridEditor : UserControl
         sequence?.Validate();
         _sequence = sequence?.Clone(); _selected = 0; _history.Clear();
         Refresh();
+    }
+
+    /// <summary>Применить вариант атласа как одно изменение, сохранив выбранный этап и историю.</summary>
+    public void ApplyAtlasStage(int index, BulbBoxStage stage)
+    {
+        NumericInput.CommitAll(this);
+        stage.Validate();
+        if (!IsCustom || _sequence is null || index != _selected || stage.Operation != Selected?.Operation)
+            throw new InvalidOperationException("Выбранный этап цепочки изменился.");
+        _sequence.Stages[_selected] = ReadStage();
+        if (_sequence.Stages[_selected] == stage) return;
+        SaveHistory();
+        _sequence.Stages[_selected] = stage with { };
+        Refresh();
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private BulbBoxStage ReadStage()

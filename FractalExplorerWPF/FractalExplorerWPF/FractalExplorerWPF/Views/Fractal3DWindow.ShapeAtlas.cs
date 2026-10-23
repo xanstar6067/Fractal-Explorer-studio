@@ -7,6 +7,12 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void BulbBoxHybridAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind != Fractal3DKind.BulbBoxHybrid) return;
+        OpenShapeAtlas(CreateBulbBoxHybridAtlas);
+    }
+
     private void MandelbulbAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind != Fractal3DKind.Mandelbulb) return;
@@ -59,6 +65,23 @@ public partial class Fractal3DWindow
             BoxScaleBox.Text = state.BoxScale.ToString("R", CultureInfo.InvariantCulture);
             BoxMinRadiusBox.Text = state.BoxMinRadius.ToString("R", CultureInfo.InvariantCulture);
             BoxFoldingBox.Text = state.BoxFoldingLimit.ToString("R", CultureInfo.InvariantCulture);
+        });
+
+    private BulbBoxHybridAtlasWindow CreateBulbBoxHybridAtlas() =>
+        ConnectShapeAtlas(new BulbBoxHybridAtlasWindow(CaptureViewState("atlas"), HybridEditor.SelectedStageIndex), state =>
+        {
+            if (state.HybridSequence is { } sequence)
+                HybridEditor.ApplyAtlasStage(HybridEditor.SelectedStageIndex, sequence.Stages[HybridEditor.SelectedStageIndex]);
+            else
+            {
+                PowerBox.Text = state.Power.ToString("R", CultureInfo.InvariantCulture);
+                BoxScaleBox.Text = state.BoxScale.ToString("R", CultureInfo.InvariantCulture);
+                BoxMinRadiusBox.Text = state.BoxMinRadius.ToString("R", CultureInfo.InvariantCulture);
+                BoxFoldingBox.Text = state.BoxFoldingLimit.ToString("R", CultureInfo.InvariantCulture);
+                HybridMixBox.Text = state.HybridMix.ToString("R", CultureInfo.InvariantCulture);
+                HybridBulbStepsBox.Text = state.HybridBulbSteps.ToString(CultureInfo.InvariantCulture);
+                HybridBoxStepsBox.Text = state.HybridBoxSteps.ToString(CultureInfo.InvariantCulture);
+            }
         });
 
     private T ConnectShapeAtlas<T>(T atlas, Action<Fractal3DState>? writeParameters = null) where T : Fractal3DParameterAtlasWindow

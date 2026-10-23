@@ -338,6 +338,9 @@
                             </StackPanel>
 
                             <StackPanel x:Name="HybridPanel" Margin="0,7,0,0">
+                              <Button Content="Атлас параметров гибрида…" x:Name="BulbBoxHybridAtlasButton"
+                                      Click="BulbBoxHybridAtlas_OnClick" Margin="0,0,0,5"
+                                      ToolTip="Сравнить параметры классического гибрида или выбранного этапа своей цепочки"/>
                               <controls:BulbBoxHybridEditor x:Name="HybridEditor" SettingsChanged="HybridEditorChanged"/>
                               <StackPanel x:Name="HybridClassicPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Начало цикла"/>
