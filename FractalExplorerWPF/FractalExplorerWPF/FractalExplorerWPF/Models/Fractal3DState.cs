@@ -16,6 +16,11 @@ public sealed class Fractal3DState
     public int Iterations { get; set; } = 8;
     public double Power { get; set; } = 8;
     public BurningShip3DFormula BurningShipFormula { get; set; }
+    /// <summary>
+    /// Толщина оболочки Жюлиа горящего корабля в единицах сцены. Само множество почти всегда
+    /// пыль без объёма, поэтому видно только утолщённым, и толщина не зависит от масштаба.
+    /// </summary>
+    public double BurningShipThickness { get; set; } = 0.02;
     public double Bailout { get; set; } = 4;
     public double JuliaCX { get; set; }
     public double JuliaCY { get; set; }

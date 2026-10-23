@@ -37,6 +37,7 @@ internal static partial class Program
                 var actual = await render(point, CancellationToken.None);
                 var expected = source.Clone(); expected.JuliaCX = -.3; expected.JuliaCY = .25; expected.Power = 3;
                 expected.Iterations = Math.Clamp(expected.Iterations, 1, 32); expected.MaxSteps = Math.Min(expected.MaxSteps, 160);
+                expected.Detail = Fractal3DParameterAtlasWindow.PreviewDetail(expected.Detail);
                 expected.Ssaa = 1; expected.SoftShadows = expected.AmbientOcclusion = false;
                 var direct = await renderer.RenderPixelsAsync(expected, 144, 108, null, null, CancellationToken.None);
                 Check(actual.SequenceEqual(direct.Buffer), $"{formula}: atlas lost the selected formula, C, power or view.");
@@ -51,8 +52,12 @@ internal static partial class Program
         BurningShipJuliaAtlasWindow? atlas = null;
         try
         {
+            source.BurningShipThickness = .0375;
             main.LoadState(source);
             Check(main.CaptureState("exact").JuliaCZ == source.JuliaCZ, "Loading rounded the fixed C.");
+            Check(main.CaptureState("exact").BurningShipThickness == .0375, "Shell thickness was lost by the window.");
+            Check(JsonSerializer.Deserialize<Fractal3DState>("{}")!.BurningShipThickness == .02,
+                "Old saves without a shell thickness must open with the default 0.02.");
             Check(Field<Button>(main, "BurningShipJuliaAtlasButton").Visibility == Visibility.Visible &&
                 Field<Button>(main, "JuliabulbAtlasButton").Visibility == Visibility.Collapsed, "Wrong atlas entry is visible.");
             new System.Windows.Interop.WindowInteropHelper(main).EnsureHandle();

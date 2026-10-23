@@ -215,6 +215,15 @@
                                            Text="Кватернионная формула сохраняет плоский срез; сферическая даёт форму ближе к Мандельбульбу."/>
                             </StackPanel>
 
+                            <StackPanel x:Name="BurningShipThicknessPanel" Margin="0,6,0,0">
+                                <TextBlock Style="{StaticResource FieldCaption}" Text="Толщина оболочки (0,001–0,25)"/>
+                                <TextBox x:Name="BurningShipThicknessBox" numeric:NumericSpinner.IsEnabled="True"
+                                         TextChanged="Parameter_OnChanged"/>
+                                <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Theme.SecondaryTextBrush}"
+                                           Text="Множество Жюлиа здесь обычно пыль без объёма. Толщина задаёт видимую оболочку вокруг него в единицах сцены, поэтому форма одинакова при любом приближении: меньше — подробнее и тоньше, больше — плотнее."/>
+                            </StackPanel>
+
                             <StackPanel x:Name="JuliaPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Константа C"/>
                                 <Grid>

@@ -1,6 +1,7 @@
 using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Models.Fractal3DModes;
 
 namespace FractalExplorerWPF.Views;
 
@@ -63,6 +64,9 @@ public partial class Fractal3DWindow
         NumericInput.Real(this, ShadowSharpnessBox, "Жёсткость теней", 1, 128);
         NumericInput.Real(this, AoStrengthBox, "Сила затенения", 0, 1);
         NumericInput.Real(this, BailoutBox, "Радиус вылета", 1.01, 1e6);
+        NumericInput.Real(this, BurningShipThicknessBox, "Толщина оболочки",
+            BurningShipJuliaMode.MinThickness, BurningShipJuliaMode.MaxThickness,
+            active: () => Kind == Fractal3DKind.BurningShipJulia);
         NumericInput.Real(this, JuliaCXBox, "Первая координата C", -8, 8);
         NumericInput.Real(this, JuliaCYBox, "Вторая координата C", -8, 8);
         NumericInput.Real(this, JuliaCZBox, "Третья координата C", -8, 8);

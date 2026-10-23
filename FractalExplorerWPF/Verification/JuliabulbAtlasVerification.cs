@@ -79,6 +79,7 @@ internal static partial class Program
             var expected = before.Clone(); atlas.ApplySelectionTo(expected);
             Check(expected.JuliaCZ == source.JuliaCZ, "Fixed component lost precision after rendering.");
             expected.Iterations = Math.Clamp(expected.Iterations, 1, 32); expected.MaxSteps = Math.Min(expected.MaxSteps, 160);
+            expected.Detail = Fractal3DParameterAtlasWindow.PreviewDetail(expected.Detail);
             expected.Ssaa = 1; expected.SoftShadows = expected.AmbientOcclusion = false;
             using (var renderer = new Fractal3DRenderer())
             {

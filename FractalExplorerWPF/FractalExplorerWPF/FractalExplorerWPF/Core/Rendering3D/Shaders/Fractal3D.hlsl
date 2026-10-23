@@ -625,7 +625,11 @@ float Map(float3 p, out float4 trap)
     r = length(z);
     trap = float4(sqrt(trapRadius2), trapAxis, trapIndex, r);
     StepScale = formula < 2 ? 0.5 : max(min(StepScale, 0.5), BULB_STEP_FLOOR);
-    return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9);
+    // Множество Жюлиа здесь почти всегда пыль или плёнка без объёма, и раньше его
+    // утолщал только допуск луча в долю пикселя: форма менялась с разрешением и рвалась
+    // при приближении. Толщина ShapeA.z задаёт оболочку в единицах сцены, одну на любом
+    // масштабе; у обычного корабля она 0.
+    return 0.5 * log(max(r, 1.000001)) * r / max(dr, 1e-9) - ShapeA.z;
 
 #elif FRACTAL_KIND == KIND_Phoenix
 

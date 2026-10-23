@@ -9,6 +9,12 @@ public abstract class Fractal3DParameterAtlasWindow : ParameterAtlasWindow
 {
     private readonly Fractal3DState _source;
     private readonly Fractal3DRenderer _renderer = new();
+    private const int PreviewWidth = 144, PreviewHeight = 108;
+    // Допуск попадания луча — доля пикселя, поэтому в мелкой миниатюре он в разы шире,
+    // чем в окне: вокруг «пыли» без внутренности миниатюра рисовала толстую ложную
+    // оболочку, которой в окне нет. Детализация пересчитывается на типичную высоту холста.
+    private const double WindowCanvasHeight = 720;
+    internal static double PreviewDetail(double detail) => detail * PreviewHeight / WindowCanvasHeight;
     protected override int PreviewIterationCount => Math.Clamp(_source.Iterations, 1, 32);
     protected override decimal ComponentMinimum => -8;
     protected override decimal ComponentMaximum => 8;
@@ -30,12 +36,13 @@ public abstract class Fractal3DParameterAtlasWindow : ParameterAtlasWindow
         var source = _source.Clone();
         source.Iterations = PreviewIterationCount;
         source.MaxSteps = Math.Min(source.MaxSteps, 160);
+        source.Detail = PreviewDetail(source.Detail);
         source.Ssaa = 1; source.SoftShadows = false; source.AmbientOcclusion = false;
         return async (point, token) =>
         {
             var state = source.Clone();
             ApplyComponents(state, point);
-            var frame = await _renderer.RenderPixelsAsync(state, 144, 108, null, null, token);
+            var frame = await _renderer.RenderPixelsAsync(state, PreviewWidth, PreviewHeight, null, null, token);
             token.ThrowIfCancellationRequested();
             return frame.Buffer;
         };

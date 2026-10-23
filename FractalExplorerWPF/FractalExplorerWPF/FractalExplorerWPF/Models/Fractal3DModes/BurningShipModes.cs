@@ -70,7 +70,17 @@ internal sealed class BurningShipJuliaMode() : BurningShipFamilyMode(Fractal3DKi
     "Julia-вариант трёхмерного «Горящего корабля»: та же выбранная формула и степень, но постоянная C фиксирована. Её можно выбрать на соответствующей 3D-карте.",
     "Fractal3DBurningShipJulia", "burning-ship-julia-3d"))
 {
+    public const double MinThickness = 0.001, MaxThickness = 0.25;
+
     public override bool UsesJuliaConstant => true;
+
+    public override void Validate(Fractal3DState state) =>
+        state.BurningShipThickness = Math.Clamp(state.BurningShipThickness, MinThickness, MaxThickness);
+
+    public override Fractal3DShapeConstants ShapeConstants(Fractal3DState state) =>
+        new(new Vector3((float)state.Power, (float)state.BurningShipFormula,
+                (float)Math.Clamp(state.BurningShipThickness, MinThickness, MaxThickness)),
+            JuliaConstant(state), 0, BoxInversion(state));
 
     protected override void ConfigureDefault(Fractal3DState state)
     {
@@ -121,5 +131,5 @@ internal sealed class BurningShipJuliaMode() : BurningShipFamilyMode(Fractal3DKi
 
     protected override string ShapeSummary(Fractal3DState state) =>
         $"Степень: {state.Power:G6} · {Fractal3DCatalog.BurningShipFormulaName(state.BurningShipFormula)} · " +
-        $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5}";
+        $"C: {state.JuliaCX:G5}; {state.JuliaCY:G5}; {state.JuliaCZ:G5} · толщина {state.BurningShipThickness:G3}";
 }

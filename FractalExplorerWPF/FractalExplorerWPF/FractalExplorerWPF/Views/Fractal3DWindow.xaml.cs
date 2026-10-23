@@ -11,6 +11,7 @@ using FractalExplorerWPF.Core.Rendering;
 using FractalExplorerWPF.Core.Rendering3D;
 using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
+using FractalExplorerWPF.Models.Fractal3DModes;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Point = System.Windows.Point;
@@ -193,6 +194,9 @@ public partial class Fractal3DWindow : Window
         Newton = Kind == Fractal3DKind.Newton3D ? NewtonEditor.Capture() : new(),
         Power = ReadField(PowerBox, _mode.PowerField),
         BurningShipFormula = SelectedBurningShipFormula,
+        BurningShipThickness = Kind == Fractal3DKind.BurningShipJulia
+            ? ReadDouble(BurningShipThicknessBox, "Толщина оболочки", BurningShipJuliaMode.MinThickness, BurningShipJuliaMode.MaxThickness)
+            : new Fractal3DState().BurningShipThickness,
         Bailout = ReadDouble(BailoutBox, "Радиус вылета", 1.01, 1e6),
         JuliaCX = ReadDouble(JuliaCXBox, "Первая координата C", -8, 8),
         JuliaCY = ReadDouble(JuliaCYBox, "Вторая координата C", -8, 8),
@@ -329,6 +333,7 @@ public partial class Fractal3DWindow : Window
 
         PowerBox.Text = Format(state.Power);
         BurningShipFormulaBox.SelectedIndex = (int)state.BurningShipFormula;
+        BurningShipThicknessBox.Text = Format(state.BurningShipThickness);
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
         BailoutBox.Text = Format(state.Bailout);
         JuliaCXBox.Text = Format(state.JuliaCX);
@@ -476,6 +481,7 @@ public partial class Fractal3DWindow : Window
         PowerPanel.Visibility = Collapse(_mode.UsesPower);
         PhoenixPowerPanel.Visibility = PhoenixMemoryPanel.Visibility = Collapse(Kind == Fractal3DKind.Phoenix);
         BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
+        BurningShipThicknessPanel.Visibility = Collapse(Kind == Fractal3DKind.BurningShipJulia);
         PowerLabel.Text = _mode.PowerField.Label;
         JuliaPanel.Visibility = Collapse(_mode.UsesJuliaConstant);
         JuliabulbAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.Juliabulb);
