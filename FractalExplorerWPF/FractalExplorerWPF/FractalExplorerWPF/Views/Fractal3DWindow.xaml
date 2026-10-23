@@ -234,6 +234,9 @@
                                 <Button x:Name="JuliabulbAtlasButton" Content="Атлас параметров C / степени…"
                                         Margin="0,7,0,3" Visibility="Collapsed" Click="JuliabulbAtlas_OnClick"
                                         ToolTip="Сравнить формы Жюлиабульба при разных компонентах C и степенях"/>
+                                <Button x:Name="BurningShipJuliaAtlasButton" Content="Атлас параметров C / степени…"
+                                        Margin="0,7,0,3" Visibility="Collapsed" Click="BurningShipJuliaAtlas_OnClick"
+                                        ToolTip="Сравнить формы Жюлиа горящего корабля при выбранной формуле"/>
                                 <StackPanel x:Name="QuaternionPanel">
                                     <TextBlock Style="{StaticResource FieldCaption}" Text="Четвёртая координата C"/>
                                     <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="JuliaCWBox"

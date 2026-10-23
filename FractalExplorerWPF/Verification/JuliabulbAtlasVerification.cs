@@ -53,6 +53,9 @@ internal static partial class Program
             var minX = Field<TextBox>(atlas, "MinRealBox"); var maxX = Field<TextBox>(atlas, "MaxRealBox");
             minX.Text = "10"; maxX.Text = "12"; NumericInput.CommitAll(atlas);
             Check(minX.Text == "10" && maxX.Text == "12", "Power axis incorrectly kept the C limit of 8.");
+            await Build(atlas);
+            Check(Field<UniformGrid>(atlas, "TilesPanel").Children.OfType<Button>().All(b => b.IsEnabled) && atlas.SelectedParameters[3] == 11m,
+                "Power range above 10 must render, not only validate numeric input.");
             minX.Text = "40"; maxX.Text = "50"; NumericInput.CommitAll(atlas);
             Check(decimal.Parse(minX.Text, CultureInfo.InvariantCulture) < decimal.Parse(maxX.Text, CultureInfo.InvariantCulture)
                 && decimal.Parse(maxX.Text, CultureInfo.InvariantCulture) <= 32 && NumericInput.GetHasNotice(maxX),
@@ -130,6 +133,8 @@ internal static partial class Program
             var edge = source.Clone(); edge.JuliaCX = 8; edge.JuliaCY = -8; edge.Power = 32;
             atlas = new JuliabulbAtlasWindow(edge);
             Field<ComboBox>(atlas, "XAxisBox").SelectedIndex = 3;
+            Check(decimal.Parse(Field<TextBox>(atlas, "MaxRealBox").Text, CultureInfo.InvariantCulture) == 32,
+                "An edge power of 32 must initialize around its actual value.");
             Check(new[] { "MinRealBox", "MaxRealBox", "MinImaginaryBox", "MaxImaginaryBox" }
                 .All(name => NumericInput.IsValid(Field<TextBox>(atlas, name))), "Edge parameters produced invalid initial bounds.");
         }

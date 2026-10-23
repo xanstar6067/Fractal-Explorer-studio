@@ -31,6 +31,10 @@ Physarum 3D (`Fractal3D:Physarum3D`) входит в общий обход ка�
 `Fractal3D:Juliabulb` дополнительно снимает `JuliabulbAtlasWindow` (`juliabulb-atlas.png`):
 атлас компонент C и степени. Фильтр — `--only=Fractal3D:Juliabulb`.
 
+`Fractal3D:BurningShipJulia` дополнительно снимает `BurningShipJuliaAtlasWindow`
+(`burning-ship-julia-atlas.png`): C и целая степень при выбранной формуле.
+Фильтр — `--only=Fractal3D:BurningShipJulia`.
+
 `Phoenix` дополнительно снимает `PhoenixParameterAtlasWindow` (`phoenix-parameter-atlas.png`),
 с ожиданием расчёта сетки через общую оболочку `ParameterAtlasWindow`. Существующий
 исследователь C₁/C₂ продолжает сниматься отдельно. Фильтр — `--only=Phoenix`.

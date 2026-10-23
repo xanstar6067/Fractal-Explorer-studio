@@ -335,7 +335,8 @@ public partial class Fractal3DWindow : Window
         JuliaCYBox.Text = Format(state.JuliaCY);
         JuliaCZBox.Text = Format(state.JuliaCZ);
         JuliaCWBox.Text = Format(state.JuliaCW);
-        if (Kind == Fractal3DKind.Juliabulb) WriteJuliabulbParameters(state);
+        if (Kind == Fractal3DKind.Juliabulb) WriteJulia3DShapeParameters(state);
+        if (Kind == Fractal3DKind.BurningShipJulia) WriteJulia3DShapeParameters(state);
         PhoenixSecondaryPowerBox.Text = state.PhoenixSecondaryPower.ToString(CultureInfo.InvariantCulture);
         PhoenixMemoryXBox.Text = Format(state.PhoenixMemoryX);
         PhoenixMemoryYBox.Text = Format(state.PhoenixMemoryY);
@@ -478,6 +479,7 @@ public partial class Fractal3DWindow : Window
         PowerLabel.Text = _mode.PowerField.Label;
         JuliaPanel.Visibility = Collapse(_mode.UsesJuliaConstant);
         JuliabulbAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.Juliabulb);
+        BurningShipJuliaAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.BurningShipJulia);
         if (Kind == Fractal3DKind.Phoenix)
             ((TextBlock)JuliaPanel.Children[0]).Text = "Константа C₁ (вещественная; i; j)";
         QuaternionPanel.Visibility = Collapse(Kind == Fractal3DKind.QuaternionJulia);

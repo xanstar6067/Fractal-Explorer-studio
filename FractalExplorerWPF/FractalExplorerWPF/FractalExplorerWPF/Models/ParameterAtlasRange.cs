@@ -15,8 +15,7 @@ public readonly record struct ParameterAtlasRange(decimal MinX, decimal MaxX, de
         };
     }
 
-    public bool IsValid => MinX >= -10m && MaxX <= 10m && MinY >= -10m && MaxY <= 10m
-        && MinX < MaxX && MinY < MaxY;
+    public bool IsValid => MinX < MaxX && MinY < MaxY;
 
     public (decimal X, decimal Y) Sample(int column, int row, int size)
     {
@@ -28,12 +27,16 @@ public readonly record struct ParameterAtlasRange(decimal MinX, decimal MaxX, de
             MaxY - (MaxY - MinY) * row / (size - 1));
     }
 
-    public static ParameterAtlasRange Around(decimal x, decimal y, decimal width, decimal height)
+    public static ParameterAtlasRange Around(decimal x, decimal y, decimal width, decimal height) =>
+        Around(x, y, width, height, -10m, 10m, -10m, 10m);
+
+    public static ParameterAtlasRange Around(decimal x, decimal y, decimal width, decimal height,
+        decimal minX, decimal maxX, decimal minY, decimal maxY)
     {
-        width = Math.Clamp(width, 0m, 20m);
-        height = Math.Clamp(height, 0m, 20m);
-        decimal left = Math.Clamp(Math.Clamp(x, -10m, 10m) - width / 2, -10m, 10m - width);
-        decimal bottom = Math.Clamp(Math.Clamp(y, -10m, 10m) - height / 2, -10m, 10m - height);
+        width = Math.Clamp(width, 0m, maxX - minX);
+        height = Math.Clamp(height, 0m, maxY - minY);
+        decimal left = Math.Clamp(Math.Clamp(x, minX, maxX) - width / 2, minX, maxX - width);
+        decimal bottom = Math.Clamp(Math.Clamp(y, minY, maxY) - height / 2, minY, maxY - height);
         return new(left, left + width, bottom, bottom + height);
     }
 }

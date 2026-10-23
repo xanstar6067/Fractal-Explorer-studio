@@ -1,3 +1,6 @@
+Атлас Жюлиа горящего корабля 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- burning-ship-julia-atlas [--out папка]`.
+Все четыре формулы против прямого GPU-рендера, шесть пар осей, целая степень 2–16, уникальные колонки/строки без повторов, тип и границы числового ввода при смене осей, точность C, поколения, применение/закрытие и сохранения. Только небольшие адресные кадры. Описание — [BURNING_SHIP_JULIA_ATLAS.md](../BURNING_SHIP_JULIA_ATLAS.md).
+
 Атлас Жюлиабульба: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- juliabulb-atlas [--out папка]`.
 Шесть пар осей C/степени, разные границы NumericInput и переключение контрактов, точность фиксированных значений, небольшие GPU-превью против прямого рендера, отмена поколений, история диапазонов, применение/закрытие и сохранения. Описание — [JULIABULB_ATLAS.md](../JULIABULB_ATLAS.md). При изменении общей оболочки также запускать `julia-atlas`, `phoenix-atlas` и `numeric-input`.
 

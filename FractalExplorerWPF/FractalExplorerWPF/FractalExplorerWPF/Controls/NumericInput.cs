@@ -109,14 +109,16 @@ public static class NumericInput
         Decimal(scope, box, name, () => minimum, () => maximum, active, minimumMagnitude, appliedValue);
 
     public static void Decimal(FrameworkElement scope, TextBox box, string name, Func<decimal> minimum, Func<decimal> maximum,
-        Func<bool>? active = null, decimal minimumMagnitude = 0, Func<decimal>? appliedValue = null) => Register(scope, box, name, text =>
+        Func<bool>? active = null, decimal minimumMagnitude = 0, Func<decimal>? appliedValue = null,
+        Func<bool>? integer = null) => Register(scope, box, name, text =>
         {
             if (!decimal.TryParse(Canonical(text), NumberStyles.Float, Invariant, out decimal value)) return null;
+            if (integer?.Invoke() == true && value != decimal.Truncate(value)) return null;
             decimal bounded = Math.Clamp(value, minimum(), maximum());
             if (minimumMagnitude > 0 && bounded > -minimumMagnitude && bounded < minimumMagnitude)
                 bounded = bounded < 0 ? -minimumMagnitude : minimumMagnitude;
             return bounded == value ? Canonical(text) : bounded.ToString(Invariant);
-        }, () => $"число {minimum():G8}–{maximum():G8}" + (minimumMagnitude > 0 ? $", модуль не меньше {minimumMagnitude}" : ""), active,
+        }, () => $"{(integer?.Invoke() == true ? "целое число" : "число")} {minimum():G8}–{maximum():G8}" + (minimumMagnitude > 0 ? $", модуль не меньше {minimumMagnitude}" : ""), active,
             appliedValue is null ? null : () => appliedValue().ToString(Invariant));
 
     public static void Zoom(FrameworkElement scope, TextBox box, FloatExp minimum, FloatExp maximum, Func<FloatExp>? appliedValue = null) =>

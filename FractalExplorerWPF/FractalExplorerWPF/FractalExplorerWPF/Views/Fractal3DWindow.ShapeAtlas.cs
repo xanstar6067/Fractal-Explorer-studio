@@ -10,22 +10,39 @@ public partial class Fractal3DWindow
     private void JuliabulbAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind != Fractal3DKind.Juliabulb) return;
+        OpenShapeAtlas(CreateJuliabulbAtlas);
+    }
+
+    private void BurningShipJuliaAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind != Fractal3DKind.BurningShipJulia) return;
+        OpenShapeAtlas(CreateBurningShipJuliaAtlas);
+    }
+
+    private void OpenShapeAtlas(Func<Julia3DShapeAtlasWindow> createAtlas)
+    {
         NumericInput.CommitAll(this);
         _juliabulbMapTimer?.Stop();
         _juliabulbMapCts?.Cancel();
-        try { SuspendLive(() => CreateJuliabulbAtlas().ShowDialog()); }
+        try { SuspendLive(() => createAtlas().ShowDialog()); }
         finally { ScheduleJuliabulbMapRender(); }
     }
 
-    private JuliabulbAtlasWindow CreateJuliabulbAtlas()
+    private JuliabulbAtlasWindow CreateJuliabulbAtlas() =>
+        ConnectShapeAtlas(new JuliabulbAtlasWindow(CaptureViewState("atlas")));
+
+    private BurningShipJuliaAtlasWindow CreateBurningShipJuliaAtlas() =>
+        ConnectShapeAtlas(new BurningShipJuliaAtlasWindow(CaptureViewState("atlas")));
+
+    private T ConnectShapeAtlas<T>(T atlas) where T : Julia3DShapeAtlasWindow
     {
-        var atlas = new JuliabulbAtlasWindow(CaptureViewState("atlas")) { Owner = this };
+        atlas.Owner = this;
         atlas.ParametersApplied += (_, _) =>
         {
             var state = CaptureViewState("atlas");
             atlas.ApplySelectionTo(state);
             bool updating = _updatingUi; _updatingUi = true;
-            try { WriteJuliabulbParameters(state); }
+            try { WriteJulia3DShapeParameters(state); }
             finally { _updatingUi = updating; }
             _renderCts?.Cancel();
             ScheduleJuliabulbMapRender();
@@ -35,7 +52,7 @@ public partial class Fractal3DWindow
         return atlas;
     }
 
-    private void WriteJuliabulbParameters(Fractal3DState state)
+    private void WriteJulia3DShapeParameters(Fractal3DState state)
     {
         JuliaCXBox.Text = state.JuliaCX.ToString("R", CultureInfo.InvariantCulture);
         JuliaCYBox.Text = state.JuliaCY.ToString("R", CultureInfo.InvariantCulture);

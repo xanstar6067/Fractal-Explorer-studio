@@ -40,6 +40,7 @@ public partial class ParameterAtlasWindow : Window
     protected virtual (decimal Minimum, decimal Maximum) ComponentBounds(int index) => (ComponentMinimum, ComponentMaximum);
     protected virtual (decimal Minimum, decimal Maximum) AxisBounds(int index) => (RangeMinimum, RangeMaximum);
     protected virtual decimal InitialRangeWidth(int index) => .4m;
+    protected virtual bool IsIntegerComponent(int index) => false;
     protected virtual ParameterAtlasRange OverviewRange => new(-2m, 2m, -2m, 2m);
     protected virtual Func<decimal[], CancellationToken, byte[]> CreateRenderSnapshot() =>
         throw new NotSupportedException("Не задан рендерер атласа.");
@@ -80,7 +81,10 @@ public partial class ParameterAtlasWindow : Window
                 NumericSpinner.SetIsEnabled(box, true);
                 panel.Children.Add(box); FixedPointPanel.Children.Add(panel); _componentBoxes.Add(box);
                 var bounds = ComponentBounds(i);
-                NumericInput.Decimal(this, box, names[i], bounds.Minimum, bounds.Maximum, active: () => index != _xAxis && index != _yAxis);
+                if (IsIntegerComponent(i))
+                    NumericInput.Integer(this, box, names[i], (int)bounds.Minimum, (int)bounds.Maximum, active: () => index != _xAxis && index != _yAxis);
+                else
+                    NumericInput.Decimal(this, box, names[i], bounds.Minimum, bounds.Maximum, active: () => index != _xAxis && index != _yAxis);
                 box.TextChanged += (_, _) =>
                 {
                     if (_changing || index == _xAxis || index == _yAxis) return;
@@ -107,6 +111,10 @@ public partial class ParameterAtlasWindow : Window
     {
         XAxisLabel.Text = $"По горизонтали: {_componentNames[_xAxis]}, от / до";
         YAxisLabel.Text = $"По вертикали: {_componentNames[_yAxis]}, от / до";
+        NumericSpinner.SetIsInteger(MinRealBox, IsIntegerComponent(_xAxis));
+        NumericSpinner.SetIsInteger(MaxRealBox, IsIntegerComponent(_xAxis));
+        NumericSpinner.SetIsInteger(MinImaginaryBox, IsIntegerComponent(_yAxis));
+        NumericSpinner.SetIsInteger(MaxImaginaryBox, IsIntegerComponent(_yAxis));
         for (int i = 0; i < _componentBoxes.Count; i++)
         {
             _componentBoxes[i].IsEnabled = i != _xAxis && i != _yAxis;
@@ -156,22 +164,43 @@ public partial class ParameterAtlasWindow : Window
         MinImaginaryBox.Text = Format(range.MinY); MaxImaginaryBox.Text = Format(range.MaxY);
     }
 
-    private ParameterAtlasRange InitialRange() => BoundedRange(ParameterAtlasRange.Around(
-        _point[_xAxis], _point[_yAxis], InitialRangeWidth(_xAxis), InitialRangeWidth(_yAxis)));
+    private ParameterAtlasRange InitialRange() => RangeAround(_point[_xAxis], _point[_yAxis],
+        InitialRangeWidth(_xAxis), InitialRangeWidth(_yAxis));
+
+    private ParameterAtlasRange RangeAround(decimal xValue, decimal yValue, decimal width, decimal height)
+    {
+        var x = AxisBounds(_xAxis); var y = AxisBounds(_yAxis);
+        return BoundedRange(ParameterAtlasRange.Around(xValue, yValue, width, height, x.Minimum, x.Maximum, y.Minimum, y.Maximum));
+    }
 
     private void RegisterRangeInputs()
     {
-        NumericInput.Decimal(this, MinRealBox, "минимум оси X", () => AxisBounds(_xAxis).Minimum, () => AxisBounds(_xAxis).Maximum);
-        NumericInput.Decimal(this, MaxRealBox, "максимум оси X", () => AxisBounds(_xAxis).Minimum, () => AxisBounds(_xAxis).Maximum);
-        NumericInput.Decimal(this, MinImaginaryBox, "минимум оси Y", () => AxisBounds(_yAxis).Minimum, () => AxisBounds(_yAxis).Maximum);
-        NumericInput.Decimal(this, MaxImaginaryBox, "максимум оси Y", () => AxisBounds(_yAxis).Minimum, () => AxisBounds(_yAxis).Maximum);
+        NumericInput.Decimal(this, MinRealBox, "минимум оси X", () => AxisBounds(_xAxis).Minimum, () => AxisBounds(_xAxis).Maximum, integer: () => IsIntegerComponent(_xAxis));
+        NumericInput.Decimal(this, MaxRealBox, "максимум оси X", () => AxisBounds(_xAxis).Minimum, () => AxisBounds(_xAxis).Maximum, integer: () => IsIntegerComponent(_xAxis));
+        NumericInput.Decimal(this, MinImaginaryBox, "минимум оси Y", () => AxisBounds(_yAxis).Minimum, () => AxisBounds(_yAxis).Maximum, integer: () => IsIntegerComponent(_yAxis));
+        NumericInput.Decimal(this, MaxImaginaryBox, "максимум оси Y", () => AxisBounds(_yAxis).Minimum, () => AxisBounds(_yAxis).Maximum, integer: () => IsIntegerComponent(_yAxis));
     }
 
     private ParameterAtlasRange BoundedRange(ParameterAtlasRange range)
     {
         var x = AxisBounds(_xAxis); var y = AxisBounds(_yAxis);
-        return new(Math.Max(x.Minimum, range.MinX), Math.Min(x.Maximum, range.MaxX),
-            Math.Max(y.Minimum, range.MinY), Math.Min(y.Maximum, range.MaxY));
+        return new(Math.Max(x.Minimum, IsIntegerComponent(_xAxis) ? decimal.Floor(range.MinX) : range.MinX),
+            Math.Min(x.Maximum, IsIntegerComponent(_xAxis) ? decimal.Ceiling(range.MaxX) : range.MaxX),
+            Math.Max(y.Minimum, IsIntegerComponent(_yAxis) ? decimal.Floor(range.MinY) : range.MinY),
+            Math.Min(y.Maximum, IsIntegerComponent(_yAxis) ? decimal.Ceiling(range.MaxY) : range.MaxY));
+    }
+
+    private decimal[] SampleAxis(int index, decimal minimum, decimal maximum, int size, bool reverse = false)
+    {
+        bool integer = IsIntegerComponent(index);
+        int count = integer ? (int)Math.Min(size, maximum - minimum + 1) : size;
+        var values = new decimal[count];
+        for (int i = 0; i < count; i++)
+        {
+            decimal value = minimum + (maximum - minimum) * i / (count - 1);
+            values[reverse ? count - 1 - i : i] = integer ? decimal.Round(value, 0, MidpointRounding.AwayFromZero) : value;
+        }
+        return values;
     }
 
     protected Task BuildAtlasAsync()
@@ -192,25 +221,28 @@ public partial class ParameterAtlasWindow : Window
         var render = CreateAsyncRenderSnapshot();
         var point = (decimal[])_point.Clone();
         int xAxis = _xAxis, yAxis = _yAxis, iterations = PreviewIterationCount;
+        var xValues = SampleAxis(xAxis, range.MinX, range.MaxX, size);
+        var yValues = SampleAxis(yAxis, range.MinY, range.MaxY, size, reverse: true);
+        int columns = xValues.Length, rows = yValues.Length, total = columns * rows;
         if (range != _range) { _history.Push(_range); _range = range; }
         _renderCts?.Cancel();
         using var cts = new CancellationTokenSource(); _renderCts = cts;
-        TilesPanel.Children.Clear(); TilesPanel.Columns = size;
+        TilesPanel.Children.Clear(); TilesPanel.Columns = columns;
         _selection = null; _selectedButton = null; SelectedPreview.Source = null;
         SelectedText.Text = "Выберите ячейку";
         ApplyButton.IsEnabled = NarrowButton.IsEnabled = false;
         BackButton.IsEnabled = _history.Count > 0;
         HorizontalRangeText.Text = $"{_componentNames[xAxis]} →   {range.MinX:G8} … {range.MaxX:G8}";
         VerticalRangeText.Text = $"{_componentNames[yAxis]} ↑   {range.MinY:G8} … {range.MaxY:G8}";
-        CancelAtlasButton.IsEnabled = true; StatusText.Text = $"Подготовка {size * size} вариантов…";
+        CancelAtlasButton.IsEnabled = true; StatusText.Text = $"Подготовка {total} вариантов…";
         bool entered = false;
         try
         {
             var tiles = new List<(Button Button, Image Image, decimal[] Point, int Row, int Column)>();
-            for (int row = 0; row < size; row++)
-            for (int column = 0; column < size; column++)
+            for (int row = 0; row < rows; row++)
+            for (int column = 0; column < columns; column++)
             {
-                var (x, y) = range.Sample(column, row, size);
+                var (x, y) = (xValues[column], yValues[row]);
                 var sample = (decimal[])point.Clone(); sample[xAxis] = x; sample[yAxis] = y;
                 var image = new Image { Height = size == 7 ? 68 : 92, Stretch = Stretch.Uniform };
                 var content = new StackPanel(); content.Children.Add(image);
@@ -224,14 +256,14 @@ public partial class ParameterAtlasWindow : Window
             }
             await _renderGate.WaitAsync(cts.Token); entered = true;
             int done = 0;
-            foreach (var tile in tiles.OrderBy(t => Math.Abs(t.Row - size / 2) + Math.Abs(t.Column - size / 2)))
+            foreach (var tile in tiles.OrderBy(t => Math.Abs(t.Row - rows / 2) + Math.Abs(t.Column - columns / 2)))
             {
                 byte[] pixels = await render(tile.Point, cts.Token);
                 if (cts.IsCancellationRequested || _closed || !ReferenceEquals(_renderCts, cts)) return;
                 var bitmap = BitmapSource.Create(144, 108, 96, 96, PixelFormats.Bgra32, null, pixels, 144 * 4);
                 bitmap.Freeze(); tile.Image.Source = bitmap; tile.Button.IsEnabled = true; done++;
                 if (_selectedButton is null) SelectTile(tile.Button, tile.Image, tile.Point);
-                StatusText.Text = PreviewStatus(done, size * size, iterations);
+                StatusText.Text = PreviewStatus(done, total, iterations);
             }
         }
         catch (OperationCanceledException)
@@ -275,7 +307,7 @@ public partial class ParameterAtlasWindow : Window
     private async void Narrow_OnClick(object sender, RoutedEventArgs e)
     {
         if (_selection is null) return;
-        var next = BoundedRange(ParameterAtlasRange.Around(_selection[_xAxis], _selection[_yAxis], (_range.MaxX - _range.MinX) / 2, (_range.MaxY - _range.MinY) / 2));
+        var next = RangeAround(_selection[_xAxis], _selection[_yAxis], (_range.MaxX - _range.MinX) / 2, (_range.MaxY - _range.MinY) / 2);
         if (!next.IsValid || next == _range) { StatusText.Text = "Достигнут предел точности диапазона."; return; }
         _history.Push(_range); SetRange(next); await BuildAtlasAsync();
     }
