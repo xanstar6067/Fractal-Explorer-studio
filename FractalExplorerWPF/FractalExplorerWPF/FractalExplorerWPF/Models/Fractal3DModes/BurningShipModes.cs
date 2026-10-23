@@ -74,6 +74,9 @@ internal sealed class BurningShipJuliaMode() : BurningShipFamilyMode(Fractal3DKi
 
     public override bool UsesJuliaConstant => true;
 
+    /// <summary>Радиус вылета шейдер выбирает сам по степени: малый даёт ступенчатую оболочку.</summary>
+    public override bool UsesBailout => false;
+
     public override void Validate(Fractal3DState state) =>
         state.BurningShipThickness = Math.Clamp(state.BurningShipThickness, MinThickness, MaxThickness);
 

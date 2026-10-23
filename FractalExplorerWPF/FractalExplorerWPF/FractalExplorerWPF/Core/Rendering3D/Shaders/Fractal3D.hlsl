@@ -573,8 +573,14 @@ float Map(float3 p, out float4 trap)
     int formula = (int)ShapeA.y;
 #if FRACTAL_KIND == KIND_BurningShipJulia
     float3 c = ShapeB.xyz;
+    // Формула Хаббарда точна только при большом радиусе вылета. При радиусе 4 оценка
+    // скачет на границах номера итерации вылета, оболочка выходит мелко-ступенчатой, и
+    // нормали рисуют на ней полосатые узоры, меняющиеся с масштабом. Предел 2^(60/n)
+    // держит |z|^n около 1e18: квадраты в length() ещё не переполняют float.
+    float escapeRadius = exp2(60.0 / power);
 #else
     float3 c = p;
+    float escapeRadius = ShapeA.w;
 #endif
     float3 z = p;
     float dr = 1.0;
@@ -586,7 +592,7 @@ float Map(float3 p, out float4 trap)
         r = length(z);
         trapRadius2 = min(trapRadius2, r * r);
         trapAxis = min(trapAxis, MinAxis(z));
-        if (r > ShapeA.w) break;
+        if (r > escapeRadius) break;
 
         // Все отражения сохраняют длину; производная степени ограничена n*r^(n-1).
         dr = power * pow(max(r, 1e-12), power - 1.0) * dr + 1.0;
@@ -1158,7 +1164,8 @@ float4 PSMain(PSInput input) : SV_TARGET
 #elif FRACTAL_KIND == KIND_Phoenix
     float radius = max(ShapeA.w, length(ShapeB.xyz) + length(BoxInversion.xyz) + 2.0);
 #elif FRACTAL_KIND == KIND_BurningShipJulia
-    float radius = max(ShapeA.w, length(ShapeB.xyz) + 2.0);
+    // Отражения и степень сохраняют |z|ⁿ, поэтому за |C| + 2 орбита уходит; плюс оболочка.
+    float radius = length(ShapeB.xyz) + 2.0 + ShapeA.z;
 #elif FRACTAL_KIND == KIND_Terrain
     float radius = length(float2(ShapeA.x * 0.707107, ShapeA.y));
 #elif FRACTAL_KIND == KIND_ApollonianPacking
