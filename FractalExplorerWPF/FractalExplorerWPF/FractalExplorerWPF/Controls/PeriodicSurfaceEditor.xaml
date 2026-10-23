@@ -7,6 +7,8 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="PeriodicSurfaceAtlasButton" Content="Атлас параметров поверхности…"
+                Click="AtlasClicked" ToolTip="Сравнить любые два активных числовых параметра"/>
         <TextBlock Text="Семейство поверхности" Style="{StaticResource FieldCaption}"/>
         <ComboBox x:Name="PeriodicFamilyBox" SelectedIndex="0" SelectionChanged="OnChanged">
             <ComboBoxItem Content="Гироид · Gyroid"/>

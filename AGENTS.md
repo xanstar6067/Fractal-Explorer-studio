@@ -121,6 +121,10 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `KifsAtlasWindow` — GPU-атлас масштаба, поворотов, смещений, размера и числа лучей KIFS (`KIFS.md`, проверка `kifs-atlas`).
 
+`SierpinskiAtlasWindow` — GPU-атлас масштаба складывания и итераций тетраэдра (`SIERPINSKI_TETRAHEDRON.md`, проверка `sierpinski-atlas`).
+
+`PeriodicSurfaceAtlasWindow` — GPU-атлас активных числовых параметров периодических поверхностей (`PERIODIC_SURFACES.md`, проверка `periodic-surface-atlas`).
+
 `BurningShipJuliaAtlasWindow` — GPU-атлас C и целой степени Жюлиа горящего корабля с фиксированной формулой (`BURNING_SHIP_JULIA_ATLAS.md`, проверка `burning-ship-julia-atlas`).
 
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.

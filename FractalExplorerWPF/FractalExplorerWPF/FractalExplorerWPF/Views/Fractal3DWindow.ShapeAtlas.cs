@@ -7,6 +7,27 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void SierpinskiAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.SierpinskiTetrahedron) OpenShapeAtlas(CreateSierpinskiAtlas);
+    }
+
+    private SierpinskiAtlasWindow CreateSierpinskiAtlas() =>
+        ConnectShapeAtlas(new SierpinskiAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            SierpinskiScaleBox.Text = state.SierpinskiScale.ToString("R", CultureInfo.InvariantCulture);
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+        });
+
+    private void PeriodicSurfaceAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.PeriodicSurfaces) OpenShapeAtlas(CreatePeriodicSurfaceAtlas);
+    }
+
+    private PeriodicSurfaceAtlasWindow CreatePeriodicSurfaceAtlas() =>
+        ConnectShapeAtlas(new PeriodicSurfaceAtlasWindow(CaptureViewState("atlas")), state =>
+            LoadPeriodicSurface(state.PeriodicSurface));
+
     private void KifsAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind != Fractal3DKind.Kifs) return;

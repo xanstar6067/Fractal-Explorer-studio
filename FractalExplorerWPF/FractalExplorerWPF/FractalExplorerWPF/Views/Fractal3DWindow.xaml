@@ -365,6 +365,7 @@
                                 <controls:HyperbolicHoneycombEditor x:Name="HyperbolicEditor" SettingsChanged="HyperbolicChanged"/>
                             </StackPanel>
                             <controls:PeriodicSurfaceEditor x:Name="PeriodicEditor" Visibility="Collapsed"
+                                                            AtlasRequested="PeriodicSurfaceAtlas_OnClick"
                                 SettingsChanged="Periodic_OnChanged" LabyrinthColoringRequested="PeriodicColorLabyrinths_OnRequested"/>
 
                             <StackPanel x:Name="ImplicitPanel" Visibility="Collapsed">
@@ -496,6 +497,8 @@
                                 <TextBlock Text="Порядок: отражения → поворот X/Y/Z → масштаб → смещение × (масштаб − 1). Итерации ниже задают глубину деталей." TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6"/>
                             </StackPanel>
                             <StackPanel x:Name="SierpinskiPanel">
+                                <Button x:Name="SierpinskiAtlasButton" Content="Атлас параметров тетраэдра…"
+                                        Click="SierpinskiAtlas_OnClick" ToolTip="Сравнить масштаб складывания и число итераций"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб складывания"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="SierpinskiScaleBox"
                                          TextChanged="Parameter_OnChanged"/>

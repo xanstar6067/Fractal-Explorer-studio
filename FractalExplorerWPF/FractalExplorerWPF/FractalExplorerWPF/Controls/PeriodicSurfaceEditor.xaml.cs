@@ -12,6 +12,7 @@ public partial class PeriodicSurfaceEditor : UserControl
     private PeriodicSurfaceSettings _applied = new();
     private bool WidthActive => PeriodicRegionBox.SelectedIndex is 0 or 4;
     public event EventHandler? SettingsChanged;
+    public event System.Windows.RoutedEventHandler? AtlasRequested;
     public event EventHandler? LabyrinthColoringRequested;
 
     public PeriodicSurfaceEditor()
@@ -116,6 +117,8 @@ public partial class PeriodicSurfaceEditor : UserControl
             LabyrinthColoringRequested?.Invoke(this, EventArgs.Empty);
         SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
+    private void AtlasClicked(object sender, System.Windows.RoutedEventArgs e) => AtlasRequested?.Invoke(this, e);
+
     private void ColorLabyrinthsClicked(object sender, System.Windows.RoutedEventArgs e) =>
         LabyrinthColoringRequested?.Invoke(this, EventArgs.Empty);
 }

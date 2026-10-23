@@ -372,7 +372,7 @@ public partial class Fractal3DWindow : Window
             HybridEditor.Load(state.HybridSequence);
             UpdateHybridLayout();
         }
-        SierpinskiScaleBox.Text = Format(state.SierpinskiScale);
+        SierpinskiScaleBox.Text = state.SierpinskiScale.ToString("R", CultureInfo.InvariantCulture);
         CubeThicknessBox.Text = Format(state.CubeThickness);
         if (_mode.HasCubeRule) CubeEditor.Load(Kind, state.CubeRuleMask);
         CubeThicknessPanel.IsEnabled = !_mode.HasCubeRule || !state.CubeRuleMask.HasValue;

@@ -138,6 +138,10 @@ internal static partial class Program
                 if (group == "bulbbox-hybrid-atlas") return;
                 if (group is "all" or "kifs-atlas") await VerifyKifsAtlasAsync();
                 if (group == "kifs-atlas") return;
+                if (group is "all" or "sierpinski-atlas") await VerifySurfaceShapeAtlasAsync(Fractal3DKind.SierpinskiTetrahedron);
+                if (group == "sierpinski-atlas") return;
+                if (group is "all" or "periodic-surface-atlas") await VerifySurfaceShapeAtlasAsync(Fractal3DKind.PeriodicSurfaces);
+                if (group == "periodic-surface-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);
