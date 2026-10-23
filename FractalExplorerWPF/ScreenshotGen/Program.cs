@@ -525,6 +525,10 @@ internal static class Program
                     await CaptureChildAsync(w, new JuliabulbAtlasWindow(juliabulb.CaptureState("atlas")), "juliabulb-atlas");
                 if (w is Fractal3DWindow shipJulia && fractal3DKind == Fractal3DKind.BurningShipJulia)
                     await CaptureChildAsync(w, new BurningShipJuliaAtlasWindow(shipJulia.CaptureState("atlas")), "burning-ship-julia-atlas");
+                if (w is Fractal3DWindow bulb && fractal3DKind == Fractal3DKind.Mandelbulb)
+                    await CaptureChildAsync(w, new MandelbulbAtlasWindow(bulb.CaptureState("atlas")), "mandelbulb-atlas");
+                if (w is Fractal3DWindow box && fractal3DKind == Fractal3DKind.Mandelbox)
+                    await CaptureChildAsync(w, new MandelboxAtlasWindow(box.CaptureState("atlas")), "mandelbox-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;

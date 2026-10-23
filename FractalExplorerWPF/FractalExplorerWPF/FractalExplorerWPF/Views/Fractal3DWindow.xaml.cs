@@ -331,7 +331,7 @@ public partial class Fractal3DWindow : Window
         AutoRotateBox.IsChecked = state.AutoRotate;
         AutoRotateSpeedBox.Text = Format(state.AutoRotateSpeed);
 
-        PowerBox.Text = Format(state.Power);
+        PowerBox.Text = state.Power.ToString("R", CultureInfo.InvariantCulture);
         BurningShipFormulaBox.SelectedIndex = (int)state.BurningShipFormula;
         BurningShipThicknessBox.Text = Format(state.BurningShipThickness);
         IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
@@ -353,9 +353,9 @@ public partial class Fractal3DWindow : Window
             WriteQuaternionConstant(state);
             SliceBox.Text = QuaternionNumber(state.QuaternionSlice);
         }
-        BoxScaleBox.Text = Format(state.BoxScale);
-        BoxMinRadiusBox.Text = Format(state.BoxMinRadius);
-        BoxFoldingBox.Text = Format(state.BoxFoldingLimit);
+        BoxScaleBox.Text = state.BoxScale.ToString("R", CultureInfo.InvariantCulture);
+        BoxMinRadiusBox.Text = state.BoxMinRadius.ToString("R", CultureInfo.InvariantCulture);
+        BoxFoldingBox.Text = state.BoxFoldingLimit.ToString("R", CultureInfo.InvariantCulture);
         BoxInversionShapeBox.SelectedIndex = Math.Clamp((int)state.BoxInversionShape, 0,
             (int)BoxInversionShape.RoundedCube);
         BoxInversionStretchSlider.Value = double.IsFinite(state.BoxInversionStretch)
@@ -479,6 +479,8 @@ public partial class Fractal3DWindow : Window
 
         // Параметры формы, общие для нескольких формул.
         PowerPanel.Visibility = Collapse(_mode.UsesPower);
+        MandelbulbAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.Mandelbulb);
+        MandelboxAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         PhoenixPowerPanel.Visibility = PhoenixMemoryPanel.Visibility = Collapse(Kind == Fractal3DKind.Phoenix);
         BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
         BurningShipThicknessPanel.Visibility = Collapse(Kind == Fractal3DKind.BurningShipJulia);

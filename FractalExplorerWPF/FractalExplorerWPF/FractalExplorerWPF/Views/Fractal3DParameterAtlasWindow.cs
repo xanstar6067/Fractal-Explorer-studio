@@ -31,6 +31,8 @@ public abstract class Fractal3DParameterAtlasWindow : ParameterAtlasWindow
 
     protected abstract void ApplyComponents(Fractal3DState state, decimal[] point);
 
+    public virtual void ApplySelectionTo(Fractal3DState state) => ApplyComponents(state, SelectedComponents);
+
     protected override Func<decimal[], CancellationToken, Task<byte[]>> CreateAsyncRenderSnapshot()
     {
         var source = _source.Clone();

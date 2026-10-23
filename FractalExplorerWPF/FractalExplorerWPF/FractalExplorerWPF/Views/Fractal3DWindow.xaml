@@ -193,6 +193,9 @@
                                 <TextBlock x:Name="PowerLabel" Style="{StaticResource FieldCaption}" Text="Степень n"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="PowerBox"
                                          TextChanged="Parameter_OnChanged"/>
+                                <Button x:Name="MandelbulbAtlasButton" Content="Атлас степени / итераций…"
+                                        Margin="0,7,0,3" Visibility="Collapsed" Click="MandelbulbAtlas_OnClick"
+                                        ToolTip="Сравнить формы Мандельбульба при разных степенях и числе итераций"/>
                             </StackPanel>
 
                             <StackPanel x:Name="PhoenixPowerPanel" Margin="0,6,0,0">
@@ -297,6 +300,9 @@
                             </StackPanel>
 
                             <StackPanel x:Name="BoxPanel">
+                                <Button x:Name="MandelboxAtlasButton" Content="Атлас параметров свёртки…"
+                                        Margin="0,7,0,3" Visibility="Collapsed" Click="MandelboxAtlas_OnClick"
+                                        ToolTip="Сравнить масштаб, радиус инверсии и предел свёртки Мандельбокса"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Масштаб свёртки"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="BoxScaleBox"
                                          TextChanged="Parameter_OnChanged"/>

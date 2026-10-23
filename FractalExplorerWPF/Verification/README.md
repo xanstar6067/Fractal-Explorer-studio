@@ -1,3 +1,10 @@
+Атласы Мандельбульба и Мандельбокса: группы `mandelbulb-atlas` и `mandelbox-atlas`.
+Проверяют числовые границы, целые итерации до 64 без повторяющихся строк, пары осей
+Мандельбокса и точность фиксированного значения, небольшие GPU-превью против прямого
+рендера, применение только параметров формы, сохранения/загрузку и закрытие во время расчёта.
+Команда: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- <группа>`.
+Описание — [MANDEL_SHAPE_ATLASES.md](../MANDEL_SHAPE_ATLASES.md).
+
 Атлас Жюлиа горящего корабля 3D: `dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- burning-ship-julia-atlas [--out папка]`.
 Все четыре формулы против прямого GPU-рендера, шесть пар осей, целая степень 2–16, уникальные колонки/строки без повторов, тип и границы числового ввода при смене осей, точность C, поколения, применение/закрытие и сохранения. Только небольшие адресные кадры. Описание — [BURNING_SHIP_JULIA_ATLAS.md](../BURNING_SHIP_JULIA_ATLAS.md).
 

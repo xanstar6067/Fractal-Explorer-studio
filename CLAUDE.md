@@ -115,6 +115,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `JuliabulbAtlasWindow` — GPU-атлас компонент C и степени Жюлиабульба (`JULIABULB_ATLAS.md`, проверка `juliabulb-atlas`).
 
+`MandelbulbAtlasWindow` и `MandelboxAtlasWindow` — GPU-атласы степени/итераций и параметров свёртки (`MANDEL_SHAPE_ATLASES.md`, проверки `mandelbulb-atlas`, `mandelbox-atlas`).
+
 `BurningShipJuliaAtlasWindow` — GPU-атлас C и целой степени Жюлиа горящего корабля с фиксированной формулой (`BURNING_SHIP_JULIA_ATLAS.md`, проверка `burning-ship-julia-atlas`).
 
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.

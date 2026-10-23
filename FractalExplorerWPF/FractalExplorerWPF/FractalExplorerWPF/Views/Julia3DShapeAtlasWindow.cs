@@ -40,7 +40,7 @@ public abstract class Julia3DShapeAtlasWindow : Fractal3DParameterAtlasWindow
         XAxisIndex == 3 ? 2m : -2m, XAxisIndex == 3 ? 16m : 2m,
         YAxisIndex == 3 ? 2m : -2m, YAxisIndex == 3 ? 16m : 2m);
 
-    public void ApplySelectionTo(Fractal3DState state) => ApplyComponents(state, SelectedComponents);
+    public override void ApplySelectionTo(Fractal3DState state) => ApplyComponents(state, SelectedComponents);
 
     protected override void ApplyComponents(Fractal3DState state, decimal[] point)
     {

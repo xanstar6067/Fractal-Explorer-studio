@@ -7,6 +7,18 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void MandelbulbAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind != Fractal3DKind.Mandelbulb) return;
+        OpenShapeAtlas(CreateMandelbulbAtlas);
+    }
+
+    private void MandelboxAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind != Fractal3DKind.Mandelbox) return;
+        OpenShapeAtlas(CreateMandelboxAtlas);
+    }
+
     private void JuliabulbAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind != Fractal3DKind.Juliabulb) return;
@@ -19,7 +31,7 @@ public partial class Fractal3DWindow
         OpenShapeAtlas(CreateBurningShipJuliaAtlas);
     }
 
-    private void OpenShapeAtlas(Func<Julia3DShapeAtlasWindow> createAtlas)
+    private void OpenShapeAtlas(Func<Fractal3DParameterAtlasWindow> createAtlas)
     {
         NumericInput.CommitAll(this);
         _juliabulbMapTimer?.Stop();
@@ -34,7 +46,22 @@ public partial class Fractal3DWindow
     private BurningShipJuliaAtlasWindow CreateBurningShipJuliaAtlas() =>
         ConnectShapeAtlas(new BurningShipJuliaAtlasWindow(CaptureViewState("atlas")));
 
-    private T ConnectShapeAtlas<T>(T atlas) where T : Julia3DShapeAtlasWindow
+    private MandelbulbAtlasWindow CreateMandelbulbAtlas() =>
+        ConnectShapeAtlas(new MandelbulbAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            PowerBox.Text = state.Power.ToString("R", CultureInfo.InvariantCulture);
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+        });
+
+    private MandelboxAtlasWindow CreateMandelboxAtlas() =>
+        ConnectShapeAtlas(new MandelboxAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            BoxScaleBox.Text = state.BoxScale.ToString("R", CultureInfo.InvariantCulture);
+            BoxMinRadiusBox.Text = state.BoxMinRadius.ToString("R", CultureInfo.InvariantCulture);
+            BoxFoldingBox.Text = state.BoxFoldingLimit.ToString("R", CultureInfo.InvariantCulture);
+        });
+
+    private T ConnectShapeAtlas<T>(T atlas, Action<Fractal3DState>? writeParameters = null) where T : Fractal3DParameterAtlasWindow
     {
         atlas.Owner = this;
         atlas.ParametersApplied += (_, _) =>
@@ -42,7 +69,7 @@ public partial class Fractal3DWindow
             var state = CaptureViewState("atlas");
             atlas.ApplySelectionTo(state);
             bool updating = _updatingUi; _updatingUi = true;
-            try { WriteJulia3DShapeParameters(state); }
+            try { (writeParameters ?? WriteJulia3DShapeParameters)(state); }
             finally { _updatingUi = updating; }
             _renderCts?.Cancel();
             ScheduleJuliabulbMapRender();
