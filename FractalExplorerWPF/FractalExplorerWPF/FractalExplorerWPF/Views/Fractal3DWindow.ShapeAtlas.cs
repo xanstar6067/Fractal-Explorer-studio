@@ -7,6 +7,19 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void KifsAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind != Fractal3DKind.Kifs) return;
+        OpenShapeAtlas(CreateKifsAtlas);
+    }
+
+    private KifsAtlasWindow CreateKifsAtlas() =>
+        ConnectShapeAtlas(new KifsAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            _kifsHistory.Push(CaptureKifs());
+            LoadKifs(state.Kifs);
+        });
+
     private void BulbBoxHybridAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind != Fractal3DKind.BulbBoxHybrid) return;

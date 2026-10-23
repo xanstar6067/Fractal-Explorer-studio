@@ -408,10 +408,12 @@
                             </StackPanel>
 
                             <StackPanel x:Name="KifsPanel" Visibility="Collapsed">
+                                <Button x:Name="KifsAtlasButton" Content="Атлас параметров KIFS…" Click="KifsAtlas_OnClick"
+                                        Margin="0,0,0,6" ToolTip="Сравнить масштаб, повороты, смещения и размер исходной формы"/>
                                 <CheckBox x:Name="KifsNearbyBox" Content="Вариации текущей формы" IsChecked="True" ToolTip="Выключите для случайного выбора семейства из готовых форм"/>
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
                                     <Button Content="Случайная форма" Click="KifsRandom_OnClick" Margin="0,4,5,4"/>
-                                    <Button Grid.Column="1" Content="Отменить" Click="KifsUndo_OnClick" ToolTip="Откат карты смещения, рандомайзера или обнуления поворота"/>
+                                    <Button x:Name="KifsUndoButton" Grid.Column="1" Content="Отменить" Click="KifsUndo_OnClick" ToolTip="Откат атласа, карты смещения, рандомайзера или обнуления поворота"/>
                                 </Grid>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Симметрия отражений"/>
                                 <ComboBox x:Name="KifsSymmetryBox" SelectionChanged="Kifs_OnChanged" SelectedIndex="0">

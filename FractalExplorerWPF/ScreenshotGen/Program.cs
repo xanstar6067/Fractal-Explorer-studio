@@ -531,6 +531,8 @@ internal static class Program
                     await CaptureChildAsync(w, new MandelboxAtlasWindow(box.CaptureState("atlas")), "mandelbox-atlas");
                 if (w is Fractal3DWindow hybrid && fractal3DKind == Fractal3DKind.BulbBoxHybrid)
                     await CaptureChildAsync(w, new BulbBoxHybridAtlasWindow(hybrid.CaptureState("atlas")), "bulbbox-hybrid-atlas");
+                if (w is Fractal3DWindow kifs && fractal3DKind == Fractal3DKind.Kifs)
+                    await CaptureChildAsync(w, new KifsAtlasWindow(kifs.CaptureState("atlas")), "kifs-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;
