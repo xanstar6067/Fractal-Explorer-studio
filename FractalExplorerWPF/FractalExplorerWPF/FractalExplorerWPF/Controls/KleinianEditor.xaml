@@ -10,6 +10,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров групп Клейна…" Click="Atlas_OnClick" Margin="0,0,0,8"/>
         <TextBlock Text="Расположение сфер инверсии" Style="{StaticResource FieldCaption}"/>
         <ComboBox x:Name="ConfigurationBox" SelectedIndex="0" SelectionChanged="Changed">
             <ComboBoxItem Content="Октаэдр + центр · 7 сфер"/>

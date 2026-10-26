@@ -7,6 +7,30 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void AntoineAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.AntoineNecklace) OpenShapeAtlas(CreateAntoineAtlas);
+    }
+
+    private AntoineAtlasWindow CreateAntoineAtlas() =>
+        ConnectShapeAtlas(new AntoineAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            AntoineEditor.Load(state.Antoine);
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+        });
+
+    private void KleinianAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.Kleinian) OpenShapeAtlas(CreateKleinianAtlas);
+    }
+
+    private KleinianAtlasWindow CreateKleinianAtlas() =>
+        ConnectShapeAtlas(new KleinianAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            KleinianEditor.Load(state.Kleinian);
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+        });
+
     private void Lyapunov3DAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.Lyapunov3D) OpenShapeAtlas(CreateLyapunov3DAtlas);

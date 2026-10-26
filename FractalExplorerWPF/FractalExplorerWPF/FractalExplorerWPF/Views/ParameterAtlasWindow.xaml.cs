@@ -41,6 +41,7 @@ public partial class ParameterAtlasWindow : Window
     protected virtual (decimal Minimum, decimal Maximum) AxisBounds(int index) => (RangeMinimum, RangeMaximum);
     protected virtual decimal InitialRangeWidth(int index) => .4m;
     protected virtual bool IsIntegerComponent(int index) => false;
+    protected virtual int IntegerComponentStep(int index) => 1;
     protected virtual ParameterAtlasRange OverviewRange => new(-2m, 2m, -2m, 2m);
     protected virtual Func<decimal[], CancellationToken, byte[]> CreateRenderSnapshot() =>
         throw new NotSupportedException("Не задан рендерер атласа.");
@@ -82,7 +83,8 @@ public partial class ParameterAtlasWindow : Window
                 panel.Children.Add(box); FixedPointPanel.Children.Add(panel); _componentBoxes.Add(box);
                 var bounds = ComponentBounds(i);
                 if (IsIntegerComponent(i))
-                    NumericInput.Integer(this, box, names[i], (int)bounds.Minimum, (int)bounds.Maximum, active: () => index != _xAxis && index != _yAxis);
+                    NumericInput.Integer(this, box, names[i], (int)bounds.Minimum, (int)bounds.Maximum,
+                        step: IntegerComponentStep(i), active: () => index != _xAxis && index != _yAxis);
                 else
                     NumericInput.Decimal(this, box, names[i], bounds.Minimum, bounds.Maximum, active: () => index != _xAxis && index != _yAxis);
                 box.TextChanged += (_, _) =>
@@ -193,6 +195,20 @@ public partial class ParameterAtlasWindow : Window
     private decimal[] SampleAxis(int index, decimal minimum, decimal maximum, int size, bool reverse = false)
     {
         bool integer = IsIntegerComponent(index);
+        int step = IntegerComponentStep(index);
+        if (integer && step > 1)
+        {
+            decimal origin = ComponentBounds(index).Minimum;
+            decimal first = origin + decimal.Ceiling((minimum - origin) / step) * step;
+            decimal last = origin + decimal.Floor((maximum - origin) / step) * step;
+            if (first > last) return [];
+            int length = (int)Math.Min(size, (last - first) / step + 1);
+            var samples = new decimal[length];
+            for (int i = 0; i < length; i++)
+                samples[reverse ? length - 1 - i : i] = length == 1 ? first : first + step *
+                    decimal.Round((last - first) / step * i / (length - 1), 0, MidpointRounding.AwayFromZero);
+            return samples;
+        }
         int count = integer ? (int)Math.Min(size, maximum - minimum + 1) : size;
         var values = new decimal[count];
         for (int i = 0; i < count; i++)
@@ -223,6 +239,8 @@ public partial class ParameterAtlasWindow : Window
         int xAxis = _xAxis, yAxis = _yAxis, iterations = PreviewIterationCount;
         var xValues = SampleAxis(xAxis, range.MinX, range.MaxX, size);
         var yValues = SampleAxis(yAxis, range.MinY, range.MaxY, size, reverse: true);
+        if (xValues.Length == 0 || yValues.Length == 0)
+        { InvalidateSelection("В диапазоне нет допустимых значений выбранной оси. Расширьте диапазон."); return; }
         int columns = xValues.Length, rows = yValues.Length, total = columns * rows;
         if (range != _range) { _history.Push(_range); _range = range; }
         _renderCts?.Cancel();

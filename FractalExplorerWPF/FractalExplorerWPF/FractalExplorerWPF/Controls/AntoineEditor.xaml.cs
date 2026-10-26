@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Windows;
 using System.Windows.Controls;
 using FractalExplorerWPF.Models;
 using static FractalExplorerWPF.Controls.PanelFields;
@@ -9,6 +10,9 @@ public partial class AntoineEditor : UserControl
 {
     private bool _loading = true;
     public event EventHandler? SettingsChanged;
+    public event RoutedEventHandler? AtlasRequested;
+
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, e);
 
     public AntoineEditor()
     {

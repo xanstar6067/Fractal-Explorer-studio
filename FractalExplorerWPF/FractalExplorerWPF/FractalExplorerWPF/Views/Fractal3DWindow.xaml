@@ -97,8 +97,8 @@
                     <Expander x:Name="ShapeExpander" Header="Форма" IsExpanded="True" Margin="0,6,0,4">
                         <StackPanel Margin="10,6,0,2">
                             <controls:Buddhabrot4DEditor x:Name="BuddhabrotEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
-                            <controls:KleinianEditor x:Name="KleinianEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
-                            <controls:AntoineEditor x:Name="AntoineEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
+                            <controls:KleinianEditor x:Name="KleinianEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="KleinianAtlas_OnClick"/>
+                            <controls:AntoineEditor x:Name="AntoineEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="AntoineAtlas_OnClick"/>
                             <controls:Newton3DEditor x:Name="NewtonEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"
                                                      AtlasRequested="Newton3DAtlas_OnClick"/>
                             <StackPanel x:Name="DlaPanel" Visibility="Collapsed">

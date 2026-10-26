@@ -131,6 +131,10 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Lyapunov3DAtlasWindow` — GPU-атлас центров диапазонов A/B/C, начального x, уровня, полосы и среза Ляпунова 3D (`LYAPUNOV3D.md`, проверка `lyapunov3d-atlas`).
 
+`KleinianAtlasWindow` — GPU-атлас радиуса сфер, размера деталей, утолщения и глубины групп Клейна (`KLEINIAN3D.md`, проверка `kleinian-atlas`).
+
+`AntoineAtlasWindow` — GPU-атлас масштаба, толщины, наклона, чётного числа звеньев и поколения ожерелья Антуана (`ANTOINE_NECKLACE.md`, проверка `antoine-atlas`).
+
 `BurningShipJuliaAtlasWindow` — GPU-атлас C и целой степени Жюлиа горящего корабля с фиксированной формулой (`BURNING_SHIP_JULIA_ATLAS.md`, проверка `burning-ship-julia-atlas`).
 
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.

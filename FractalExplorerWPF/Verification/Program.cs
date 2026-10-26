@@ -150,6 +150,10 @@ internal static partial class Program
                 if (group == "newton3d-atlas") return;
                 if (group is "all" or "lyapunov3d-atlas") await VerifyLyapunov3DAtlasAsync();
                 if (group == "lyapunov3d-atlas") return;
+                if (group is "all" or "kleinian-atlas") await VerifyKleinianAtlasAsync();
+                if (group == "kleinian-atlas") return;
+                if (group is "all" or "antoine-atlas") await VerifyAntoineAtlasAsync();
+                if (group == "antoine-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);

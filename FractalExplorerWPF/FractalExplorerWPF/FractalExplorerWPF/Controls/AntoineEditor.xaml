@@ -10,6 +10,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров ожерелья…" Click="Atlas_OnClick" Margin="0,0,0,8"/>
         <TextBlock Text="Звеньев в каждой цепочке (24–48)" Style="{StaticResource FieldCaption}"/>
         <ComboBox x:Name="LinksBox" SelectionChanged="Changed"/>
         <TextBlock Text="Масштаб звеньев (1,35–1,5)" Style="{StaticResource FieldCaption}"/>
