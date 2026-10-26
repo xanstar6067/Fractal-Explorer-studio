@@ -148,6 +148,8 @@
                                            Text="Изменение затравки, прилипания или потока начинает новый рост. Палитра, свет и камера меняют готовый объём."/>
                             </StackPanel>
                             <StackPanel x:Name="LyapunovPanel" Visibility="Collapsed">
+                                <Button x:Name="Lyapunov3DAtlasButton" Content="Атлас параметров Ляпунова…" Click="Lyapunov3DAtlas_OnClick"
+                                        ToolTip="Сравнить сдвиги диапазонов A/B/C, начальное x, уровень, полосу и срез"/>
                                 <TextBlock Text="xₙ₊₁ = rₙ · xₙ · (1 − xₙ)" TextWrapping="Wrap"/>
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Чередование параметров · латинские A / B / C"/>
                                 <TextBox x:Name="LyapunovPatternBox" Text="ABCCAAB" MaxLength="128" TextChanged="Parameter_OnChanged"/>

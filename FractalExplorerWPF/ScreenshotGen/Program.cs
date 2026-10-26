@@ -542,6 +542,8 @@ internal static class Program
                     await CaptureChildAsync(w, new ImplicitSurfaceAtlasWindow(implicitSurface.CaptureState("atlas")), "implicit-surface-atlas");
                 if (w is Fractal3DWindow newton && fractal3DKind == Fractal3DKind.Newton3D)
                     await CaptureChildAsync(w, new Newton3DAtlasWindow(newton.CaptureState("atlas")), "newton3d-atlas");
+                if (w is Fractal3DWindow lyapunov && fractal3DKind == Fractal3DKind.Lyapunov3D)
+                    await CaptureChildAsync(w, new Lyapunov3DAtlasWindow(lyapunov.CaptureState("atlas")), "lyapunov3d-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;

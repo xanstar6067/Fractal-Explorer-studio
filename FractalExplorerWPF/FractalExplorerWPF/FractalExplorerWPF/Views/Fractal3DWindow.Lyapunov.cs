@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using FractalExplorerWPF.Models;
 
@@ -36,15 +37,23 @@ public partial class Fractal3DWindow
         LyapunovPatternBox.Text = s.Sequence;
         LyapunovSizeBox.SelectedIndex = s.Size switch { 32 => 0, 128 => 2, _ => 1 };
         LyapunovTransientBox.Text = s.Transient.ToString(); LyapunovSamplesBox.Text = s.Samples.ToString();
-        LyapunovInitialBox.Text = Format(s.InitialX);
-        LyapunovMinABox.Text = Format(s.MinA); LyapunovMaxABox.Text = Format(s.MaxA);
-        LyapunovMinBBox.Text = Format(s.MinB); LyapunovMaxBBox.Text = Format(s.MaxB);
-        LyapunovMinCBox.Text = Format(s.MinC); LyapunovMaxCBox.Text = Format(s.MaxC);
         LyapunovRegionBox.SelectedIndex = (int)s.Region;
-        LyapunovLevelBox.Text = Format(s.Level); LyapunovBandBox.Text = Format(s.BandWidth);
-        LyapunovRangeBox.Text = Format(s.ColorRange);
-        LyapunovCutBox.SelectedIndex = s.CutAxis; LyapunovCutSlider.Value = s.CutPosition;
+        LyapunovRangeBox.Text = LyapunovNumber(s.ColorRange);
+        LyapunovCutBox.SelectedIndex = s.CutAxis;
         LyapunovSliceBox.IsChecked = s.SliceOnly;
+        WriteLyapunovAtlasParameters(s);
+    }
+
+    private static string LyapunovNumber(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+
+    private void WriteLyapunovAtlasParameters(Lyapunov3DSettings s)
+    {
+        LyapunovInitialBox.Text = LyapunovNumber(s.InitialX);
+        LyapunovMinABox.Text = LyapunovNumber(s.MinA); LyapunovMaxABox.Text = LyapunovNumber(s.MaxA);
+        LyapunovMinBBox.Text = LyapunovNumber(s.MinB); LyapunovMaxBBox.Text = LyapunovNumber(s.MaxB);
+        LyapunovMinCBox.Text = LyapunovNumber(s.MinC); LyapunovMaxCBox.Text = LyapunovNumber(s.MaxC);
+        LyapunovLevelBox.Text = LyapunovNumber(s.Level); LyapunovBandBox.Text = LyapunovNumber(s.BandWidth);
+        LyapunovCutSlider.Value = s.CutPosition;
         UpdateLyapunovCutLabel();
     }
 

@@ -63,7 +63,9 @@ public sealed partial class Fractal3DRenderer
             var watch = Stopwatch.StartNew();
             while (true)
             {
-                var result = context.GetData(fence, IntPtr.Zero, 0, AsyncGetDataFlags.DoNotFlush);
+                // Без Present драйвер может задерживать маленькие порции при запрете flush.
+                // Как у Ньютона 3D, разрешаем продвижение offscreen-очереди при ожидании fence.
+                var result = context.GetData(fence, IntPtr.Zero, 0, AsyncGetDataFlags.None);
                 result.CheckError();
                 if (result.Code == 0) break;
                 token.ThrowIfCancellationRequested();

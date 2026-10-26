@@ -7,6 +7,15 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void Lyapunov3DAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.Lyapunov3D) OpenShapeAtlas(CreateLyapunov3DAtlas);
+    }
+
+    private Lyapunov3DAtlasWindow CreateLyapunov3DAtlas() =>
+        ConnectShapeAtlas(new Lyapunov3DAtlasWindow(CaptureViewState("atlas")), state =>
+            WriteLyapunovAtlasParameters(state.Lyapunov));
+
     private void Newton3DAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.Newton3D) OpenShapeAtlas(CreateNewton3DAtlas);
