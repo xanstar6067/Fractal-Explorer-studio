@@ -30,7 +30,8 @@
                 <TextBlock Text="Проход туда-обратно. Пауза сохраняет текущий срез; после загрузки воспроизведение включается вручную." FontSize="11" TextWrapping="Wrap" Margin="0,5" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
             </StackPanel>
         </Expander>
-        <Button x:Name="AtlasButton" Content="Атлас константы C…" Click="AtlasClicked"/>
+        <Button x:Name="AtlasButton" Content="Атлас параметров C / среза…" Click="AtlasClicked"
+                ToolTip="Сравнить компоненты C, координату w и наклоны XW/YW/ZW"/>
         <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
     </StackPanel>
 </UserControl>

@@ -132,11 +132,11 @@ internal static partial class Program
             atlas = (QuaternionJuliaAtlasWindow)typeof(Fractal3DWindow).GetMethod("CreateQuaternionAtlas", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(main, null)!;
             var axesX = (ComboBox)atlas.FindName("XAxisBox"); var axesY = (ComboBox)atlas.FindName("YAxisBox");
             var fixedBoxes = ((WrapPanel)atlas.FindName("FixedPointPanel")).Children.OfType<StackPanel>().Select(p => p.Children.OfType<TextBox>().Single()).ToArray();
-            Check(fixedBoxes.Length == 4 && fixedBoxes.All(NumericInput.IsRegistered), "Atlas fixed components bypass NumericInput.");
-            for (int x = 0; x < 4; x++) for (int y = x + 1; y < 4; y++)
+            Check(fixedBoxes.Length == 8 && fixedBoxes.All(NumericInput.IsRegistered), "Atlas fixed components bypass NumericInput.");
+            for (int x = 0; x < 8; x++) for (int y = x + 1; y < 8; y++)
             {
                 axesX.SelectedIndex = x; axesY.SelectedIndex = y;
-                Check(axesX.SelectedIndex != axesY.SelectedIndex && fixedBoxes.Count(b => b.IsEnabled) == 2, "Atlas axes must remain distinct.");
+                Check(axesX.SelectedIndex != axesY.SelectedIndex && fixedBoxes.Count(b => b.IsEnabled) == 6, "Atlas axes must remain distinct.");
             }
             axesX.SelectedIndex = 0; axesY.SelectedIndex = 3;
             fixedBoxes[1].Text = "0.2727"; fixedBoxes[2].Text = "0.6818";
@@ -150,12 +150,6 @@ internal static partial class Program
             Check(tiles.Children.Count == 9 && tiles.Children.OfType<Button>().All(b => b.IsEnabled) && !atlas.IsRendering, "Atlas must finish only the latest GPU generation.");
             Check(((TextBlock)atlas.FindName("StatusText")).Text.Contains("ГП"), "Atlas must report its GPU previews.");
             Check(atlas.SelectedConstant[1] == .2727m && atlas.SelectedConstant[2] == .6818m, "Atlas must retain fixed components.");
-            var before = main.CaptureState("before");
-            typeof(Fractal3DWindow).GetMethod("ApplyQuaternionConstant", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(main, [atlas.SelectedConstant]);
-            var after = main.CaptureState("after");
-            Check(after.QuaternionJulia == before.QuaternionJulia && after.QuaternionSlice == before.QuaternionSlice && after.CameraDistance == before.CameraDistance &&
-                after.CameraYaw == before.CameraYaw && after.CameraPitch == before.CameraPitch && after.JuliaCW == (double)atlas.SelectedConstant[3],
-                "Applying an atlas tile must only change C.");
             var root = (FrameworkElement)main.Content; root.Measure(new Size(1240, 950)); root.Arrange(new Rect(0, 0, 1240, 950)); root.UpdateLayout();
             var panel = new QuaternionSliceEditor(); panel.Load(tilt);
             panel.Measure(new Size(300, double.PositiveInfinity)); panel.Arrange(new Rect(new Size(300, panel.DesiredSize.Height))); panel.UpdateLayout();
@@ -165,6 +159,14 @@ internal static partial class Program
             atlasRoot.Measure(new Size(1060, 820)); atlasRoot.Arrange(new Rect(0, 0, 1060, 820)); atlasRoot.UpdateLayout();
             var atlasImage = new RenderTargetBitmap(1060, 820, 96, 96, PixelFormats.Pbgra32); atlasImage.Render(atlasRoot);
             WriteLSystemPng(Path.Combine(output, "atlas.png"), atlasImage);
+            var before = main.CaptureState("before");
+            var selectedConstant = atlas.SelectedConstant;
+            Click((Button)atlas.FindName("ApplyButton")); atlas = null;
+            var after = main.CaptureState("after");
+            Check(after.QuaternionJulia == before.QuaternionJulia && after.QuaternionSlice == before.QuaternionSlice && after.CameraDistance == before.CameraDistance &&
+                after.CameraYaw == before.CameraYaw && after.CameraPitch == before.CameraPitch && after.JuliaCW == (double)selectedConstant[3],
+                "Applying an atlas tile with fixed slice parameters must only change C.");
+            atlas = (QuaternionJuliaAtlasWindow)typeof(Fractal3DWindow).GetMethod("CreateQuaternionAtlas", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(main, null)!;
             Task closing = (Task)build.Invoke(atlas, null)!; atlas.Close(); await closing; atlas = null;
         }
         finally { atlas?.Close(); main.Close(); }

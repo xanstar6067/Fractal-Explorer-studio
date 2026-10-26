@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Windows;
-using FractalExplorerWPF.Controls;
 using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Views;
@@ -22,16 +20,7 @@ public partial class Fractal3DWindow
             _updatingUi = false;
             ScheduleRender(immediate: true);
         };
-        QuaternionEditor.AtlasRequested += (_, _) =>
-        {
-            NumericInput.CommitAll(this);
-            SuspendLive(() =>
-            {
-                var atlas = CreateQuaternionAtlas();
-                atlas.ParametersApplied += (_, _) => { ApplyQuaternionConstant(atlas.SelectedConstant); atlas.Close(); };
-                atlas.ShowDialog();
-            });
-        };
+        QuaternionEditor.AtlasRequested += (_, _) => OpenShapeAtlas(CreateQuaternionAtlas);
     }
 
     private void QuaternionEditor_OnChanged(object sender, EventArgs e)
@@ -58,16 +47,17 @@ public partial class Fractal3DWindow
         _updatingUi = updating;
     }
 
-    private QuaternionJuliaAtlasWindow CreateQuaternionAtlas() => new(CaptureViewState("atlas")) { Owner = this };
-
-    private void ApplyQuaternionConstant(decimal[] point)
+    private QuaternionJuliaAtlasWindow CreateQuaternionAtlas()
     {
-        var state = CaptureViewState("constant");
-        QuaternionJuliaAtlasWindow.SetConstant(state, point);
-        _updatingUi = true;
-        WriteQuaternionConstant(state);
-        _updatingUi = false;
-        _renderCts?.Cancel(); ScheduleRender(immediate: true);
+        StopQuaternionAnimation();
+        return ConnectShapeAtlas(new QuaternionJuliaAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            WriteQuaternionConstant(state);
+            SliceBox.Text = QuaternionNumber(state.QuaternionSlice);
+            QuaternionEditor.Load(state.QuaternionJulia);
+            _quaternionWasPlaying = false;
+            _quaternionDisplayedSlice = null;
+        });
     }
 
     private void WriteQuaternionConstant(Fractal3DState state)

@@ -518,6 +518,7 @@ internal static class Program
                 Window? w = await CaptureAsync(() => new Fractal3DWindow(fractal3DKind),
                     "fractal3d-" + Kebab(fractal3DKind.ToString()), 1600);
                 if (w is Fractal3DWindow quaternion && fractal3DKind == Fractal3DKind.QuaternionJulia)
+                    // Тот же атлас: Cx/Cy/Cz/Cw, w и три наклона 4D-среза.
                     await CaptureChildAsync(w, new QuaternionJuliaAtlasWindow(quaternion.CaptureState("atlas")), "quaternion-julia-atlas");
                 if (w is Fractal3DWindow phoenix && fractal3DKind == Fractal3DKind.Phoenix)
                     await CaptureChildAsync(w, new Phoenix3DAtlasWindow(phoenix.CaptureState("atlas")), "phoenix3d-atlas");

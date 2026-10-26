@@ -109,7 +109,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `PhoenixParameterAtlasWindow` — атлас динамических форм Phoenix 2D: любые две компоненты C₁/C₂ на осях, остальные фиксированы; общая оболочка с Жюлиа — `ParameterAtlasWindow` (`PHOENIX.md`, проверка `phoenix-atlas`).
 
-`QuaternionJuliaAtlasWindow` и `QuaternionSliceEditor` — GPU-атлас четырёх компонент C, наклон 4D-среза и проход по w кватернионного Жюлиа (`QUATERNION_JULIA.md`, проверка `quaternion-julia`).
+`QuaternionJuliaAtlasWindow` и `QuaternionSliceEditor` — GPU-атлас C, координаты w и наклонов 4D-среза, проход по w кватернионного Жюлиа (`QUATERNION_JULIA.md`, проверки `quaternion-julia`, `quaternion-julia-atlas`).
 
 `Phoenix3DAtlasWindow` и `Phoenix3DExplorer` — GPU-атлас шести компонент C₁/C₂ Phoenix 3D, локальные вариации и возврат констант (`PHOENIX3D.md`, проверка `phoenix3d`).
 

@@ -126,6 +126,8 @@ internal static partial class Program
                 if (group == "cube-rules") return;
                 if (group is "all" or "quaternion-julia") await VerifyQuaternionJuliaAsync(args);
                 if (group == "quaternion-julia") return;
+                if (group is "all" or "quaternion-julia-atlas") await VerifyQuaternionJuliaAtlasAsync();
+                if (group == "quaternion-julia-atlas") return;
                 if (group is "all" or "phoenix3d") await VerifyPhoenix3DAsync(args);
                 if (group == "phoenix3d") return;
                 if (group is "all" or "juliabulb-atlas") await VerifyJuliabulbAtlasAsync(args);
