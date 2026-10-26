@@ -7,6 +7,18 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void BurningShipAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.BurningShip) OpenShapeAtlas(CreateBurningShipAtlas);
+    }
+
+    private BurningShipAtlasWindow CreateBurningShipAtlas() =>
+        ConnectShapeAtlas(new BurningShipAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            PowerBox.Text = state.Power.ToString("R", CultureInfo.InvariantCulture);
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+        });
+
     private void TerrainAtlas_OnClick(object sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.Terrain) OpenShapeAtlas(CreateTerrainAtlas);

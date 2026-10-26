@@ -483,6 +483,7 @@ public partial class Fractal3DWindow : Window
         MandelboxAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.Mandelbox);
         PhoenixPowerPanel.Visibility = PhoenixMemoryPanel.Visibility = Collapse(Kind == Fractal3DKind.Phoenix);
         BurningShipFormulaPanel.Visibility = Collapse(Fractal3DCatalog.IsBurningShip(Kind));
+        BurningShipAtlasButton.Visibility = Collapse(Kind == Fractal3DKind.BurningShip);
         BurningShipThicknessPanel.Visibility = Collapse(Kind == Fractal3DKind.BurningShipJulia);
         PowerLabel.Text = _mode.PowerField.Label;
         JuliaPanel.Visibility = Collapse(_mode.UsesJuliaConstant);

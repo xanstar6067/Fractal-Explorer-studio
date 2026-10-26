@@ -136,6 +136,8 @@ internal static partial class Program
                 if (group == "mandelbulb-atlas") return;
                 if (group is "all" or "mandelbox-atlas") await VerifyMandelShapeAtlasAsync(Fractal3DKind.Mandelbox);
                 if (group == "mandelbox-atlas") return;
+                if (group is "all" or "burning-ship-atlas") await VerifyBurningShipAtlasAsync();
+                if (group == "burning-ship-atlas") return;
                 if (group is "all" or "bulbbox-hybrid-atlas") await VerifyBulbBoxHybridAtlasAsync();
                 if (group == "bulbbox-hybrid-atlas") return;
                 if (group is "all" or "kifs-atlas") await VerifyKifsAtlasAsync();
