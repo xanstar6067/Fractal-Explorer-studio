@@ -5,6 +5,7 @@
     Foreground="{DynamicResource Theme.PrimaryTextBrush}">
     <UserControl.Resources><Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Margin" Value="0,7,0,2"/><Setter Property="Foreground" Value="{DynamicResource Theme.PrimaryTextBrush}"/></Style></UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров потока…" Click="AtlasClicked" Margin="0,0,0,6"/>
         <TextBlock Text="A" Style="{StaticResource Caption}"/>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions>
             <Slider x:Name="ASlider" Minimum="-3" Maximum="3" ValueChanged="Changed" Margin="0,0,8,0"/>

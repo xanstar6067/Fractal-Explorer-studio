@@ -556,6 +556,8 @@ internal static class Program
                     await CaptureChildAsync(w, new HopfAtlasWindow(hopf.CaptureState("atlas")), "hopf-atlas");
                 if (w is Fractal3DWindow hyperbolic && fractal3DKind == Fractal3DKind.HyperbolicHoneycomb)
                     await CaptureChildAsync(w, new HyperbolicHoneycombAtlasWindow(hyperbolic.CaptureState("atlas")), "hyperbolic-honeycomb-atlas");
+                if (w is Fractal3DWindow abc && fractal3DKind == Fractal3DKind.AbcFlow)
+                    await CaptureChildAsync(w, new AbcFlowAtlasWindow(abc.CaptureState("atlas")), "abc-flow-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;

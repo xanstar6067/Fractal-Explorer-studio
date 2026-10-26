@@ -162,6 +162,8 @@ internal static partial class Program
                 if (group == "hopf-atlas") return;
                 if (group is "all" or "hyperbolic-honeycomb-atlas") await VerifyHyperbolicHoneycombAtlasAsync();
                 if (group == "hyperbolic-honeycomb-atlas") return;
+                if (group is "all" or "abc-flow-atlas") await VerifyAbcFlowAtlasAsync();
+                if (group == "abc-flow-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);

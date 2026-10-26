@@ -12,8 +12,11 @@ public partial class AbcFlowEditor : UserControl
     private readonly Stopwatch _clock = new();
     private IReadOnlyList<AbcSectionPoint>? _sections;
     private Fractal3DState? _coloring;
+    private double? _displayedPhase;
     public bool IsPlaying { get; private set; }
     public event EventHandler? SettingsChanged;
+    public event EventHandler? AtlasRequested;
+    private void AtlasClicked(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
     public AbcFlowEditor()
     {
         InitializeComponent(); Load(new()); Unloaded += (_, _) => Stop();
@@ -36,7 +39,7 @@ public partial class AbcFlowEditor : UserControl
     }
     public void Load(AbcFlowSettings s)
     {
-        s.Validate(); Stop(); _loading = true;
+        s.Validate(); Stop(); _displayedPhase = null; _loading = true;
         ASlider.Value = s.A; BSlider.Value = s.B; CSlider.Value = s.C;
         GroupBox.SelectedIndex = (int)s.Group; CountSlider.Value = s.SeedCount;
         XSlider.Value = s.StartX; YSlider.Value = s.StartY; ZSlider.Value = s.StartZ; SpreadSlider.Value = s.Spread;
@@ -71,8 +74,17 @@ public partial class AbcFlowEditor : UserControl
     }
     public void Stop()
     { IsPlaying = false; _clock.Stop(); if (PlayButton is not null) PlayButton.Content = "▶ Движение частиц"; }
+    public void StopAtDisplayedPhase()
+    {
+        bool playing = IsPlaying; Stop();
+        if (!playing || _displayedPhase is not { } phase) return;
+        bool loading = _loading; _loading = true;
+        try { PhaseSlider.Value = phase; RefreshTime(); }
+        finally { _loading = loading; }
+    }
     public void OnFrameDisplayed(IReadOnlyList<AbcSectionPoint> points, Fractal3DState state)
     {
+        _displayedPhase = state.AbcFlow.Phase;
         if (!ReferenceEquals(_sections, points) || _coloring is null || state.ColoringMode != _coloring.ColoringMode ||
             state.ColorScale != _coloring.ColorScale || state.ColorOffset != _coloring.ColorOffset ||
             state.ColorRepeat != _coloring.ColorRepeat || state.SurfaceColor != _coloring.SurfaceColor ||

@@ -145,6 +145,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `HyperbolicHoneycombAtlasWindow` — GPU-атлас глубины, рёбер/граней, среза и положения наблюдателя гиперболических сот (`HYPERBOLIC_HONEYCOMBS.md`, проверка `hyperbolic-honeycomb-atlas`).
 
+`AbcFlowAtlasWindow` — GPU-атлас коэффициентов, начальных точек, интегрирования и активных параметров отображения ABC-потока (`ABC_FLOW.md`, проверка `abc-flow-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

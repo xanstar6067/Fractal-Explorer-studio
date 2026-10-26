@@ -868,7 +868,7 @@ public partial class Fractal3DWindow : Window
         }
         if (Kind == Fractal3DKind.Hopf) StopHopfAnimation();
         if (Kind == Fractal3DKind.QuaternionJulia) StopQuaternionAnimation();
-        if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.Stop();
+        if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.StopAtDisplayedPhase();
         DetachLoop();
         _renderCts?.Cancel();
         try
