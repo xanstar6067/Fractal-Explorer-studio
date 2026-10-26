@@ -16,6 +16,7 @@ public partial class TerrainEditor : UserControl
     public event EventHandler? SettingsChanged;
     public event EventHandler? SlopeColoringRequested;
     public event EventHandler? ExportRequested;
+    public event EventHandler? AtlasRequested;
 
     public TerrainEditor()
     {
@@ -117,4 +118,5 @@ public partial class TerrainEditor : UserControl
     }
     private void SlopeClicked(object sender, RoutedEventArgs e) => SlopeColoringRequested?.Invoke(this, EventArgs.Empty);
     private void ExportClicked(object sender, RoutedEventArgs e) => ExportRequested?.Invoke(this, EventArgs.Empty);
+    private void AtlasClicked(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
 }

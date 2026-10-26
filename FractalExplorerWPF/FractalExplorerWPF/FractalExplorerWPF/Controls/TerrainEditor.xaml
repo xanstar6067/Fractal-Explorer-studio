@@ -10,6 +10,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров ландшафта…" Click="AtlasClicked" Margin="0,0,0,8"/>
         <TextBlock Style="{StaticResource FieldCaption}" Text="Тип поверхности"/>
         <ComboBox x:Name="TerrainTypeBox" SelectionChanged="OnChanged">
             <ComboBoxItem Content="Холмы — fBm"/>

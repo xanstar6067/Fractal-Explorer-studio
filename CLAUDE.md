@@ -135,6 +135,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `AntoineAtlasWindow` — GPU-атлас масштаба, толщины, наклона, чётного числа звеньев и поколения ожерелья Антуана (`ANTOINE_NECKLACE.md`, проверка `antoine-atlas`).
 
+`TerrainAtlasWindow` — атлас шума, формы участка и эрозии ландшафта с сохранением основной сетки (`TERRAIN.md`, проверка `terrain-atlas`).
+
 `BurningShipJuliaAtlasWindow` — GPU-атлас C и целой степени Жюлиа горящего корабля с фиксированной формулой (`BURNING_SHIP_JULIA_ATLAS.md`, проверка `burning-ship-julia-atlas`).
 
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.

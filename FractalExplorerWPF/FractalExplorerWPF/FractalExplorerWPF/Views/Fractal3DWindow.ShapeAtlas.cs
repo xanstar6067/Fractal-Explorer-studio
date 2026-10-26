@@ -7,6 +7,14 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void TerrainAtlas_OnClick(object sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.Terrain) OpenShapeAtlas(CreateTerrainAtlas);
+    }
+
+    private TerrainAtlasWindow CreateTerrainAtlas() =>
+        ConnectShapeAtlas(new TerrainAtlasWindow(CaptureViewState("atlas")), state => LoadTerrain(state.Terrain));
+
     private void AntoineAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.AntoineNecklace) OpenShapeAtlas(CreateAntoineAtlas);

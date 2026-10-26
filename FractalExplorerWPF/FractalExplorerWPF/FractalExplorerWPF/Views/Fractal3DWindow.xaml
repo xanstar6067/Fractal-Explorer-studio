@@ -519,6 +519,7 @@
 
                             <controls:TerrainEditor x:Name="TerrainPanel" Visibility="Collapsed"
                                                     SettingsChanged="Terrain_OnChanged"
+                                                    AtlasRequested="TerrainAtlas_OnClick"
                                                     SlopeColoringRequested="TerrainSlope_OnRequested"
                                                     ExportRequested="TerrainExport_OnClick"/>
 
