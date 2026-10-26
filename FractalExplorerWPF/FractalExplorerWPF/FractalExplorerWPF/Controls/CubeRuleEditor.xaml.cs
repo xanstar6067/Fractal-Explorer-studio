@@ -14,6 +14,7 @@ public partial class CubeRuleEditor : UserControl
     private uint? _mask;
     private bool _loading = true;
     public event EventHandler? SettingsChanged;
+    public event EventHandler? AtlasRequested;
     public event Action<int>? LevelStepRequested;
 
     public CubeRuleEditor()
@@ -47,6 +48,14 @@ public partial class CubeRuleEditor : UserControl
     }
 
     public uint? Capture() => _mask;
+
+    public void ApplyAtlasRule(uint? mask)
+    {
+        if (mask > CubeRule.All) throw new ArgumentException("Кубическое правило содержит больше 27 бит.");
+        Change(mask);
+    }
+
+    private void AtlasClicked(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
 
     public void Load(Fractal3DKind kind, uint? mask)
     {

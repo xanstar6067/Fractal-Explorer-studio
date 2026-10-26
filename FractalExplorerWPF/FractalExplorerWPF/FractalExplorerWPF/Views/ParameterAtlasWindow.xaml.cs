@@ -42,6 +42,8 @@ public partial class ParameterAtlasWindow : Window
     protected virtual decimal InitialRangeWidth(int index) => .4m;
     protected virtual bool IsIntegerComponent(int index) => false;
     protected virtual int IntegerComponentStep(int index) => 1;
+    protected virtual string ComponentValueLabel(int index, decimal value, string format) => value.ToString(format, CultureInfo.InvariantCulture);
+    protected virtual string? UnavailableSample(decimal[] point) => null;
     protected virtual ParameterAtlasRange OverviewRange => new(-2m, 2m, -2m, 2m);
     protected virtual Func<decimal[], CancellationToken, byte[]> CreateRenderSnapshot() =>
         throw new NotSupportedException("Не задан рендерер атласа.");
@@ -264,14 +266,20 @@ public partial class ParameterAtlasWindow : Window
                 var sample = (decimal[])point.Clone(); sample[xAxis] = x; sample[yAxis] = y;
                 var image = new Image { Height = size == 7 ? 68 : 92, Stretch = Stretch.Uniform };
                 var content = new StackPanel(); content.Children.Add(image);
-                content.Children.Add(new TextBlock { Text = $"{x:G5}; {y:G5}", FontSize = 11,
+                content.Children.Add(new TextBlock { Text = $"{ComponentValueLabel(xAxis, x, "G5")}; {ComponentValueLabel(yAxis, y, "G5")}", FontSize = 11,
                     TextTrimming = TextTrimming.CharacterEllipsis, TextAlignment = TextAlignment.Center });
+                string? unavailable = UnavailableSample(sample);
+                if (unavailable is not null)
+                    content.Children.Add(new TextBlock { Text = unavailable, TextWrapping = TextWrapping.Wrap, FontSize = 11 });
                 var button = new Button { Content = content, Margin = new Thickness(3), Padding = new Thickness(3),
-                    BorderThickness = new Thickness(2), IsEnabled = false, ToolTip = Describe(sample) + "\nДвойной щелчок — применить" };
+                    BorderThickness = new Thickness(2), IsEnabled = false, ToolTip = Describe(sample) + "\n" + (unavailable ?? "Двойной щелчок — применить") };
+                ToolTipService.SetShowOnDisabled(button, true);
                 button.Click += (_, _) => SelectTile(button, image, sample);
                 button.MouseDoubleClick += (_, e) => { SelectTile(button, image, sample); ApplySelection(); e.Handled = true; };
-                TilesPanel.Children.Add(button); tiles.Add((button, image, sample, row, column));
+                TilesPanel.Children.Add(button);
+                if (unavailable is null) tiles.Add((button, image, sample, row, column));
             }
+            if (tiles.Count == 0) { StatusText.Text = "Нет допустимых сочетаний в выбранном диапазоне."; return; }
             await _renderGate.WaitAsync(cts.Token); entered = true;
             int done = 0;
             foreach (var tile in tiles.OrderBy(t => Math.Abs(t.Row - rows / 2) + Math.Abs(t.Column - columns / 2)))
@@ -281,7 +289,8 @@ public partial class ParameterAtlasWindow : Window
                 var bitmap = BitmapSource.Create(144, 108, 96, 96, PixelFormats.Bgra32, null, pixels, 144 * 4);
                 bitmap.Freeze(); tile.Image.Source = bitmap; tile.Button.IsEnabled = true; done++;
                 if (_selectedButton is null) SelectTile(tile.Button, tile.Image, tile.Point);
-                StatusText.Text = PreviewStatus(done, total, iterations);
+                StatusText.Text = PreviewStatus(done, tiles.Count, iterations) +
+                    (tiles.Count < total ? $" · недоступно: {total - tiles.Count}" : "");
             }
         }
         catch (OperationCanceledException)
@@ -299,7 +308,7 @@ public partial class ParameterAtlasWindow : Window
         }
     }
 
-    private string Describe(decimal[] point) => string.Join("\n", point.Select((value, i) => $"{_componentNames[i]} = {value:G29}"));
+    private string Describe(decimal[] point) => string.Join("\n", point.Select((value, i) => $"{_componentNames[i]} = {ComponentValueLabel(i, value, "G29")}"));
     private void SelectTile(Button button, Image image, decimal[] point)
     {
         _selectedButton?.ClearValue(BorderBrushProperty); _selectedButton = button;

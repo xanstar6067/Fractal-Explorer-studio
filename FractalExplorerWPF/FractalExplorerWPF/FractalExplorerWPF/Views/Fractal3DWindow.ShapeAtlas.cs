@@ -7,6 +7,19 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void CubeRuleAtlas_OnClick(object sender, EventArgs e)
+    {
+        if (_mode.HasCubeRule) OpenShapeAtlas(CreateCubeRuleAtlas);
+    }
+
+    private CubeRuleAtlasWindow CreateCubeRuleAtlas() =>
+        ConnectShapeAtlas(new CubeRuleAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            CubeEditor.ApplyAtlasRule(state.CubeRuleMask);
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+            CubeThicknessPanel.IsEnabled = !state.CubeRuleMask.HasValue;
+        });
+
     private void BurningShipAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.BurningShip) OpenShapeAtlas(CreateBurningShipAtlas);

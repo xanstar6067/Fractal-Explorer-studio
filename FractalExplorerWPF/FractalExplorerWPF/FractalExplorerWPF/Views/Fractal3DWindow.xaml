@@ -511,7 +511,7 @@
                                          TextChanged="Parameter_OnChanged"/>
                             </StackPanel>
 
-                            <controls:CubeRuleEditor x:Name="CubeEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
+                            <controls:CubeRuleEditor x:Name="CubeEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="CubeRuleAtlas_OnClick"/>
                             <StackPanel x:Name="CubeThicknessPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Толщина элементов"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CubeThicknessBox"
