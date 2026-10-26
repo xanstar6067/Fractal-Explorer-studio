@@ -385,6 +385,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.Load(state.LSystem ?? new());
         if (Kind == Fractal3DKind.Hopf)
         {
+            _hopfDisplayedSettings = null;
             HopfEditor.Load(state.Hopf ?? new());
             HopfEditor.SetColoring(state);
         }
@@ -865,7 +866,7 @@ public partial class Fractal3DWindow : Window
             _lichtenbergRunning = false; _lichtenbergRequested = _lichtenbergCount;
             UpdateLichtenbergLabels();
         }
-        if (Kind == Fractal3DKind.Hopf) HopfEditor.Stop();
+        if (Kind == Fractal3DKind.Hopf) StopHopfAnimation();
         if (Kind == Fractal3DKind.QuaternionJulia) StopQuaternionAnimation();
         if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.Stop();
         DetachLoop();
@@ -1158,8 +1159,7 @@ public partial class Fractal3DWindow : Window
                 LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount);
             if (Kind == Fractal3DKind.Hopf)
             {
-                HopfEditor.SetColoring(state);
-                HopfEditor.OnFrameDisplayed();
+                OnHopfFrameDisplayed(state);
             }
             RequestRefinement(quality, scale, ssaa, simplified);
         }

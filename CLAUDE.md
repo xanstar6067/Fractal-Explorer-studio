@@ -141,6 +141,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `BurningShipAtlasWindow` — GPU-атлас целой степени и итераций исходного горящего корабля 3D (`BURNING_SHIP_ATLAS.md`, проверка `burning-ship-atlas`).
 
+`HopfAtlasWindow` — GPU-атлас семейства, шести поворотов 4D и выбранной ручной точки Хопфа с паузой на показанном кадре (`HOPF.md`, проверка `hopf-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

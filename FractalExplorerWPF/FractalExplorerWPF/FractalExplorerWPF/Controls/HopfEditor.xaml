@@ -7,6 +7,7 @@
         <Style x:Key="Angle" TargetType="Slider"><Setter Property="Minimum" Value="-180"/><Setter Property="Maximum" Value="180"/><Setter Property="SmallChange" Value="1"/><Setter Property="Margin" Value="0,0,8,0"/></Style>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров расслоения…" Click="AtlasClicked" Margin="0,0,0,8"/>
         <TextBlock Text="Семейство колец" Style="{StaticResource Caption}"/>
         <ComboBox x:Name="FamilyBox" SelectionChanged="FamilyChanged">
             <ComboBoxItem Content="Одна широта · тор"/><ComboBoxItem Content="Несколько широт · вложенные торы"/>

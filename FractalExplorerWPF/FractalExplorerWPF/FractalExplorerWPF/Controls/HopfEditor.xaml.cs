@@ -14,6 +14,9 @@ public partial class HopfEditor : UserControl
     private readonly Stopwatch _animationClock = new();
     public bool IsPlaying { get; private set; }
     public event EventHandler? SettingsChanged;
+    public event EventHandler? AtlasRequested;
+
+    private void AtlasClicked(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
     public HopfEditor()
     {
         InitializeComponent();

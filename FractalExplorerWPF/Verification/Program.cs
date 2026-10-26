@@ -158,6 +158,8 @@ internal static partial class Program
                 if (group == "antoine-atlas") return;
                 if (group is "all" or "terrain-atlas") await VerifyTerrainAtlasAsync();
                 if (group == "terrain-atlas") return;
+                if (group is "all" or "hopf-atlas") await VerifyHopfAtlasAsync();
+                if (group == "hopf-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);
