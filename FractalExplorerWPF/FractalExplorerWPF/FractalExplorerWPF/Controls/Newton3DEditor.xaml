@@ -10,6 +10,8 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров Ньютона…" Click="AtlasClicked"
+                ToolTip="Сравнить w, релаксацию, размер области, порог границы и отсечение" Margin="0,0,0,6"/>
         <TextBlock Text="Формула f(z) = 0" FontWeight="SemiBold"/>
         <TextBlock Text="Примеры формул" Style="{StaticResource FieldCaption}"/>
         <ComboBox x:Name="FormulaExamplesBox" DisplayMemberPath="Name" SelectionChanged="ExampleChanged" Margin="0,6,0,4"/>

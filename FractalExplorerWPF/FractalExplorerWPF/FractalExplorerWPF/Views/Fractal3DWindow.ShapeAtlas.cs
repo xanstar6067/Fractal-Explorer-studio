@@ -7,6 +7,15 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void Newton3DAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.Newton3D) OpenShapeAtlas(CreateNewton3DAtlas);
+    }
+
+    private Newton3DAtlasWindow CreateNewton3DAtlas() =>
+        ConnectShapeAtlas(new Newton3DAtlasWindow(CaptureViewState("atlas")), state =>
+            NewtonEditor.ApplyAtlasParameters(state.Newton));
+
     private void ImplicitSurfaceAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.ImplicitSurface) OpenShapeAtlas(CreateImplicitSurfaceAtlas);

@@ -146,6 +146,8 @@ internal static partial class Program
                 if (group == "periodic-surface-atlas") return;
                 if (group is "all" or "implicit-surface-atlas") await VerifyImplicitSurfaceAtlasAsync();
                 if (group == "implicit-surface-atlas") return;
+                if (group is "all" or "newton3d-atlas") await VerifyNewton3DAtlasAsync();
+                if (group == "newton3d-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);

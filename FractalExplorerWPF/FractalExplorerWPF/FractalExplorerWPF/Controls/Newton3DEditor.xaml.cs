@@ -16,6 +16,7 @@ public partial class Newton3DEditor : UserControl
     private double _appliedRadius = 8;
     private CancellationTokenSource? _formulaCts;
     public event EventHandler? SettingsChanged;
+    public event RoutedEventHandler? AtlasRequested;
 
     public Newton3DEditor()
     {
@@ -68,12 +69,36 @@ public partial class Newton3DEditor : UserControl
             CutBox.SelectedIndex = settings.CutAxis; CutSlider.Value = settings.CutPosition;
             SliceBox.IsChecked = settings.SliceOnly;
             ApplyFormulaButton.IsEnabled = RandomFormulaButton.IsEnabled = true;
+            AtlasButton.IsEnabled = true;
             CancelFormulaButton.Visibility = Visibility.Collapsed;
             AppliedMessage(); UpdateView();
         }
         finally { _loading = false; }
         InitializeNumericInput();
     }
+
+    public void ApplyAtlasParameters(Newton3DSettings settings)
+    {
+        NumericInput.CommitAll(this);
+        settings.Validate();
+        var current = Capture();
+        if (settings != (current with { SliceW = settings.SliceW, Relaxation = settings.Relaxation, Extent = settings.Extent,
+            BoundaryIterations = settings.BoundaryIterations, CutPosition = settings.CutPosition }))
+            throw new ArgumentException("Атлас может менять только числовые параметры текущей формулы и области.");
+        _loading = true;
+        try
+        {
+            SliceWBox.Text = Format(settings.SliceW); RelaxationBox.Text = Format(settings.Relaxation);
+            ExtentBox.Text = Format(settings.Extent);
+            BoundaryBox.Text = settings.BoundaryIterations.ToString(CultureInfo.InvariantCulture);
+            CutSlider.Value = settings.CutPosition;
+            UpdateView();
+        }
+        finally { _loading = false; }
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void AtlasClicked(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, e);
 
     internal async Task<bool> ApplyFormulaAsync()
     {
@@ -83,6 +108,7 @@ public partial class Newton3DEditor : UserControl
         var token = cts.Token;
         string text = FormulaBox.Text.Trim(), radiusText = RootRadiusBox.Text;
         ApplyFormulaButton.IsEnabled = RandomFormulaButton.IsEnabled = false;
+        AtlasButton.IsEnabled = false;
         CancelFormulaButton.Visibility = Visibility.Visible;
         FormulaStatus.Text = "Проверка формулы, поиск корней и подготовка программы…";
         try
@@ -117,6 +143,7 @@ public partial class Newton3DEditor : UserControl
             {
                 _formulaCts = null;
                 ApplyFormulaButton.IsEnabled = RandomFormulaButton.IsEnabled = true;
+                AtlasButton.IsEnabled = true;
                 CancelFormulaButton.Visibility = Visibility.Collapsed;
             }
             cts.Dispose();
