@@ -367,7 +367,7 @@
                             </StackPanel>
 
                             <StackPanel x:Name="HyperbolicPanel" Visibility="Collapsed">
-                                <controls:HyperbolicHoneycombEditor x:Name="HyperbolicEditor" SettingsChanged="HyperbolicChanged"/>
+                                <controls:HyperbolicHoneycombEditor x:Name="HyperbolicEditor" SettingsChanged="HyperbolicChanged" AtlasRequested="HyperbolicAtlas_OnClick"/>
                             </StackPanel>
                             <controls:PeriodicSurfaceEditor x:Name="PeriodicEditor" Visibility="Collapsed"
                                                             AtlasRequested="PeriodicSurfaceAtlas_OnClick"

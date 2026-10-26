@@ -143,6 +143,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `HopfAtlasWindow` — GPU-атлас семейства, шести поворотов 4D и выбранной ручной точки Хопфа с паузой на показанном кадре (`HOPF.md`, проверка `hopf-atlas`).
 
+`HyperbolicHoneycombAtlasWindow` — GPU-атлас глубины, рёбер/граней, среза и положения наблюдателя гиперболических сот (`HYPERBOLIC_HONEYCOMBS.md`, проверка `hyperbolic-honeycomb-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

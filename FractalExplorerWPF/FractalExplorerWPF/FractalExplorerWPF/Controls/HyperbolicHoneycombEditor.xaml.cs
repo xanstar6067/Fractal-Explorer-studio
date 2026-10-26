@@ -12,6 +12,9 @@ public partial class HyperbolicHoneycombEditor : UserControl
     private bool _loading = true;
     private (double X,double Y,double Z) _observer;
     public event EventHandler? SettingsChanged;
+    public event EventHandler? AtlasRequested;
+
+    private void AtlasClicked(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
 
     public HyperbolicHoneycombEditor()
     {
@@ -33,7 +36,22 @@ public partial class HyperbolicHoneycombEditor : UserControl
         s.Validate(); return s;
     }
 
-    public void Load(HyperbolicHoneycombSettings s)
+    public void Load(HyperbolicHoneycombSettings s) => WriteSettings(s, writeObserver: true);
+
+    public void ApplyAtlasParameters(HyperbolicHoneycombSettings settings)
+    {
+        settings.Validate();
+        NumericInput.CommitAll(this);
+        var current = Capture();
+        if (settings.Tessellation != current.Tessellation || settings.ShowEdges != current.ShowEdges ||
+            settings.ShowFaces != current.ShowFaces || settings.CutAxis != current.CutAxis)
+            throw new ArgumentException("Атлас относится к другому разбиению, видимости или оси среза.");
+        bool moved = settings.ObserverX != current.ObserverX || settings.ObserverY != current.ObserverY || settings.ObserverZ != current.ObserverZ;
+        WriteSettings(settings, writeObserver: moved);
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void WriteSettings(HyperbolicHoneycombSettings s, bool writeObserver)
     {
         s.Validate(); _loading=true;
         try
@@ -42,7 +60,9 @@ public partial class HyperbolicHoneycombEditor : UserControl
             EdgesCheck.IsChecked=s.ShowEdges; FacesCheck.IsChecked=s.ShowFaces; CutBox.SelectedIndex=s.CutAxis;
             Set(EdgeSlider,EdgeBox,s.EdgeRadius); Set(ThicknessSlider,ThicknessBox,s.FaceThickness);
             Set(OpacitySlider,OpacityBox,s.FaceOpacity); Set(CutSlider,CutPositionBox,s.CutPosition);
-            _observer=(s.ObserverX,s.ObserverY,s.ObserverZ); WriteObserver(); UpdateControls();
+            _observer=(s.ObserverX,s.ObserverY,s.ObserverZ);
+            if (writeObserver) WriteObserver();
+            UpdateControls();
         }
         finally { _loading=false; }
     }
