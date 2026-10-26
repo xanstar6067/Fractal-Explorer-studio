@@ -6,7 +6,15 @@ namespace FractalExplorerWPF.Core.NewtonMath;
 public sealed class CompiledRealSpaceExpression
 {
     private readonly Node _root;
-    private CompiledRealSpaceExpression(Node root) => _root = root;
+    private readonly int _parameterMask;
+    private CompiledRealSpaceExpression(Node root, int parameterMask) => (_root, _parameterMask) = (root, parameterMask);
+    /// <summary>Whether a/b/c occurs in the parsed formula, including either side of an equality.</summary>
+    public bool UsesParameter(char parameter)
+    {
+        int index = char.ToLowerInvariant(parameter) - 'a';
+        if (index is < 0 or > 2) throw new ArgumentOutOfRangeException(nameof(parameter));
+        return (_parameterMask & (1 << index)) != 0;
+    }
     public double Evaluate(double x, double y, double z, double a = 1, double b = .35, double c = 0) =>
         _root.Evaluate([x, y, z, a, b, c]);
     public string Hlsl => _root.Emit(false);
@@ -17,7 +25,8 @@ public sealed class CompiledRealSpaceExpression
         if (string.IsNullOrWhiteSpace(text) || text.Length > 2048)
             throw new ArgumentException("Введите формулу до 2048 символов.");
         var parser = new Parser(text);
-        return new(parser.Parse());
+        Node root = parser.Parse();
+        return new(root, parser.ParameterMask);
     }
 
     private abstract record Node
@@ -76,6 +85,7 @@ public sealed class CompiledRealSpaceExpression
 
     private sealed class Parser(string text)
     {
+        public int ParameterMask { get; private set; }
         private readonly string _text = text.ToLowerInvariant().Replace('−', '-').Replace('·', '*');
         private int _pos, _nodes, _depth;
         public Node Parse()
@@ -156,7 +166,10 @@ public sealed class CompiledRealSpaceExpression
             if (name == "pi") return Add(new Number(System.Math.PI));
             if (name == "e") return Add(new Number(System.Math.E));
             if (name.Length == 1 && "xyzabc".IndexOf(name[0]) is int index && index >= 0)
+            {
+                if (index >= 3) ParameterMask |= 1 << (index - 3);
                 return Add(new Variable(index));
+            }
             if (name is "sin" or "cos" or "abs" or "sqrt" or "exp" or "log" or "min" or "max")
             {
                 Need('('); Node arg = Sum(); Node? second = null;

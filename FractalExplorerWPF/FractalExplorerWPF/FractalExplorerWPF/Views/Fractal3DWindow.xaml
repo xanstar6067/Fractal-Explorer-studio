@@ -369,6 +369,8 @@
                                 SettingsChanged="Periodic_OnChanged" LabyrinthColoringRequested="PeriodicColorLabyrinths_OnRequested"/>
 
                             <StackPanel x:Name="ImplicitPanel" Visibility="Collapsed">
+                                <Button x:Name="ImplicitSurfaceAtlasButton" Content="Атлас параметров F(x,y,z)…"
+                                        Click="ImplicitSurfaceAtlas_OnClick" ToolTip="Сравнить параметры применённой формулы, уровень, область и срез"/>
                                 <TextBlock Text="F(x,y,z) = уровень" FontWeight="SemiBold" Margin="0,5"/>
                                 <TextBox x:Name="ImplicitFormulaBox" MinHeight="76" MaxHeight="160" MaxLength="2048" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" TextChanged="ImplicitFormula_OnChanged" KeyDown="ImplicitFormula_OnKeyDown"/>
                                 <Button x:Name="ImplicitApplyButton" Content="Построить поверхность" Click="ImplicitApply_OnClick" ToolTip="Применить формулу · Ctrl+Enter"/>

@@ -7,6 +7,15 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void ImplicitSurfaceAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.ImplicitSurface) OpenShapeAtlas(CreateImplicitSurfaceAtlas);
+    }
+
+    private ImplicitSurfaceAtlasWindow CreateImplicitSurfaceAtlas() =>
+        ConnectShapeAtlas(new ImplicitSurfaceAtlasWindow(CaptureViewState("atlas")), state =>
+            LoadImplicitSurfaceParameters(state.ImplicitSurface));
+
     private void SierpinskiAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.SierpinskiTetrahedron) OpenShapeAtlas(CreateSierpinskiAtlas);

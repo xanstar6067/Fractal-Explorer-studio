@@ -36,6 +36,11 @@ public partial class Fractal3DWindow
         var s = settings ?? new(); s.Validate();
         _implicitAppliedFormula = s.Formula;
         ImplicitFormulaBox.Text = s.Formula;
+        LoadImplicitSurfaceParameters(s);
+        ImplicitFormulaStatus.Text = "Формула применена. Параметры меняют поверхность автоматически.";
+    }
+    private void LoadImplicitSurfaceParameters(ImplicitSurfaceSettings s)
+    {
         ImplicitCutBox.SelectedIndex = s.CutAxis;
         (Slider Slider, TextBox Box, double Value)[] fields =
         [
@@ -50,7 +55,6 @@ public partial class Fractal3DWindow
             field.Box.SetCurrentValue(TextBox.TextProperty, field.Value.ToString("R", CultureInfo.InvariantCulture));
         }
         UpdateImplicitControls();
-        ImplicitFormulaStatus.Text = "Формула применена. Параметры меняют поверхность автоматически.";
     }
     private void UpdateImplicitControls() => ImplicitCutPositionSlider.IsEnabled =
         ImplicitCutPositionBox.IsEnabled = ImplicitCutBox.SelectedIndex > 0;
