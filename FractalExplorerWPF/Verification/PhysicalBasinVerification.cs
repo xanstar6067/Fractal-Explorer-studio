@@ -139,7 +139,7 @@ internal static partial class Program
                 }
                 else { expected.LogisticPlane = LogisticPlaneMode.Parameter; expected.LogisticSeed = new(0.3, 0.1); }
                 window.LoadState(expected);
-                var actual = window.CaptureState("round trip");
+                var actual = CapturePrepared(window, "round trip");
                 Check(actual.Kind == kind, "Window must preserve its kind.");
                 if (BasinExplorerCatalog.UsesPhysics(kind))
                 {
@@ -155,12 +155,12 @@ internal static partial class Program
                 {
                     var strength = (TextBox)window.FindName("ForceCenterStrengthBox");
                     strength.Text = "2.3";
-                    Check(window.CaptureState("edited").Physics.Centers[0].Strength == 2.3,
+                    Check(CapturePrepared(window, "edited").Physics.Centers[0].Strength == 2.3,
                         "Editing a center must update the captured physical model.");
                     strength.Text = "NaN";
                     for (int attempt = 0; attempt < 2; attempt++)
                     {
-                        var corrected = window.CaptureState("corrected");
+                        var corrected = CapturePrepared(window, "corrected");
                         Check(corrected.Physics.Centers[0].Strength == 2.3 && strength.Text != "NaN" &&
                             FractalExplorerWPF.Controls.NumericInput.GetHasNotice(strength),
                             "Invalid physical input must restore and explain the last correct value in the field.");
@@ -171,12 +171,12 @@ internal static partial class Program
                 {
                     var plane = (ComboBox)window.FindName("LogisticPlaneBox");
                     plane.SelectedIndex = 0;
-                    var dynamicState = window.CaptureState("dynamic");
+                    var dynamicState = CapturePrepared(window, "dynamic");
                     Check(dynamicState.LogisticPlane == LogisticPlaneMode.InitialValues && dynamicState.Attractors.Any(a => a.Period == 2),
                         "Switching from λ to z must discover the fixed λ cycle again.");
                     plane.SelectedIndex = 1;
                     ((TextBox)window.FindName("MaxPeriodBox")).Text = "24";
-                    Check(window.CaptureState("periods").MaxPeriod == 24 && ((ComboBox)window.FindName("PeriodFilterBox")).Items.Count == 25,
+                    Check(CapturePrepared(window, "periods").MaxPeriod == 24 && ((ComboBox)window.FindName("PeriodFilterBox")).Items.Count == 25,
                         "Parameter plane period limit must also update its filter.");
                     ((TextBox)window.FindName("MaxPeriodBox")).Text = "16";
                 }
@@ -203,7 +203,7 @@ internal static partial class Program
             var window = new BasinExplorerWindow(kind);
             try
             {
-                var state = window.CaptureState("appearance");
+                var state = CapturePrepared(window, "appearance");
                 Check(state.Palette.Name == "Оттенки серого" && state.Palette.RootColors.SequenceEqual(standard.RootColors),
                     $"{kind}: default palette must match Newton's grayscale palette.");
                 Check(state.MarkerMode == BasinMarkerMode.Hidden, $"{kind}: overlays must be hidden by default.");
@@ -234,13 +234,13 @@ internal static partial class Program
                 if (BasinExplorerCatalog.UsesPhysics(kind))
                 {
                     ((CheckBox)window.FindName("EditCentersBox")).IsChecked = true;
-                    Check(overlay.Children.Count == 0 && window.CaptureState("edit").MarkerMode == BasinMarkerMode.Hidden,
+                    Check(overlay.Children.Count == 0 && CapturePrepared(window, "edit").MarkerMode == BasinMarkerMode.Hidden,
                         $"{kind}: enabling the center editor must respect hidden overlays.");
                 }
                 state.Palette = new NewtonPaletteManager().Palettes.Single(p => p.Name == "Огонь").Clone("Огонь");
                 state.MarkerMode = BasinMarkerMode.MarkersWithLabels;
                 window.LoadState(state);
-                var restored = window.CaptureState("restored");
+                var restored = CapturePrepared(window, "restored");
                 Check(restored.Palette.RootColors.SequenceEqual(state.Palette.RootColors) && restored.MarkerMode == state.MarkerMode,
                     $"{kind}: explicit saved palette and markers must override defaults.");
             }

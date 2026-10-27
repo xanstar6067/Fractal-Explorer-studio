@@ -78,44 +78,10 @@ public partial class BasinExplorerWindow
         EscapeRadius = ReadDouble(PlanarEscapeRadiusBox, "Радиус ухода", 2, 1e6)
     };
 
-    private bool ApplyPlanar(bool showMessage, bool scheduleRender, IReadOnlyList<PlanarBasinAttractor>? supplied = null)
-    {
-        try
-        {
-            using (new WaitCursorScope())
-            {
-                _engine.MaxIterations = ReadInt(IterationsBox, "Лимит шагов", 1, 100_000);
-                _engine.RootSearchRadius = ReadDouble(PlanarSearchRadiusBox, "Радиус поиска", 0.1, 100);
-                _engine.ConfigurePlanar(ReadPlanarSettings(), FormulaBox.Text.Trim(), supplied);
-            }
-            _appliedFormula = FormulaBox.Text.Trim();
-            _formulaDirty = false;
-            _orbitTrace = [];
-            DebugOutput.Text = _engine.DebugInfo;
-            PlanarTargetsBox.ItemsSource = _engine.PlanarAttractors.Select((a, i) => a.Describe(i)).ToArray();
-            PlanarTargetCountText.Text = $"Найдено аттракторов: {_engine.TargetCount}";
-            StatusText.Text = _engine.TargetCount > 0
-                ? $"Найдено аттракторов: {_engine.TargetCount}. Правая кнопка — результат и траектория."
-                : "Аттракторы не найдены. Увеличьте радиус поиска, время или лимит шагов; проверьте устойчивость системы.";
-            UpdatePlanarLayout(); UpdateOverlay();
-            if (scheduleRender) ScheduleRender();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _formulaDirty = true;
-            StatusText.Text = ex.Message; DebugOutput.Text = ex.Message;
-            PlanarTargetsBox.ItemsSource = null; PlanarTargetCountText.Text = "Параметры не применены";
-            MarkerOverlay.Children.Clear();
-            if (showMessage) MessageBox.Show(this, ex.Message, "Формула или параметры", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-    }
-
     private void PlanarParameter_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_updatingUi || !UsesPlanar) return;
-        _formulaDirty = true; _orbitTrace = [];
+        CancelPreparation(); _formulaDirty = true; _orbitTrace = [];
         UpdatePlanarLayout(); UpdateOverlay(); ScheduleRender();
     }
 

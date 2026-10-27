@@ -102,6 +102,7 @@ public sealed partial class BasinExplorerEngine
         double distance = double.PositiveInfinity;
         for (int i = 0; i < p.Centers.Count; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             BasinForceCenter c = p.Centers[i];
             double dx = s.X - c.X, dy = s.Y - c.Y, d2 = dx * dx + dy * dy;
             if (d2 <= c.CaptureRadius * c.CaptureRadius && d2 < distance) { nearest = i; distance = d2; }
@@ -117,6 +118,7 @@ public sealed partial class BasinExplorerEngine
         double dx = b.X - a.X, dy = b.Y - a.Y, length2 = dx * dx + dy * dy;
         for (int i = 0; i < Physics.Centers.Count; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             BasinForceCenter c = Physics.Centers[i];
             double ox = a.X - c.X, oy = a.Y - c.Y;
             double outside = ox * ox + oy * oy - c.CaptureRadius * c.CaptureRadius;
@@ -146,6 +148,7 @@ public sealed partial class BasinExplorerEngine
         trace?.Add(s.Position);
         for (; iteration < MaxIterations && time < p.MaxTime; iteration++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if ((iteration & 31) == 0) token.ThrowIfCancellationRequested();
             if (!double.IsFinite(s.X) || !double.IsFinite(s.Y) || !double.IsFinite(s.Vx) || !double.IsFinite(s.Vy))
                 return Finish(BasinOrbitOutcome.NonFinite);

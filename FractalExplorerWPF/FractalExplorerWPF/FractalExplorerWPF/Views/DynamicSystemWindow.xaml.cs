@@ -49,7 +49,7 @@ public partial class DynamicSystemWindow : Window
     private TextBlock? _quadraticStatus;
     private Button? _quadraticSearchButton;
     private readonly Dictionary<int, TextBox> _quadraticBoxes = [];
-    private CancellationTokenSource? _quadraticSearchCts;
+    private CancellationTokenSource? _quadraticSearchCts, _quadraticFitCts;
     private bool _quadraticCoefficientsDirty;
     private static readonly Color[] QuadraticPresetColors =
     [
@@ -330,13 +330,21 @@ public partial class DynamicSystemWindow : Window
         _quadraticCoefficientsDirty = false;
     }
 
-    private void QuadraticFit_OnClick(object sender, RoutedEventArgs e)
+    private async void QuadraticFit_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        _quadraticFitCts?.Cancel();
+        using var cts = new CancellationTokenSource();
+        _quadraticFitCts = cts;
         try
         {
             ReadQuadraticCoefficients();
-            SprottQuadraticMap.Analysis view = SprottQuadraticMap.Analyze(_state.QuadraticCoefficients, CancellationToken.None)
-                ?? throw new InvalidOperationException("Орбита расходится или сжимается в точку. Измените коэффициенты.");
+            double[] coefficients = [.. _state.QuadraticCoefficients];
+            SprottQuadraticMap.Analysis view = await Task.Run(() => SprottQuadraticMap.Analyze(coefficients, cts.Token)
+                ?? throw new InvalidOperationException("Орбита расходится или сжимается в точку. Измените коэффициенты."), cts.Token);
+            if (cts.IsCancellationRequested || !ReferenceEquals(_quadraticFitCts, cts) ||
+                !coefficients.SequenceEqual(_state.QuadraticCoefficients)) return;
+            _quadraticFitCts = null;
             _state.QuadraticSpan = view.Span;
             _state.CenterX = view.CenterX;
             _state.CenterY = view.CenterY;
@@ -346,9 +354,15 @@ public partial class DynamicSystemWindow : Window
             if (_quadraticStatus is not null) _quadraticStatus.Text = $"Оценка λ₁ ≈ {view.Lyapunov:F2} бит/шаг";
             Schedule();
         }
+        catch (OperationCanceledException) { }
         catch (InvalidOperationException ex)
         {
-            if (_quadraticStatus is not null) _quadraticStatus.Text = ex.Message;
+            if (!cts.IsCancellationRequested && ReferenceEquals(_quadraticFitCts, cts) && _quadraticStatus is not null)
+                _quadraticStatus.Text = ex.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_quadraticFitCts, cts)) _quadraticFitCts = null;
         }
     }
 
@@ -514,7 +528,7 @@ public partial class DynamicSystemWindow : Window
         DynamicSystemRenderer.RenderAsync(state.Clone(), width, height, FindPalette(state.PaletteName), token, progress, null, false);
     private DynamicPalette? FindPalette(string name)=>_palettes.FirstOrDefault(p=>p.Name==name)??(_kind is DynamicSystemKind.Attractors2D or DynamicSystemKind.Popcorn or DynamicSystemKind.Hopalong?null:_palettes.FirstOrDefault());
 
-    private void Schedule(){if(!IsLoaded)return;_timer.Stop();_timer.Start();}
+    private void Schedule(){_quadraticFitCts?.Cancel();if(!IsLoaded)return;_timer.Stop();_timer.Start();}
     private void Render_OnClick(object sender,RoutedEventArgs e){ NumericInput.CommitAll(this);_timer.Stop();_cts?.Cancel();_=RenderAsync();}
     private void Cancel_OnClick(object sender,RoutedEventArgs e)=>_cts?.Cancel();
     private void Reset_OnClick(object sender,RoutedEventArgs e)
@@ -685,7 +699,7 @@ public partial class DynamicSystemWindow : Window
     }
     private void Toggle_OnClick(object sender,RoutedEventArgs e)=>FractalControlPanel.Toggle(ref _controls,ControlsColumn,ControlsHost,ToggleButton,250,Schedule);
     private void Window_OnKeyDown(object sender,KeyEventArgs e){_fullscreen.HandleKey(this,e.Key);}
-    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){CancelIconSearch();CancelHopalongSearch();_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();}
+    private void Window_OnClosing(object? sender,System.ComponentModel.CancelEventArgs e){CancelIconSearch();CancelHopalongSearch();_timer.Stop();EndVisualization();_cts?.Cancel();_cts?.Dispose();_quadraticSearchCts?.Cancel();_quadraticFitCts?.Cancel();}
 
     private static string DisplayName(DynamicSystemKind k)=>k switch{DynamicSystemKind.Lyapunov=>"Экспонента Ляпунова",DynamicSystemKind.Lorenz=>"Аттрактор Лоренца",DynamicSystemKind.Rossler=>"Аттрактор Рёсслера",DynamicSystemKind.LogisticMap=>"Логистическое отображение",DynamicSystemKind.Bifurcation=>"Диаграмма бифуркации",DynamicSystemKind.Henon=>"Карта Хенона",DynamicSystemKind.Ikeda=>"Отображение Икэды",DynamicSystemKind.Attractors2D=>"Странные аттракторы",DynamicSystemKind.Popcorn=>"Фрактал Popcorn Пиковера",DynamicSystemKind.Hopalong=>"Hopalong Мартина",_=>"Динамическая система"};
     private static string Details(DynamicSystemState s)=>s.Kind switch{DynamicSystemKind.Hopalong=>$"a={s.Hopalong.A:G5}, b={s.Hopalong.B:G5}, c={s.Hopalong.C:G5} · {s.Iterations:N0} точек · {s.PaletteName}",DynamicSystemKind.Lyapunov=>$"{s.Pattern} · {s.Iterations} итераций · {s.PaletteName}",DynamicSystemKind.Attractors2D=>$"{Attractor2DDisplayName(Attractor2DRenderer.ParseKind(s.Attractor2DMode))} · {s.Iterations:N0} точек · масштаб {s.Zoom:G5}",DynamicSystemKind.Popcorn=>$"{(s.Popcorn.PlotMode == PopcornPlotMode.GridOrbits ? "Орбиты сетки" : "Кружево Гильберта")} · h={s.Popcorn.H:G5}, k={s.Popcorn.K:G5} · {s.Popcorn.OrbitIterations} шагов · масштаб {s.Zoom:G5}",_=>$"Масштаб {s.Zoom:G5} · {Math.Max(s.Iterations,s.Steps):N0} итераций"};

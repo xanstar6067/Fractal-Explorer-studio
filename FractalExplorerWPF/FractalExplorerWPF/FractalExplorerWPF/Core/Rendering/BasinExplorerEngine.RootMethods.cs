@@ -97,6 +97,7 @@ public sealed partial class BasinExplorerEngine
 
         for (int iteration = 0; iteration < MaxIterations; iteration++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (TryFinishRootStep(x1, x2, f2, iteration, out BasinOrbitResult finished)) return finished;
             if (!TryMullerStep(x0, f0, x1, f1, x2, f2, out Complex next))
                 return new BasinOrbitResult(BasinOrbitOutcome.Degenerate, iteration, iteration, x2);
@@ -147,6 +148,7 @@ public sealed partial class BasinExplorerEngine
 
         for (int iteration = 0; iteration < MaxIterations; iteration++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (TryFinishRootStep(previous, z, value, iteration, out BasinOrbitResult finished)) return finished;
             if (!TryLaguerreStep(z, value, n, out Complex step, out bool nonFinite))
                 return new BasinOrbitResult(nonFinite ? BasinOrbitOutcome.NonFinite : BasinOrbitOutcome.Degenerate,
@@ -195,6 +197,7 @@ public sealed partial class BasinExplorerEngine
 
         for (int iteration = 0; iteration < MaxIterations; iteration++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (TryFinishRootStep(previous, z, value, iteration, out BasinOrbitResult finished)) return finished;
             Complex derivative = _firstDerivative!.Evaluate(z);
             if (!IsFinite(derivative)) return new BasinOrbitResult(BasinOrbitOutcome.NonFinite, iteration, iteration, z);
@@ -227,6 +230,7 @@ public sealed partial class BasinExplorerEngine
 
         for (int iteration = 0; iteration < MaxIterations; iteration++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (TryFinishRootStep(x0, x1, f1, iteration, out BasinOrbitResult finished)) return finished;
             if (!IsFinite(f0)) return new BasinOrbitResult(BasinOrbitOutcome.NonFinite, iteration, iteration, x1);
             Complex denominator = f1 - f0;
@@ -287,6 +291,7 @@ public sealed partial class BasinExplorerEngine
         IReadOnlyList<Complex> roots = Roots;
         for (int index = 0; index < roots.Count; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             double candidate = MagnitudeSquared(z - roots[index]);
             if (candidate >= distanceSquared) continue;
             distanceSquared = candidate;
@@ -346,6 +351,7 @@ public sealed partial class BasinExplorerEngine
                 trace.Add(x0); trace.Add(x1); trace.Add(x2);
                 while (trace.Count < limit && !IsTraceFinished(x2, f2))
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     if (!TryMullerStep(x0, f0, x1, f1, x2, f2, out Complex next)) break;
                     x0 = x1; f0 = f1; x1 = x2; f1 = f2; x2 = next; f2 = _function.Evaluate(next);
                     trace.Add(x2);
@@ -360,6 +366,7 @@ public sealed partial class BasinExplorerEngine
                 bool newton = LaguerreComparison == LaguerreComparisonMode.Newton;
                 while (trace.Count < limit && !IsTraceFinished(z, value))
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     Complex step;
                     if (newton)
                     {
@@ -382,6 +389,7 @@ public sealed partial class BasinExplorerEngine
                 trace.Add(x0); trace.Add(x1);
                 while (trace.Count < limit && !IsTraceFinished(x1, f1))
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     Complex denominator = f1 - f0;
                     if (denominator == Complex.Zero) break;
                     Complex next = x1 - f1 * (x1 - x0) / denominator;

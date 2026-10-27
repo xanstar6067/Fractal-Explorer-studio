@@ -29,6 +29,7 @@ public sealed partial class BasinExplorerEngine
         double escapeSquared = Math.Pow(Math.Max(EscapeRadius, 2 + 2 / Math.Max(1e-150, lambda.Magnitude)), 2);
         for (int iteration = 0; iteration <= MaxIterations; iteration++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if ((iteration & 31) == 0) token.ThrowIfCancellationRequested();
             if (!IsFinite(z) || MagnitudeSquared(z) > escapeSquared)
                 return new(BasinOrbitOutcome.Escaped, iteration, iteration, z);
@@ -37,10 +38,12 @@ public sealed partial class BasinExplorerEngine
             {
                 for (int period = 1; period <= MaxPeriod && period * 3 <= count; period++)
                 {
+                    _cancellationToken.ThrowIfCancellationRequested();
                     bool matches = true;
                     Complex multiplier = Complex.One;
                     for (int j = 0; j < period; j++)
                     {
+                        _cancellationToken.ThrowIfCancellationRequested();
                         Complex current = GetRecent(history, next, j);
                         if (!AreClose(current, GetRecent(history, next, j + period), CycleTolerance) ||
                             !AreClose(current, GetRecent(history, next, j + 2 * period), CycleTolerance))

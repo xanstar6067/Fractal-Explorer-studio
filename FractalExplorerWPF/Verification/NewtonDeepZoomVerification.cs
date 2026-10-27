@@ -330,14 +330,14 @@ internal static partial class Program
                 Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = themeStyles });
 
             var window = new NewtonPoolsWindow();
-            NewtonState extreme = window.CaptureState("template");
+            NewtonState extreme = CapturePrepared(window, "template");
             extreme.Zoom = FloatExp.Pow10(500);
             extreme.CenterXExact = cycleX;
             extreme.CenterYExact = cycleY;
             extreme.CenterX = BigFloat.Parse(cycleX).ToDouble();
             extreme.CenterY = BigFloat.Parse(cycleY).ToDouble();
             window.LoadState(extreme);
-            NewtonState captured = window.CaptureState("round-trip");
+            NewtonState captured = CapturePrepared(window, "round-trip");
             Check(captured.Zoom == extreme.Zoom, "The Newton window must round-trip a 1e500 zoom unchanged.");
             using (new BigFloat.PrecisionScope(3648))
             {
@@ -348,12 +348,12 @@ internal static partial class Program
                     $"The Newton window must round-trip a 1e500 exact center to far below a pixel: drift {driftX}, {driftY}.");
             }
 
-            NewtonState shallowState = window.CaptureState("template");
+            NewtonState shallowState = CapturePrepared(window, "template");
             shallowState.Zoom = FloatExp.FromDouble(700);
             shallowState.CenterXExact = null;
             shallowState.CenterYExact = null;
             window.LoadState(shallowState);
-            NewtonState capturedShallow = window.CaptureState("round-trip-shallow");
+            NewtonState capturedShallow = CapturePrepared(window, "round-trip-shallow");
             Check(capturedShallow.CenterXExact is null && capturedShallow.CenterYExact is null,
                 "A shallow Newton save must not carry exact-center strings.");
             window.Close();

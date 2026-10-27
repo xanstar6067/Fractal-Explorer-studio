@@ -112,31 +112,10 @@ public partial class BasinExplorerWindow
         };
     }
 
-    private bool ApplyPhysics(bool showMessage, bool scheduleRender)
-    {
-        try
-        {
-            _engine.ConfigurePhysics(ReadPhysicsSettings());
-            _formulaDirty = false;
-            DebugOutput.Text = _engine.DebugInfo;
-            StatusText.Text = $"Центров: {_forceCenters.Count}. Правая кнопка показывает траекторию.";
-            _orbitTrace = [];
-            UpdateOverlay();
-            if (scheduleRender) ScheduleRender();
-            return true;
-        }
-        catch (InvalidOperationException ex)
-        {
-            _formulaDirty = true;
-            StatusText.Text = ex.Message;
-            if (showMessage) MessageBox.Show(this, ex.Message, "Параметры", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-    }
-
     private void ExtendedParameter_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_updatingUi) return;
+        CancelPreparation();
         _formulaDirty = true;
         _orbitTrace = [];
         UpdateExtendedLayout();
@@ -196,6 +175,7 @@ public partial class BasinExplorerWindow
     private void CenterParameter_OnChanged(object sender, TextChangedEventArgs e)
     {
         if (_updatingUi) return;
+        CancelPreparation();
         _formulaDirty = true;
         _renderCts?.Cancel();
         try { ReadSelectedCenter(); }
@@ -212,6 +192,7 @@ public partial class BasinExplorerWindow
         if (selected < 0 || _forceCenters.Count <= 1) { StatusText.Text = "Оставьте хотя бы один центр."; return; }
         _forceCenters.RemoveAt(selected);
         RefreshForceCenters(selected);
+        CancelPreparation();
         _formulaDirty = true;
         _orbitTrace = [];
         UpdateOverlay();
@@ -250,6 +231,7 @@ public partial class BasinExplorerWindow
         _draggedCenter = selected;
         _renderCts?.Cancel();
         _renderTimer.Stop();
+        CancelPreparation();
         _formulaDirty = true;
         _orbitTrace = [];
         CanvasHost.CaptureMouse();

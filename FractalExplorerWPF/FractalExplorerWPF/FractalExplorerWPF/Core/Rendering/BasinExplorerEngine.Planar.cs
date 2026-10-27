@@ -130,6 +130,7 @@ public sealed partial class BasinExplorerEngine
             for (int iy = 0; iy <= 2 * half; iy++)
             for (int ix = 0; ix <= 2 * half; ix++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
                 Complex seed = new(_planar.SearchRadius * ((double)ix / half - 1), _planar.SearchRadius * ((double)iy / half - 1));
                 if (TryPlanarEquilibrium(seed, out Complex root)) AddPlanarAttractor(new() { Points = [root] });
@@ -141,6 +142,7 @@ public sealed partial class BasinExplorerEngine
             foreach (double fraction in new[] { 0.08, 0.2, 0.45, 0.8 })
             for (int i = 0; i < 8; i++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
                 Complex seed = Complex.FromPolarCoordinates(_planar.SearchRadius * fraction, i * Math.PI / 4);
                 PlanarBasinAttractor? cycle = FindPlanarCycle(seed, token);
@@ -158,6 +160,7 @@ public sealed partial class BasinExplorerEngine
         // линейно, и малое |F| достигается далеко от точки (у x³ при |F| = 1e-10 — в 3e-4 от неё).
         for (int i = 0; i < 400; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             Complex value = _planarField!(root);
             if (!IsFinite(value) || root.Magnitude > _planar.EscapeRadius) return false;
             if (value == Complex.Zero) return IsStableEquilibrium(root);
@@ -171,6 +174,7 @@ public sealed partial class BasinExplorerEngine
             bool accepted = false;
             for (int backtrack = 0; backtrack < 16; backtrack++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 Complex candidate = root - step;
                 if (_planarField(candidate).Magnitude < value.Magnitude)
                 { root = candidate; accepted = true; break; }
@@ -235,6 +239,7 @@ public sealed partial class BasinExplorerEngine
         _descentTraps = new DescentTrap[_planarAttractors.Count];
         for (int i = 0; i < _planarAttractors.Count; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (_planarAttractors[i].IsCycle) continue;
             // Ловушки потоков опираются на непрерывность времени; у дискретного оптимизатора шаг
             // может перепрыгнуть границу эллипса. Поэтому у строгих минимумов там остаётся допуск
@@ -267,6 +272,7 @@ public sealed partial class BasinExplorerEngine
         trace?.Add(z);
         for (int i = 0; i <= MaxIterations; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if ((i & 31) == 0) token.ThrowIfCancellationRequested();
             if (!IsFinite(z)) return new(BasinOrbitOutcome.NonFinite, i, i, z);
             if (z.Magnitude > _planar.EscapeRadius) return new(BasinOrbitOutcome.Escaped, i, i, z);
@@ -318,6 +324,7 @@ public sealed partial class BasinExplorerEngine
         int i = 0;
         for (; i < MaxIterations && time < endTime; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if ((i & 15) == 0) token.ThrowIfCancellationRequested();
             if (!IsFinite(z)) return new(BasinOrbitOutcome.NonFinite, i, time, z);
             if (z.Magnitude > _planar.EscapeRadius) return new(BasinOrbitOutcome.Escaped, i, time, z);
@@ -330,6 +337,7 @@ public sealed partial class BasinExplorerEngine
                 return new(BasinOrbitOutcome.Degenerate, i, time, z);
             for (int index = 0; index < _planarAttractors.Count; index++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 PlanarBasinAttractor a = _planarAttractors[index];
                 Complex anchor = a.Points[0], normal = _sectionNormals[index];
                 if (!a.IsCycle || !CrossesSection(z, next, anchor, normal)) continue;
@@ -420,9 +428,11 @@ public sealed partial class BasinExplorerEngine
         int rings = 0;
         for (double s = FirstTrapRing(point) * Math.Sqrt(lambdaMin); s / Math.Sqrt(lambdaMin) < _planar.EscapeRadius / 2 && rings < maxRings; s *= 1.5, rings++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             bool inward = true;
             for (int k = 0; k < 48 && inward; k++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 Complex offset = shape.Offset(s, k * Math.PI / 24);
                 double dx = offset.Real, dy = offset.Imaginary;
                 Complex field = _planarField!(point + offset);
@@ -485,8 +495,10 @@ public sealed partial class BasinExplorerEngine
         double boundary = double.PositiveInfinity, curvature = 0, gradient = 0;
         for (double s = FirstTrapRing(point); ; s = Math.Min(outer, s * 1.5))
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             for (int k = 0; k < 96; k++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 Complex q = point + shape.Offset(s, k * Math.PI / 48);
                 var (a, b, c, d) = _planarJacobian!(q);
                 curvature = Math.Max(curvature, Math.Sqrt(a * a + b * b + c * c + d * d));
@@ -512,6 +524,7 @@ public sealed partial class BasinExplorerEngine
         certain = false;
         for (int i = 0; i < _descentTraps.Length; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             DescentTrap trap = _descentTraps[i];
             if (!trap.IsActive) continue;
             Complex offset = z - _planarAttractors[i].Points[0];

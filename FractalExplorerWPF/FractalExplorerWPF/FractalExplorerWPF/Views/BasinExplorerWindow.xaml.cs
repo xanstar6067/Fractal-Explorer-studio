@@ -24,7 +24,7 @@ namespace FractalExplorerWPF.Views;
 /// рациональные отображения, периодические циклы, логистическая карта, физические модели,
 /// градиентный спуск, комплексный градиентный поток и полиномиальные векторные поля.
 /// Режим задаётся при создании окна; разметка
-/// показывает только панели выбранного режима. Корни и аттракторы ищутся на UI-потоке при
+/// показывает только панели выбранного режима. Корни и аттракторы ищутся в фоновом потоке при
 /// применении формулы и сохраняются в состоянии, а каждый кадр считает свежий движок.
 /// </summary>
 public partial class BasinExplorerWindow : Window
@@ -34,7 +34,7 @@ public partial class BasinExplorerWindow : Window
     private const double MaxZoom = 1e12;
 
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly BasinExplorerEngine _engine;
+    private BasinExplorerEngine _engine;
     private readonly NewtonPaletteManager _paletteManager = new();
     private readonly BasinExplorerSaveStore _saveStore;
     private readonly BasinExplorerDefinition _definition;
@@ -92,6 +92,10 @@ public partial class BasinExplorerWindow : Window
             ScheduleRender();
         };
         InitializeNumericInput();
+        FormulaBox.TextChanged += FormulaInput_OnChanged;
+        NumeratorBox.TextChanged += FormulaInput_OnChanged;
+        DenominatorBox.TextChanged += FormulaInput_OnChanged;
+        RootSearchRadiusBox.TextChanged += FormulaInput_OnChanged;
     }
 
     public BasinExplorerKind Kind { get; }
@@ -108,6 +112,11 @@ public partial class BasinExplorerWindow : Window
     {
         NumericInput.Prepare(this);
         EnsureFormulaApplied();
+        return ReadState(saveName);
+    }
+
+    private BasinExplorerState ReadState(string saveName, bool applying = false)
+    {
         var state = new BasinExplorerState
         {
             SaveName = saveName,
@@ -121,18 +130,18 @@ public partial class BasinExplorerWindow : Window
             ShadingScale = ReadDouble(ShadingScaleBox, "Шкала яркости", 0.1, 1e6),
             MarkerMode = SelectedMarkerMode,
             Palette = _paletteManager.ActivePalette.Clone(_paletteManager.ActivePalette.Name),
-            Formula = _appliedFormula,
-            Numerator = _appliedNumerator,
-            Denominator = _appliedDenominator,
-            ParameterC = _appliedParameterC
+            Formula = applying ? FormulaBox.Text.Trim() : _appliedFormula,
+            Numerator = applying ? NumeratorBox.Text.Trim() : _appliedNumerator,
+            Denominator = applying ? DenominatorBox.Text.Trim() : _appliedDenominator,
+            ParameterC = applying && !UsesRoots && !UsesPlanar && !UsesPhysics ? ReadComplex(ParameterCRealBox, ParameterCImaginaryBox, "Параметр c") : _appliedParameterC
         };
 
         CaptureExtendedSettings(state);
         if (UsesPlanar)
         {
-            state.Planar = _engine.PlanarSettings;
-            state.PlanarAttractors = _engine.PlanarAttractors.Select(a => a.Clone()).ToList();
-            state.UseSavedPlanarAttractors = true;
+            state.Planar = applying ? ReadPlanarSettings() : _engine.PlanarSettings;
+            state.PlanarAttractors = applying ? [] : _engine.PlanarAttractors.Select(a => a.Clone()).ToList();
+            state.UseSavedPlanarAttractors = !applying;
             return state;
         }
         if (UsesPhysics) return state;
@@ -141,7 +150,7 @@ public partial class BasinExplorerWindow : Window
             state.RootTolerance = ReadDouble(RootToleranceBox, "Точность корней", 1e-12, 0.1);
             state.RootSearchRadius = ReadDouble(RootSearchRadiusBox, "Радиус поиска", 0.01, 1e9);
             state.RootSearchMode = SelectedRootSearchMode;
-            state.Roots = [.. _engine.Roots];
+            state.Roots = applying ? [] : [.. _engine.Roots];
             CaptureMethodSettings(state);
         }
         else
@@ -152,10 +161,10 @@ public partial class BasinExplorerWindow : Window
             state.EscapeRadius = ReadDouble(EscapeRadiusBox, "Радиус ухода", 2, 1e150);
             state.InfinityHandling = SelectedInfinityHandling;
             state.PeriodFilter = SelectedPeriodFilter;
-            state.Attractors = _engine.Attractors.Where(attractor => !attractor.IsInfinity)
+            state.Attractors = (applying ? [] : _engine.Attractors).Where(attractor => !attractor.IsInfinity)
                 .Select(attractor => attractor.Clone()).ToList();
             // После неудачной формулы список пуст не по выбору пользователя — кадр ищет циклы сам.
-            state.UseSavedAttractors = _engine.IsReady;
+            state.UseSavedAttractors = !applying && _engine.IsReady;
         }
         return state;
     }
@@ -230,7 +239,7 @@ public partial class BasinExplorerWindow : Window
     /// </summary>
     internal static BasinExplorerEngine CreateEngine(BasinExplorerState state, CancellationToken token = default)
     {
-        var engine = new BasinExplorerEngine(state.Kind)
+        var engine = new BasinExplorerEngine(state.Kind, token)
         {
             MaxIterations = state.MaxIterations,
             CenterX = state.CenterX,
@@ -458,6 +467,7 @@ public partial class BasinExplorerWindow : Window
 
         if (!keepPalette) _paletteManager.ActivePalette = state.Palette.Clone($"Загружено: {state.SaveName}");
         _orbitTrace = [];
+        CancelPreparation();
         RootSearchRadiusPanel.IsEnabled = SelectedRootSearchMode != NewtonRootSearchMode.ManualOnly;
         UpdateMethodControls();
         UpdatePreviewTransform();
@@ -467,8 +477,8 @@ public partial class BasinExplorerWindow : Window
             ? state.Roots
             : null;
         IReadOnlyList<BasinAttractor>? savedAttractors = !UsesRoots && state.UseSavedAttractors ? state.Attractors : null;
-        if (UsesPlanar) ApplyPlanar(showMessage, true, state.UseSavedPlanarAttractors ? state.PlanarAttractors : null);
-        else ApplyFormula(showMessage, savedRoots, savedAttractors);
+        ApplyFormula(showMessage, savedRoots, savedAttractors,
+            suppliedPlanar: UsesPlanar && state.UseSavedPlanarAttractors ? state.PlanarAttractors : null);
     }
 
     private void UpdateMethodControls()
@@ -558,122 +568,8 @@ public partial class BasinExplorerWindow : Window
 
     private void EnsureFormulaApplied()
     {
-        if (_formulaDirty && !ApplyFormula(showMessage: false, scheduleRender: false))
-            throw new InvalidOperationException(StatusText.Text);
-    }
-
-    /// <summary>
-    /// Применяет формулу из полей: разбирает её, ищет корни или аттракторы (либо принимает
-    /// переданный сохранённый список) и обновляет списки на панели.
-    /// </summary>
-    private bool ApplyFormula(bool showMessage, IReadOnlyList<Complex>? suppliedRoots = null,
-        IReadOnlyList<BasinAttractor>? suppliedAttractors = null, bool scheduleRender = true)
-    {
-        if (UsesPlanar) return ApplyPlanar(showMessage, scheduleRender);
-        if (UsesPhysics) return ApplyPhysics(showMessage, scheduleRender);
-        _formulaDirty = false;
-        Complex parameterC = Complex.Zero;
-        try
-        {
-            _engine.MaxIterations = ReadIntLenient(IterationsBox, 200, 1, 100_000);
-            if (UsesRoots)
-            {
-                _engine.RootTolerance = ReadDouble(RootToleranceBox, "Точность корней", 1e-12, 0.1);
-                _engine.RootSearchRadius = ReadDouble(RootSearchRadiusBox, "Радиус поиска", 0.01, 1e9);
-                _engine.RootSearchMode = SelectedRootSearchMode;
-            }
-            else
-            {
-                parameterC = ReadComplex(ParameterCRealBox, ParameterCImaginaryBox, "Параметр c");
-                _engine.ParameterC = parameterC;
-                _engine.MaxPeriod = ReadInt(MaxPeriodBox, "Максимальный период", 1, 64);
-                _engine.CycleTolerance = ReadDouble(CycleToleranceBox, "Допуск цикла", 1e-12, 0.1);
-                _engine.AttractorSearchRadius = ReadDouble(AttractorSearchRadiusBox, "Радиус затравок", 0.01, 1e6);
-                _engine.EscapeRadius = ReadDouble(EscapeRadiusBox, "Радиус ухода", 2, 1e150);
-                _engine.InfinityHandling = SelectedInfinityHandling;
-                _engine.LogisticPlane = IsLogisticParameter ? LogisticPlaneMode.Parameter : LogisticPlaneMode.InitialValues;
-                _engine.LogisticSeed = ReadComplex(LogisticSeedRealBox, LogisticSeedImaginaryBox, "Начальное z₀");
-            }
-        }
-        catch (InvalidOperationException ex)
-        {
-            _formulaDirty = true;
-            StatusText.Text = ex.Message;
-            if (showMessage) MessageBox.Show(this, ex.Message, "Параметры", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        bool ok;
-        string debug;
-        var stopwatch = Stopwatch.StartNew();
-        using (new WaitCursorScope())
-        {
-            if (UsesRoots)
-            {
-                ok = _engine.SetRootFormula(FormulaBox.Text.Trim(), out debug, suppliedRoots is null);
-                if (ok && suppliedRoots is not null)
-                {
-                    _engine.ReplaceRoots(suppliedRoots);
-                    debug += $"{Environment.NewLine}Загружено/задано корней: {_engine.Roots.Count}";
-                }
-            }
-            else
-            {
-                ok = Kind == BasinExplorerKind.ComplexLogistic
-                    ? _engine.SetLogisticMap(out debug, suppliedAttractors is null)
-                    : Kind == BasinExplorerKind.RationalMap
-                    ? _engine.SetRationalMap(NumeratorBox.Text.Trim(), DenominatorBox.Text.Trim(), out debug, suppliedAttractors is null)
-                    : _engine.SetMapFormula(FormulaBox.Text.Trim(), out debug, suppliedAttractors is null);
-                if (ok && suppliedAttractors is not null && !IsLogisticParameter)
-                {
-                    _engine.ReplaceAttractors(suppliedAttractors);
-                    debug = _engine.DebugInfo + $"{Environment.NewLine}Использован сохранённый список: {_engine.Attractors.Count} аттракторов";
-                }
-            }
-        }
-
-        _orbitTrace = [];
-        if (!ok)
-        {
-            _formulaDirty = true;
-            DebugOutput.Text = debug;
-            StatusText.Text = "Ошибка формулы";
-            RefreshTargetsUi();
-            if (showMessage)
-            {
-                string reason = debug.Split('\n').Skip(1).FirstOrDefault()?.Trim() ?? string.Empty;
-                MessageBox.Show(this, $"Проверьте формулу.{Environment.NewLine}{reason}", "Ошибка формулы",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            return false;
-        }
-
-        _appliedFormula = FormulaBox.Text.Trim();
-        _appliedNumerator = NumeratorBox.Text.Trim();
-        _appliedDenominator = DenominatorBox.Text.Trim();
-        _appliedParameterC = parameterC;
-        DebugOutput.Text = debug;
-        RefreshTargetsUi();
-        UpdateMethodControls();
-        if (IsLogisticParameter)
-        {
-            StatusText.Text = "Плоскость λ: цвет обозначает период притягивающего цикла. Двойной щелчок открывает его бассейны.";
-        }
-        else if (UsesRoots)
-        {
-            StatusText.Text = _engine.Roots.Count == 0
-                ? "Формула корректна, но корни не найдены. Увеличьте радиус или добавьте корень вручную."
-                : $"Формула применена. {_engine.RootSearchStrategy}";
-        }
-        else
-        {
-            int cycles = _engine.Attractors.Count(attractor => !attractor.IsInfinity);
-            StatusText.Text = $"Формула применена за {stopwatch.ElapsedMilliseconds} мс. Притягивающих циклов: {cycles}" +
-                              (_engine.InfinityIsAttractor ? " + ∞." : ".") +
-                              (cycles == 0 ? " Попробуйте другой c, больший период или поиск в текущем виде." : string.Empty);
-        }
-        if (scheduleRender) ScheduleRender();
-        return true;
+        if (_formulaDirty)
+            throw new InvalidOperationException("Параметры ещё не применены. Дождитесь подготовки или нажмите «Применить».");
     }
 
     private void RefreshTargetsUi()
@@ -720,6 +616,7 @@ public partial class BasinExplorerWindow : Window
     private void ParameterC_OnChanged(object sender, TextChangedEventArgs e)
     {
         if (_updatingUi) return;
+        CancelPreparation();
         _formulaDirty = true;
         ScheduleRender();
     }
@@ -727,11 +624,15 @@ public partial class BasinExplorerWindow : Window
     private void RootSearchModeBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingUi) return;
+        CancelPreparation();
         RootSearchRadiusPanel.IsEnabled = SelectedRootSearchMode != NewtonRootSearchMode.ManualOnly;
     }
 
-    private void AddRootButton_OnClick(object sender, RoutedEventArgs e)
+    private async void AddRootButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
+        CancelAnalysis();
         if (!TryParseComplex(ManualRootBox.Text, out Complex root))
         {
             MessageBox.Show(this, "Введите комплексное число, например 1+2*i или -0.5*i.",
@@ -745,8 +646,11 @@ public partial class BasinExplorerWindow : Window
         ScheduleRender();
     }
 
-    private void RemoveRootButton_OnClick(object sender, RoutedEventArgs e)
+    private async void RemoveRootButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
+        CancelAnalysis();
         int index = RootListBox.SelectedIndex;
         if (index < 0 || index >= _engine.Roots.Count)
         {
@@ -763,40 +667,14 @@ public partial class BasinExplorerWindow : Window
     private void InfinityHandlingBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingUi) return;
+        CancelPreparation();
+        if (_preparationCts is not null) _formulaDirty = true;
         _engine.InfinityHandling = SelectedInfinityHandling;
         RefreshTargetsUi();
         ScheduleRender();
     }
 
-    private bool PrepareAttractorSearch()
-    {
-        try { EnsureFormulaApplied(); }
-        catch (InvalidOperationException ex)
-        {
-            MessageBox.Show(this, ex.Message, "Поиск циклов", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-        if (!_engine.IsReady)
-        {
-            MessageBox.Show(this, "Сначала примените корректную формулу.", "Поиск циклов", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-        try
-        {
-            _engine.MaxIterations = ReadIntLenient(IterationsBox, 200, 1, 100_000);
-            _engine.MaxPeriod = ReadInt(MaxPeriodBox, "Максимальный период", 1, 64);
-            _engine.CycleTolerance = ReadDouble(CycleToleranceBox, "Допуск цикла", 1e-12, 0.1);
-            _engine.EscapeRadius = ReadDouble(EscapeRadiusBox, "Радиус ухода", 2, 1e150);
-            return true;
-        }
-        catch (InvalidOperationException ex)
-        {
-            MessageBox.Show(this, ex.Message, "Поиск циклов", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-    }
-
-    private void SearchFromSeedButton_OnClick(object sender, RoutedEventArgs e)
+    private async void SearchFromSeedButton_OnClick(object sender, RoutedEventArgs e)
     {
         if (!TryParseComplex(SeedBox.Text, out Complex seed))
         {
@@ -804,34 +682,16 @@ public partial class BasinExplorerWindow : Window
                 "Поиск цикла", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        if (!PrepareAttractorSearch()) return;
-        int added;
-        using (new WaitCursorScope()) added = _engine.DiscoverAttractors([seed], keepExisting: true, includeDefaultSeeds: false);
-        RefreshTargetsUi();
-        StatusText.Text = added > 0
-            ? $"Из точки {BasinExplorerFormatting.Complex(seed)} найден новый притягивающий цикл."
-            : $"Из точки {BasinExplorerFormatting.Complex(seed)} новых притягивающих циклов не найдено: орбита уходит, хаотична, слишком медленна или ведёт к известному циклу.";
-        if (added > 0) ScheduleRender();
+        await SearchAttractorsAsync(seed);
     }
 
-    private void SearchInViewButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        if (!PrepareAttractorSearch()) return;
-        RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
-        _engine.CenterX = _viewport.CenterX;
-        _engine.CenterY = _viewport.CenterY;
-        _engine.Zoom = _viewport.Zoom.ToDouble();
-        int added;
-        using (new WaitCursorScope()) added = _engine.DiscoverAttractorsInView(surface.PixelWidth, surface.PixelHeight);
-        RefreshTargetsUi();
-        StatusText.Text = added > 0
-            ? $"В текущем виде найдено новых циклов: {added}."
-            : "В текущем виде новых притягивающих циклов не найдено.";
-        if (added > 0) ScheduleRender();
-    }
+    private async void SearchInViewButton_OnClick(object sender, RoutedEventArgs e) => await SearchAttractorsAsync();
 
-    private void RemoveAttractorButton_OnClick(object sender, RoutedEventArgs e)
+    private async void RemoveAttractorButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
+        CancelAnalysis();
         int index = AttractorListBox.SelectedIndex;
         if (index < 0 || index >= _engine.Attractors.Count)
         {
@@ -892,6 +752,7 @@ public partial class BasinExplorerWindow : Window
     private void Parameter_OnChanged(object sender, EventArgs e)
     {
         if (_updatingUi) return;
+        CancelPreparation();
         if (Kind == BasinExplorerKind.ComplexLogistic && sender == MaxPeriodBox) _formulaDirty = true;
         ScheduleRender();
     }
@@ -945,8 +806,10 @@ public partial class BasinExplorerWindow : Window
 
     #region Palette, saves, export
 
-    private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
+    private async void PaletteButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
         try { EnsureFormulaApplied(); }
         catch (InvalidOperationException ex)
         {
@@ -1005,11 +868,12 @@ public partial class BasinExplorerWindow : Window
         dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForBasinExplorer(this, _saveStore)); }
+    private async void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); if (!await EnsurePreparedAsync()) return; SaveManagerWindow.Open(this, SaveManagerConfigurations.ForBasinExplorer(this, _saveStore)); }
 
-    private void ExportButton_OnClick(object sender, RoutedEventArgs e)
+    private async void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
         NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         BasinExplorerState state;
@@ -1035,11 +899,21 @@ public partial class BasinExplorerWindow : Window
     #region Rendering
 
     private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
-    private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
-
-    private void ScheduleRender()
+    private void CancelButton_OnClick(object sender, RoutedEventArgs e)
     {
-        if (!IsLoaded) return;
+        _renderTimer.Stop();
+        _renderCts?.Cancel();
+        CancelPreparation();
+        CancelAnalysis();
+        StatusText.Text = "Вычисление отменено";
+    }
+
+    private void ScheduleRender() => ScheduleRender(cancelAnalysis: true);
+
+    private void ScheduleRender(bool cancelAnalysis)
+    {
+        if (cancelAnalysis) CancelAnalysis();
+        if (!IsLoaded || _closed) return;
         _renderCts?.Cancel();
         _renderTimer.Stop();
         if (_viewport.IsPanning || _draggedCenter >= 0) return;
@@ -1061,7 +935,7 @@ public partial class BasinExplorerWindow : Window
             return;
         }
 
-        if (_formulaDirty && !ApplyFormula(showMessage: false, scheduleRender: false)) return;
+        if (!await EnsurePreparedAsync() || _closed || _viewport.IsPanning || _isRendering) return;
         BasinExplorerState state;
         try { state = CaptureState("preview"); }
         catch (Exception ex) { StatusText.Text = ex.Message; return; }
@@ -1084,7 +958,7 @@ public partial class BasinExplorerWindow : Window
             TileSchedulingStrategy strategy = RenderPatternSettings.SelectedPattern;
             IReadOnlyList<MandelbrotRenderTile> tiles = MandelbrotTileScheduler.Create(renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(renderWidth, renderHeight, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
-            BasinExplorerEngine engine = CreateEngine(state);
+            BasinExplorerEngine engine = await Task.Run(() => CreateEngine(state, token), token);
             session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress, _renderCts);
             _activeSession = session;
             CanvasImage.Source = bitmap;
@@ -1094,7 +968,7 @@ public partial class BasinExplorerWindow : Window
             if (token.IsCancellationRequested)
             {
                 CanvasImage.Source = null;
-                StatusText.Text = "Рендер отменён";
+                if (!_closed && _preparationCts is null && _analysisCts is null) StatusText.Text = "Рендер отменён";
                 return;
             }
             session.Flush();
@@ -1112,7 +986,7 @@ public partial class BasinExplorerWindow : Window
         catch (OperationCanceledException)
         {
             CanvasImage.Source = null;
-            StatusText.Text = "Рендер отменён";
+            if (!_closed && _preparationCts is null && _analysisCts is null) StatusText.Text = "Рендер отменён";
         }
         catch (Exception ex)
         {
@@ -1149,9 +1023,9 @@ public partial class BasinExplorerWindow : Window
     private async Task<BitmapSource> RenderBitmapAsync(BasinExplorerState state, int width, int height, int ssaaFactor,
         CancellationToken token, IProgress<int>? progress)
     {
-        BasinExplorerEngine engine = await Task.Run(() => CreateEngine(state, token), token);
         // Элементы окна принадлежат UI-потоку: число потоков читается до расчёта.
         int threads = GetThreadCount();
+        BasinExplorerEngine engine = await Task.Run(() => CreateEngine(state, token), token);
         return await SsaaBitmapRenderer.RenderAsync(width, height, ssaaFactor, 4, (pixels, renderWidth, renderHeight, stride, report) =>
             engine.RenderToBuffer(pixels, renderWidth, renderHeight, stride, threads, token, report), token, progress);
     }
@@ -1166,7 +1040,7 @@ public partial class BasinExplorerWindow : Window
     private void SetRenderingState(bool rendering, string? status = null)
     {
         _isRendering = rendering;
-        CancelButton.IsEnabled = rendering;
+        UpdateComputationState();
         if (!rendering) RenderProgress.Value = 0;
         if (status is not null) StatusText.Text = status;
     }
@@ -1210,6 +1084,7 @@ public partial class BasinExplorerWindow : Window
     {
         if (HandleExtendedMouseDown(e)) return;
         _renderTimer.Stop();
+        CancelAnalysis();
         _viewport.BeginPan(e.GetPosition(CanvasHost));
         CommitAndBakePreview();
         CanvasHost.CaptureMouse();
@@ -1238,28 +1113,7 @@ public partial class BasinExplorerWindow : Window
     private void CanvasHost_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        if (!_viewport.IsPanning) ShowOrbitAt(e.GetPosition(CanvasHost));
-    }
-
-    private void ShowOrbitAt(Point canvasPoint)
-    {
-        (double planeX, double planeY) = ScreenToPlane(canvasPoint);
-        BasinExplorerEngine engine;
-        try { engine = CreateEngine(CaptureState("orbit")); }
-        catch (Exception ex)
-        {
-            StatusText.Text = ex.Message;
-            return;
-        }
-
-        BasinOrbitResult result = engine.AnalyzePoint(planeX, planeY);
-        _orbitTrace = engine.TraceOrbit(planeX, planeY, UsesPhysics || UsesPlanar ? 512 : 160);
-        UpdateOverlay();
-        StatusText.Text = DescribeOrbit(engine, result, planeX, planeY) +
-            (SelectedMarkerMode == BasinMarkerMode.Hidden
-                ? " Траектория скрыта: включите маркеры и линии вверху панели."
-                : " Esc — скрыть орбиту.");
-        if (!UsesRoots) SeedBox.Text = FormatComplexInput(new Complex(planeX, planeY));
+        if (!_viewport.IsPanning) _ = ShowOrbitAtAsync(e.GetPosition(CanvasHost));
     }
 
     private (double X, double Y) ScreenToPlane(Point point) =>
@@ -1321,8 +1175,9 @@ public partial class BasinExplorerWindow : Window
         else if (e.Key == Key.Escape)
         {
             if (_fullscreen.IsActive) _fullscreen.Toggle(this);
-            else if (_orbitTrace.Count > 0)
+            else if (_analysisCts is not null || _orbitTrace.Count > 0)
             {
+                CancelAnalysis();
                 _orbitTrace = [];
                 UpdateOverlay();
             }
@@ -1331,6 +1186,9 @@ public partial class BasinExplorerWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _closed = true;
+        CancelPreparation();
+        CancelAnalysis();
         _renderTimer.Stop();
         _activeSession?.End();
         _renderCts?.Cancel();
@@ -1635,12 +1493,4 @@ public partial class BasinExplorerWindow : Window
 
     #endregion
 
-    private sealed class WaitCursorScope : IDisposable
-    {
-        private readonly Cursor? _previous = Mouse.OverrideCursor;
-
-        public WaitCursorScope() => Mouse.OverrideCursor = Cursors.Wait;
-
-        public void Dispose() => Mouse.OverrideCursor = _previous;
-    }
 }

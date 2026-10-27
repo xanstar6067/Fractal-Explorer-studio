@@ -163,6 +163,7 @@ internal static partial class Program
             var capture = window.GetType().GetMethod(window is Fractal3DWindow ? "CaptureViewFields" : "CaptureState", flags)!;
             try
             {
+                PrepareWindowForCapture(window);
                 capture.Invoke(window, ["numeric-input"]);
                 var boxes = new HashSet<TextBox>();
                 foreach (var field in window.GetType().GetFields(flags))
@@ -183,6 +184,7 @@ internal static partial class Program
                         box.Text = bad;
                         NumericInput.CommitAll(window);
                         Require(NumericInput.IsValid(box), $"{window.GetType().Name}.{box.Name} still invalid: {box.Text}");
+                        PrepareWindowForCapture(window);
                         capture.Invoke(window, ["numeric-input"]);
                     }
                     box.Text = original; fields++;
@@ -202,6 +204,7 @@ internal static partial class Program
             using var cleanup = new NumericWindowCleanup(factory());
             var box = (TextBox)cleanup.Window.FindName(field);
             box.Text = bad;
+            PrepareWindowForCapture(cleanup.Window);
             cleanup.Window.GetType().GetMethod("CaptureState", flags)!.Invoke(cleanup.Window, ["numeric-input"]);
             Require(box.Text == expected, $"{field}: expected {expected}, got {box.Text}");
         }
@@ -209,6 +212,7 @@ internal static partial class Program
         {
             ((ComboBox)cleanup.Window.FindName("ModeBox")).SelectedIndex = 0;
             var box = (TextBox)cleanup.Window.FindName("TertiaryBox"); box.Text = "abc";
+            PrepareWindowForCapture(cleanup.Window);
             cleanup.Window.GetType().GetMethod("CaptureState", flags)!.Invoke(cleanup.Window, ["numeric-input"]);
             Require(!box.IsEnabled && NumericInput.IsValid(box), "Disabled Rauzy field still blocks capture.");
         }

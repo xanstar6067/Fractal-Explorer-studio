@@ -135,7 +135,7 @@ internal static partial class Program
                 s => { if (s.Palette.Colors.Count == 0) s.Palette = NamedPalette(new MandelbrotPaletteManager(), s.PaletteName, s.Palette.ColorPeriod); });
         yield return Group("Newton", () => new NewtonPoolsWindow(), PresetManager.GetNewtonPresets, s => s.SaveName,
             (w, s, width, height) => ((NewtonPoolsWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
-            (w, s) => { ((NewtonPoolsWindow)w).LoadState(s); return ((NewtonPoolsWindow)w).CaptureState(s.SaveName); });
+            (w, s) => { ((NewtonPoolsWindow)w).LoadState(s); return CapturePrepared((NewtonPoolsWindow)w, s.SaveName); });
         yield return Group("McMullen", () => new McMullenWindow(), () => McMullenPresets.All, s => s.SaveName,
             (w, s, width, height) => ((McMullenWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
             (w, s) => { ((McMullenWindow)w).LoadState(s); return ((McMullenWindow)w).CaptureState(s.SaveName); });
@@ -147,7 +147,7 @@ internal static partial class Program
         foreach (BasinExplorerKind kind in Enum.GetValues<BasinExplorerKind>())
             yield return Group($"Basins-{kind}", () => new BasinExplorerWindow(kind), () => BasinExplorerCatalog.GetPresets(kind), s => s.SaveName,
                 (w, s, width, height) => ((BasinExplorerWindow)w).RenderStatePreviewAsync(s.Clone(), width, height, CancellationToken.None),
-                (w, s) => { ((BasinExplorerWindow)w).LoadState(s.Clone()); return ((BasinExplorerWindow)w).CaptureState(s.SaveName); });
+                (w, s) => { ((BasinExplorerWindow)w).LoadState(s.Clone()); return CapturePrepared((BasinExplorerWindow)w, s.SaveName); });
         yield return Group("Phoenix", () => new PhoenixWindow(), PresetManager.GetPhoenixPresets, s => s.SaveName,
             (w, s, width, height) => ((PhoenixWindow)w).RenderStatePreviewAsync(s, width, height, CancellationToken.None),
             (w, s) => { ((PhoenixWindow)w).LoadState(s); return ((PhoenixWindow)w).CaptureState(s.SaveName); },

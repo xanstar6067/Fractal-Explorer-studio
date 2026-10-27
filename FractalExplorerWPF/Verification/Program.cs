@@ -62,6 +62,7 @@ internal static partial class Program
         {
             try
             {
+                if (group == "ui-computation") { await VerifyUiComputationAsync(); return; }
                 if (group is "all" or "phoenix-saves") await VerifyLegacyPhoenixSavesAsync();
                 if (group == "phoenix-saves") return;
                 if (group == "phoenix-atlas")

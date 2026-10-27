@@ -12,7 +12,7 @@ internal static class NewtonRootFinder
         ExpressionNode formula,
         double requestedTolerance,
         out IReadOnlyList<Complex> roots,
-        out int degree)
+        out int degree, CancellationToken token = default)
     {
         roots = [];
         degree = 0;
@@ -20,7 +20,7 @@ internal static class NewtonRootFinder
 
         degree = coefficients.Length - 1;
         if (degree <= 0) return true;
-        return TrySolvePolynomial(coefficients, requestedTolerance, out roots);
+        return TrySolvePolynomial(coefficients, requestedTolerance, out roots, token);
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ internal static class NewtonRootFinder
     /// Корни полинома степени ≥ 1 методом Аберта—Эрлиха с полировкой и слиянием кратных.
     /// Возвращает false, если старший коэффициент нулевой или нечисловой.
     /// </summary>
-    internal static bool TrySolvePolynomial(Complex[] polynomial, double requestedTolerance, out IReadOnlyList<Complex> roots)
+    internal static bool TrySolvePolynomial(Complex[] polynomial, double requestedTolerance, out IReadOnlyList<Complex> roots, CancellationToken token = default)
     {
         roots = [];
         Complex[] coefficients = Trim(polynomial);
@@ -48,13 +48,14 @@ internal static class NewtonRootFinder
         if (!IsFinite(leading) || leading == Complex.Zero) return false;
         for (int index = 0; index < coefficients.Length; index++) coefficients[index] /= leading;
 
-        Complex[] candidates = SolveAberth(coefficients);
+        Complex[] candidates = SolveAberth(coefficients, token);
         var accepted = new List<Complex>(candidates.Length);
         double residualLimit = Math.Max(1e-10, requestedTolerance * 0.1);
         double mergeDistance = Math.Max(1e-9, Math.Min(1e-4, requestedTolerance * 2));
 
         foreach (Complex candidate in candidates)
         {
+            token.ThrowIfCancellationRequested();
             Complex polished = PolishPolynomialRoot(coefficients, candidate);
             if (!IsFinite(polished)) continue;
             Complex residual = EvaluatePolynomial(coefficients, polished);
@@ -74,8 +75,14 @@ internal static class NewtonRootFinder
         double centerY,
         double radius,
         double requestedTolerance,
-        int maxIterations = 250)
+        int maxIterations = 250, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
+        // Все адаптивные ветви и шаги Ньютона проходят через эти функции.
+        var originalFormula = formula;
+        var originalDerivative = derivative;
+        formula = z => { token.ThrowIfCancellationRequested(); return originalFormula(z); };
+        derivative = z => { token.ThrowIfCancellationRequested(); return originalDerivative(z); };
         radius = Math.Clamp(radius, 0.01, 1e9);
         requestedTolerance = Math.Clamp(requestedTolerance, 1e-12, 0.1);
         double solverTolerance = Math.Min(requestedTolerance * 0.05, 1e-10);
@@ -235,7 +242,7 @@ internal static class NewtonRootFinder
         AddUnique(roots, z, mergeDistance * Math.Max(1, z.Magnitude));
     }
 
-    private static Complex[] SolveAberth(Complex[] coefficients)
+    private static Complex[] SolveAberth(Complex[] coefficients, CancellationToken token)
     {
         int degree = coefficients.Length - 1;
         if (degree == 1) return [-coefficients[0]];
@@ -251,6 +258,7 @@ internal static class NewtonRootFinder
 
         for (int iteration = 0; iteration < 2500; iteration++)
         {
+            token.ThrowIfCancellationRequested();
             double largestCorrection = 0;
             for (int index = 0; index < degree; index++)
             {
@@ -494,6 +502,7 @@ internal static class NewtonRootFinder
     private static Complex Evaluate(Func<Complex, Complex> expression, Complex z)
     {
         try { return expression(z); }
+        catch (OperationCanceledException) { throw; }
         catch { return new Complex(double.NaN, double.NaN); }
     }
 

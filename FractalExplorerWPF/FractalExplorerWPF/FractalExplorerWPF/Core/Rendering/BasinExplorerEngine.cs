@@ -31,7 +31,13 @@ public sealed partial class BasinExplorerEngine
     private double _rootTolerance = 1e-6;
     private double _rootSearchRadius = 8;
 
-    public BasinExplorerEngine(BasinExplorerKind kind) => Kind = kind;
+    private readonly CancellationToken _cancellationToken;
+
+    public BasinExplorerEngine(BasinExplorerKind kind, CancellationToken cancellationToken = default)
+    {
+        Kind = kind;
+        _cancellationToken = cancellationToken;
+    }
 
     public BasinExplorerKind Kind { get; }
     public bool IsRootMethod => BasinExplorerCatalog.UsesRoots(Kind);
@@ -99,7 +105,7 @@ public sealed partial class BasinExplorerEngine
                 RootSearchRadius = RootSearchRadius,
                 RootSearchMode = RootSearchMode
             };
-            if (!rootEngine.SetFormula(expression, out string rootDebug, discoverRoots))
+            if (!rootEngine.SetFormula(expression, out string rootDebug, discoverRoots, _cancellationToken))
                 throw new InvalidOperationException(rootDebug);
 
             ExpressionNode formula = new Parser(new Tokenizer(expression).Tokenize()).Parse().Simplify();
@@ -123,6 +129,7 @@ public sealed partial class BasinExplorerEngine
             DebugInfo = debugInfo = debug.ToString();
             return true;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             ResetFormula();
@@ -282,6 +289,7 @@ public sealed partial class BasinExplorerEngine
     /// <summary>Итог орбиты для точки плоскости обзора — для подсказки под курсором и проверок.</summary>
     public BasinOrbitResult AnalyzePoint(double planeX, double planeY)
     {
+        _cancellationToken.ThrowIfCancellationRequested();
         if (IsPlanar) return PlanarOrbit(planeX, planeY);
         if (IsPhysical) return PhysicalOrbit(planeX, planeY);
         if (IsLogisticParameter) return LogisticParameterOrbit(new Complex(planeX, planeY));

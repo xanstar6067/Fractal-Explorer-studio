@@ -115,6 +115,7 @@ public sealed partial class BasinExplorerEngine
             debugInfo = DebugInfo;
             return true;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             ResetFormula();
@@ -146,6 +147,7 @@ public sealed partial class BasinExplorerEngine
             debugInfo = DebugInfo;
             return true;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             ResetFormula();
@@ -221,7 +223,7 @@ public sealed partial class BasinExplorerEngine
 
             Complex[] criticalNumerator = PolySubtract(PolyMultiply(PolyDerivative(p), q), PolyMultiply(p, PolyDerivative(q)));
             if (criticalNumerator.Length > 1 &&
-                NewtonRootFinder.TrySolvePolynomial(criticalNumerator, 1e-10, out IReadOnlyList<Complex> criticalRoots))
+                NewtonRootFinder.TrySolvePolynomial(criticalNumerator, 1e-10, out IReadOnlyList<Complex> criticalRoots, _cancellationToken))
                 critical = criticalRoots;
         }
         else
@@ -309,10 +311,12 @@ public sealed partial class BasinExplorerEngine
         int cursor = 0;
         for (int index = 0; index < attractors.Length; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             start[index] = cursor;
             if (attractors[index].IsInfinity) continue;
             for (int j = 0; j < attractors[index].Points.Count; j++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 Complex q = attractors[index].Points[j];
                 double tolerance = CycleTolerance * Math.Max(1, q.Magnitude);
                 re[cursor] = q.Real;
@@ -358,6 +362,7 @@ public sealed partial class BasinExplorerEngine
 
         while (true)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             bool nonFinite = !IsFinite(z);
             if (nonFinite || (escapeActive && MagnitudeSquared(z) > escapeSquared))
             {
@@ -411,6 +416,7 @@ public sealed partial class BasinExplorerEngine
         double[] captureRe = _captureRe, captureIm = _captureIm, toleranceSquared = _captureToleranceSquared;
         for (int index = 0; index < captureRe.Length; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             double dx = re - captureRe[index];
             double dy = im - captureIm[index];
             if (dx * dx + dy * dy > toleranceSquared[index]) continue;
@@ -427,6 +433,7 @@ public sealed partial class BasinExplorerEngine
         double best = double.PositiveInfinity;
         for (int index = start; index < end; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             double dx = z.Real - _captureRe[index];
             double dy = z.Imaginary - _captureIm[index];
             best = Math.Min(best, dx * dx + dy * dy);
@@ -507,6 +514,7 @@ public sealed partial class BasinExplorerEngine
         double escapeSquared = EscapeRadius * EscapeRadius;
         while (trace.Count < limit)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (TryCapture(z, out _)) break;
             Complex next = _function!.Evaluate(z);
             if (!IsFinite(next))
@@ -531,8 +539,10 @@ public sealed partial class BasinExplorerEngine
     /// дополнительные затравки получают тот же увеличенный бюджет итераций, что и критические точки.
     /// </summary>
     /// <returns>Сколько новых циклов добавлено.</returns>
-    public int DiscoverAttractors(IEnumerable<Complex>? extraSeeds, bool keepExisting, bool includeDefaultSeeds)
+    public int DiscoverAttractors(IEnumerable<Complex>? extraSeeds, bool keepExisting, bool includeDefaultSeeds,
+        Action<int>? reportProgress = null)
     {
+        _cancellationToken.ThrowIfCancellationRequested();
         if (_function is null) return 0;
         var cycles = keepExisting
             ? _attractors.Where(attractor => !attractor.IsInfinity).Select(attractor => attractor.Clone()).ToList()
@@ -540,12 +550,20 @@ public sealed partial class BasinExplorerEngine
         int before = cycles.Count;
         int intensiveBudget = Math.Clamp(MaxIterations * 25, 5_000, 60_000);
         int gridBudget = Math.Clamp(MaxIterations * 2, 400, 2_000);
+        Complex[] additional = extraSeeds?.ToArray() ?? [];
+        int completed = 0;
+        int total = additional.Length + (includeDefaultSeeds
+            ? CriticalPoints.Count + (_mapsInfinityToFinite ? 1 : 0) + 1 + DiscoveryGridSize * DiscoveryGridSize : 0);
 
         void Try(Complex seed, int budget)
         {
-            if (cycles.Count >= MaxAttractorCount || !IsFinite(seed)) return;
-            BasinAttractor? cycle = TryFindCycle(seed, budget);
-            if (cycle is not null) AddUniqueCycle(cycles, cycle);
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (cycles.Count < MaxAttractorCount && IsFinite(seed))
+            {
+                BasinAttractor? cycle = TryFindCycle(seed, budget);
+                if (cycle is not null) AddUniqueCycle(cycles, cycle);
+            }
+            reportProgress?.Invoke(++completed * 100 / Math.Max(1, total));
         }
 
         if (includeDefaultSeeds)
@@ -554,14 +572,14 @@ public sealed partial class BasinExplorerEngine
             if (_mapsInfinityToFinite) Try(_infinityImage, intensiveBudget);
             Try(Complex.Zero, intensiveBudget);
         }
-        if (extraSeeds is not null)
-            foreach (Complex seed in extraSeeds) Try(seed, intensiveBudget);
+        foreach (Complex seed in additional) Try(seed, intensiveBudget);
         if (includeDefaultSeeds)
         {
             double radius = AttractorSearchRadius;
             for (int y = 0; y < DiscoveryGridSize; y++)
             for (int x = 0; x < DiscoveryGridSize; x++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 // Сдвиг на полшага: узлы не попадают на оси симметрии, где орбиты часто вырождаются.
                 double re = -radius + 2 * radius * (x + 0.5) / DiscoveryGridSize;
                 double im = -radius + 2 * radius * (y + 0.5) / DiscoveryGridSize;
@@ -574,7 +592,7 @@ public sealed partial class BasinExplorerEngine
     }
 
     /// <summary>Затравки на сетке видимой области — для циклов, чьи бассейны далеко от нуля.</summary>
-    public int DiscoverAttractorsInView(int canvasWidth, int canvasHeight, int gridSize = 16)
+    public int DiscoverAttractorsInView(int canvasWidth, int canvasHeight, int gridSize = 16, Action<int>? reportProgress = null)
     {
         if (_function is null || canvasWidth <= 0 || canvasHeight <= 0) return 0;
         double unitsPerPixel = UnitsPerPixel(canvasWidth);
@@ -582,13 +600,14 @@ public sealed partial class BasinExplorerEngine
         for (int y = 0; y < gridSize; y++)
         for (int x = 0; x < gridSize; x++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             double canvasX = (x + 0.5) * canvasWidth / gridSize;
             double canvasY = (y + 0.5) * canvasHeight / gridSize;
             seeds.Add(new Complex(
                 CenterX + (canvasX - canvasWidth / 2.0) * unitsPerPixel,
                 CenterY - (canvasY - canvasHeight / 2.0) * unitsPerPixel));
         }
-        return DiscoverAttractors(seeds, keepExisting: true, includeDefaultSeeds: false);
+        return DiscoverAttractors(seeds, keepExisting: true, includeDefaultSeeds: false, reportProgress);
     }
 
     internal BasinAttractor? TryFindCycle(Complex seed, int budget)
@@ -600,6 +619,7 @@ public sealed partial class BasinExplorerEngine
         int used = 0;
         while (used < budget)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             int chunk = Math.Min(48, budget - used);
             for (int step = 0; step < chunk; step++)
                 if (!TryDiscoveryStep(ref z)) return null;
@@ -608,6 +628,7 @@ public sealed partial class BasinExplorerEngine
             window[0] = z;
             for (int index = 1; index < windowLength; index++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 Complex next = window[index - 1];
                 if (!TryDiscoveryStep(ref next)) return null;
                 window[index] = next;
@@ -619,6 +640,7 @@ public sealed partial class BasinExplorerEngine
             double detectSquared = detect * detect;
             for (int period = 1; period <= maxPeriod; period++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 if (MagnitudeSquared(window[period] - window[0]) > detectSquared ||
                     MagnitudeSquared(window[period + 1] - window[1]) > detectSquared) continue;
                 BasinAttractor? cycle = RefineCycle(window[0], period);
@@ -654,6 +676,7 @@ public sealed partial class BasinExplorerEngine
         bool refined = false;
         for (int round = 0; round < 64; round++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!TryIterateWithDerivative(z, period, out Complex value, out Complex derivative)) break;
             Complex g = value - z;
             if (g == Complex.Zero) { refined = true; break; }
@@ -676,6 +699,7 @@ public sealed partial class BasinExplorerEngine
         var points = new List<Complex>(period) { z };
         for (int index = 1; index < period; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             Complex next = z;
             if (!TryIterateWithDerivative(points[index - 1], 1, out next, out _)) return null;
             points.Add(next);
@@ -684,6 +708,7 @@ public sealed partial class BasinExplorerEngine
         double pointScale = Math.Max(1, z.Magnitude);
         for (int divisor = 1; divisor < period; divisor++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (period % divisor != 0) continue;
             if ((points[divisor] - points[0]).Magnitude > 1e-7 * pointScale) continue;
             period = divisor;
@@ -707,6 +732,7 @@ public sealed partial class BasinExplorerEngine
         double tieTolerance = 1e-9 * pointScale;
         for (int index = 1; index < points.Count; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             Complex candidate = points[index], best = points[first];
             if (candidate.Real < best.Real - tieTolerance ||
                 (Math.Abs(candidate.Real - best.Real) <= tieTolerance && candidate.Imaginary < best.Imaginary))
@@ -728,10 +754,12 @@ public sealed partial class BasinExplorerEngine
         for (int y = 0; y < grid; y++)
         for (int x = 0; x < grid; x++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             var z = new Complex(-radius + 2 * radius * (x + 0.5) / grid, -radius + 2 * radius * (y + 0.5) / grid);
             bool converged = false;
             for (int iteration = 0; iteration < 40; iteration++)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 Complex value = derivative.Evaluate(z);
                 if (!IsFinite(value)) break;
                 if (value == Complex.Zero) { converged = true; break; }
@@ -769,6 +797,7 @@ public sealed partial class BasinExplorerEngine
         derivative = Complex.One;
         for (int index = 0; index < count; index++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             Complex local = MapDerivative(value);
             Complex next = _function!.Evaluate(value);
             if (!IsFinite(local) || !IsFinite(next)) return false;

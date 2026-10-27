@@ -309,9 +309,13 @@ internal static partial class Program
         Check(error <= Math.Max(typeResolution, pixel * NavigationTolerancePixels), $"{message} ошибся на {error:G3}.");
     }
 
-    private static object CaptureWindowState(Window window) =>
+    private static object CaptureWindowState(Window window)
+    {
+        PrepareWindowForCapture(window);
+        return
         window.GetType().GetMethod("CaptureState", BindingFlags.Instance | BindingFlags.Public, [typeof(string)])!
             .Invoke(window, ["deep-viewport"])!;
+    }
 
     private static void SetZoomFromText(object state, string text)
     {

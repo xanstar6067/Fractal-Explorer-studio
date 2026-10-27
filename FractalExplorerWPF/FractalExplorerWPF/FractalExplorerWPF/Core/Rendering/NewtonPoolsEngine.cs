@@ -99,11 +99,12 @@ public sealed partial class NewtonPoolsEngine
         }
     }
 
-    public bool SetFormula(string expression, out string debugInfo, bool discoverRoots = true)
+    public bool SetFormula(string expression, out string debugInfo, bool discoverRoots = true, CancellationToken token = default)
     {
         var debug = new StringBuilder();
         try
         {
+            token.ThrowIfCancellationRequested();
             List<Token> tokens = new Tokenizer(expression).Tokenize();
             _formula = new Parser(tokens).Parse().Simplify();
             _firstDerivative = _formula.Differentiate("z").Simplify();
@@ -114,7 +115,7 @@ public sealed partial class NewtonPoolsEngine
             _formulaText = expression;
             if (IterationMethod == NewtonIterationMethod.Householder) BuildInverseDerivatives();
             else ClearInverseDerivatives();
-            if (discoverRoots) FindRoots();
+            if (discoverRoots) FindRoots(token);
             else
             {
                 Roots = [];
@@ -135,6 +136,7 @@ public sealed partial class NewtonPoolsEngine
             debugInfo = debug.ToString();
             return true;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _formula = null;
@@ -631,7 +633,7 @@ public sealed partial class NewtonPoolsEngine
         _compiledInverseDerivatives.Clear();
     }
 
-    private void FindRoots()
+    private void FindRoots(CancellationToken token)
     {
         if (_formula is null || _firstDerivative is null)
         {
@@ -648,7 +650,7 @@ public sealed partial class NewtonPoolsEngine
         }
 
         if (RootSearchMode == NewtonRootSearchMode.Automatic &&
-            NewtonRootFinder.TryFindPolynomialRoots(_formula, RootTolerance, out IReadOnlyList<Complex> polynomialRoots, out int degree))
+            NewtonRootFinder.TryFindPolynomialRoots(_formula, RootTolerance, out IReadOnlyList<Complex> polynomialRoots, out int degree, token))
         {
             Roots = polynomialRoots;
             RootSearchStrategy = degree > 0
@@ -663,7 +665,7 @@ public sealed partial class NewtonPoolsEngine
             0,
             0,
             RootSearchRadius,
-            RootTolerance);
+            RootTolerance, token: token);
         RootSearchStrategy = $"Адаптивное сканирование от 0, радиус {RootSearchRadius:G6}";
     }
 

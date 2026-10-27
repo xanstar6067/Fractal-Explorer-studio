@@ -17,6 +17,7 @@ public sealed partial class BasinExplorerEngine
         double maxStep = Math.Min(0.025, _planar.TimeStep);
         for (int step = 0; step < MaxIterations && time < PlanarEndTime; step++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if ((step & 15) == 0) token.ThrowIfCancellationRequested();
             Complex speed = _planarField!(z);
             if (!IsFinite(speed) || z.Magnitude > _planar.EscapeRadius || speed.Magnitude < 1e-8 || PlanarPointTarget(z, speed) >= 0) return null;
@@ -73,6 +74,7 @@ public sealed partial class BasinExplorerEngine
         Complex z = start;
         for (int step = 0; step < 1_000_000 && time < end * (1 - 1e-9); step++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (!PlanarFlowIntegrator.Step(_planarField, z, ref h, maxStep, _planar.IntegrationTolerance,
                     end - time, out Complex next, out double dt, CancellationToken.None)) return false;
             if (CrossesSection(z, next, anchor, normal) && (RefineSection(z, dt, anchor, normal).Point - anchor).Magnitude < tolerance)
@@ -98,6 +100,7 @@ public sealed partial class BasinExplorerEngine
         Complex midpoint = from;
         for (int i = 0; i < 22; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             double fraction = (lo + hi) / 2;
             midpoint = PlanarFlowIntegrator.Rk4(_planarField!, from, dt * fraction / 2);
             midpoint = PlanarFlowIntegrator.Rk4(_planarField!, midpoint, dt * fraction / 2);
@@ -107,11 +110,12 @@ public sealed partial class BasinExplorerEngine
         return (midpoint, (lo + hi) / 2);
     }
 
-    private static double DistanceToCycle(Complex point, IReadOnlyList<Complex> points)
+    private double DistanceToCycle(Complex point, IReadOnlyList<Complex> points)
     {
         double distance = double.PositiveInfinity;
         for (int i = 0; i < points.Count; i++)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             Complex a = points[i], edge = points[(i + 1) % points.Count] - a;
             double squared = MagnitudeSquared(edge);
             double fraction = squared == 0 ? 0 : Math.Clamp(Dot(point - a, edge) / squared, 0, 1);

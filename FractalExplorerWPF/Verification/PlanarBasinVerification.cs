@@ -180,7 +180,7 @@ internal static partial class Program
             {
                 var expected = BasinExplorerCatalog.GetPresets(kind)[kind == BasinExplorerKind.PolynomialVectorField ? 3 : 1].Clone();
                 window.LoadState(expected);
-                var state = window.CaptureState("Planar verification");
+                var state = CapturePrepared(window, "Planar verification");
                 Check(state.UseSavedPlanarAttractors && state.PlanarAttractors.Count > 0, $"{kind}: capture must store discovered targets.");
                 Check(((FrameworkElement)window.FindName("PlanarPanel")).Visibility == Visibility.Visible &&
                     ((FrameworkElement)window.FindName("AttractorsExpander")).Visibility == Visibility.Collapsed,
@@ -195,7 +195,7 @@ internal static partial class Program
                 Check(JsonSerializer.Serialize(state.Planar, JsonOptionsFactory.Create()) == JsonSerializer.Serialize(restored.Planar, JsonOptionsFactory.Create()),
                     $"{kind}: every planar parameter must survive serialization.");
                 ((TextBox)window.FindName("PlanarToleranceBox")).Text = "NaN";
-                var corrected = window.CaptureState("corrected");
+                var corrected = CapturePrepared(window, "corrected");
                 Check(corrected.Planar.ConvergenceTolerance == state.Planar.ConvergenceTolerance &&
                     ((TextBox)window.FindName("PlanarToleranceBox")).Text != "NaN" &&
                     FractalExplorerWPF.Controls.NumericInput.GetHasNotice((TextBox)window.FindName("PlanarToleranceBox")),

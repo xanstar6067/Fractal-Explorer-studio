@@ -26,7 +26,7 @@ public partial class NewtonPoolsWindow : Window
 {
     private const double BaseScale = 3.0;
     private readonly DispatcherTimer _renderTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    private readonly NewtonPoolsEngine _formulaEngine = new();
+    private NewtonPoolsEngine _formulaEngine = new();
     private readonly NewtonPaletteManager _paletteManager = new();
     private readonly NewtonSaveStore _saveStore = new();
     private readonly Random _random = new();
@@ -84,16 +84,21 @@ public partial class NewtonPoolsWindow : Window
         RootDisplayModeBox.SelectedIndex = 0;
         DiagnosticColoringBox.SelectedIndex = 0;
         RenderThreadsBox.Fill(ThreadsBox);
-        ApplyFormula(showMessage: false);
+
         UpdateMethodControls();
         UpdateDiagnosticModeHint();
         Loaded += (_, _) => ScheduleRender();
         InitializeNumericInput();
+        FormulaBox.TextChanged += FormulaInput_OnChanged;
+        RootToleranceBox.TextChanged += FormulaInput_OnChanged;
+        RootSearchRadiusBox.TextChanged += FormulaInput_OnChanged;
+        ApplyFormula(showMessage: false);
     }
 
     public NewtonState CaptureState(string saveName)
     {
         NumericInput.Prepare(this);
+        if (_needsFormulaPreparation) throw new InvalidOperationException("Дождитесь поиска корней или примените формулу.");
         if (!int.TryParse(IterationsBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int iterations) || iterations is < 1 or > 100_000)
             throw new InvalidOperationException("Итерации должны быть целым числом от 1 до 100000.");
         int order = ReadHouseholderOrder();
@@ -137,6 +142,7 @@ public partial class NewtonPoolsWindow : Window
 
     public void LoadState(NewtonState state)
     {
+        _formulaCts?.Cancel();
         _renderCts?.Cancel();
         FormulaPresetBox.SelectedIndex = -1;
         FormulaBox.Text = state.Formula;
@@ -162,7 +168,7 @@ public partial class NewtonPoolsWindow : Window
         IReadOnlyList<Complex>? savedRoots = state.Roots.Count > 0 || state.RootSearchMode == NewtonRootSearchMode.ManualOnly
             ? state.Roots
             : null;
-        if (ApplyFormula(showMessage: true, savedRoots)) ScheduleRender();
+        ApplyFormula(showMessage: true, savedRoots);
     }
 
     public BitmapSource? CaptureCurrentPreview(int width, int height) =>
@@ -220,55 +226,19 @@ public partial class NewtonPoolsWindow : Window
 
     private void ApplyFormulaButton_OnClick(object sender, RoutedEventArgs e) => ApplyFormula(showMessage: true);
 
-    private bool ApplyFormula(bool showMessage, IReadOnlyList<Complex>? suppliedRoots = null)
-    {
-        if (!TryReadRootSettings(out double tolerance, out double searchRadius, out string rootError))
-        {
-            StatusText.Text = rootError;
-            if (showMessage) MessageBox.Show(this, rootError, "Параметры поиска", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        _formulaEngine.HouseholderOrder = ReadHouseholderOrder();
-        _formulaEngine.CenterX = _viewport.CenterX;
-        _formulaEngine.CenterY = _viewport.CenterY;
-        _formulaEngine.RootTolerance = tolerance;
-        _formulaEngine.RootSearchRadius = searchRadius;
-        _formulaEngine.RootSearchMode = SelectedRootSearchMode;
-        bool discoverRoots = suppliedRoots is null;
-        if (!_formulaEngine.SetFormula(FormulaBox.Text.Trim(), out string debug, discoverRoots))
-        {
-            DebugOutput.Text = debug;
-            RootCountText.Text = "Найдено корней: 0";
-            StatusText.Text = "Ошибка формулы";
-            if (showMessage) MessageBox.Show(this, "Проверьте формулу: есть синтаксическая ошибка.", "Ошибка формулы", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-        if (suppliedRoots is not null)
-        {
-            _formulaEngine.ReplaceRoots(suppliedRoots);
-            debug += $"{Environment.NewLine}Загружено/задано корней: {_formulaEngine.Roots.Count}";
-        }
-        _appliedFormula = FormulaBox.Text.Trim();
-        DebugOutput.Text = debug;
-        RefreshRootUi();
-        StatusText.Text = _formulaEngine.Roots.Count == 0
-            ? "Формула корректна, но корни не найдены. Увеличьте радиус или добавьте корень вручную."
-            : $"Формула применена. {_formulaEngine.RootSearchStrategy}";
-        ScheduleRender();
-        return true;
-    }
-
     private void RootSearchModeBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        _formulaCts?.Cancel();
         if (RootSearchRadiusPanel is not null)
             RootSearchRadiusPanel.IsEnabled = SelectedRootSearchMode != NewtonRootSearchMode.ManualOnly;
     }
 
     private void FindRootsButton_OnClick(object sender, RoutedEventArgs e) => ApplyFormula(showMessage: true);
 
-    private void AddRootButton_OnClick(object sender, RoutedEventArgs e)
+    private async void AddRootButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
         if (!TryParseComplex(ManualRootBox.Text, out Complex root))
         {
             MessageBox.Show(this, "Введите комплексное число, например 1+2*i или -0.5*i.",
@@ -285,8 +255,10 @@ public partial class NewtonPoolsWindow : Window
         ScheduleRender();
     }
 
-    private void RemoveRootButton_OnClick(object sender, RoutedEventArgs e)
+    private async void RemoveRootButton_OnClick(object sender, RoutedEventArgs e)
     {
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
         int index = RootListBox.SelectedIndex;
         if (index < 0 || index >= _formulaEngine.Roots.Count)
         {
@@ -478,7 +450,7 @@ public partial class NewtonPoolsWindow : Window
         {
             string formula = GenerateRandomFormula();
             var engine = new NewtonPoolsEngine();
-            if (engine.SetFormula(formula, out _)) return formula;
+            if (engine.SetFormula(formula, out _, discoverRoots: false)) return formula;
         }
         return _presetFormulas[_random.Next(_presetFormulas.Length)];
     }
@@ -595,7 +567,7 @@ public partial class NewtonPoolsWindow : Window
         UpdateRootOverlay();
     }
 
-    private void Parameter_OnChanged(object sender, EventArgs e) => ScheduleRender();
+    private void Parameter_OnChanged(object sender, EventArgs e) { _formulaCts?.Cancel(); ScheduleRender(); }
 
     private void ZoomBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
@@ -610,11 +582,12 @@ public partial class NewtonPoolsWindow : Window
     }
 
     private void RenderButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); _renderTimer.Stop(); _ = RenderPreviewAsync(); }
-    private void CancelButton_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
+    private void CancelButton_OnClick(object sender, RoutedEventArgs e) { _renderTimer.Stop(); _formulaCts?.Cancel(); _renderCts?.Cancel(); }
 
-    private void PaletteButton_OnClick(object sender, RoutedEventArgs e)
+    private async void PaletteButton_OnClick(object sender, RoutedEventArgs e)
     {
-        if (!_formulaEngine.SetFormula(_appliedFormula, out _))
+        NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync())
         {
             MessageBox.Show(this, "Сначала примените корректную формулу.", "Палитра", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -628,11 +601,12 @@ public partial class NewtonPoolsWindow : Window
         dialog.ShowDialog();
     }
 
-    private void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); SaveManagerWindow.Open(this, SaveManagerConfigurations.ForNewton(this, _saveStore)); }
+    private async void SavesButton_OnClick(object sender, RoutedEventArgs e) { NumericInput.CommitAll(this); if (!await EnsurePreparedAsync()) return; SaveManagerWindow.Open(this, SaveManagerConfigurations.ForNewton(this, _saveStore)); }
 
-    private void ExportButton_OnClick(object sender, RoutedEventArgs e)
+    private async void ExportButton_OnClick(object sender, RoutedEventArgs e)
     {
         NumericInput.CommitAll(this);
+        if (!await EnsurePreparedAsync()) return;
         RenderSurfaceMetrics surface = RenderSurfaceMetrics.Measure(CanvasHost);
         _renderCts?.Cancel();
         NewtonState state;
@@ -655,7 +629,7 @@ public partial class NewtonPoolsWindow : Window
 
     private void ScheduleRender()
     {
-        if (!IsLoaded) return;
+        if (!IsLoaded || _closed) return;
         _renderCts?.Cancel();
         _renderTimer.Stop();
         if (_viewport.IsPanning) return;
@@ -679,6 +653,7 @@ public partial class NewtonPoolsWindow : Window
         }
 
         NewtonState state;
+        if (!await EnsurePreparedAsync() || _closed || _viewport.IsPanning || _isRendering) return;
         try { state = CaptureState("preview"); }
         catch (Exception ex) { StatusText.Text = ex.Message; return; }
 
@@ -700,7 +675,7 @@ public partial class NewtonPoolsWindow : Window
                 renderWidth, renderHeight, 16 * factor, strategy);
             WriteableBitmap bitmap = ProgressiveRenderBitmap.CreateOverlay(
                 renderWidth, renderHeight, dpi.PixelsPerInchX, dpi.PixelsPerInchY);
-            NewtonPoolsEngine engine = CreateEngine(state);
+            NewtonPoolsEngine engine = await Task.Run(() => CreateEngine(state, token), token);
             session = TiledRenderSession.Begin(bitmap, tiles.Count, RenderOverlay, RenderProgress, _renderCts);
             _activeSession = session;
             CanvasImage.Source = bitmap;
@@ -710,7 +685,7 @@ public partial class NewtonPoolsWindow : Window
             if (token.IsCancellationRequested)
             {
                 CanvasImage.Source = null;
-                StatusText.Text = "Рендер отменён";
+                if (!_closed && _formulaCts is null) StatusText.Text = "Рендер отменён";
                 return;
             }
             session.Flush();
@@ -729,7 +704,7 @@ public partial class NewtonPoolsWindow : Window
         catch (OperationCanceledException)
         {
             CanvasImage.Source = null;
-            StatusText.Text = "Рендер отменён";
+            if (!_closed && _formulaCts is null) StatusText.Text = "Рендер отменён";
         }
         catch (Exception ex)
         {
@@ -763,17 +738,17 @@ public partial class NewtonPoolsWindow : Window
         if (ReferenceEquals(_activeSession, session)) _activeSession = null;
     }
 
-    private Task<BitmapSource> RenderBitmapAsync(NewtonState state, int width, int height, int ssaaFactor,
+    private async Task<BitmapSource> RenderBitmapAsync(NewtonState state, int width, int height, int ssaaFactor,
         CancellationToken token, IProgress<int>? progress)
     {
-        NewtonPoolsEngine engine = CreateEngine(state);
         // Элементы окна принадлежат UI-потоку: число потоков читается до расчёта.
         int threads = GetThreadCount();
-        return SsaaBitmapRenderer.RenderAsync(width, height, ssaaFactor, 4, (pixels, renderWidth, renderHeight, stride, report) =>
+        NewtonPoolsEngine engine = await Task.Run(() => CreateEngine(state, token), token);
+        return await SsaaBitmapRenderer.RenderAsync(width, height, ssaaFactor, 4, (pixels, renderWidth, renderHeight, stride, report) =>
             engine.RenderToBuffer(pixels, renderWidth, renderHeight, stride, threads, token, report), token, progress);
     }
 
-    private static NewtonPoolsEngine CreateEngine(NewtonState state)
+    private static NewtonPoolsEngine CreateEngine(NewtonState state, CancellationToken token = default)
     {
         var engine = new NewtonPoolsEngine
         {
@@ -796,7 +771,7 @@ public partial class NewtonPoolsWindow : Window
             DiagnosticColoringMode = state.DiagnosticColoringMode
         };
         bool useSavedRoots = state.Roots.Count > 0 || state.RootSearchMode == NewtonRootSearchMode.ManualOnly;
-        if (!engine.SetFormula(state.Formula, out string debug, !useSavedRoots)) throw new InvalidOperationException(debug);
+        if (!engine.SetFormula(state.Formula, out string debug, !useSavedRoots, token)) throw new InvalidOperationException(debug);
         if (useSavedRoots) engine.ReplaceRoots(state.Roots);
         engine.RootColors = NewtonPaletteManager.AdjustColors(state.Palette, engine.Roots.Count).ToArray();
         return engine;
@@ -812,7 +787,7 @@ public partial class NewtonPoolsWindow : Window
     private void SetRenderingState(bool rendering, string? status = null)
     {
         _isRendering = rendering;
-        CancelButton.IsEnabled = rendering;
+        CancelButton.IsEnabled = rendering || _formulaCts is not null;
         if (!rendering) RenderProgress.Value = 0;
         if (status is not null) StatusText.Text = status;
     }
@@ -893,6 +868,8 @@ public partial class NewtonPoolsWindow : Window
 
     private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _closed = true;
+        _formulaCts?.Cancel();
         _renderTimer.Stop();
         _activeSession?.End();
         _renderCts?.Cancel();

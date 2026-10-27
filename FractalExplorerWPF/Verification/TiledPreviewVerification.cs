@@ -166,6 +166,7 @@ internal static partial class Program
     private static void LoadZoomedState(Window window, TiledPreviewCase test)
     {
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        PrepareWindowForCapture(window);
         object state = window.GetType().GetMethod("CaptureState", flags, [typeof(string)])!
             .Invoke(window, ["tiled-preview"])!;
         PropertyInfo zoom = state.GetType().GetProperty("Zoom")!;
