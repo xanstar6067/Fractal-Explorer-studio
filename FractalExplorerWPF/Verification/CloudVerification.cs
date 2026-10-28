@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -479,13 +480,14 @@ internal static partial class Program
         var otherRequest = new CertificateRequest("CN=Other Root", otherKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         otherRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
         using var otherRoot = otherRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        Check(await TryCloudTlsAsync(root, leaf, "cloud.test"), "TLS accepts selected root and matching name.");
-        Check(!await TryCloudTlsAsync(root, leaf, "wrong.test"), "TLS rejects mismatched name.");
-        Check(!await TryCloudTlsAsync(otherRoot, leaf, "cloud.test"), "TLS rejects unknown root.");
-        Check(!await TryCloudTlsAsync(root, expired, "cloud.test"), "TLS rejects expired certificate.");
+        await VerifyCloudTlsConnectionAsync(root, leaf, "cloud.test", true, "TLS accepts selected root and matching name.");
+        await VerifyCloudTlsConnectionAsync(root, leaf, "wrong.test", false, "TLS rejects mismatched name.");
+        await VerifyCloudTlsConnectionAsync(otherRoot, leaf, "cloud.test", false, "TLS rejects unknown root.");
+        await VerifyCloudTlsConnectionAsync(root, expired, "cloud.test", false, "TLS rejects expired certificate.");
     }
 
-    private static async Task<bool> TryCloudTlsAsync(X509Certificate2 root, X509Certificate2 leaf, string hostname)
+    private static async Task VerifyCloudTlsConnectionAsync(X509Certificate2 root, X509Certificate2 leaf,
+        string hostname, bool shouldAccept, string scenario)
     {
         // Schannel cannot use the ephemeral key returned by CopyWithPrivateKey.
         // DefaultKeySet uses a temporary key container cleaned up on certificate disposal.
@@ -494,6 +496,7 @@ internal static partial class Program
         listener.Start();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var endpoint = (IPEndPoint)listener.LocalEndpoint;
+        Exception? serverError = null;
         Task serve = Task.Run(async () =>
         {
             try
@@ -505,23 +508,51 @@ internal static partial class Program
                 while (await reader.ReadLineAsync(timeout.Token) is { Length: > 0 }) { }
                 await tls.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK"), timeout.Token);
             }
-            catch (Exception e) when (e is IOException or System.Security.Authentication.AuthenticationException or OperationCanceledException)
-            { }
+            catch (Exception e) when (e is IOException or AuthenticationException or OperationCanceledException)
+            { serverError = e; }
         });
         using SocketsHttpHandler handler = CloudConnection.CreateHandler(root);
         handler.UseProxy = false;
         handler.ConnectCallback = async (_, token) =>
         {
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            await socket.ConnectAsync(endpoint, token);
-            return new NetworkStream(socket, ownsSocket: true);
+            try
+            {
+                await socket.ConnectAsync(endpoint, token);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         };
         using var http = new HttpClient(handler);
-        bool success;
-        try { using var response = await http.GetAsync("https://" + hostname, timeout.Token); success = response.IsSuccessStatusCode; }
-        catch (HttpRequestException) { success = false; }
-        await serve;
-        return success;
+        HttpRequestException? clientError = null;
+        try
+        {
+            using var response = await http.GetAsync("https://" + hostname, timeout.Token);
+            Check(response.StatusCode == HttpStatusCode.OK && await response.Content.ReadAsStringAsync(timeout.Token) == "OK",
+                scenario + " Local TLS server must return its complete HTTP response.");
+        }
+        catch (HttpRequestException e) { clientError = e; }
+        finally
+        {
+            // A failed connect must not leave AcceptTcpClientAsync waiting for the full timeout.
+            timeout.Cancel();
+            await serve;
+        }
+        if (clientError is not null &&
+            (clientError.HttpRequestError != HttpRequestError.SecureConnectionError ||
+             clientError.InnerException is not AuthenticationException))
+            throw new InvalidOperationException(
+                scenario + " Local TLS transport failed; certificate validation was not verified. " +
+                "Allow loopback socket connections when running cloud verification (outside a network-restricted sandbox). " +
+                "Server: " + serverError?.Message, clientError);
+
+        // Only TLS authentication failures count as rejection; socket/HTTP failures cannot pass negative cases.
+        Check(shouldAccept ? clientError is null : clientError is not null,
+            $"{scenario} Client: {clientError?.ToString() ?? "accepted"}; server: {serverError?.ToString() ?? "completed"}");
     }
 
     private static async Task VerifyCloudLiveAsync()
