@@ -183,6 +183,15 @@ Phoenix и кватернионного Жюлиа: две оси, сетки 3�
 кватернионного Жюлиа, Phoenix 3D, Жюлиабульба и Жюлиа горящего корабля с камерой исходного вида и ограниченным качеством миниатюр.
 `Views/Julia3DShapeAtlasWindow.cs` — общая работа с Cx/Cy/Cz и степенью; тип и границы степени берутся из `Fractal3DMode.PowerField`.
 
+`Views/ApollonianPackingAtlasWindow.cs` — модальный GPU-атлас поколений 1–5
+и именованных источников окраски аполлоновой упаковки сфер. Все доступные
+источники и их подписи берутся из класса режима. Камера и оформление общие;
+применение меняет только поколение и `ColoringMode`, обновляя основную панель.
+Кнопка и `AtlasRequested` — в `Controls/ApollonianPackingEditor`, подключение —
+`Fractal3DWindow.ShapeAtlas.cs`. NumericInput, сетка, уточнение, история и отмена —
+общие механизмы атласов. Документ — [APOLLONIAN3D.md](APOLLONIAN3D.md),
+проверка `apollonian-packing-atlas`.
+
 `Views/CubeRuleAtlasWindow.cs` — общий модальный GPU-атлас Менгера, Виксека
 и Кантора: именованное правило × целое поколение. Варианты: исходное правило,
 пять готовых, пустой и полный куб; повторы исключены с сохранением отличия
@@ -421,6 +430,7 @@ null от своей маски. Свои правила ограничены 12
 | `Controls/TurtleTurnDial.cs` | Круговой регулятор локального угла черепахи: исходная и повёрнутая стрелки, перетаскивание и клавиши; три экземпляра в редакторе пространственных L-систем. Цвета следуют теме. |
 | `Controls/TuringReactionEditor.xaml` / `.xaml.cs` | Общий выбор Маккейба, Брюсселятора, Шнакенберга и Гирера–Мейнхардта в существующих 2D/3D-окнах Тьюринга; формулы, параметры реакции A/B, диффузия U/V, проверка ввода и применение. |
 | `Controls/PreparationOverlay.xaml` / `.xaml.cs` | Единый экран подготовки 3D: сообщение, прогресс, пояснение и отмена или остановка на достигнутом поле; цвета следуют теме. |
+| `Controls/ApollonianPackingEditor.xaml` / `.xaml.cs` | Аполлонова упаковка сфер: открытие атласа поколений и источников окраски через `AtlasRequested`; поколение задаётся общим числовым полем окна. |
 | `Controls/PhoenixParameterSliceView.xaml` / `.xaml.cs` | Панель объёмного среза параметров Phoenix: GPU-поле, орбитальная камера, масштаб, выбор трёх координат по глубине актуального кадра, минисфера и подготовка. Два экземпляра в `PhoenixParameterExplorerWindow` совместно используют устройство окна, сохраняя отдельные камеры и поля; см. [PHOENIX.md](PHOENIX.md). |
 | `Controls/Fractal3DLiveSimulation.cs` | Общий цикл живого моделирования на ГП для `Fractal3DWindow`: загрузка и подготовка с прогрессом и остановкой, порции шагов, публикация и показ кадра, пауза, один кадр, кисть, перенастройка правила и работа над полем (перенос сетки), ошибки, приостановка и закрытие. Интерфейсы `IFractal3DSimulationHost` (окно), `IFractal3DSimulationMode` (режим для окна), `IFractal3DSimulationEditor` (панель режима). |
 | `Controls/GrayScott3DEditor`, `Turing3DEditor`, `CahnHilliard3DEditor`, `Lenia3DEditor`, `Physarum3DEditor`, `Kobayashi3DEditor`, `Excitable3DEditor`, `GinzburgLandau3DEditor`, `SwiftHohenberg3DEditor`, `PhaseFieldCrystal3DEditor` (`.xaml` / `.xaml.cs`) | Панели десяти моделирований окна `Fractal3DWindow`: поля уравнения и затравки, вид, кисть, поиск форм с возвратом; каждая создаёт свой `Fractal3DLiveSimulation`. |

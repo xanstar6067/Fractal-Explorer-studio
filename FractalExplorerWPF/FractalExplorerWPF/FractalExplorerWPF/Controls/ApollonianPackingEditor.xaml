@@ -1,0 +1,9 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.ApollonianPackingEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас поколений и окраски…" Click="AtlasClicked" Margin="0,0,0,6"/>
+        <TextBlock Text="Поколение задаётся полем ниже. Атлас сравнивает глубину упаковки и способы окраски сфер при текущей камере и палитре."
+                   TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

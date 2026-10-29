@@ -560,6 +560,8 @@ internal static class Program
                     await CaptureChildAsync(w, new AbcFlowAtlasWindow(abc.CaptureState("atlas")), "abc-flow-atlas");
                 if (w is Fractal3DWindow cube && fractal3DKind is { } cubeKind && Fractal3DCatalog.Mode(cubeKind).HasCubeRule)
                     await CaptureChildAsync(w, new CubeRuleAtlasWindow(cube.CaptureState("atlas")), "cube-rule-atlas");
+                if (w is Fractal3DWindow packing && fractal3DKind == Fractal3DKind.ApollonianPacking)
+                    await CaptureChildAsync(w, new ApollonianPackingAtlasWindow(packing.CaptureState("atlas")), "apollonian-packing-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;

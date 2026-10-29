@@ -501,6 +501,7 @@ public partial class Fractal3DWindow : Window
         SierpinskiPanel.Visibility = Collapse(Kind == Fractal3DKind.SierpinskiTetrahedron);
         CubeThicknessPanel.Visibility = Collapse(Kind is Fractal3DKind.Vicsek or Fractal3DKind.CantorDust);
         CubeEditor.Visibility = Collapse(_mode.HasCubeRule);
+        ApollonianEditor.Visibility = Collapse(Kind == Fractal3DKind.ApollonianPacking);
 
         // Панели отдельных режимов; живые моделирования ставят свой редактор сами (AttachSimulation).
         LyapunovPanel.Visibility = Collapse(Kind == Fractal3DKind.Lyapunov3D);

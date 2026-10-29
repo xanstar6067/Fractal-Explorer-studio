@@ -149,6 +149,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `CubeRuleAtlasWindow` — общий GPU-атлас именованных правил и поколений Менгера, Виксека и Кантора с сохранением истории редактора (`CUBE_RULES.md`, проверка `cube-rule-atlas`).
 
+`ApollonianPackingAtlasWindow` и `ApollonianPackingEditor` — GPU-атлас поколений и именованных источников окраски аполлоновой упаковки сфер (`APOLLONIAN3D.md`, проверка `apollonian-packing-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

@@ -512,6 +512,7 @@
                             </StackPanel>
 
                             <controls:CubeRuleEditor x:Name="CubeEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="CubeRuleAtlas_OnClick"/>
+                            <controls:ApollonianPackingEditor x:Name="ApollonianEditor" Visibility="Collapsed" AtlasRequested="ApollonianPackingAtlas_OnClick"/>
                             <StackPanel x:Name="CubeThicknessPanel">
                                 <TextBlock Style="{StaticResource FieldCaption}" Text="Толщина элементов"/>
                                 <TextBox numeric:NumericSpinner.IsEnabled="True" x:Name="CubeThicknessBox"

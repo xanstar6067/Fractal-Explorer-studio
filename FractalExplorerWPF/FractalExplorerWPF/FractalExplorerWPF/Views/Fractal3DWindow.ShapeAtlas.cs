@@ -7,6 +7,18 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void ApollonianPackingAtlas_OnClick(object sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.ApollonianPacking) OpenShapeAtlas(CreateApollonianPackingAtlas);
+    }
+
+    private ApollonianPackingAtlasWindow CreateApollonianPackingAtlas() =>
+        ConnectShapeAtlas(new ApollonianPackingAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            IterationsBox.Text = state.Iterations.ToString(CultureInfo.InvariantCulture);
+            ColoringModeBox.SelectedIndex = (int)state.ColoringMode;
+        });
+
     private void CubeRuleAtlas_OnClick(object sender, EventArgs e)
     {
         if (_mode.HasCubeRule) OpenShapeAtlas(CreateCubeRuleAtlas);
