@@ -151,6 +151,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `ApollonianPackingAtlasWindow` и `ApollonianPackingEditor` — GPU-атлас поколений и именованных источников окраски аполлоновой упаковки сфер (`APOLLONIAN3D.md`, проверка `apollonian-packing-atlas`).
 
+`Ifs3DAtlasWindow` — атлас матрицы, переносов и веса выбранного преобразования из `Ifs3DTransformEditorWindow`, с отменой и фиксацией через редактор (`IFS3D.md`, проверка `ifs3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

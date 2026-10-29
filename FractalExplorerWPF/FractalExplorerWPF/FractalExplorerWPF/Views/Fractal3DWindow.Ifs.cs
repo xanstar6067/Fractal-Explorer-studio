@@ -36,14 +36,7 @@ public partial class Fractal3DWindow
     {
         int originalPreset = PresetBox.SelectedIndex;
         List<Ifs3DTransform> original = CaptureIfsTransforms();
-        var editor = new Ifs3DTransformEditorWindow(_ifsTransforms) { Owner = this };
-        editor.TransformsPreviewed += transforms =>
-        {
-            LoadIfsTransforms(transforms);
-            ClearIfsPreset();
-            ScheduleRender();
-        };
-        editor.Randomized += () => BeginTransition(new Fractal3DPose(_orientation, 3, Vector3.Zero));
+        var editor = CreateIfsTransformEditor();
         editor.ShowDialog();
         if (originalPreset >= 0 && original.Count == _ifsTransforms.Count &&
             original.Zip(_ifsTransforms).All(pair =>
@@ -54,6 +47,18 @@ public partial class Fractal3DWindow
             PresetBox.SelectedIndex = originalPreset;
             _updatingUi = false;
         }
+    }
+
+    private Ifs3DTransformEditorWindow CreateIfsTransformEditor()
+    {
+        var editor = new Ifs3DTransformEditorWindow(_ifsTransforms)
+        { Owner = this, CaptureAtlasView = () => CaptureViewState("atlas"), SuspendAtlas = SuspendLive };
+        editor.TransformsPreviewed += transforms =>
+        {
+            LoadIfsTransforms(transforms); ClearIfsPreset(); ScheduleRender();
+        };
+        editor.Randomized += () => BeginTransition(new Fractal3DPose(_orientation, 3, Vector3.Zero));
+        return editor;
     }
 
     private void ClearIfsPreset()

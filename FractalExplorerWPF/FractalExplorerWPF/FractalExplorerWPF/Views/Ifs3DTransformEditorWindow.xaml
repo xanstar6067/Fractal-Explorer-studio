@@ -50,7 +50,10 @@
                 BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7">
             <Grid x:Name="EditorPanel">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <TextBlock x:Name="EditorTitle" FontSize="19" FontWeight="SemiBold" Text="Редактор преобразования"/>
+                <DockPanel>
+                    <Button x:Name="AtlasButton" DockPanel.Dock="Right" Content="Атлас параметров…" Click="Atlas_OnClick" Margin="10,0,0,0"/>
+                    <TextBlock x:Name="EditorTitle" FontSize="19" FontWeight="SemiBold" Text="Редактор преобразования"/>
+                </DockPanel>
                 <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Text="Вес выбора"/>

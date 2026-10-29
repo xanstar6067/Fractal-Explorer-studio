@@ -169,6 +169,8 @@ internal static partial class Program
                 if (group == "cube-rule-atlas") return;
                 if (group is "all" or "apollonian-packing-atlas") await VerifyApollonianPackingAtlasAsync();
                 if (group == "apollonian-packing-atlas") return;
+                if (group is "all" or "ifs3d-atlas") await VerifyIfs3DAtlasAsync();
+                if (group == "ifs3d-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);

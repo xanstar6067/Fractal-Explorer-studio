@@ -42,6 +42,40 @@ public partial class Ifs3DTransformEditorWindow : Window
 
     public event Action<IReadOnlyList<Ifs3DTransform>>? TransformsPreviewed;
     public event Action? Randomized;
+    public Func<Fractal3DState>? CaptureAtlasView { get; set; }
+    public Action<Action>? SuspendAtlas { get; set; }
+
+    private void Atlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        void Open()
+        {
+            try { CreateAtlas().ShowDialog(); }
+            catch (ArgumentException exception) { ValidationText.Text = exception.Message; }
+        }
+        if (SuspendAtlas is { } suspend) suspend(Open); else Open();
+    }
+
+    private Fractal3DState CaptureAtlasState()
+    {
+        var state = (CaptureAtlasView?.Invoke() ?? Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Ifs3D)).Clone();
+        state.IfsTransforms = CloneTransforms(_transforms);
+        return state;
+    }
+
+    private Ifs3DAtlasWindow CreateAtlas()
+    {
+        _previewTimer.Stop();
+        if (!Validate(out string error)) throw new ArgumentException(error);
+        _previewTimer.Stop();
+        var atlas = new Ifs3DAtlasWindow(CaptureAtlasState(), _selectedIndex) { Owner = this };
+        atlas.ParametersApplied += (_, _) =>
+        {
+            var state = CaptureAtlasState(); atlas.ApplySelectionTo(state);
+            PushUndo(); _transforms[atlas.TransformIndex] = state.IfsTransforms[atlas.TransformIndex].Clone();
+            Rebind(atlas.TransformIndex); Preview(); atlas.Close();
+        };
+        return atlas;
+    }
 
     public Ifs3DTransformEditorWindow(IEnumerable<Ifs3DTransform> source)
     {
@@ -105,6 +139,7 @@ public partial class Ifs3DTransformEditorWindow : Window
     private void EnableEditor(bool enabled)
     {
         EditorPanel.IsEnabled = enabled;
+        AtlasButton.IsEnabled = enabled;
         if (!enabled) EditorTitle.Text = "Нет преобразований — нажмите «Добавить»";
     }
 
@@ -460,7 +495,7 @@ public partial class Ifs3DTransformEditorWindow : Window
         _ => family.ToString()
     };
 
-    private static string F(double value) => value.ToString("0.########", CultureInfo.InvariantCulture);
+    private static string F(double value) => value.ToString("R", CultureInfo.InvariantCulture);
     private static bool Read(string text, out double value) =>
         double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
         double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
