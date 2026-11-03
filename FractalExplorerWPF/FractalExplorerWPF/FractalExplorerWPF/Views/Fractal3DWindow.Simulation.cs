@@ -17,7 +17,7 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
 {
     private IFractal3DSimulationMode? CreateSimulation() => Kind switch
     {
-        Fractal3DKind.GrayScott3D => new GrayScott3DEditor(this).Simulation,
+        Fractal3DKind.GrayScott3D => CreateGrayScottSimulation(),
         Fractal3DKind.Turing3D => new Turing3DEditor(this).Simulation,
         Fractal3DKind.CahnHilliard3D => new CahnHilliard3DEditor(this).Simulation,
         Fractal3DKind.Lenia3D => new Lenia3DEditor(this).Simulation,
@@ -29,6 +29,13 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
         Fractal3DKind.PhaseFieldCrystal3D => new PhaseFieldCrystal3DEditor(this).Simulation,
         _ => null
     };
+
+    private IFractal3DSimulationMode CreateGrayScottSimulation()
+    {
+        var editor = new GrayScott3DEditor(this);
+        editor.AtlasRequested += GrayScottAtlas_OnClick;
+        return editor.Simulation;
+    }
 
     private void AttachSimulation()
     {

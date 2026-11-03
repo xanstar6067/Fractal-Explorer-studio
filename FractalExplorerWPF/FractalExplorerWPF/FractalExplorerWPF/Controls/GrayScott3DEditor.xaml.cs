@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Globalization;
 using System.Windows.Controls;
 using System.Windows.Input;
 using FractalExplorerWPF.Core.Rendering3D;
@@ -24,6 +25,8 @@ public partial class GrayScott3DEditor : UserControl, IFractal3DSimulationEditor
     private bool _searchVariation;
     // Обработчики полей молчат, пока панель создаётся или заполняется сохранёнными значениями.
     private bool _loading = true;
+    public event EventHandler? AtlasRequested;
+    private void GrayAtlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
 
     internal GrayScott3DEditor(IFractal3DSimulationHost host)
     {
@@ -57,8 +60,8 @@ public partial class GrayScott3DEditor : UserControl, IFractal3DSimulationEditor
         _loading = true;
         try
         {
-            GraySizeBox.Text = s.Size.ToString(); GrayFeedBox.Text = Format(s.Feed); GrayKillBox.Text = Format(s.Kill);
-            GrayDuBox.Text = Format(s.DiffusionU); GrayDvBox.Text = Format(s.DiffusionV);
+            GraySizeBox.Text = s.Size.ToString(); GrayFeedBox.Text = s.Feed.ToString("R", CultureInfo.InvariantCulture); GrayKillBox.Text = s.Kill.ToString("R", CultureInfo.InvariantCulture);
+            GrayDuBox.Text = s.DiffusionU.ToString("R", CultureInfo.InvariantCulture); GrayDvBox.Text = s.DiffusionV.ToString("R", CultureInfo.InvariantCulture);
             GraySeedBox.SelectedIndex = (int)s.SeedShape; GrayRandomBox.Text = s.Seed.ToString();
             GraySpeedSlider.Value = s.StepsPerFrame; GrayThresholdSlider.Value = s.Threshold;
             GrayCutBox.SelectedIndex = s.CutAxis; GrayCutSlider.Value = s.CutPosition;
@@ -191,8 +194,22 @@ public partial class GrayScott3DEditor : UserControl, IFractal3DSimulationEditor
         GrayScott3DSettings previous;
         try { previous = Simulation.Checkpoint(Simulation.Capture()); }
         catch (InvalidOperationException) { previous = Simulation.Capture() with { Live = null, Field = Simulation.Settings.Field }; }
+        Remember(previous);
+    }
+
+    private void Remember(GrayScott3DSettings previous)
+    {
         _searchHistory.Add(previous);
         if (_searchHistory.Count > SearchHistoryDepth) _searchHistory.RemoveAt(0);
+    }
+
+    internal void ApplyAtlasResult(GrayScott3DSettings result, GrayScott3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Атлас должен передать точное поле U/V.");
+        result.Validate(); Remember(previous);
+        Simulation.Restart(result);
+        GraySearchStatus.Text = $"Вариант атласа · шаг {result.Field.Step:N0}. «Вернуть предыдущий» восстанавливает исходное поле.";
+        UpdateSearchButtons();
     }
 
     private void GraySearchUndo_OnClick(object sender, RoutedEventArgs e)

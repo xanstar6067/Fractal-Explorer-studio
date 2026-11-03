@@ -880,6 +880,7 @@ public partial class Fractal3DWindow : Window
         finally
         {
             _suspended = false;
+            _simulation?.Resume();
             RequestFrame(FrameQuality.Draft);
         }
     }

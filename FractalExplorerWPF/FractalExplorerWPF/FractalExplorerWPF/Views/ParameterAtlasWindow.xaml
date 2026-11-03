@@ -7,7 +7,7 @@
         Icon="../Assets/Icons/FractalExplorer.ico" Closed="Window_OnClosed">
     <Grid Margin="14" Background="{DynamicResource Theme.BaseBackgroundBrush}">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <StackPanel>
+        <StackPanel x:Name="AtlasSettingsPanel">
             <TextBlock x:Name="HeaderText" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,10" TextWrapping="Wrap"/>
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="112"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

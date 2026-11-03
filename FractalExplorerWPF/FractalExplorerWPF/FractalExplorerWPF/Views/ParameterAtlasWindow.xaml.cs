@@ -17,6 +17,7 @@ public partial class ParameterAtlasWindow : Window
     private readonly List<TextBox> _componentBoxes = [];
     private readonly List<TextBlock> _componentLabels = [];
     private CancellationTokenSource? _renderCts;
+    private CancellationTokenSource? _operationCts;
     private ParameterAtlasRange _range;
     private string[] _componentNames = [];
     private decimal[] _point = [];
@@ -25,6 +26,7 @@ public partial class ParameterAtlasWindow : Window
     private Button? _selectedButton;
     private bool _closed, _changing, _dirtyFixed;
     public bool IsRendering => _renderCts is not null;
+    public bool IsApplying => _operationCts is not null;
     public event EventHandler? ParametersApplied;
     protected decimal[] SelectedComponents => (decimal[])(_selection ?? _point).Clone();
 
@@ -152,7 +154,7 @@ public partial class ParameterAtlasWindow : Window
         _dirtyFixed = false;
     }
 
-    private void InvalidateSelection(string message)
+    protected void InvalidateSelection(string message)
     {
         _renderCts?.Cancel(); _renderCts = null;
         _selection = null; _selectedButton = null;
@@ -224,7 +226,7 @@ public partial class ParameterAtlasWindow : Window
 
     protected Task BuildAtlasAsync()
     {
-        if (_closed) return Task.CompletedTask;
+        if (_closed || IsApplying) return Task.CompletedTask;
         NumericInput.CommitAll(this);
         ReadPointFields();
         var range = new ParameterAtlasRange(Parse(MinRealBox), Parse(MaxRealBox), Parse(MinImaginaryBox), Parse(MaxImaginaryBox));
@@ -317,13 +319,52 @@ public partial class ParameterAtlasWindow : Window
         finally
         {
             if (entered) _renderGate.Release();
-            if (ReferenceEquals(_renderCts, cts)) { _renderCts = null; CancelAtlasButton.IsEnabled = false; }
+            if (ReferenceEquals(_renderCts, cts)) { _renderCts = null; CancelAtlasButton.IsEnabled = IsApplying; }
+        }
+    }
+
+    /// <summary>Останавливает сетку и готовит выбранный результат под тем же барьером ресурсов.</summary>
+    protected async Task<T> RunExclusiveAsync<T>(string message, Func<CancellationToken, Task<T>> action)
+    {
+        if (_closed) throw new OperationCanceledException();
+        if (IsApplying) throw new InvalidOperationException("Выбранный вариант уже готовится.");
+        _renderCts?.Cancel();
+        using var cts = new CancellationTokenSource(); _operationCts = cts;
+        AtlasSettingsPanel.IsEnabled = TilesPanel.IsEnabled = false;
+        ApplyButton.IsEnabled = NarrowButton.IsEnabled = false; CancelAtlasButton.IsEnabled = true;
+        StatusText.Text = message;
+        bool entered = false;
+        try
+        {
+            await _renderGate.WaitAsync(cts.Token); entered = true;
+            cts.Token.ThrowIfCancellationRequested();
+            StatusText.Text = message;
+            var result = await action(cts.Token);
+            cts.Token.ThrowIfCancellationRequested();
+            if (_closed) throw new OperationCanceledException();
+            return result;
+        }
+        catch (OperationCanceledException)
+        { if (!_closed) StatusText.Text = "Подготовка выбранного варианта остановлена."; throw; }
+        catch (Exception ex)
+        { if (!_closed) StatusText.Text = $"Не удалось подготовить вариант: {ex.Message}"; throw; }
+        finally
+        {
+            if (entered) _renderGate.Release();
+            _operationCts = null;
+            if (!_closed)
+            {
+                AtlasSettingsPanel.IsEnabled = TilesPanel.IsEnabled = true;
+                ApplyButton.IsEnabled = NarrowButton.IsEnabled = _selection is not null;
+                CancelAtlasButton.IsEnabled = IsRendering;
+            }
         }
     }
 
     private string Describe(decimal[] point) => string.Join("\n", point.Select((value, i) => $"{_componentNames[i]} = {ComponentValueLabel(i, value, "G29")}"));
     private void SelectTile(Button button, Image image, decimal[] point)
     {
+        if (IsApplying) return;
         _selectedButton?.ClearValue(BorderBrushProperty); _selectedButton = button;
         button.SetResourceReference(BorderBrushProperty, "Theme.InteractiveHoverBrush");
         _selection = (decimal[])point.Clone();
@@ -339,11 +380,11 @@ public partial class ParameterAtlasWindow : Window
     private void ApplySelection()
     {
         NumericInput.CommitAll(this);
-        if (!_closed && _selection is not null) ParametersApplied?.Invoke(this, EventArgs.Empty);
+        if (!_closed && !IsApplying && _selection is not null) ParametersApplied?.Invoke(this, EventArgs.Empty);
     }
     private async void Build_OnClick(object sender, RoutedEventArgs e) => await BuildAtlasAsync();
     private void Apply_OnClick(object sender, RoutedEventArgs e) => ApplySelection();
-    private void Cancel_OnClick(object sender, RoutedEventArgs e) => _renderCts?.Cancel();
+    private void Cancel_OnClick(object sender, RoutedEventArgs e) { _renderCts?.Cancel(); _operationCts?.Cancel(); }
     private async void Narrow_OnClick(object sender, RoutedEventArgs e)
     {
         if (_selection is null) return;
@@ -359,7 +400,7 @@ public partial class ParameterAtlasWindow : Window
     private static decimal Parse(TextBox box) => decimal.Parse(box.Text, NumberStyles.Float, CultureInfo.InvariantCulture);
     private async void Window_OnClosed(object? sender, EventArgs e)
     {
-        _closed = true; _renderCts?.Cancel();
+        _closed = true; _renderCts?.Cancel(); _operationCts?.Cancel();
         await _renderGate.WaitAsync();
         try { ReleaseRenderResources(); }
         finally { _renderGate.Release(); }

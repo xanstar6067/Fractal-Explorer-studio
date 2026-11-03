@@ -165,6 +165,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Lichtenberg3DAtlasWindow` — атлас η, электродов, сетки и seed с независимым ростом и сохранением неизменённого снимка поля (`LICHTENBERG3D.md`, проверка `lichtenberg3d-atlas`).
 
+`GrayScott3DAtlasWindow` — атлас F/K, диффузии и вида с общим начальным полем, одинаковым числом шагов и переносом точного результата (`GRAY_SCOTT3D.md`, проверка `gray-scott3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

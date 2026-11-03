@@ -63,6 +63,8 @@ internal interface IFractal3DSimulationMode
     void Cancel();
     /// <summary>Модальное окно поверх: подача шагов останавливается, поданные публикуются и покажутся после.</summary>
     void Suspend();
+    /// <summary>Запускает отложенную загрузку после закрытия модального окна.</summary>
+    void Resume();
     void Close();
     /// <summary>Shift+щелчок по холсту — кисть на плоскости среза; true, если событие обработано.</summary>
     bool TryBrush(MouseButtonEventArgs e);
@@ -291,6 +293,13 @@ internal sealed class Fractal3DLiveSimulation<TSimulation, TSettings, TField, TV
     {
         _editor.CancelSearch();
         _cts?.Cancel(); _queuedSteps = 0;
+    }
+
+    public void Resume()
+    {
+        if (Busy || Pending is not null || _host.IsClosing || _host.IsSuspended) return;
+        if (Running && !Preparing && _queuedSteps == 0) _queuedSteps = _editor.StepsPerFrame;
+        if (_resetTo is not null || _queuedSteps > 0 || _work.Count > 0) _ = RunAsync();
     }
 
     public void Close()

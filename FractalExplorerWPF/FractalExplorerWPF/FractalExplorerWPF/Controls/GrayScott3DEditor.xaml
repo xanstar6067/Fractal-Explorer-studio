@@ -6,6 +6,7 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров…" Click="GrayAtlas_OnClick" Margin="0,0,0,8"/>
         <TextBlock Text="U + 2V → 3V · реакция внутри объёма" TextWrapping="Wrap" Margin="0,4,0,8"/>
         <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
         <TextBlock x:Name="GrayDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>

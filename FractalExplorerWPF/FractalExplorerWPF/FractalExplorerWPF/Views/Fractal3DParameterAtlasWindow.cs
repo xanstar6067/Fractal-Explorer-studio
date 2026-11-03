@@ -30,6 +30,8 @@ public abstract class Fractal3DParameterAtlasWindow : ParameterAtlasWindow
     }
 
     protected abstract void ApplyComponents(Fractal3DState state, decimal[] point);
+    protected Direct3DDeviceHost PreviewDevice => _renderer.DeviceHost;
+    protected virtual Func<Fractal3DState, CancellationToken, Task> CreatePreviewPreparation() => (_, _) => Task.CompletedTask;
 
     public virtual void ApplySelectionTo(Fractal3DState state) => ApplyComponents(state, SelectedComponents);
 
@@ -40,10 +42,12 @@ public abstract class Fractal3DParameterAtlasWindow : ParameterAtlasWindow
         source.MaxSteps = Math.Min(source.MaxSteps, 160);
         source.Detail = PreviewDetail(source.Detail);
         source.Ssaa = 1; source.SoftShadows = false; source.AmbientOcclusion = false;
+        var prepare = CreatePreviewPreparation();
         return async (point, token) =>
         {
             var state = source.Clone();
             ApplyComponents(state, point);
+            await prepare(state, token);
             var frame = await _renderer.RenderPixelsAsync(state, PreviewWidth, PreviewHeight, null, null, token);
             token.ThrowIfCancellationRequested();
             return frame.Buffer;

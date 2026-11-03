@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void GrayScottAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.GrayScott3D) OpenShapeAtlas(CreateGrayScottAtlas);
+    }
+
+    private GrayScott3DAtlasWindow CreateGrayScottAtlas()
+    {
+        var editor = (GrayScott3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new GrayScott3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.GrayScott, source.GrayScott);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Gray–Scott: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void LichtenbergAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.Lichtenberg3D) OpenShapeAtlas(CreateLichtenbergAtlas);
