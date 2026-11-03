@@ -28,7 +28,7 @@ public partial class Fractal3DWindow
         _lichtenbergField = settings.Field;
         _lichtenbergCount = _lichtenbergRequested = settings.SegmentCount;
         _lichtenbergRunning = _lichtenbergBoundary = false;
-        LichtenbergEtaBox.Text = Format(settings.Eta);
+        LichtenbergEtaBox.Text = settings.Eta.ToString("R", CultureInfo.InvariantCulture);
         LichtenbergSizeBox.SelectedIndex = settings.Size switch { 32 => 0, 64 => 2, _ => 1 };
         LichtenbergElectrodeBox.SelectedIndex = (int)settings.Electrodes;
         LichtenbergSeedBox.Text = settings.Seed.ToString(CultureInfo.InvariantCulture);

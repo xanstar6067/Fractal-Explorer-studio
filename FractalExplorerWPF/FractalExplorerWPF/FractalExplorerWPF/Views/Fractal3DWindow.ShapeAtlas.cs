@@ -7,6 +7,23 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void LichtenbergAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.Lichtenberg3D) OpenShapeAtlas(CreateLichtenbergAtlas);
+    }
+
+    private Lichtenberg3DAtlasWindow CreateLichtenbergAtlas()
+    {
+        _lichtenbergRunning = false; _lichtenbergRequested = _lichtenbergCount;
+        _renderCts?.Cancel(); UpdateLichtenbergLabels();
+        return ConnectShapeAtlas(new Lichtenberg3DAtlasWindow(CaptureViewState("atlas")), state =>
+        {
+            bool boundary = _lichtenbergBoundary && state.Lichtenberg.SameGrowth(_lichtenbergSettings);
+            LoadLichtenberg(state.Lichtenberg);
+            _lichtenbergBoundary = boundary; UpdateLichtenbergLabels();
+        });
+    }
+
     private void BuddhabrotAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.Buddhabrot4D) OpenShapeAtlas(CreateBuddhabrotAtlas);

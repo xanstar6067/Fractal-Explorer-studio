@@ -49,6 +49,7 @@
                     <controls:HopfEditor x:Name="HopfEditor" Visibility="Collapsed" SettingsChanged="Hopf_OnChanged" AtlasRequested="HopfAtlas_OnClick" Margin="0,8,0,0"/>
 
                     <StackPanel x:Name="LichtenbergPanel" Visibility="Collapsed" Margin="0,8,0,4">
+                        <Button x:Name="LichtenbergAtlasButton" Content="Атлас параметров…" Click="LichtenbergAtlas_OnClick" Margin="0,0,0,8"/>
                         <TextBlock x:Name="LichtenbergCountText" FontWeight="SemiBold" Text="Готовим разряд…"/>
                         <ProgressBar x:Name="LichtenbergGrowthProgress" Height="6" Margin="0,6"/>
                         <UniformGrid Columns="2">

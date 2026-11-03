@@ -6,6 +6,8 @@ using Vortice.Direct3D11;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
+internal sealed class Lichtenberg3DGrowthException(string message) : InvalidOperationException(message);
+
 /// <summary>
 /// Lattice dielectric breakdown: solve Δφ = 0, choose a frontier bond with probability φ^η.
 /// Red/black SOR runs on the window's GPU. Only the categorical draw and topology use the CPU.
@@ -108,7 +110,7 @@ internal sealed class Lichtenberg3DGpuSimulation : IDisposable
             if (frontier.Length == 0) { BoundaryReached = true; break; }
             double[] weights = BondWeights(frontier, solved, Settings.Eta, Settings.Size, _mask);
             double total = weights.Sum();
-            if (!(total > 0)) throw new InvalidOperationException("На границе канала нет электрического поля.");
+            if (!(total > 0)) throw new Lichtenberg3DGrowthException("На границе канала нет электрического поля.");
             // One stream per complete segment: frame batching and cancellation cannot change the draw.
             var random = new Random(unchecked(Settings.Seed * 73856093 ^ (Count + 1) * 19349663));
             double draw = random.NextDouble() * total;
@@ -177,7 +179,7 @@ internal sealed class Lichtenberg3DGpuSimulation : IDisposable
                 if (Residual(values, _mask, n) <= 1e-4) return values;
                 context.CSSetUnorderedAccessView(0, _potentialWrite);
             }
-            throw new InvalidOperationException("Поле не сошлось. Начните заново на меньшей сетке.");
+            throw new Lichtenberg3DGrowthException("Поле не сошлось. Начните заново на меньшей сетке.");
         }
         finally
         {
