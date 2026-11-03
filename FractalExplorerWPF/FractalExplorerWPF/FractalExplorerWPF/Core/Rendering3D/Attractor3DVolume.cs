@@ -3,6 +3,9 @@ using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
+/// <summary>Допустимые параметры дали траекторию, которую нельзя показать как объём.</summary>
+internal sealed class Attractor3DTrajectoryException(string message) : InvalidOperationException(message);
+
 /// <summary>Интегрирует автономный поток и накапливает его траекторию в общей 3D-текстуре.</summary>
 internal static class Attractor3DVolume
 {
@@ -19,7 +22,7 @@ internal static class Attractor3DVolume
         Vector3 extent = bounds.Max - bounds.Min;
         float largest = Math.Max(extent.X, Math.Max(extent.Y, extent.Z));
         if (!float.IsFinite(largest) || largest < 1e-5f)
-            throw new InvalidOperationException("Траектория сошлась к точке. Выберите другой набор параметров или начальную точку.");
+            throw new Attractor3DTrajectoryException("Траектория сошлась к точке. Выберите другой набор параметров или начальную точку.");
         var voxels = new byte[Ifs3DVolume.Side * Ifs3DVolume.Side * Ifs3DVolume.Side];
         Trace(settings, count, point => Splat(voxels, point, bounds, 1.8f / largest), token);
         return voxels;
@@ -36,7 +39,7 @@ internal static class Attractor3DVolume
             if ((i & 4095) == 0) token.ThrowIfCancellationRequested();
             p = Step(settings, p);
             if (!p.IsFinite || p.MaxAbs > 1e6)
-                throw new InvalidOperationException("Траектория разошлась. Уменьшите шаг времени или измените параметры.");
+                throw new Attractor3DTrajectoryException("Траектория разошлась. Уменьшите шаг времени или измените параметры.");
             if (i < 0) continue;
             // Вертикальная ось камеры — Y; в формулах большинства систем вертикаль — z.
             Vector3 point = new((float)p.X, (float)p.Z, (float)p.Y);

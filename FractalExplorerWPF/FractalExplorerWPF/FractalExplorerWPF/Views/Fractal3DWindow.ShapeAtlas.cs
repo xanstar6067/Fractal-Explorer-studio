@@ -7,6 +7,14 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void AttractorAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.StrangeAttractor) OpenShapeAtlas(CreateAttractorAtlas);
+    }
+
+    private Attractor3DAtlasWindow CreateAttractorAtlas() =>
+        ConnectShapeAtlas(new Attractor3DAtlasWindow(CaptureViewState("atlas")), state => LoadAttractor(state.Attractor));
+
     private void ApollonianPackingAtlas_OnClick(object sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.ApollonianPacking) OpenShapeAtlas(CreateApollonianPackingAtlas);

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using FractalExplorerWPF.Models;
@@ -32,16 +33,16 @@ public partial class Fractal3DWindow
     {
         Attractor3DSettings s = source?.Clone() ?? Attractor3DSystems.Default(Attractor3DSystem.Lorenz);
         AttractorSystemBox.SelectedIndex = (int)s.System;
-        AttractorABox.Text = Format(s.A);
-        AttractorBBox.Text = Format(s.B);
-        AttractorCBox.Text = Format(s.C);
-        AttractorDBox.Text = Format(s.D);
-        AttractorEBox.Text = Format(s.E);
-        AttractorFBox.Text = Format(s.F);
-        AttractorStepBox.Text = Format(s.TimeStep);
-        AttractorStartXBox.Text = Format(s.StartX);
-        AttractorStartYBox.Text = Format(s.StartY);
-        AttractorStartZBox.Text = Format(s.StartZ);
+        AttractorABox.Text = s.A.ToString("R", CultureInfo.InvariantCulture);
+        AttractorBBox.Text = s.B.ToString("R", CultureInfo.InvariantCulture);
+        AttractorCBox.Text = s.C.ToString("R", CultureInfo.InvariantCulture);
+        AttractorDBox.Text = s.D.ToString("R", CultureInfo.InvariantCulture);
+        AttractorEBox.Text = s.E.ToString("R", CultureInfo.InvariantCulture);
+        AttractorFBox.Text = s.F.ToString("R", CultureInfo.InvariantCulture);
+        AttractorStepBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture);
+        AttractorStartXBox.Text = s.StartX.ToString("R", CultureInfo.InvariantCulture);
+        AttractorStartYBox.Text = s.StartY.ToString("R", CultureInfo.InvariantCulture);
+        AttractorStartZBox.Text = s.StartZ.ToString("R", CultureInfo.InvariantCulture);
         UpdateAttractorLabels();
     }
 

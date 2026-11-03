@@ -44,6 +44,7 @@ public partial class ParameterAtlasWindow : Window
     protected virtual int IntegerComponentStep(int index) => 1;
     protected virtual string ComponentValueLabel(int index, decimal value, string format) => value.ToString(format, CultureInfo.InvariantCulture);
     protected virtual string? UnavailableSample(decimal[] point) => null;
+    protected virtual string? UnavailableSampleError(Exception error) => null;
     protected virtual ParameterAtlasRange OverviewRange => new(-2m, 2m, -2m, 2m);
     protected virtual Func<decimal[], CancellationToken, byte[]> CreateRenderSnapshot() =>
         throw new NotSupportedException("Не задан рендерер атласа.");
@@ -281,17 +282,29 @@ public partial class ParameterAtlasWindow : Window
             }
             if (tiles.Count == 0) { StatusText.Text = "Нет допустимых сочетаний в выбранном диапазоне."; return; }
             await _renderGate.WaitAsync(cts.Token); entered = true;
-            int done = 0;
+            int done = 0, failed = 0;
             foreach (var tile in tiles.OrderBy(t => Math.Abs(t.Row - rows / 2) + Math.Abs(t.Column - columns / 2)))
             {
-                byte[] pixels = await render(tile.Point, cts.Token);
+                byte[] pixels;
+                try { pixels = await render(tile.Point, cts.Token); }
+                catch (Exception ex) when (ex is not OperationCanceledException && UnavailableSampleError(ex) is not null)
+                {
+                    if (cts.IsCancellationRequested || _closed || !ReferenceEquals(_renderCts, cts)) return;
+                    string reason = UnavailableSampleError(ex)!;
+                    ((StackPanel)tile.Button.Content).Children.Add(new TextBlock { Text = reason, TextWrapping = TextWrapping.Wrap, FontSize = 11 });
+                    tile.Button.ToolTip = Describe(tile.Point) + "\n" + reason;
+                    failed++;
+                    StatusText.Text = $"Проверено {done + failed} / {tiles.Count} · недоступно: {total - tiles.Count + failed}";
+                    continue;
+                }
                 if (cts.IsCancellationRequested || _closed || !ReferenceEquals(_renderCts, cts)) return;
                 var bitmap = BitmapSource.Create(144, 108, 96, 96, PixelFormats.Bgra32, null, pixels, 144 * 4);
                 bitmap.Freeze(); tile.Image.Source = bitmap; tile.Button.IsEnabled = true; done++;
                 if (_selectedButton is null) SelectTile(tile.Button, tile.Image, tile.Point);
-                StatusText.Text = PreviewStatus(done, tiles.Count, iterations) +
-                    (tiles.Count < total ? $" · недоступно: {total - tiles.Count}" : "");
+                StatusText.Text = PreviewStatus(done + failed, tiles.Count, iterations) +
+                    (tiles.Count - failed < total ? $" · недоступно: {total - tiles.Count + failed}" : "");
             }
+            if (done == 0) StatusText.Text = "Нет допустимых сочетаний в выбранном диапазоне.";
         }
         catch (OperationCanceledException)
         {

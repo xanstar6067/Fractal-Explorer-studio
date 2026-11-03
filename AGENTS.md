@@ -155,6 +155,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Flame3DAtlasWindow` — атлас вариаций, силы, веса, смешивания цвета и переносов выбранного слоя из `Flame3DTransformEditorWindow` (`FLAME3D.md`, проверка `flame3d-atlas`).
 
+`Attractor3DAtlasWindow` — атлас активных коэффициентов, шага RK4 и начальной точки семи странных аттракторов (`ATTRACTORS3D.md`, проверка `attractor3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна
