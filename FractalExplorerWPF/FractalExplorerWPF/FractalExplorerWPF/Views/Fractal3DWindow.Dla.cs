@@ -10,14 +10,15 @@ public partial class Fractal3DWindow
     private int _dlaCount, _dlaRequestedCount;
     private double _dlaDisplayedRadius;
     private bool _dlaRunning;
+    private Dla3DSettings _dlaLoadedSettings = new();
 
     private Dla3DSettings CaptureDla() => Kind != Fractal3DKind.Dla3D ? new() : new Dla3DSettings
     {
         Seed = ReadInt(DlaRandomSeedBox, "Случайное число", int.MinValue, int.MaxValue),
         SeedShape = (Dla3DSeedShape)Math.Clamp(DlaSeedShapeBox.SelectedIndex, 0, 3),
         SeedSize = (int)Math.Round(DlaSeedSizeSlider.Value),
-        Stickiness = DlaStickSlider.Value / 100,
-        FlowStrength = DlaFlowSlider.Value / 100,
+        Stickiness = DlaStickSlider.Value == _dlaLoadedSettings.Stickiness * 100 ? _dlaLoadedSettings.Stickiness : DlaStickSlider.Value / 100,
+        FlowStrength = DlaFlowSlider.Value == _dlaLoadedSettings.FlowStrength * 100 ? _dlaLoadedSettings.FlowStrength : DlaFlowSlider.Value / 100,
         FlowYaw = DlaYawSlider.Value,
         FlowPitch = DlaPitchSlider.Value,
         ParticleCount = _dlaCount,
@@ -27,6 +28,7 @@ public partial class Fractal3DWindow
     private void LoadDla(Dla3DSettings? source)
     {
         Dla3DSettings s = (source ?? new()).Normalized();
+        _dlaLoadedSettings = s;
         _dlaRunning = false;
         _dlaCount = _dlaRequestedCount = s.ParticleCount;
         _dlaDisplayedRadius = 0;

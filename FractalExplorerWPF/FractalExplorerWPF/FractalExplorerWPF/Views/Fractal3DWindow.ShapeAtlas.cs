@@ -7,6 +7,19 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void DlaAtlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (Kind == Fractal3DKind.Dla3D) OpenShapeAtlas(CreateDlaAtlas);
+    }
+
+    private Dla3DAtlasWindow CreateDlaAtlas()
+    {
+        // A pending batch may be ahead of the last complete frame. Freeze the displayed count.
+        _dlaRunning = false; _dlaRequestedCount = _dlaCount;
+        _renderCts?.Cancel(); UpdateDlaLabels();
+        return ConnectShapeAtlas(new Dla3DAtlasWindow(CaptureViewState("atlas")), state => LoadDla(state.Dla));
+    }
+
     private void AttractorAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.StrangeAttractor) OpenShapeAtlas(CreateAttractorAtlas);

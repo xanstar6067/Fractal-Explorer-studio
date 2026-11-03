@@ -102,6 +102,7 @@
                             <controls:Newton3DEditor x:Name="NewtonEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"
                                                      AtlasRequested="Newton3DAtlas_OnClick"/>
                             <StackPanel x:Name="DlaPanel" Visibility="Collapsed">
+                                <Button x:Name="DlaAtlasButton" Content="Атлас параметров…" Click="DlaAtlas_OnClick" Margin="0,0,0,8"/>
                                 <TextBlock Text="Затравка" Style="{StaticResource FieldCaption}"/>
                                 <ListBox x:Name="DlaSeedShapeBox" SelectionChanged="DlaGrowth_OnChanged" SelectedIndex="0" Margin="0,4,0,6">
                                     <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ListBox.ItemsPanel>
