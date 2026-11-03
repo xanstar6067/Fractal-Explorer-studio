@@ -20,7 +20,7 @@ public abstract class GpuSimulationParameterAtlasWindow<TSettings, TField, TVolu
         public required Func<Direct3DDeviceHost, TSettings, GpuVolumeSimulation<TSettings, TField, TVolume>> Create { get; init; }
         public required Func<TSettings, TField?, TVolume?, TSettings> With { get; init; }
         public required Func<TSettings, TField?> Field { get; init; }
-        // Поле зависит от коэффициентов: равновесие Тьюринга/возбудимых сред, размер Lenia, профиль φ/T Кобаяси.
+        // Поле может зависеть от коэффициентов или Δx: сохраняем исходное равновесие/геометрию до вариаций.
         public bool FreezeInitialField { get; init; }
     }
     private readonly SimulationOptions _options;

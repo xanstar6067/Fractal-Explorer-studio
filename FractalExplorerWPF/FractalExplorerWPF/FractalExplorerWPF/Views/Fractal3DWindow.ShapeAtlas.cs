@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void GinzburgLandauAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.GinzburgLandau3D) OpenShapeAtlas(CreateGinzburgLandauAtlas);
+    }
+
+    private GinzburgLandau3DAtlasWindow CreateGinzburgLandauAtlas()
+    {
+        var editor = (GinzburgLandau3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new GinzburgLandau3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.GinzburgLandau, source.GinzburgLandau);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Гинзбурга–Ландау: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void ExcitableAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.Excitable3D) OpenShapeAtlas(CreateExcitableAtlas);

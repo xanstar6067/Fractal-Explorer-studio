@@ -4,6 +4,8 @@
              xmlns:c="clr-namespace:FractalExplorerWPF.Controls">
     <UserControl.Resources><ResourceDictionary Source="Fractal3DPanelStyles.xaml"/></UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров…" Click="Atlas_OnClick"/>
+        <Button x:Name="AtlasUndoButton" Content="Вернуть предыдущий" Click="AtlasUndo_OnClick" IsEnabled="False"/>
         <TextBlock Text="∂ₜA = A + (1+i c₁)∇²A − (1+i c₃)|A|²A" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,6"/>
         <TextBlock x:Name="GlDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
         <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси (32–128)"/>

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -11,6 +12,7 @@ namespace FractalExplorerWPF.Controls;
 public partial class GinzburgLandau3DEditor : UserControl, IFractal3DSimulationEditor<GinzburgLandau3DSettings>
 {
     private readonly IFractal3DSimulationHost _host;
+    private readonly List<GinzburgLandau3DSettings> _atlasHistory = [];
     private bool _loading = true;
 
     internal GinzburgLandau3DEditor(IFractal3DSimulationHost host)
@@ -24,7 +26,7 @@ public partial class GinzburgLandau3DEditor : UserControl, IFractal3DSimulationE
             Live = s => s.Live, Field = s => s.Field, With = (s, live, field) => s with { Live = live, Field = field },
             InitialSteps = s => s.Field is null ? s.WarmupSteps : 0,
             PreparationMessage = _ => "Подготовка комплексного поля…",
-            Time = (shown, s) => $"Шаг {shown?.Step ?? s.Field?.Step ?? 0:N0} · t = {(shown?.Step ?? s.Field?.Step ?? 0) * s.TimeStep:F2} · {s.Size}³",
+            Time = (shown, s) => $"Шаг {shown?.Step ?? s.Field?.Step ?? 0:N0} · Δt = {s.TimeStep:G6} · {s.Size}³",
             ProgressMessage = (done, steps) => $"Подготовка поля · {(int)(100L * done / Math.Max(1, steps))}%"
         });
         _loading = false;
@@ -36,13 +38,33 @@ public partial class GinzburgLandau3DEditor : UserControl, IFractal3DSimulationE
     public bool IsSearching => false;
     public void CancelSearch() { }
 
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(GinzburgLandau3DSettings result, GinzburgLandau3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное комплексное поле выбранного прогона.");
+        result.Validate(); Simulation.Restart(result);
+        _atlasHistory.Add(previous with { Live = null });
+        if (_atlasHistory.Count > 4) _atlasHistory.RemoveAt(0);
+        Refresh(); _host.ShowStatus($"Вариант атласа · шаг {result.Field.Step:N0}. Исходное поле доступно через «Вернуть предыдущий».");
+    }
+
+    private void AtlasUndo_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_atlasHistory.Count == 0 || Simulation.Busy || Simulation.Preparing || _host.IsSuspended || _host.IsClosing) return;
+        var previous = _atlasHistory[^1];
+        Simulation.Restart(previous); _atlasHistory.RemoveAt(_atlasHistory.Count - 1);
+        Refresh(); _host.ShowStatus("Восстановлено предыдущее комплексное поле Гинзбурга–Ландау 3D.");
+    }
+
     public void Show(GinzburgLandau3DSettings s)
     {
         _loading = true;
         try
         {
-            GlSizeBox.Text = s.Size.ToString(); GlC1Box.Text = Format(s.C1); GlC3Box.Text = Format(s.C3);
-            GlDtBox.Text = Format(s.TimeStep); GlSpacingBox.Text = Format(s.Spacing);
+            GlSizeBox.Text = s.Size.ToString(); GlC1Box.Text = s.C1.ToString("R", CultureInfo.InvariantCulture); GlC3Box.Text = s.C3.ToString("R", CultureInfo.InvariantCulture);
+            GlDtBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture); GlSpacingBox.Text = s.Spacing.ToString("R", CultureInfo.InvariantCulture);
             GlBoundaryBox.SelectedIndex = (int)s.Boundary; GlSeedBox.SelectedIndex = (int)s.SeedShape;
             GlSeedNumberBox.Text = s.Seed.ToString(); GlWarmupBox.Text = s.WarmupSteps.ToString();
             GlSpeedSlider.Value = s.StepsPerFrame; GlViewBox.SelectedIndex = (int)s.View;
@@ -62,6 +84,9 @@ public partial class GinzburgLandau3DEditor : UserControl, IFractal3DSimulationE
     {
         GlDeviceText.Text = Simulation.Device; GlCutSlider.IsEnabled = GlCutBox.SelectedIndex > 0;
         GlBrushButton.IsEnabled = Simulation.CanBrush;
+        bool ready = Simulation.Shown is not null && !Simulation.ResetPending && !Simulation.Preparing && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready;
+        AtlasUndoButton.IsEnabled = ready && !Simulation.Busy && _atlasHistory.Count > 0;
     }
 
     private void GlRestart_OnClick(object sender, RoutedEventArgs e)

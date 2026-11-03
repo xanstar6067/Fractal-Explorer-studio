@@ -73,7 +73,7 @@ internal sealed class GinzburgLandau3DMode() : GpuSimulation3DMode(Fractal3DKind
         string view = s.View switch { GinzburgLandau3DView.Filaments => "вихревые нити",
             GinzburgLandau3DView.AmplitudeDefects => "дефекты амплитуды", _ => "амплитуда" };
         return $"{prefix} · сетка {s.Size}³ · c₁ = {s.C1:G4} · c₃ = {s.C3:G4}\n" +
-            (s.Field is { } f ? $"Шаг {f.Step:N0} · t = {f.Step * s.TimeStep:G6}" : $"Новое поле, {s.WarmupSteps} шагов подготовки") +
+            (s.Field is { } f ? $"Шаг {f.Step:N0}" : $"Новое поле, {s.WarmupSteps} шагов подготовки") +
             $" · Δt = {s.TimeStep:G4} · Δx = {s.Spacing:G4}\n" +
             $"{view} · {(s.Boundary == GinzburgLandau3DBoundary.Periodic ? "периодические границы" : "непроницаемые стенки")}\n" +
             $"Палитра: {state.ResolvePalette().Name} · Окраска: {ColoringModeName(state.ColoringMode)}";
