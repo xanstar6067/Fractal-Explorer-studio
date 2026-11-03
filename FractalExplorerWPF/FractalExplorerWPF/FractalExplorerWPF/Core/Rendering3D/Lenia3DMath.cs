@@ -3,6 +3,9 @@ using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
+/// <summary>Допустимые по диапазонам параметры не дают ни одной ненулевой точки дискретного ядра.</summary>
+internal sealed class LeniaKernelException() : ArgumentException("Ядро Lenia слишком узкое для этой сетки. Увеличьте радиус.");
+
 internal static class Lenia3DMath
 {
     internal static float[] Kernel(Lenia3DSettings s)
@@ -16,7 +19,7 @@ internal static class Lenia3DMath
             double v = Math.Pow(4*t*(1-t),4)*b[(int)br];
             result[(z*n+y)*n+x] = (float)v; sum += v;
         }
-        if (sum <= 0) throw new ArgumentException("Ядро Lenia слишком узкое для этой сетки. Увеличьте радиус.");
+        if (sum <= 0) throw new LeniaKernelException();
         for(int i=0;i<result.Length;i++) result[i]=(float)(result[i]/sum);
         return result;
     }

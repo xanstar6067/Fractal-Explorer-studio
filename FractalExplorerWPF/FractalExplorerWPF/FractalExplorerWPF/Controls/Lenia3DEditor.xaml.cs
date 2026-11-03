@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -49,6 +50,24 @@ public partial class Lenia3DEditor : UserControl, IFractal3DSimulationEditor<Len
     public bool IsSearching => _searchCts is not null;
     public bool TryBrush(MouseButtonEventArgs e) => false;
 
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(Lenia3DSettings result, Lenia3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное поле выбранного прогона Lenia.");
+        result.Validate(); CancelSearch();
+        Simulation.Restart(result); Remember(previous);
+        LeniaSearchStatus.Text = $"Вариант атласа · t = {result.Field.Time:G6}, шаг {result.Field.Step:N0}. «Вернуть предыдущую форму» восстанавливает исходное поле.";
+        UpdateSearchButtons();
+    }
+
+    private void Remember(Lenia3DSettings previous)
+    {
+        _searchHistory.Add(previous with { Live = null });
+        if (_searchHistory.Count > 4) _searchHistory.RemoveAt(0);
+    }
+
     public void Show(Lenia3DSettings s)
     {
         _loading = true;
@@ -56,11 +75,11 @@ public partial class Lenia3DEditor : UserControl, IFractal3DSimulationEditor<Len
         {
             LeniaSearchStatus.Text = s.Field is null ? "Выберите поиск или вариацию после подготовки." : "Показано сохранённое поле. Можно продолжить развитие или найти вариацию.";
             LeniaSizeBox.SelectedIndex = s.Size == 32 ? 0 : s.Size == 64 ? 1 : 2;
-            LeniaRadiusBox.Text = Format(s.Radius); LeniaMeanBox.Text = Format(s.GrowthMean); LeniaWidthBox.Text = Format(s.GrowthWidth);
+            LeniaRadiusBox.Text = s.Radius.ToString("R", CultureInfo.InvariantCulture); LeniaMeanBox.Text = s.GrowthMean.ToString("R", CultureInfo.InvariantCulture); LeniaWidthBox.Text = s.GrowthWidth.ToString("R", CultureInfo.InvariantCulture);
             LeniaShellCountBox.SelectedIndex = s.ShellCount - 1;
-            LeniaBeta1Box.Text = Format(s.Beta1); LeniaBeta2Box.Text = Format(s.Beta2); LeniaBeta3Box.Text = Format(s.Beta3); LeniaBeta4Box.Text = Format(s.Beta4);
-            LeniaDtBox.Text = Format(s.TimeStep); LeniaGrowthBox.SelectedIndex = (int)s.Growth;
-            LeniaSeedBox.SelectedIndex = (int)s.SeedShape; LeniaRandomBox.Text = s.Seed.ToString(); LeniaNoiseBox.Text = Format(s.SeedNoise);
+            LeniaBeta1Box.Text = s.Beta1.ToString("R", CultureInfo.InvariantCulture); LeniaBeta2Box.Text = s.Beta2.ToString("R", CultureInfo.InvariantCulture); LeniaBeta3Box.Text = s.Beta3.ToString("R", CultureInfo.InvariantCulture); LeniaBeta4Box.Text = s.Beta4.ToString("R", CultureInfo.InvariantCulture);
+            LeniaDtBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture); LeniaGrowthBox.SelectedIndex = (int)s.Growth;
+            LeniaSeedBox.SelectedIndex = (int)s.SeedShape; LeniaRandomBox.Text = s.Seed.ToString(); LeniaNoiseBox.Text = s.SeedNoise.ToString("R", CultureInfo.InvariantCulture);
             LeniaWarmupBox.Text = s.WarmupSteps.ToString();
             LeniaSpeedSlider.Value = s.StepsPerFrame; LeniaLevelSlider.Value = s.Threshold;
             LeniaCutBox.SelectedIndex = s.CutAxis; LeniaCutSlider.Value = s.CutPosition;
@@ -155,8 +174,7 @@ public partial class Lenia3DEditor : UserControl, IFractal3DSimulationEditor<Len
                 CutAxis = Math.Max(0, LeniaCutBox.SelectedIndex), CutPosition = LeniaCutSlider.Value };
             _searchCts = null;
             live.Restart(settings);
-            _searchHistory.Add(previous);
-            if (_searchHistory.Count > 4) _searchHistory.RemoveAt(0);
+            Remember(previous);
             LeniaSearchProgress.Value = 100;
             LeniaSearchStatus.Text = $"Найдена форма · проверено {found.Checked} вариантов. Выжила в пробном прогоне; продолжите развитие или попробуйте вариацию.";
         }
@@ -190,6 +208,7 @@ public partial class Lenia3DEditor : UserControl, IFractal3DSimulationEditor<Len
     {
         bool searching = _searchCts is not null;
         bool ready = !Simulation.Preparing && Simulation.Shown is not null && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready && !searching;
         LeniaSearchButton.Content = searching && !_searchVariation ? "Остановить поиск" : "Найти живую форму";
         LeniaVariationButton.Content = searching && _searchVariation ? "Остановить поиск" : "Вариация текущей";
         LeniaSearchButton.IsEnabled = searching ? !_searchVariation : ready;

@@ -6,6 +6,7 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров" Margin="0,0,0,6" Click="Atlas_OnClick"/>
         <TextBlock Text="Клетки чувствуют плотность соседей через сферическое ядро. Правило роста рождает движение и пульсации." TextWrapping="Wrap" Margin="0,4,0,8"/>
         <TextBlock x:Name="LeniaDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
         <Expander Header="Поиск форм" IsExpanded="True"><StackPanel>

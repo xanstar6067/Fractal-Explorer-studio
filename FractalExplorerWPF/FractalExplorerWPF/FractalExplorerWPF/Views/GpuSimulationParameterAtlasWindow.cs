@@ -20,7 +20,7 @@ public abstract class GpuSimulationParameterAtlasWindow<TSettings, TField, TVolu
         public required Func<Direct3DDeviceHost, TSettings, GpuVolumeSimulation<TSettings, TField, TVolume>> Create { get; init; }
         public required Func<TSettings, TField?, TVolume?, TSettings> With { get; init; }
         public required Func<TSettings, TField?> Field { get; init; }
-        // Некоторые модели создают исходный шум вокруг равновесия, зависящего от коэффициентов.
+        // Исходное поле может зависеть от коэффициентов: равновесие Тьюринга, размер затравки Lenia.
         public bool FreezeInitialField { get; init; }
     }
     private readonly SimulationOptions _options;
