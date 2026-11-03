@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -10,6 +11,7 @@ namespace FractalExplorerWPF.Controls;
 public partial class SwiftHohenberg3DEditor : UserControl, IFractal3DSimulationEditor<SwiftHohenberg3DSettings>
 {
     private readonly IFractal3DSimulationHost _host;
+    private readonly List<SwiftHohenberg3DSettings> _atlasHistory = [];
     private bool _loading = true;
 
     internal SwiftHohenberg3DEditor(IFractal3DSimulationHost host)
@@ -22,7 +24,7 @@ public partial class SwiftHohenberg3DEditor : UserControl, IFractal3DSimulationE
             Live = s => s.Live, Field = s => s.Field, With = (s, live, field) => s with { Live = live, Field = field },
             InitialSteps = s => s.Field is null ? s.WarmupSteps : 0,
             PreparationMessage = _ => "Подготовка пространственного узора…",
-            Time = (shown, s) => $"Шаг {shown?.Step ?? s.Field?.Step ?? 0:N0} · t = {(shown?.Step ?? s.Field?.Step ?? 0) * s.TimeStep:F2} · {s.Size}³",
+            Time = (shown, s) => $"Шаг {shown?.Step ?? s.Field?.Step ?? 0:N0} · Δt = {s.TimeStep:G6} · {s.Size}³",
             ProgressMessage = (done, steps) => $"Подготовка узора · {(int)(100L * done / Math.Max(1, steps))}%"
         });
         _loading = false;
@@ -34,14 +36,34 @@ public partial class SwiftHohenberg3DEditor : UserControl, IFractal3DSimulationE
     public bool IsSearching => false;
     public void CancelSearch() { }
 
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(SwiftHohenberg3DSettings result, SwiftHohenberg3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное поле выбранного спектрального прогона.");
+        result.Validate(); Simulation.Restart(result);
+        _atlasHistory.Add(previous with { Live = null });
+        if (_atlasHistory.Count > 4) _atlasHistory.RemoveAt(0);
+        Refresh(); _host.ShowStatus($"Вариант атласа · шаг {result.Field.Step:N0}. Исходное поле доступно через «Вернуть предыдущий».");
+    }
+
+    private void AtlasUndo_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_atlasHistory.Count == 0 || Simulation.Busy || Simulation.Preparing || _host.IsSuspended || _host.IsClosing) return;
+        var previous = _atlasHistory[^1];
+        Simulation.Restart(previous); _atlasHistory.RemoveAt(_atlasHistory.Count - 1);
+        Refresh(); _host.ShowStatus("Восстановлено предыдущее поле Свифта–Хоэнберга 3D.");
+    }
+
     public void Show(SwiftHohenberg3DSettings s)
     {
         _loading = true;
         try
         {
             ShSizeBox.SelectedIndex = s.Size switch { 32 => 0, 128 => 2, _ => 1 };
-            ShRBox.Text = Format(s.R); ShBBox.Text = Format(s.Quadratic); ShQBox.Text = Format(s.WaveNumber);
-            ShSpacingBox.Text = Format(s.Spacing); ShDtBox.Text = Format(s.TimeStep); ShNoiseBox.Text = Format(s.Noise);
+            ShRBox.Text = s.R.ToString("R", CultureInfo.InvariantCulture); ShBBox.Text = s.Quadratic.ToString("R", CultureInfo.InvariantCulture); ShQBox.Text = s.WaveNumber.ToString("R", CultureInfo.InvariantCulture);
+            ShSpacingBox.Text = s.Spacing.ToString("R", CultureInfo.InvariantCulture); ShDtBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture); ShNoiseBox.Text = s.Noise.ToString("R", CultureInfo.InvariantCulture);
             ShSeedBox.SelectedIndex = (int)s.SeedShape; ShSeedNumberBox.Text = s.Seed.ToString(); ShWarmupBox.Text = s.WarmupSteps.ToString();
             ShSpeedSlider.Value = s.StepsPerFrame; ShViewBox.SelectedIndex = (int)s.View; ShRangeSlider.Value = s.DisplayRange;
             ShThresholdSlider.Value = s.Threshold; ShCutBox.SelectedIndex = s.CutAxis; ShCutSlider.Value = s.CutPosition;
@@ -61,6 +83,9 @@ public partial class SwiftHohenberg3DEditor : UserControl, IFractal3DSimulationE
     {
         ShDeviceText.Text = Simulation.Device; ShCutSlider.IsEnabled = ShCutBox.SelectedIndex > 0;
         ShBrushButton.IsEnabled = Simulation.CanBrush;
+        bool ready = Simulation.Shown is not null && !Simulation.ResetPending && !Simulation.Preparing && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready;
+        AtlasUndoButton.IsEnabled = ready && !Simulation.Busy && _atlasHistory.Count > 0;
     }
 
     private void ShRestart_OnClick(object sender, RoutedEventArgs e)

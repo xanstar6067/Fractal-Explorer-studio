@@ -198,6 +198,8 @@ internal static partial class Program
                 if (group == "excitable3d-atlas") return;
                 if (group is "all" or "ginzburg-landau3d-atlas") await VerifyGinzburgLandau3DAtlasAsync();
                 if (group == "ginzburg-landau3d-atlas") return;
+                if (group is "all" or "swift-hohenberg3d-atlas") await VerifySwiftHohenberg3DAtlasAsync();
+                if (group == "swift-hohenberg3d-atlas") return;
                 if (group == "lenia3d-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;

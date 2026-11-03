@@ -181,6 +181,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `GinzburgLandau3DAtlasWindow` — атлас c₁/c₃, шагов Δx/Δt, границ и трёх видов от общего Re/Im с проверкой устойчивости и точным возвратом (`GINZBURG_LANDAU3D.md`, проверка `ginzburg-landau3d-atlas`).
 
+`SwiftHohenberg3DAtlasWindow` — атлас r/b/q₀, Δx/Δt и трёх видов от общего проецированного φ с проверкой спектральной полосы и точным возвратом (`SWIFT_HOHENBERG3D.md`, проверка `swift-hohenberg3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

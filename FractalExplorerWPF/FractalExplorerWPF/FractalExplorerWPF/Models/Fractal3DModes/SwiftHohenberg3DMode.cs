@@ -53,7 +53,7 @@ internal sealed class SwiftHohenberg3DMode() : GpuSimulation3DMode(Fractal3DKind
             SwiftHohenberg3DView.Interfaces => "границы φ ≈ 0", _ => "положительная фаза" };
         return $"{prefix} · сетка {s.Size}³ · периодические границы\n" +
             $"r = {s.R:G4} · b = {s.Quadratic:G4} · q₀ = {s.WaveNumber:G4} · λ₀ = {Math.Tau / s.WaveNumber:G4}\n" +
-            (s.Field is { } f ? $"Шаг {f.Step:N0} · t = {f.Step * s.TimeStep:G6}" : $"Новое поле, {s.WarmupSteps} шагов подготовки") +
+            (s.Field is { } f ? $"Шаг {f.Step:N0}" : $"Новое поле, {s.WarmupSteps} шагов подготовки") +
             $" · Δt = {s.TimeStep:G4} · Δx = {s.Spacing:G4}\n{view} · Палитра: {state.ResolvePalette().Name}";
     }
 }

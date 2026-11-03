@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void SwiftHohenbergAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.SwiftHohenberg3D) OpenShapeAtlas(CreateSwiftHohenbergAtlas);
+    }
+
+    private SwiftHohenberg3DAtlasWindow CreateSwiftHohenbergAtlas()
+    {
+        var editor = (SwiftHohenberg3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new SwiftHohenberg3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.SwiftHohenberg, source.SwiftHohenberg);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Свифта–Хоэнберга: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void GinzburgLandauAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.GinzburgLandau3D) OpenShapeAtlas(CreateGinzburgLandauAtlas);
