@@ -175,6 +175,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Lenia3DAtlasWindow` — атлас μ/σ, радиуса, обоих правил роста, Δt, активных весов оболочек и вида с общим полем и историей поиска (`LENIA3D.md`, проверка `lenia3d-atlas`).
 
+`Kobayashi3DAtlasWindow` — атлас анизотропии, границы, фазовой/тепловой динамики и вида от общего φ/T с точным переносом и возвратом камеры (`KOBAYASHI3D.md`, проверка `kobayashi3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

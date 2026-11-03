@@ -22,7 +22,7 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
         Fractal3DKind.CahnHilliard3D => CreateCahnHilliardSimulation(),
         Fractal3DKind.Lenia3D => CreateLeniaSimulation(),
         Fractal3DKind.Physarum3D => CreatePhysarumSimulation(),
-        Fractal3DKind.Kobayashi3D => new Kobayashi3DEditor(this).Simulation,
+        Fractal3DKind.Kobayashi3D => CreateKobayashiSimulation(),
         Fractal3DKind.Excitable3D => new Excitable3DEditor(this).Simulation,
         Fractal3DKind.GinzburgLandau3D => new GinzburgLandau3DEditor(this).Simulation,
         Fractal3DKind.SwiftHohenberg3D => new SwiftHohenberg3DEditor(this).Simulation,
@@ -62,6 +62,13 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
     {
         var editor = new Lenia3DEditor(this);
         editor.AtlasRequested += LeniaAtlas_OnClick;
+        return editor.Simulation;
+    }
+
+    private IFractal3DSimulationMode CreateKobayashiSimulation()
+    {
+        var editor = new Kobayashi3DEditor(this);
+        editor.AtlasRequested += KobayashiAtlas_OnClick;
         return editor.Simulation;
     }
 

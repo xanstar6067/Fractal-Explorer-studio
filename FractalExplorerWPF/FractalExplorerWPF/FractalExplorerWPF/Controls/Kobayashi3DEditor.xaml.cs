@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
@@ -48,19 +49,37 @@ public partial class Kobayashi3DEditor : UserControl, IFractal3DSimulationEditor
     public int StepsPerFrame => (int)KobSpeedSlider.Value;
     public bool IsSearching => _searchCts is not null;
 
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(Kobayashi3DSettings result, Kobayashi3DSettings previous, Fractal3DPose previousPose)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное поле φ/T выбранного прогона Кобаяси.");
+        result.Validate(); CancelSearch();
+        Simulation.Restart(result); Remember(previous, previousPose);
+        KobSearchStatus.Text = $"Вариант атласа · шаг {result.Field.Step:N0}. «Вернуть предыдущий кристалл» восстанавливает исходные φ/T и камеру.";
+        UpdateSearchButtons();
+    }
+
+    private void Remember(Kobayashi3DSettings previous, Fractal3DPose pose)
+    {
+        _searchHistory.Add((previous with { Live = null }, pose));
+        if (_searchHistory.Count > 4) _searchHistory.RemoveAt(0);
+    }
+
     public void Show(Kobayashi3DSettings s)
     {
         _loading = true;
         try
         {
             KobSizeBox.Text = s.Size.ToString();
-            KobWidthBox.Text = Format(s.InterfaceWidth); KobAnisotropyBox.Text = Format(s.Anisotropy);
-            KobMobilityBox.Text = Format(s.Mobility); KobDiffusionBox.Text = Format(s.ThermalDiffusion);
-            KobHeatBox.Text = Format(s.LatentHeat); KobColdBox.Text = Format(s.Undercooling);
-            KobNoiseBox.Text = Format(s.Noise); KobDtBox.Text = Format(s.TimeStep);
+            KobWidthBox.Text = s.InterfaceWidth.ToString("R", CultureInfo.InvariantCulture); KobAnisotropyBox.Text = s.Anisotropy.ToString("R", CultureInfo.InvariantCulture);
+            KobMobilityBox.Text = s.Mobility.ToString("R", CultureInfo.InvariantCulture); KobDiffusionBox.Text = s.ThermalDiffusion.ToString("R", CultureInfo.InvariantCulture);
+            KobHeatBox.Text = s.LatentHeat.ToString("R", CultureInfo.InvariantCulture); KobColdBox.Text = s.Undercooling.ToString("R", CultureInfo.InvariantCulture);
+            KobNoiseBox.Text = s.Noise.ToString("R", CultureInfo.InvariantCulture); KobDtBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture);
             KobWarmupBox.Text = s.WarmupSteps.ToString();
             KobSeedBox.SelectedIndex = (int)s.SeedShape; KobRandomBox.Text = s.Seed.ToString();
-            KobSeedRadiusBox.Text = Format(s.SeedRadius); KobSeedSpreadBox.Text = Format(s.SeedSpread);
+            KobSeedRadiusBox.Text = s.SeedRadius.ToString("R", CultureInfo.InvariantCulture); KobSeedSpreadBox.Text = s.SeedSpread.ToString("R", CultureInfo.InvariantCulture);
             KobSeedCountBox.Text = s.SeedCount.ToString();
             KobSpeedSlider.Value = s.StepsPerFrame; KobThresholdSlider.Value = s.Threshold;
             KobCutBox.SelectedIndex = s.CutAxis; KobCutSlider.Value = s.CutPosition;
@@ -182,8 +201,7 @@ public partial class Kobayashi3DEditor : UserControl, IFractal3DSimulationEditor
             var previousPose = _host.Pose;
             _searchCts = null;
             Apply(settings, fit: KobSearchFitBox.IsChecked == true);
-            _searchHistory.Add((previous, previousPose));
-            if (_searchHistory.Count > 4) _searchHistory.RemoveAt(0);
+            Remember(previous, previousPose);
             KobSearchProgress.Value = 100;
             KobSearchStatus.Text = $"Найден кристалл · проверено {found.Checked} форм. Продолжите рост или попробуйте вариацию.";
         }
@@ -263,6 +281,7 @@ public partial class Kobayashi3DEditor : UserControl, IFractal3DSimulationEditor
         bool searching = _searchCts is not null;
         var live = Simulation;
         bool ready = live.Shown is not null && !live.ResetPending && !live.Preparing && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready && !searching;
         KobSearchButton.Content = searching && !_searchVariation ? "Остановить поиск" : "Найти интересную форму";
         KobVariationButton.Content = searching && _searchVariation ? "Остановить поиск" : "Вариация текущей";
         KobSearchButton.IsEnabled = searching ? !_searchVariation : ready;

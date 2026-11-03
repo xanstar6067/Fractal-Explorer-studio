@@ -6,6 +6,7 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров…" Click="Atlas_OnClick"/>
         <Button x:Name="KobSearchButton" Content="Найти интересную форму" Click="KobSearch_OnClick"/>
         <Button x:Name="KobVariationButton" Content="Вариация текущей" Click="KobVariation_OnClick"/>
         <Button x:Name="KobSearchUndoButton" Content="Вернуть предыдущий кристалл" Click="KobSearchUndo_OnClick" IsEnabled="False"/>

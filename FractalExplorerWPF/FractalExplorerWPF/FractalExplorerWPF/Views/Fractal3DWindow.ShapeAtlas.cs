@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void KobayashiAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.Kobayashi3D) OpenShapeAtlas(CreateKobayashiAtlas);
+    }
+
+    private Kobayashi3DAtlasWindow CreateKobayashiAtlas()
+    {
+        var editor = (Kobayashi3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas"); var sourcePose = Pose;
+        var atlas = new Kobayashi3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.Kobayashi, source.Kobayashi, sourcePose);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Кобаяси: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void LeniaAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.Lenia3D) OpenShapeAtlas(CreateLeniaAtlas);

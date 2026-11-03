@@ -192,6 +192,8 @@ internal static partial class Program
                 if (group is "all" or "physarum3d-atlas") await VerifyPhysarum3DAtlasAsync();
                 if (group == "physarum3d-atlas") return;
                 if (group is "all" or "lenia3d-atlas") await VerifyLenia3DAtlasAsync();
+                if (group is "all" or "kobayashi3d-atlas") await VerifyKobayashi3DAtlasAsync();
+                if (group == "kobayashi3d-atlas") return;
                 if (group == "lenia3d-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
