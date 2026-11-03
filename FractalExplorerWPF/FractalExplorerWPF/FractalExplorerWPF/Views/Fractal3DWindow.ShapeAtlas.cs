@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void CahnHilliardAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.CahnHilliard3D) OpenShapeAtlas(CreateCahnHilliardAtlas);
+    }
+
+    private CahnHilliard3DAtlasWindow CreateCahnHilliardAtlas()
+    {
+        var editor = (CahnHilliard3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new CahnHilliard3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.CahnHilliard, source.CahnHilliard);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Кана–Хиллиарда: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void TuringAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.Turing3D) OpenShapeAtlas(CreateTuringAtlas);

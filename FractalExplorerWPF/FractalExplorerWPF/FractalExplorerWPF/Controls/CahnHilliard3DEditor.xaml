@@ -6,6 +6,8 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров" Margin="0,0,0,6" Click="Atlas_OnClick"/>
+        <Button x:Name="AtlasUndoButton" Content="Вернуть предыдущий" Margin="0,0,0,6" IsEnabled="False" Click="AtlasUndo_OnClick"/>
         <TextBlock Text="∂c/∂t = M ∇²(c³ − c − κ ∇²c)" TextWrapping="Wrap" Margin="0,4,0,8"/>
         <TextBlock x:Name="CahnDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
         <TextBlock Style="{StaticResource FieldCaption}" Text="Сетка по каждой оси"/>

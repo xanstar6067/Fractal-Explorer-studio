@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -11,6 +12,7 @@ namespace FractalExplorerWPF.Controls;
 public partial class CahnHilliard3DEditor : UserControl, IFractal3DSimulationEditor<CahnHilliard3DSettings>
 {
     private readonly IFractal3DSimulationHost _host;
+    private readonly List<CahnHilliard3DSettings> _atlasHistory = [];
     // Обработчики полей молчат, пока панель создаётся или заполняется сохранёнными значениями.
     private bool _loading = true;
 
@@ -43,14 +45,35 @@ public partial class CahnHilliard3DEditor : UserControl, IFractal3DSimulationEdi
     public void CancelSearch() { }
     public bool TryBrush(MouseButtonEventArgs e) => false;
 
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(CahnHilliard3DSettings result, CahnHilliard3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное поле выбранного прогона.");
+        result.Validate();
+        _atlasHistory.Add(previous with { Live = null });
+        if (_atlasHistory.Count > 4) _atlasHistory.RemoveAt(0);
+        Simulation.Restart(result); AtlasUndoButton.IsEnabled = true;
+        _host.ShowStatus($"Вариант атласа · t = {result.Field.Time:G6}, шаг {result.Field.Step:N0}. Исходное поле доступно через «Вернуть предыдущий».");
+    }
+
+    private void AtlasUndo_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_atlasHistory.Count == 0) return;
+        var previous = _atlasHistory[^1]; _atlasHistory.RemoveAt(_atlasHistory.Count - 1);
+        Simulation.Restart(previous); AtlasUndoButton.IsEnabled = _atlasHistory.Count > 0;
+        _host.ShowStatus("Восстановлено предыдущее поле Кана–Хиллиарда 3D.");
+    }
+
     public void Show(CahnHilliard3DSettings s)
     {
         _loading = true;
         try
         {
             CahnSizeBox.SelectedIndex = s.Size == 32 ? 0 : s.Size == 64 ? 1 : 2;
-            CahnMeanBox.Text = Format(s.Mean); CahnNoiseBox.Text = Format(s.Noise);
-            CahnKappaBox.Text = Format(s.Kappa); CahnMobilityBox.Text = Format(s.Mobility); CahnDtBox.Text = Format(s.TimeStep);
+            CahnMeanBox.Text = s.Mean.ToString("R", CultureInfo.InvariantCulture); CahnNoiseBox.Text = s.Noise.ToString("R", CultureInfo.InvariantCulture);
+            CahnKappaBox.Text = s.Kappa.ToString("R", CultureInfo.InvariantCulture); CahnMobilityBox.Text = s.Mobility.ToString("R", CultureInfo.InvariantCulture); CahnDtBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture);
             CahnSeedBox.SelectedIndex = (int)s.SeedShape; CahnRandomBox.Text = s.Seed.ToString();
             CahnWarmupBox.Text = s.WarmupSteps.ToString();
             CahnSpeedSlider.Value = s.StepsPerFrame; CahnLevelSlider.Value = s.Level;

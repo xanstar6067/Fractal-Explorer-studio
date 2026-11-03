@@ -187,6 +187,8 @@ internal static partial class Program
                 if (group == "gray-scott3d-atlas") return;
                 if (group is "all" or "turing3d-atlas") await VerifyTuring3DAtlasAsync();
                 if (group == "turing3d-atlas") return;
+                if (group is "all" or "cahn-hilliard3d-atlas") await VerifyCahnHilliard3DAtlasAsync();
+                if (group == "cahn-hilliard3d-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;
                 if (group is "all" or "bulbbox-hybrid") await VerifyBulbBoxHybridAsync(args);

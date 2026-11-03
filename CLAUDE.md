@@ -169,6 +169,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Turing3DAtlasWindow` — атлас активных параметров четырёх реакций, масштабов и вида с общим полем, точным переносом и возвратом (`TURING3D.md`, проверка `turing3d-atlas`).
 
+`CahnHilliard3DAtlasWindow` — атлас κ, M, Δt, уровня, фазы и среза с общим полем, сохранением состава и точным переносом времени (`CAHN_HILLIARD3D.md`, проверка `cahn-hilliard3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна
