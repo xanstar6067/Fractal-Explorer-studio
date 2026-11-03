@@ -6,6 +6,7 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров" Margin="0,0,0,6" Click="Atlas_OnClick"/>
         <TextBlock Text="Агенты чувствуют след, выбирают путь и оставляют новые нити. Сеть непрерывно перестраивается." TextWrapping="Wrap" Margin="0,4,0,8"/>
         <TextBlock x:Name="PhysarumDeviceText" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
         <Expander Header="Поиск интересных форм" IsExpanded="True" Margin="0,8,0,4"><StackPanel>

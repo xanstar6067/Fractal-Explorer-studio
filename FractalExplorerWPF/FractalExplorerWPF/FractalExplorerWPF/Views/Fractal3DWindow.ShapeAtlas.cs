@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void PhysarumAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.Physarum3D) OpenShapeAtlas(CreatePhysarumAtlas);
+    }
+
+    private Physarum3DAtlasWindow CreatePhysarumAtlas()
+    {
+        var editor = (Physarum3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new Physarum3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.Physarum, source.Physarum);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Physarum: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void CahnHilliardAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.CahnHilliard3D) OpenShapeAtlas(CreateCahnHilliardAtlas);

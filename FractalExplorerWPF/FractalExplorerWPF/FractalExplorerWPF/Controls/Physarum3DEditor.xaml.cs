@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -50,6 +51,25 @@ public partial class Physarum3DEditor : UserControl, IFractal3DSimulationEditor<
     public bool IsSearching => _searchCts is not null;
     public bool TryBrush(MouseButtonEventArgs e) => false;
 
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(Physarum3DSettings result, Physarum3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужен точный снимок следа и всех агентов.");
+        result.Validate(); CancelSearch();
+        Simulation.Restart(result);
+        Remember(previous);
+        PhysarumSearchStatus.Text = $"Вариант атласа · шаг {result.Field.Step:N0}. «Вернуть предыдущую сеть» восстанавливает исходный снимок.";
+        UpdateSearchButtons();
+    }
+
+    private void Remember(Physarum3DSettings previous)
+    {
+        _searchHistory.Add(previous with { Live = null });
+        if (_searchHistory.Count > 4) _searchHistory.RemoveAt(0);
+    }
+
     public void Show(Physarum3DSettings s)
     {
         _loading = true;
@@ -57,10 +77,10 @@ public partial class Physarum3DEditor : UserControl, IFractal3DSimulationEditor<
         {
             PhysarumSizeBox.SelectedIndex = Array.IndexOf(Sizes, s.Size);
             PhysarumCountBox.Text = s.AgentCount.ToString();
-            PhysarumSensorBox.Text = Format(s.SensorDistance); PhysarumAngleBox.Text = Format(s.SensorAngle);
-            PhysarumTurnBox.Text = Format(s.TurnAngle); PhysarumMoveBox.Text = Format(s.Speed);
-            PhysarumDepositBox.Text = Format(s.Deposit); PhysarumDiffusionBox.Text = Format(s.Diffusion);
-            PhysarumDecayBox.Text = Format(s.Decay); PhysarumSeedBox.SelectedIndex = (int)s.SeedShape;
+            PhysarumSensorBox.Text = s.SensorDistance.ToString("R", CultureInfo.InvariantCulture); PhysarumAngleBox.Text = s.SensorAngle.ToString("R", CultureInfo.InvariantCulture);
+            PhysarumTurnBox.Text = s.TurnAngle.ToString("R", CultureInfo.InvariantCulture); PhysarumMoveBox.Text = s.Speed.ToString("R", CultureInfo.InvariantCulture);
+            PhysarumDepositBox.Text = s.Deposit.ToString("R", CultureInfo.InvariantCulture); PhysarumDiffusionBox.Text = s.Diffusion.ToString("R", CultureInfo.InvariantCulture);
+            PhysarumDecayBox.Text = s.Decay.ToString("R", CultureInfo.InvariantCulture); PhysarumSeedBox.SelectedIndex = (int)s.SeedShape;
             PhysarumRandomBox.Text = s.Seed.ToString(); PhysarumWarmupBox.Text = s.WarmupSteps.ToString();
             PhysarumSpeedSlider.Value = s.StepsPerFrame; PhysarumLevelSlider.Value = s.Threshold;
             PhysarumExposureSlider.Value = s.Exposure;
@@ -163,8 +183,7 @@ public partial class Physarum3DEditor : UserControl, IFractal3DSimulationEditor<
                 CutAxis = Math.Max(0, PhysarumCutBox.SelectedIndex), CutPosition = PhysarumCutSlider.Value };
             _searchCts = null;
             live.Restart(settings);
-            _searchHistory.Add(previous);
-            if (_searchHistory.Count > 4) _searchHistory.RemoveAt(0);
+            Remember(previous);
             PhysarumSearchProgress.Value = 100;
             PhysarumSearchStatus.Text = $"Найдена сеть · проверено {found.Checked} форм. Продолжите развитие или попробуйте вариацию.";
         }
@@ -198,6 +217,7 @@ public partial class Physarum3DEditor : UserControl, IFractal3DSimulationEditor<
     {
         bool searching = _searchCts is not null;
         bool ready = !Simulation.Preparing && Simulation.Shown is not null && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready && !searching;
         PhysarumSearchButton.Content = searching && !_searchVariation ? "Остановить поиск" : "Найти интересную форму";
         PhysarumVariationButton.Content = searching && _searchVariation ? "Остановить поиск" : "Вариация текущей";
         PhysarumSearchButton.IsEnabled = searching ? !_searchVariation : ready;

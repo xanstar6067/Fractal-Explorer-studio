@@ -171,6 +171,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `CahnHilliard3DAtlasWindow` — атлас κ, M, Δt, уровня, фазы и среза с общим полем, сохранением состава и точным переносом времени (`CAHN_HILLIARD3D.md`, проверка `cahn-hilliard3d-atlas`).
 
+`Physarum3DAtlasWindow` — атлас чувств, движения, памяти следа и вида с общим снимком следа/агентов и сохранением истории поиска (`PHYSARUM3D.md`, проверка `physarum3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

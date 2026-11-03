@@ -582,6 +582,8 @@ internal static class Program
                     await CaptureChildAsync(w, new Turing3DAtlasWindow(turingAtlas.CaptureState("atlas")), "turing3d-atlas");
                 if (w is Fractal3DWindow cahnAtlas && fractal3DKind == Fractal3DKind.CahnHilliard3D)
                     await CaptureChildAsync(w, new CahnHilliard3DAtlasWindow(cahnAtlas.CaptureState("atlas")), "cahn-hilliard3d-atlas");
+                if (w is Fractal3DWindow physarumAtlas && fractal3DKind == Fractal3DKind.Physarum3D)
+                    await CaptureChildAsync(w, new Physarum3DAtlasWindow(physarumAtlas.CaptureState("atlas")), "physarum3d-atlas");
                 if (w != null && fractal3DKind == Fractal3DKind.Mandelbulb)
                 {
                     object mgr = GetMember(w, "_paletteManager")!;
