@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -11,6 +12,7 @@ namespace FractalExplorerWPF.Controls;
 public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor<Excitable3DSettings>
 {
     private readonly IFractal3DSimulationHost _host;
+    private readonly List<Excitable3DSettings> _atlasHistory = [];
     // Обработчики полей молчат, пока панель создаётся или заполняется сохранёнными значениями.
     private bool _loading = true;
 
@@ -32,7 +34,7 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
             Time = (shown, s) =>
             {
                 long step = shown?.Step ?? s.Field?.Step ?? 0;
-                return $"Шаг {step:N0} · t = {step * s.TimeStep:F2} · {s.Size}³";
+                return $"Шаг {step:N0} · Δt = {s.TimeStep:G6} · {s.Size}³";
             },
             ProgressMessage = (done, steps) => $"Подготовка свитка · {(int)(100L * done / Math.Max(1, steps))}%"
         });
@@ -45,6 +47,27 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
     public int StepsPerFrame => (int)ExSpeedSlider.Value;
     public bool IsSearching => false;
     public void CancelSearch() { }
+
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(Excitable3DSettings result, Excitable3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное U/V выбранного прогона.");
+        result.Validate(); Simulation.Restart(result);
+        _atlasHistory.Add(previous with { Live = null });
+        if (_atlasHistory.Count > 4) _atlasHistory.RemoveAt(0);
+        Refresh();
+        _host.ShowStatus($"Вариант атласа · шаг {result.Field.Step:N0}. Исходное U/V доступно через «Вернуть предыдущий».");
+    }
+
+    private void AtlasUndo_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_atlasHistory.Count == 0 || Simulation.Busy || Simulation.Preparing || _host.IsSuspended || _host.IsClosing) return;
+        var previous = _atlasHistory[^1];
+        Simulation.Restart(previous); _atlasHistory.RemoveAt(_atlasHistory.Count - 1);
+        Refresh(); _host.ShowStatus("Восстановлено предыдущее U/V возбудимой среды 3D.");
+    }
 
     public void Show(Excitable3DSettings s)
     {
@@ -65,10 +88,10 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
 
     private void FillEquation(Excitable3DSettings s)
     {
-        ExABox.Text = Format(s.A); ExBBox.Text = Format(s.B); ExEpsilonBox.Text = Format(s.Epsilon);
-        ExMu1Box.Text = Format(s.Mu1); ExMu2Box.Text = Format(s.Mu2);
-        ExDuBox.Text = Format(s.DiffusionU); ExDvBox.Text = Format(s.DiffusionV);
-        ExDtBox.Text = Format(s.TimeStep); ExSpacingBox.Text = Format(s.Spacing);
+        ExABox.Text = s.A.ToString("R", CultureInfo.InvariantCulture); ExBBox.Text = s.B.ToString("R", CultureInfo.InvariantCulture); ExEpsilonBox.Text = s.Epsilon.ToString("R", CultureInfo.InvariantCulture);
+        ExMu1Box.Text = s.Mu1.ToString("R", CultureInfo.InvariantCulture); ExMu2Box.Text = s.Mu2.ToString("R", CultureInfo.InvariantCulture);
+        ExDuBox.Text = s.DiffusionU.ToString("R", CultureInfo.InvariantCulture); ExDvBox.Text = s.DiffusionV.ToString("R", CultureInfo.InvariantCulture);
+        ExDtBox.Text = s.TimeStep.ToString("R", CultureInfo.InvariantCulture); ExSpacingBox.Text = s.Spacing.ToString("R", CultureInfo.InvariantCulture);
         ExMuPanel.Visibility = s.Model == Excitable3DModel.AlievPanfilov ? Visibility.Visible : Visibility.Collapsed;
         (ExALabel.Text, ExBLabel.Text, ExEquationText.Text) = s.Model switch
         {
@@ -91,6 +114,9 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
         ExDeviceText.Text = Simulation.Device;
         ExCutSlider.IsEnabled = ExCutBox.SelectedIndex > 0;
         ExBrushButton.IsEnabled = Simulation.CanBrush;
+        bool ready = Simulation.Shown is not null && !Simulation.ResetPending && !Simulation.Preparing && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready;
+        AtlasUndoButton.IsEnabled = ready && !Simulation.Busy && _atlasHistory.Count > 0;
     }
 
     private void ExModel_OnChanged(object sender, SelectionChangedEventArgs e)
@@ -110,7 +136,8 @@ public partial class Excitable3DEditor : UserControl, IFractal3DSimulationEditor
                 Model = (Excitable3DModel)Math.Max(0, ExModelBox.SelectedIndex),
                 Size = ReadInt(ExSizeBox, "Сетка", 32, 128), A = ReadDouble(ExABox, "Параметр A", .0001, 3),
                 B = ReadDouble(ExBBox, "Параметр B", .0001, 12), Epsilon = ReadDouble(ExEpsilonBox, "ε", .005, .5),
-                Mu1 = ReadDouble(ExMu1Box, "μ₁", .01, .5), Mu2 = ReadDouble(ExMu2Box, "μ₂", .1, 1),
+                Mu1 = ExModelBox.SelectedIndex == 3 ? ReadDouble(ExMu1Box, "μ₁", .01, .5) : Simulation.Settings.Mu1,
+                Mu2 = ExModelBox.SelectedIndex == 3 ? ReadDouble(ExMu2Box, "μ₂", .1, 1) : Simulation.Settings.Mu2,
                 DiffusionU = ReadDouble(ExDuBox, "Диффузия U", .01, 2), DiffusionV = ReadDouble(ExDvBox, "Диффузия V", 0, 1),
                 TimeStep = ReadDouble(ExDtBox, "Шаг времени", .0001, .02), Spacing = ReadDouble(ExSpacingBox, "Шаг сетки", .25, 2),
                 WarmupSteps = ReadInt(ExWarmupBox, "Подготовка", 0, 20000),

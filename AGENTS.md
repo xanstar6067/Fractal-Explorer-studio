@@ -177,6 +177,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `Kobayashi3DAtlasWindow` — атлас анизотропии, границы, фазовой/тепловой динамики и вида от общего φ/T с точным переносом и возвратом камеры (`KOBAYASHI3D.md`, проверка `kobayashi3d-atlas`).
 
+`Excitable3DAtlasWindow` — атлас активных коэффициентов четырёх возбудимых моделей, диффузии, границ и вида от общего U/V с точным переносом и возвратом (`EXCITABLE3D.md`, проверка `excitable3d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

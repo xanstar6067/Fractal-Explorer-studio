@@ -6,6 +6,8 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров…" Click="Atlas_OnClick"/>
+        <Button x:Name="AtlasUndoButton" Content="Вернуть предыдущий" Click="AtlasUndo_OnClick" IsEnabled="False"/>
         <TextBlock Style="{StaticResource FieldCaption}" Text="Модель возбудимой среды"/>
         <ComboBox x:Name="ExModelBox" SelectionChanged="ExModel_OnChanged">
             <ComboBoxItem Content="Баркли"/><ComboBoxItem Content="Oregonator · Белоусов–Жаботинский"/>

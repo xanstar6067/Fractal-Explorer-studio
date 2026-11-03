@@ -50,7 +50,7 @@ internal sealed class Excitable3DMode() : GpuSimulation3DMode(Fractal3DKind.Exci
         var s = state.Excitable;
         string view = s.View switch { Excitable3DView.Filaments => "вихревые нити", Excitable3DView.WavesAndFilaments => "волны и нити", _ => "фронты волн" };
         return $"{prefix} · {s.Name} · сетка {s.Size}³\n" +
-            (s.Field is { } field ? $"Шаг {field.Step:N0} · t = {field.Step * s.TimeStep:G6}" : $"Новая среда, {s.InitialSteps} шагов подготовки") +
+            (s.Field is { } field ? $"Шаг {field.Step:N0}" : $"Новая среда, {s.InitialSteps} шагов подготовки") +
             $" · ε = {s.Epsilon:G4} · Δt = {s.TimeStep:G4}\n" +
             $"{view} · {(s.Boundary == Excitable3DBoundary.Periodic ? "периодические границы" : "непроницаемые стенки")}\n" +
             $"Палитра: {state.ResolvePalette().Name} · Окраска: {ColoringModeName(state.ColoringMode)}";

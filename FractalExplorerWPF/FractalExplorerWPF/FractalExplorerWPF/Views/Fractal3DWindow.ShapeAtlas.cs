@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void ExcitableAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.Excitable3D) OpenShapeAtlas(CreateExcitableAtlas);
+    }
+
+    private Excitable3DAtlasWindow CreateExcitableAtlas()
+    {
+        var editor = (Excitable3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new Excitable3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.Excitable, source.Excitable);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант возбудимой среды: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void KobayashiAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.Kobayashi3D) OpenShapeAtlas(CreateKobayashiAtlas);
