@@ -11,12 +11,13 @@ namespace FractalExplorerWPF.Controls;
 /// <summary>
 /// Панель узоров Тьюринга 3D. Форма, симметрия и масштабы применяются к текущему полю перед
 /// следующей порцией шагов, время при этом не сбрасывается; смена модели реакции начинает новое
-/// поле. В оперативную память поле попадает лишь при сохранении и переносе на другую сетку.
+/// поле. Поле считывается в оперативную память при сохранении, переносе сетки и работе атласа.
 /// </summary>
 public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Turing3DSettings>
 {
     private readonly IFractal3DSimulationHost _host;
     private readonly List<(CheckBox Enabled, TextBox Radius, TextBox Amount)> _layerRows = [];
+    private readonly List<Turing3DSettings> _atlasHistory = [];
     // Обработчики полей молчат, пока панель создаётся или заполняется сохранёнными значениями.
     private bool _loading = true;
 
@@ -49,6 +50,27 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
     public int StepsPerFrame => (int)TuringSpeedSlider.Value;
     public bool IsSearching => false;
     public void CancelSearch() { }
+
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(Turing3DSettings result, Turing3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное поле выбранного прогона.");
+        result.Validate();
+        _atlasHistory.Add(previous with { Live = null });
+        if (_atlasHistory.Count > 4) _atlasHistory.RemoveAt(0);
+        Simulation.Restart(result); AtlasUndoButton.IsEnabled = true;
+        _host.ShowStatus($"Вариант атласа · шаг {result.Field.Step:N0}. Исходное поле доступно через «Вернуть предыдущий».");
+    }
+
+    private void AtlasUndo_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_atlasHistory.Count == 0) return;
+        var previous = _atlasHistory[^1]; _atlasHistory.RemoveAt(_atlasHistory.Count - 1);
+        Simulation.Restart(previous); AtlasUndoButton.IsEnabled = _atlasHistory.Count > 0;
+        _host.ShowStatus("Восстановлено предыдущее поле Тьюринга 3D.");
+    }
 
     public void Show(Turing3DSettings s)
     {
@@ -84,22 +106,22 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
 
     public Turing3DSettings CaptureView(Turing3DSettings applied) => applied with
     {
-        Level = Math.Round(TuringLevelSlider.Value, 3),
-        SheetThickness = TuringSheetBox.IsChecked == true ? Math.Round(TuringSheetSlider.Value, 3) : 0,
+        Level = TuringLevelSlider.Value,
+        SheetThickness = TuringSheetBox.IsChecked == true ? TuringSheetSlider.Value : 0,
         CutAxis = Math.Max(0, TuringCutBox.SelectedIndex), CutPosition = TuringCutSlider.Value,
         StepsPerFrame = (int)TuringSpeedSlider.Value,
         Brush = (TuringBrush)Math.Max(0, TuringBrushBox.SelectedIndex),
-        BrushRadius = Math.Round(TuringBrushRadiusSlider.Value, 3), BrushStrength = Math.Round(TuringBrushStrengthSlider.Value, 3)
+        BrushRadius = TuringBrushRadiusSlider.Value, BrushStrength = TuringBrushStrengthSlider.Value
     };
 
     /// <summary>Правило из ползунков формы поверх применённого; масштабы меняются отдельно.</summary>
     private Turing3DSettings CaptureRule() => Simulation.Settings with
     {
         Region = (Turing3DRegion)Math.Max(0, TuringRegionBox.SelectedIndex),
-        ShellThickness = Math.Round(TuringShellSlider.Value, 3),
-        DetailSize = Math.Round(TuringDetailSlider.Value, 3),
-        EvolutionRate = Math.Round(TuringRateSlider.Value, 3),
-        InhibitorRatio = Math.Round(TuringRatioSlider.Value, 3),
+        ShellThickness = TuringShellSlider.Value,
+        DetailSize = TuringDetailSlider.Value,
+        EvolutionRate = TuringRateSlider.Value,
+        InhibitorRatio = TuringRatioSlider.Value,
         Symmetry = (Turing3DSymmetry)Math.Max(0, TuringSymmetryBox.SelectedIndex),
         Arms = (int)TuringArmsSlider.Value,
         Mirror = TuringMirrorBox.IsChecked == true,
@@ -117,8 +139,8 @@ public partial class Turing3DEditor : UserControl, IFractal3DSimulationEditor<Tu
             row.ColumnDefinitions.Add(new ColumnDefinition());
             row.ColumnDefinitions.Add(new ColumnDefinition());
             var enabled = new CheckBox { IsChecked = layer.Enabled, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Масштаб участвует в соревновании" };
-            var radius = new TextBox { Text = layer.Radius.ToString("G6", CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 4, 0) };
-            var amount = new TextBox { Text = layer.Amount.ToString("G6", CultureInfo.InvariantCulture) };
+            var radius = new TextBox { Text = layer.Radius.ToString("R", CultureInfo.InvariantCulture), Margin = new Thickness(0, 0, 4, 0) };
+            var amount = new TextBox { Text = layer.Amount.ToString("R", CultureInfo.InvariantCulture) };
             Grid.SetColumn(radius, 1); Grid.SetColumn(amount, 2);
             row.Children.Add(enabled); row.Children.Add(radius); row.Children.Add(amount);
             TuringLayersPanel.Children.Add(row);

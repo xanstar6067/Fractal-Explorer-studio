@@ -20,15 +20,18 @@ public abstract class GpuSimulationParameterAtlasWindow<TSettings, TField, TVolu
         public required Func<Direct3DDeviceHost, TSettings, GpuVolumeSimulation<TSettings, TField, TVolume>> Create { get; init; }
         public required Func<TSettings, TField?, TVolume?, TSettings> With { get; init; }
         public required Func<TSettings, TField?> Field { get; init; }
+        // Некоторые модели создают исходный шум вокруг равновесия, зависящего от коэффициентов.
+        public bool FreezeInitialField { get; init; }
     }
     private readonly SimulationOptions _options;
-    private readonly TField? _initial;
+    private TField? _initial;
+    private readonly TSettings _initialSettings;
     private GpuVolumeSimulation<TSettings, TField, TVolume>? _simulation;
     private TVolume? _volume;
     private TextBox _stepsBox = null!;
 
     protected GpuSimulationParameterAtlasWindow(Fractal3DState source, SimulationOptions options) : base(source)
-    { _options = options; _initial = options.Field(options.Get(source)); }
+    { _options = options; _initialSettings = options.With(options.Get(source), options.Field(options.Get(source)), null); _initial = options.Field(_initialSettings); }
 
     protected void AddTrialSteps(int steps)
     {
@@ -49,10 +52,18 @@ public abstract class GpuSimulationParameterAtlasWindow<TSettings, TField, TVolu
     }
     private async Task RunTrialAsync(Fractal3DState state, int steps, CancellationToken token)
     {
-        var settings = _options.With(_options.Get(state), _initial, null);
+        TSettings settings = _options.Get(state);
         var live = await Task.Run(() =>
         {
             token.ThrowIfCancellationRequested();
+            if (_initial is null && _options.FreezeInitialField)
+            {
+                if (_simulation is null) _simulation = _options.Create(PreviewDevice, _initialSettings);
+                else _simulation.Reset(_initialSettings);
+                _initial = _simulation.ReadCheckpoint(_simulation.Publish());
+                token.ThrowIfCancellationRequested();
+            }
+            settings = _options.With(settings, _initial, null);
             if (_simulation is null) _simulation = _options.Create(PreviewDevice, settings);
             else _simulation.Reset(settings);
             _simulation.Advance(steps, token);

@@ -24,8 +24,8 @@ public partial class TuringReactionEditor : UserControl
     {
         _loading = true; Settings = settings;
         ModelBox.SelectedIndex = (int)settings.Model;
-        ABox.Text = settings.A.ToString("G6", CultureInfo.InvariantCulture); BBox.Text = settings.B.ToString("G6", CultureInfo.InvariantCulture);
-        DuBox.Text = settings.DiffusionU.ToString("G6", CultureInfo.InvariantCulture); DvBox.Text = settings.DiffusionV.ToString("G6", CultureInfo.InvariantCulture);
+        ABox.Text = settings.A.ToString("R", CultureInfo.InvariantCulture); BBox.Text = settings.B.ToString("R", CultureInfo.InvariantCulture);
+        DuBox.Text = settings.DiffusionU.ToString("R", CultureInfo.InvariantCulture); DvBox.Text = settings.DiffusionV.ToString("R", CultureInfo.InvariantCulture);
         ReactionPanel.Visibility = settings.IsClassical ? Visibility.Visible : Visibility.Collapsed;
         FormulaText.Text = settings.Model switch
         {

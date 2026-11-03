@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void TuringAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.Turing3D) OpenShapeAtlas(CreateTuringAtlas);
+    }
+
+    private Turing3DAtlasWindow CreateTuringAtlas()
+    {
+        var editor = (Turing3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new Turing3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.Turing, source.Turing);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант Тьюринга: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void GrayScottAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.GrayScott3D) OpenShapeAtlas(CreateGrayScottAtlas);

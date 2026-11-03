@@ -18,7 +18,7 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
     private IFractal3DSimulationMode? CreateSimulation() => Kind switch
     {
         Fractal3DKind.GrayScott3D => CreateGrayScottSimulation(),
-        Fractal3DKind.Turing3D => new Turing3DEditor(this).Simulation,
+        Fractal3DKind.Turing3D => CreateTuringSimulation(),
         Fractal3DKind.CahnHilliard3D => new CahnHilliard3DEditor(this).Simulation,
         Fractal3DKind.Lenia3D => new Lenia3DEditor(this).Simulation,
         Fractal3DKind.Physarum3D => new Physarum3DEditor(this).Simulation,
@@ -34,6 +34,13 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
     {
         var editor = new GrayScott3DEditor(this);
         editor.AtlasRequested += GrayScottAtlas_OnClick;
+        return editor.Simulation;
+    }
+
+    private IFractal3DSimulationMode CreateTuringSimulation()
+    {
+        var editor = new Turing3DEditor(this);
+        editor.AtlasRequested += TuringAtlas_OnClick;
         return editor.Simulation;
     }
 

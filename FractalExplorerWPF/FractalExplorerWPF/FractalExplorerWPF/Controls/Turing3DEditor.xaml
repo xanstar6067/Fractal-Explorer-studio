@@ -6,6 +6,8 @@
         <ResourceDictionary Source="Fractal3DPanelStyles.xaml"/>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров" Margin="0,0,0,6" Click="Atlas_OnClick"/>
+        <Button x:Name="AtlasUndoButton" Content="Вернуть предыдущий" Margin="0,0,0,6" IsEnabled="False" Click="AtlasUndo_OnClick"/>
         <c:TuringReactionEditor x:Name="TuringReactionEditor" Changed="TuringReaction_OnChanged"/>
         <TextBlock Style="{StaticResource FieldCaption}" Text="Вычисления на видеокарте"/>
         <TextBlock x:Name="TuringDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
