@@ -870,6 +870,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.Hopf) StopHopfAnimation();
         if (Kind == Fractal3DKind.QuaternionJulia) StopQuaternionAnimation();
         if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.StopAtDisplayedPhase();
+        if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.StopAtDisplayedGrowth();
         DetachLoop();
         _renderCts?.Cancel();
         try
@@ -1157,7 +1158,7 @@ public partial class Fractal3DWindow : Window
             _simulation?.OnFrameDisplayed(state);
             if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.OnFrameDisplayed(_renderer.AbcFlowSections, state);
             if (Kind == Fractal3DKind.LSystem3D)
-                LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount);
+                LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount, state.LSystem);
             if (Kind == Fractal3DKind.Hopf)
             {
                 OnHopfFrameDisplayed(state);

@@ -7,6 +7,17 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void LSystemAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.LSystem3D) OpenShapeAtlas(CreateLSystemAtlas);
+    }
+
+    private LSystem3DAtlasWindow CreateLSystemAtlas()
+    {
+        LSystemEditor.PrepareAtlas();
+        return ConnectShapeAtlas(new LSystem3DAtlasWindow(CaptureViewState("atlas")), state => LSystemEditor.ApplyAtlasParameters(state.LSystem));
+    }
+
     private void DlaAtlas_OnClick(object sender, RoutedEventArgs e)
     {
         if (Kind == Fractal3DKind.Dla3D) OpenShapeAtlas(CreateDlaAtlas);

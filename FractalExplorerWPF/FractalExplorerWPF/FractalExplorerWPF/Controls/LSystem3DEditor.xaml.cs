@@ -13,6 +13,8 @@ public partial class LSystem3DEditor : UserControl
     private void Randomizer_OnClick(object sender, RoutedEventArgs e) => Randomizer.OpenWindow(Window.GetWindow(this));
     private bool _loading = true;
     private LSystem3DSettings _grammar = new();
+    private LSystem3DSettings _loadedSettings = new();
+    private LSystem3DSettings? _displayedSettings;
     private readonly Stack<LSystem3DSettings> _undo = new();
     private TextBox? _grammarTarget;
     private CancellationTokenSource? _validation;
@@ -20,9 +22,12 @@ public partial class LSystem3DEditor : UserControl
     private readonly Stopwatch _playClock = new();
     private double _lastFrameTime;
     private bool _advancingGrowth;
+    private bool _pendingGrowth;
     private readonly Stack<LSystem3DSettings> _randomUndo = new();
     public bool IsPlaying { get; private set; }
     public event EventHandler? SettingsChanged;
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
 
     public LSystem3DEditor()
     {
@@ -49,8 +54,8 @@ public partial class LSystem3DEditor : UserControl
     {
         Generations = (int)GenerationSlider.Value,
         Yaw = YawSlider.Value, Pitch = PitchSlider.Value, Roll = RollSlider.Value,
-        Radius = RadiusSlider.Value / 200, BranchTaper = TaperSlider.Value / 100,
-        StepDecay = StepSlider.Value / 100, Growth = GrowthSlider.Value / 100,
+        Radius = ScaledValue(RadiusSlider, _loadedSettings.Radius, 200), BranchTaper = ScaledValue(TaperSlider, _loadedSettings.BranchTaper, 100),
+        StepDecay = ScaledValue(StepSlider, _loadedSettings.StepDecay, 100), Growth = ScaledValue(GrowthSlider, _loadedSettings.Growth, 100),
         ColorSource = (LSystem3DColorSource)Math.Max(0, SourceBox.SelectedIndex)
     };
     public void Load(LSystem3DSettings settings, bool keepRandomHistory = false)
@@ -60,12 +65,9 @@ public partial class LSystem3DEditor : UserControl
         Randomizer.SetUndoAvailable(_randomUndo.Count > 0);
         Stop(); _validation?.Cancel(); _revision++;
         _loading = true;
-        _grammar = settings with { };
+        _grammar = settings with { }; _displayedSettings = null; _pendingGrowth = false;
         AxiomBox.Text = settings.Axiom; RulesBox.Text = settings.RulesText; DrawBox.Text = settings.DrawSymbols;
-        GenerationSlider.Value = settings.Generations;
-        YawSlider.Value = settings.Yaw; PitchSlider.Value = settings.Pitch; RollSlider.Value = settings.Roll;
-        RadiusSlider.Value = settings.Radius * 200; TaperSlider.Value = settings.BranchTaper * 100;
-        StepSlider.Value = settings.StepDecay * 100; GrowthSlider.Value = settings.Growth * 100;
+        LoadShapeParameters(settings);
         SourceBox.SelectedIndex = (int)settings.ColorSource;
         _undo.Clear(); UndoButton.IsEnabled = false;
         RuleStatus.Text = "Правила применены. Изменения формы видны сразу.";
@@ -75,6 +77,46 @@ public partial class LSystem3DEditor : UserControl
         _loading = false;
         UpdateGrowth();
     }
+    private static double ScaledValue(Slider slider, double original, double scale) =>
+        slider.Value == original * scale ? original : slider.Value / scale;
+
+    private void LoadShapeParameters(LSystem3DSettings settings)
+    {
+        _loadedSettings = settings;
+        GenerationSlider.Value = settings.Generations;
+        YawSlider.Value = settings.Yaw; PitchSlider.Value = settings.Pitch; RollSlider.Value = settings.Roll;
+        RadiusSlider.Value = settings.Radius * 200; TaperSlider.Value = settings.BranchTaper * 100;
+        StepSlider.Value = settings.StepDecay * 100; GrowthSlider.Value = settings.Growth * 100;
+    }
+
+    public void PrepareAtlas() { StopAtDisplayedGrowth(); CancelWork(); }
+
+    public void ApplyAtlasParameters(LSystem3DSettings settings)
+    {
+        settings.Validate();
+        if (settings.Axiom != _grammar.Axiom || settings.RulesText != _grammar.RulesText || settings.DrawSymbols != _grammar.DrawSymbols ||
+            settings.ColorSource != Capture().ColorSource)
+            throw new ArgumentException("Грамматика или источник цвета не соответствует редактору.");
+        CancelWork(); _revision++; _displayedSettings = null; _pendingGrowth = false;
+        bool loading = _loading; _loading = true;
+        try { LoadShapeParameters(settings); UpdateGrowth(); PresetHint.Text = ""; }
+        finally { _loading = loading; }
+        // Keep both applied-rule history and uncommitted text. Only the shape changes.
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void StopAtDisplayedGrowth()
+    {
+        bool pending = IsPlaying || _pendingGrowth; Stop(); _pendingGrowth = false;
+        if (!pending || _displayedSettings is not { } shown || shown.GeometryKey() != Capture().GeometryKey()) return;
+        bool loading = _loading; _loading = true;
+        try
+        {
+            _loadedSettings = _loadedSettings with { Growth = shown.Growth };
+            GrowthSlider.Value = shown.Growth * 100; UpdateGrowth();
+        }
+        finally { _loading = loading; }
+    }
     public void ShowError(string message)
     {
         Stop(); RuleStatus.Text = message;
@@ -82,8 +124,10 @@ public partial class LSystem3DEditor : UserControl
         SceneText.Text = "Измените параметры или выберите готовый вид.";
     }
 
-    public void OnFrameDisplayed(int segments, int symbols)
+    public void OnFrameDisplayed(int segments, int symbols, LSystem3DSettings? displayed = null)
     {
+        _displayedSettings = displayed ?? Capture();
+        _pendingGrowth = false;
         SceneText.Text = $"{segments:N0} сегментов · {symbols:N0} символов";
         if (!IsPlaying) return;
         double now = _playClock.Elapsed.TotalSeconds;
@@ -94,6 +138,7 @@ public partial class LSystem3DEditor : UserControl
         _advancingGrowth = true;
         try { GrowthSlider.Value = next; }
         finally { _advancingGrowth = false; }
+        _pendingGrowth = Capture().Growth != _displayedSettings.Growth;
     }
 
     private async void Apply_OnClick(object sender, RoutedEventArgs e)
@@ -167,7 +212,8 @@ public partial class LSystem3DEditor : UserControl
     private void Display_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
-        if (ReferenceEquals(sender, GrowthSlider) && IsPlaying && !_advancingGrowth) Stop();
+        if (ReferenceEquals(sender, GrowthSlider) && !_advancingGrowth)
+        { _pendingGrowth = false; if (IsPlaying) Stop(); }
         UpdateGrowth();
         SettingsChanged?.Invoke(this, EventArgs.Empty);
     }

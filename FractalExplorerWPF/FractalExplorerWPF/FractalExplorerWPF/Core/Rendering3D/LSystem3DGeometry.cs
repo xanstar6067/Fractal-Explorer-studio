@@ -4,6 +4,8 @@ using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
+internal sealed class LSystem3DGeometryException(string message, Exception inner) : InvalidOperationException(message, inner);
+
 public readonly record struct LSystem3DSegment(Vector3 Start, Vector3 End, float Radius, int BranchDepth, int Generation);
 
 /// <summary>Complete geometry is fitted once; growth and camera changes keep the same coordinates.</summary>
@@ -21,6 +23,12 @@ public sealed class LSystem3DGeometry
     private readonly record struct Turtle(Vector3 Position, Quaternion Rotation, float Step, float Radius, int Depth);
 
     public static LSystem3DGeometry Build(LSystem3DSettings settings, CancellationToken token)
+    {
+        try { return BuildCore(settings, token); }
+        catch (InvalidOperationException ex) { throw new LSystem3DGeometryException(ex.Message, ex); }
+    }
+
+    private static LSystem3DGeometry BuildCore(LSystem3DSettings settings, CancellationToken token)
     {
         settings.Validate();
         string axiom = LSystemEngine.NormalizeSymbols(settings.Axiom);
