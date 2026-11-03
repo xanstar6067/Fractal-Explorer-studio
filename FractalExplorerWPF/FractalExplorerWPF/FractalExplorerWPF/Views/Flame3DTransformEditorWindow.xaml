@@ -19,7 +19,8 @@
         </Border>
         <Border Grid.Column="1" Margin="5,10,10,10" Padding="16" Background="{DynamicResource Theme.PanelBackgroundBrush}" BorderBrush="{DynamicResource Theme.BorderBrush}" BorderThickness="1" CornerRadius="7">
             <Grid x:Name="EditorPanel"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <TextBlock x:Name="EditorTitle" FontSize="19" FontWeight="SemiBold" Text="Редактор трансформации"/>
+                <DockPanel><Button x:Name="AtlasButton" DockPanel.Dock="Right" Content="Атлас параметров…" Click="Atlas_OnClick" Margin="10,0,0,0"/>
+                    <TextBlock x:Name="EditorTitle" FontSize="19" FontWeight="SemiBold" Text="Редактор трансформации"/></DockPanel>
                 <TabControl Grid.Row="1" Margin="0,10,0,0">
                     <TabItem Header="Параметры"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="12">
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Text="Вариация"/><ComboBox x:Name="VariationBox" Grid.Column="1" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Editor_OnChanged"/></Grid>

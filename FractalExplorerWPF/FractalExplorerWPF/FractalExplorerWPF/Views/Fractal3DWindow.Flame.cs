@@ -44,7 +44,18 @@ public partial class Fractal3DWindow
     {
         int originalPreset = PresetBox.SelectedIndex;
         Fractal3DState original = CaptureState(string.Empty);
-        var editor = new Flame3DTransformEditorWindow(_flameTransforms) { Owner = this };
+        var editor = CreateFlameTransformEditor();
+        editor.ShowDialog();
+        if (originalPreset >= 0 && Fractal3DRenderer.SameVolumeGeometry(original, CaptureState(string.Empty)))
+        {
+            _updatingUi = true; PresetBox.SelectedIndex = originalPreset; _updatingUi = false;
+        }
+    }
+
+    private Flame3DTransformEditorWindow CreateFlameTransformEditor()
+    {
+        var editor = new Flame3DTransformEditorWindow(_flameTransforms)
+        { Owner = this, CaptureAtlasView = () => CaptureViewState("atlas"), SuspendAtlas = SuspendLive };
         editor.TransformsApplied += transforms =>
         {
             _flameTransforms = transforms.Select(t => t.Clone()).ToList();
@@ -52,12 +63,6 @@ public partial class Fractal3DWindow
             ScheduleRender();
         };
         editor.Randomized += () => BeginTransition(new Fractal3DPose(_orientation, 3.1f, Vector3.Zero));
-        editor.ShowDialog();
-        if (originalPreset >= 0 && Fractal3DRenderer.SameVolumeGeometry(original, CaptureState(string.Empty)))
-        {
-            _updatingUi = true;
-            PresetBox.SelectedIndex = originalPreset;
-            _updatingUi = false;
-        }
+        return editor;
     }
 }

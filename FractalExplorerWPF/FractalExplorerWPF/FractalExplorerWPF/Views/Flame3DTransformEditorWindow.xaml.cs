@@ -23,6 +23,32 @@ public partial class Flame3DTransformEditorWindow : Window
     private List<Flame3DTransform> _applied = [];
     private bool _accepted;
     public event Action? Randomized;
+    public Func<Fractal3DState>? CaptureAtlasView { get; set; }
+    public Action<Action>? SuspendAtlas { get; set; }
+    private Fractal3DState CaptureAtlasState()
+    {
+        var state = (CaptureAtlasView?.Invoke() ?? Fractal3DCatalog.CreateDefaultState(Fractal3DKind.Flame3D)).Clone();
+        state.Flame.Transforms = _transforms.Select(t => t.Clone()).ToList(); return state;
+    }
+    private Flame3DAtlasWindow CreateAtlas()
+    {
+        _previewTimer.Stop();
+        if (!Validate()) throw new ArgumentException(ValidationText.Text);
+        _previewTimer.Stop();
+        var atlas = new Flame3DAtlasWindow(CaptureAtlasState(), _selectedIndex) { Owner = this };
+        atlas.ParametersApplied += (_, _) =>
+        {
+            var state = CaptureAtlasState(); atlas.ApplySelectionTo(state); PushUndo();
+            _transforms[atlas.TransformIndex] = state.Flame.Transforms[atlas.TransformIndex].Clone(); Rebind(atlas.TransformIndex);
+            TransformsApplied?.Invoke(_transforms.Select(t => t.Clone()).ToList()); atlas.Close();
+        };
+        return atlas;
+    }
+    private void Atlas_OnClick(object sender, RoutedEventArgs e)
+    {
+        void Open() { try { CreateAtlas().ShowDialog(); } catch (ArgumentException ex) { ValidationText.Text = ex.Message; } }
+        if (SuspendAtlas is { } suspend) suspend(Open); else Open();
+    }
     private int _selectedIndex = -1; private bool _syncing;
     private bool _randomSettingsSyncing;
     public event Action<IReadOnlyList<Flame3DTransform>>? TransformsApplied;
@@ -204,7 +230,7 @@ public partial class Flame3DTransformEditorWindow : Window
         }
     }
     private sealed record VariationOption(Flame3DVariation Value, string Name);
-    private static string F(double v) => v.ToString("0.########", CultureInfo.InvariantCulture);
+    private static string F(double v) => v.ToString("R", CultureInfo.InvariantCulture);
     private static bool TryRead(string text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
 
     private void InitializeRandomSettings()
