@@ -14,6 +14,7 @@
         </Style>
     </UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров…" Click="Atlas_OnClick" Margin="0,0,0,8"/>
         <TextBlock Text="Проекция 4D → 3D" FontWeight="SemiBold"/>
         <ComboBox x:Name="ProjectionBox" SelectedIndex="0" SelectionChanged="Changed">
             <ComboBoxItem Content="Re z · Im z · Re c"/><ComboBoxItem Content="Re z · Im z · Im c"/>

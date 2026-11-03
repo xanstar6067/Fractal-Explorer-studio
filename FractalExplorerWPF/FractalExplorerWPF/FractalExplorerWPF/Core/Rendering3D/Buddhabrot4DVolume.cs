@@ -73,7 +73,7 @@ internal static class Buddhabrot4DVolume
                 cells[((z + dz) * Side + y + dy) * Side + x + dx] += new Vector4(color, 1) * weight;
             }
         }
-        if (accepted < 100) throw new InvalidOperationException("В цветовые каналы попало мало точек. Увеличьте пределы R/G/B или число затравок.");
+        if (accepted < 100) throw new Buddhabrot4DSampleException("В цветовые каналы попало мало точек. Увеличьте пределы R/G/B или число затравок.");
         Flame3DVolume.Smooth(cells, token);
         // Robust per-channel normalization retains faint long-lived orbits beside bright short ones.
         Vector3 norms = new(Normalization(0), Normalization(1), Normalization(2));

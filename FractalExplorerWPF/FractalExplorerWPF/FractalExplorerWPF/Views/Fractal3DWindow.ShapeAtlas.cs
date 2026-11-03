@@ -7,6 +7,14 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void BuddhabrotAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.Buddhabrot4D) OpenShapeAtlas(CreateBuddhabrotAtlas);
+    }
+
+    private Buddhabrot4DAtlasWindow CreateBuddhabrotAtlas() =>
+        ConnectShapeAtlas(new Buddhabrot4DAtlasWindow(CaptureViewState("atlas")), state => BuddhabrotEditor.Load(state.Buddhabrot));
+
     private void LSystemAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.LSystem3D) OpenShapeAtlas(CreateLSystemAtlas);

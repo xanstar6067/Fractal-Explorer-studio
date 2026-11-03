@@ -35,7 +35,9 @@
                 </StackPanel>
                 <Button Grid.Column="3" Content="Построить" VerticalAlignment="Bottom" Padding="14,6" Click="Build_OnClick"/>
             </Grid>
-            <WrapPanel x:Name="FixedPointPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
+            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <WrapPanel x:Name="FixedPointPanel" Margin="0,8,0,0" Visibility="Collapsed"/>
+            </ScrollViewer>
             <WrapPanel Margin="0,10,0,10">
                 <Button Content="Общий диапазон" Click="Overview_OnClick" Padding="10,5" Margin="0,0,8,0"/>
                 <Button x:Name="BackButton" Content="Назад к диапазону" Click="Back_OnClick" IsEnabled="False" Padding="10,5"/>

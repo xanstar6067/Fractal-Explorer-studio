@@ -161,6 +161,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 
 `LSystem3DAtlasWindow` — атлас поколений, углов, толщины, сужения, шага и стадии построения с сохранением черновика правил (`LSYSTEM3D.md`, проверка `lsystem3d-atlas`).
 
+`Buddhabrot4DAtlasWindow` — атлас четырёх проекций, шести 4D-поворотов, отбора орбит, RGB и активных тональных параметров (`BUDDHABROT4D.md`, проверка `buddhabrot4d-atlas`).
+
 `BuddhabrotPaletteWindow`, `DomainColoringPaletteWindow`, `DynamicPaletteWindow` (общий для режимов `DynamicSystemWindow` и `TuringWindow`), `Fractal3DPaletteWindow` и `Ifs3DPaletteWindow`, `Ifs3DTransformEditorWindow`, `Flame3DTransformEditorWindow`, `FlameTransformEditorWindow`, `GrayScottPaletteWindow`, `IfsTransformEditorWindow`, `InverseCollatzPaletteWindow`, `JuliaConstantPickerWindow`, `LSystemRandomizerWindow` и `LSystem3DRandomizerWindow`, `LyapunovPaletteWindow`, `MandelbrotPaletteWindow` (также Nova и Коллатц), `NewtonPaletteWindow` (также `BasinExplorerWindow`, `TranscendentalJuliaWindow` и `McMullenWindow`), `NovaParameterSelectorWindow`, `PhoenixParameterExplorerWindow`, `SerpinskyPaletteWindow`.
 
 ### Служебные окна

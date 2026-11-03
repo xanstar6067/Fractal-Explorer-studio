@@ -3,6 +3,8 @@ using FractalExplorerWPF.Models;
 
 namespace FractalExplorerWPF.Core.Rendering3D;
 
+internal sealed class Buddhabrot4DSampleException(string message) : InvalidOperationException(message);
+
 internal readonly record struct Buddhabrot4DPoint(Vector4 Position, int EscapeIteration);
 
 /// <summary>Bounded, unbiased reservoir of escaped orbit visits. Projection never changes this sample.</summary>
@@ -53,7 +55,7 @@ internal sealed class Buddhabrot4DOrbitCloud
             }
         }
         token.ThrowIfCancellationRequested();
-        if (visits < 100) throw new InvalidOperationException("Мало подходящих орбит. Увеличьте число затравок или уменьшите минимум итераций.");
+        if (visits < 100) throw new Buddhabrot4DSampleException("Мало подходящих орбит. Увеличьте число затравок или уменьшите минимум итераций.");
         Array.Resize(ref points, (int)Math.Min(visits, pointLimit));
         return new(settings, points, visits);
     }

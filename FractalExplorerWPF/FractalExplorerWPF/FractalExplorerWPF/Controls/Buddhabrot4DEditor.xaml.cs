@@ -9,6 +9,8 @@ public partial class Buddhabrot4DEditor : UserControl
 {
     private bool _loading = true;
     public event EventHandler? SettingsChanged;
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
     public Buddhabrot4DEditor()
     {
         InitializeComponent(); Load(new());
@@ -20,6 +22,9 @@ public partial class Buddhabrot4DEditor : UserControl
         NumericInput.Integer(this, GreenBox, "Зелёный канал", 1, 10000);
         NumericInput.Integer(this, BlueBox, "Синий канал", 1, 10000);
         NumericInput.OrderedPair(this, MinIterationsBox, MaxIterationsBox);
+        foreach (var (box, slider, name) in new[] { (ZrZiBox, ZrZiSlider, "Re z ↔ Im z"), (ZrCrBox, ZrCrSlider, "Re z ↔ Re c"),
+            (ZrCiBox, ZrCiSlider, "Re z ↔ Im c"), (ZiCrBox, ZiCrSlider, "Im z ↔ Re c"), (ZiCiBox, ZiCiSlider, "Im z ↔ Im c"), (CrCiBox, CrCiSlider, "Re c ↔ Im c") })
+            NumericInput.Real(this, box, name, -180, 180, appliedValue: () => slider.Value);
     }
 
     public Buddhabrot4DSettings Capture()
