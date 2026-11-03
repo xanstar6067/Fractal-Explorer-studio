@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources><ResourceDictionary Source="Fractal3DPanelStyles.xaml"/></UserControl.Resources>
     <StackPanel>
+        <Button x:Name="AtlasButton" Content="Атлас параметров…" Click="Atlas_OnClick"/>
+        <Button x:Name="AtlasUndoButton" Content="Вернуть предыдущий" Click="AtlasUndo_OnClick" IsEnabled="False"/>
         <TextBlock Text="∂ₜψ = M∇²[(−ε+(q₀²+∇²)²)ψ + ψ³]" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,6"/>
         <TextBlock Text="Периодический куб. Средняя плотность сохраняется при шагах и работе кистью. Размер области N·Δx." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
         <TextBlock x:Name="PfcDeviceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -10,6 +11,7 @@ namespace FractalExplorerWPF.Controls;
 public partial class PhaseFieldCrystal3DEditor : UserControl, IFractal3DSimulationEditor<PhaseFieldCrystal3DSettings>
 {
     private readonly IFractal3DSimulationHost _host;
+    private readonly List<PhaseFieldCrystal3DSettings> _atlasHistory = [];
     private bool _loading = true;
     internal PhaseFieldCrystal3DEditor(IFractal3DSimulationHost host)
     {
@@ -21,7 +23,7 @@ public partial class PhaseFieldCrystal3DEditor : UserControl, IFractal3DSimulati
             Live=s=>s.Live, Field=s=>s.Field, With=(s,live,field)=>s with { Live=live,Field=field },
             InitialSteps=s=>s.Field is null ? s.WarmupSteps : 0,
             PreparationMessage=_=>"Подготовка кристаллической плотности…",
-            Time=(shown,s)=>$"Шаг {shown?.Step ?? s.Field?.Step ?? 0:N0} · t = {(shown?.Step ?? s.Field?.Step ?? 0)*s.TimeStep:F2} · ψ̄ = {s.Mean:G4}",
+            Time=(shown,s)=>$"Шаг {shown?.Step ?? s.Field?.Step ?? 0:N0} · Δt = {s.TimeStep:G6} · ψ̄ = {s.Mean:G4}",
             ProgressMessage=(done,steps)=>$"Подготовка кристалла · {(int)(100L*done/Math.Max(1,steps))}%"
         });
         _loading=false;
@@ -31,15 +33,36 @@ public partial class PhaseFieldCrystal3DEditor : UserControl, IFractal3DSimulati
     public int StepsPerFrame=>(int)PfcSpeedSlider.Value;
     public bool IsSearching=>false;
     public void CancelSearch() { }
+
+    public event EventHandler? AtlasRequested;
+    private void Atlas_OnClick(object sender, RoutedEventArgs e) => AtlasRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void ApplyAtlasResult(PhaseFieldCrystal3DSettings result, PhaseFieldCrystal3DSettings previous)
+    {
+        if (result.Field is null || result.Live is not null) throw new ArgumentException("Нужно точное поле выбранного прогона PFC со средним.");
+        result.Validate(); Simulation.Restart(result);
+        _atlasHistory.Add(previous with { Live = null });
+        if (_atlasHistory.Count > 4) _atlasHistory.RemoveAt(0);
+        Refresh(); _host.ShowStatus($"Вариант атласа · шаг {result.Field.Step:N0}, ψ̄ = {result.Field.Mean:G6}. Исходное поле доступно через «Вернуть предыдущий».");
+    }
+
+    private void AtlasUndo_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_atlasHistory.Count == 0 || Simulation.Busy || Simulation.Preparing || _host.IsSuspended || _host.IsClosing) return;
+        var previous = _atlasHistory[^1];
+        Simulation.Restart(previous); _atlasHistory.RemoveAt(_atlasHistory.Count - 1);
+        Refresh(); _host.ShowStatus("Восстановлено предыдущее фазовое поле кристалла 3D.");
+    }
+
     public void Show(PhaseFieldCrystal3DSettings s)
     {
         _loading=true;
         try
         {
             PfcSizeBox.SelectedIndex=s.Size switch { 32=>0,128=>2,_=>1 };
-            PfcEpsilonBox.Text=Format(s.Undercooling); PfcMeanBox.Text=Format(s.Mean); PfcQBox.Text=Format(s.WaveNumber);
-            PfcSpacingBox.Text=Format(s.Spacing); PfcMobilityBox.Text=Format(s.Mobility); PfcDtBox.Text=Format(s.TimeStep);
-            PfcSeedBox.SelectedIndex=(int)s.SeedShape; PfcNoiseBox.Text=Format(s.Noise);
+            PfcEpsilonBox.Text=s.Undercooling.ToString("R", CultureInfo.InvariantCulture); PfcMeanBox.Text=s.Mean.ToString("R", CultureInfo.InvariantCulture); PfcQBox.Text=s.WaveNumber.ToString("R", CultureInfo.InvariantCulture);
+            PfcSpacingBox.Text=s.Spacing.ToString("R", CultureInfo.InvariantCulture); PfcMobilityBox.Text=s.Mobility.ToString("R", CultureInfo.InvariantCulture); PfcDtBox.Text=s.TimeStep.ToString("R", CultureInfo.InvariantCulture);
+            PfcSeedBox.SelectedIndex=(int)s.SeedShape; PfcNoiseBox.Text=s.Noise.ToString("R", CultureInfo.InvariantCulture);
             PfcSeedNumberBox.Text=s.Seed.ToString(); PfcWarmupBox.Text=s.WarmupSteps.ToString();
             PfcSpeedSlider.Value=s.StepsPerFrame; PfcViewBox.SelectedIndex=(int)s.View;
             PfcRangeSlider.Value=s.DisplayRange; PfcThresholdSlider.Value=s.Threshold;
@@ -58,6 +81,9 @@ public partial class PhaseFieldCrystal3DEditor : UserControl, IFractal3DSimulati
     {
         PfcDeviceText.Text=Simulation.Device; PfcCutSlider.IsEnabled=PfcCutBox.SelectedIndex>0;
         PfcBrushButton.IsEnabled=Simulation.CanBrush;
+        bool ready = Simulation.Shown is not null && !Simulation.ResetPending && !Simulation.Preparing && !_host.IsSuspended && !_host.IsClosing;
+        AtlasButton.IsEnabled = ready;
+        AtlasUndoButton.IsEnabled = ready && !Simulation.Busy && _atlasHistory.Count > 0;
     }
     private void PfcRestart_OnClick(object sender,RoutedEventArgs e)
     {

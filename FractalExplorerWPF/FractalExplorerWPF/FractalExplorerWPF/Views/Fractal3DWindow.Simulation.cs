@@ -26,7 +26,7 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
         Fractal3DKind.Excitable3D => CreateExcitableSimulation(),
         Fractal3DKind.GinzburgLandau3D => CreateGinzburgLandauSimulation(),
         Fractal3DKind.SwiftHohenberg3D => CreateSwiftHohenbergSimulation(),
-        Fractal3DKind.PhaseFieldCrystal3D => new PhaseFieldCrystal3DEditor(this).Simulation,
+        Fractal3DKind.PhaseFieldCrystal3D => CreatePhaseFieldCrystalSimulation(),
         _ => null
     };
 
@@ -90,6 +90,13 @@ public partial class Fractal3DWindow : IFractal3DSimulationHost
     {
         var editor = new SwiftHohenberg3DEditor(this);
         editor.AtlasRequested += SwiftHohenbergAtlas_OnClick;
+        return editor.Simulation;
+    }
+
+    private IFractal3DSimulationMode CreatePhaseFieldCrystalSimulation()
+    {
+        var editor = new PhaseFieldCrystal3DEditor(this);
+        editor.AtlasRequested += PhaseFieldCrystalAtlas_OnClick;
         return editor.Simulation;
     }
 

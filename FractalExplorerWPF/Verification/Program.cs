@@ -200,6 +200,8 @@ internal static partial class Program
                 if (group == "ginzburg-landau3d-atlas") return;
                 if (group is "all" or "swift-hohenberg3d-atlas") await VerifySwiftHohenberg3DAtlasAsync();
                 if (group == "swift-hohenberg3d-atlas") return;
+                if (group is "all" or "phase-field-crystal3d-atlas") await VerifyPhaseFieldCrystal3DAtlasAsync();
+                if (group == "phase-field-crystal3d-atlas") return;
                 if (group == "lenia3d-atlas") return;
                 if (group is "all" or "burning-ship-julia-atlas") await VerifyBurningShipJuliaAtlasAsync(args);
                 if (group == "burning-ship-julia-atlas") return;

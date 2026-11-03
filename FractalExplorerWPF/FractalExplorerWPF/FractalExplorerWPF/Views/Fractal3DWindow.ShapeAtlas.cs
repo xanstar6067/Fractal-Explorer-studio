@@ -7,6 +7,32 @@ namespace FractalExplorerWPF.Views;
 
 public partial class Fractal3DWindow
 {
+    private void PhaseFieldCrystalAtlas_OnClick(object? sender, EventArgs e)
+    {
+        if (Kind == Fractal3DKind.PhaseFieldCrystal3D) OpenShapeAtlas(CreatePhaseFieldCrystalAtlas);
+    }
+
+    private PhaseFieldCrystal3DAtlasWindow CreatePhaseFieldCrystalAtlas()
+    {
+        var editor = (PhaseFieldCrystal3DEditor)_simulation!.Editor;
+        editor.Simulation.Cancel();
+        var source = CaptureState("atlas");
+        var atlas = new PhaseFieldCrystal3DAtlasWindow(source) { Owner = this };
+        atlas.ParametersApplied += async (_, _) =>
+        {
+            try
+            {
+                var result = await atlas.PrepareSelectionAsync(CaptureViewState("atlas"));
+                if (_isClosing) return;
+                editor.ApplyAtlasResult(result.PhaseFieldCrystal, source.PhaseFieldCrystal);
+                atlas.Close();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { StatusText.Text = $"Не удалось применить вариант поля кристалла: {ex.Message}"; }
+        };
+        return atlas;
+    }
+
     private void SwiftHohenbergAtlas_OnClick(object? sender, EventArgs e)
     {
         if (Kind == Fractal3DKind.SwiftHohenberg3D) OpenShapeAtlas(CreateSwiftHohenbergAtlas);

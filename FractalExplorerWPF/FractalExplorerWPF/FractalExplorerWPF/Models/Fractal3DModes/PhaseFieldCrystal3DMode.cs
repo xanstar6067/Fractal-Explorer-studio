@@ -44,7 +44,7 @@ internal sealed class PhaseFieldCrystal3DMode() : GpuSimulation3DMode(Fractal3DK
     {
         var s=state.PhaseFieldCrystal;
         return $"{prefix} · сетка {s.Size}³ · периодические границы\nε = {s.Undercooling:G4} · средняя ψ = {s.Mean:G5} · q₀ = {s.WaveNumber:G4}\n" +
-            (s.Field is { } f ? $"Шаг {f.Step:N0} · t = {f.Step*s.TimeStep:G6}" : $"Новое поле, {s.WarmupSteps} шагов подготовки") +
+            (s.Field is { } f ? $"Шаг {f.Step:N0}" : $"Новое поле, {s.WarmupSteps} шагов подготовки") +
             $" · M = {s.Mobility:G4} · Δt = {s.TimeStep:G4}\nПалитра: {state.ResolvePalette().Name} · Окраска: {ColoringModeName(state.ColoringMode)}";
     }
 }
