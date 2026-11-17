@@ -192,6 +192,7 @@ public partial class Fractal3DWindow : Window
         Dla = CaptureDla(),
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
+        QuantumOrbital = Kind == Fractal3DKind.QuantumOrbitals ? OrbitalEditor.Capture() : new(),
         Newton = Kind == Fractal3DKind.Newton3D ? NewtonEditor.Capture() : new(),
         Power = ReadField(PowerBox, _mode.PowerField),
         BurningShipFormula = SelectedBurningShipFormula,
@@ -401,6 +402,7 @@ public partial class Fractal3DWindow : Window
         LoadLichtenberg(state.Lichtenberg);
         _simulation?.Load(state);
         LoadLyapunov(state.Lyapunov);
+        if (Kind == Fractal3DKind.QuantumOrbitals) OrbitalEditor.Load(state.QuantumOrbital ?? new());
         if (Kind == Fractal3DKind.Newton3D) NewtonEditor.Load(state.Newton ?? new());
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
@@ -524,6 +526,7 @@ public partial class Fractal3DWindow : Window
         KifsPanel.Visibility = Collapse(Kind == Fractal3DKind.Kifs);
         KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
         AntoineEditor.Visibility = Collapse(Kind == Fractal3DKind.AntoineNecklace);
+        OrbitalEditor.Visibility = Collapse(Kind == Fractal3DKind.QuantumOrbitals);
         NewtonEditor.Visibility = Collapse(Kind == Fractal3DKind.Newton3D);
         PeriodicEditor.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
         ImplicitPanel.Visibility = Collapse(Kind == Fractal3DKind.ImplicitSurface);
@@ -759,6 +762,7 @@ public partial class Fractal3DWindow : Window
                 _renderCts?.Cancel();
             }
             RememberPreference(sender);
+            if (ReferenceEquals(sender, OrbitalEditor)) _renderCts?.Cancel();
             if (ReferenceEquals(sender, NewtonEditor)) _renderCts?.Cancel();
             if (Kind == Fractal3DKind.Lyapunov3D)
             {

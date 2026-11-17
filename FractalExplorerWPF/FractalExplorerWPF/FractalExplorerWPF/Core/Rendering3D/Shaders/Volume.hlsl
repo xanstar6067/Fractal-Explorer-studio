@@ -7,7 +7,7 @@
 #define VOLUME_GPU_FIELD (VOLUME_KIND == KIND_GrayScott3D || VOLUME_KIND == KIND_CahnHilliard3D || \
     VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D || \
-    VOLUME_KIND == KIND_SwiftHohenberg3D || VOLUME_KIND == KIND_Lenia3D || \
+    VOLUME_KIND == KIND_SwiftHohenberg3D || VOLUME_KIND == KIND_Lenia3D || VOLUME_KIND == KIND_QuantumOrbitals || \
     VOLUME_KIND == KIND_Physarum3D || VOLUME_KIND == KIND_Lyapunov3D || VOLUME_KIND == KIND_Newton3D)
 // Срез и грани — как у моделирований; у Тьюринга своя маска области и порог 0,5.
 #define VOLUME_CUT (VOLUME_GPU_FIELD || VOLUME_KIND == KIND_Turing3D)
@@ -40,7 +40,7 @@ cbuffer Frame : register(b0)
     float4 Palette[16];
 };
 
-#if VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || VOLUME_KIND == KIND_Newton3D
+#if VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || VOLUME_KIND == KIND_Newton3D || VOLUME_KIND == KIND_QuantumOrbitals
 Texture3D<float4> Density : register(t0);
 #elif VOLUME_KIND == KIND_Dla3D || VOLUME_KIND == KIND_Turing3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D
@@ -156,7 +156,9 @@ float SampleDensity(float3 samplePosition)
     if (any(abs(samplePosition) > 1.0001)) return 0.0;
     int axis = (int)ShapeB.x;
     if (axis > 0 && samplePosition[axis - 1] > ShapeB.y + .0001) return 0.0;
-#if VOLUME_KIND == KIND_CahnHilliard3D
+#if VOLUME_KIND == KIND_QuantumOrbitals
+    return Density.SampleLevel(DensitySampler, saturate(samplePosition * .5 + .5), 0).x;
+#elif VOLUME_KIND == KIND_CahnHilliard3D
     // ShapeB.z — показ дополнительной фазы.
     float c = Density.SampleLevel(DensitySampler, saturate(samplePosition * 0.5 + 0.5), 0); return ShapeB.z > .5 ? 1.0-c : c;
 #elif VOLUME_KIND == KIND_Excitable3D
@@ -247,6 +249,14 @@ float3 SurfaceAlbedo(float3 normal, float3 surfacePoint, float3 rayDirection,
 #if VOLUME_KIND == KIND_Turing3D
     if (mode == 2) value = ScaleAt(surfacePoint);
     else if (mode == 4) value = length(surfacePoint);
+#elif VOLUME_KIND == KIND_QuantumOrbitals
+    float4 orbital = Density.SampleLevel(DensitySampler, saturate(surfacePoint*.5+.5), 0);
+    if (mode == 2) {
+        float phase = dot(orbital.yz,orbital.yz)>1e-20 ? atan2(orbital.z,orbital.y)/6.28318530718 : 0;
+        return SamplePalette(frac(phase+1)*ShapeC.y+ShapeC.z,1);
+    }
+    else if (mode == 4) value = orbital.x;
+    else if (mode == 5) value = orbital.w;
 #elif VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D
     if (mode == 2) {
         float4 field = Density.SampleLevel(DensitySampler, saturate(surfacePoint * .5 + .5), 0);
@@ -506,6 +516,21 @@ float4 PSMain(PSInput input) : SV_TARGET
         }
         float3 color=sky*transmittance+emission;
         return float4(LinearToSrgb(color/(1+color*.35)),1);
+    }
+#elif VOLUME_KIND == KIND_QuantumOrbitals
+    // Integrate probability density; phase is evaluated from the interpolated wave.
+    if ((int)Style.x == 4 && Probe.x < .5) {
+        float3 emission=0; float transmission=1;
+        float ds=cell*.65;
+        [loop] for(int j=0;j<1536 && distance<exitDistance && transmission>.005;j++) {
+            float3 p=origin+direction*min(distance+ds*.5,exitDistance);
+            float density=SampleDensity(p);
+            float alpha=1-exp(-density*ds*50*max(Style.y,.001));
+            float3 tint=SurfaceAlbedo(float3(0,0,1),p,direction,distance,1,0);
+            emission+=transmission*alpha*tint;
+            transmission*=1-alpha; distance+=ds;
+        }
+        return float4(LinearToSrgb(sky*transmission+emission),1);
     }
 #elif VOLUME_KIND == KIND_Lyapunov3D
     // Облако по заполненности, окрашенное величиной λ.

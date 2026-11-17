@@ -17,6 +17,7 @@ internal static class CatalogPreviewCache
             Fractal3DCatalog.TryParseLaunchKey(item.LaunchKey, out var kind)
                 ? kind switch
                 {
+                    Fractal3DKind.QuantumOrbitals => "v1-quantum-orbitals",
                     Fractal3DKind.Newton3D => "v3-newton",
                     Fractal3DKind.BurningShipJulia => "v3-thickness",
                     _ => "v2"

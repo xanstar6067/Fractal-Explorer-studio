@@ -85,7 +85,7 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 | `DomainColoringWindow` | Раскраска комплексных функций с циклической палитрой аргумента. |
 | `DynamicSystemWindow` | Ляпунов, Лоренц, Рёсслер, логистическое отображение, бифуркации, Хенон, Икэда, 2D-аттракторы, Спротт, Symmetric Icons (`SYMMETRIC_ICONS.md`), Popcorn (`POPCORN.md`), Hopalong (`HOPALONG.md`). |
 | `FlameWindow` | Fractal Flame. |
-| `Fractal3DWindow` | Сорок два трёхмерных режима (`Fractal3DKind`): поверхности по оценке расстояния, объёмы плотности, десять живых моделирований на ГП, аналитические сцены. Общие камера и навигация (`Fractal3DWindow.Navigation.cs`), сохраняемые настройки качества, теней и управления (`Fractal3DPreferencesStore`), подготовка, палитры, сохранения, экспорт; рендер — `Core/Rendering3D/Fractal3DRenderer*.cs`. Документы режимов — `FractalExplorerWPF/*3D*.md`, `HOPF.md`, `KIFS.md`, `KLEINIAN3D.md`, `ANTOINE_NECKLACE.md`, `NEWTON3D.md`, `TERRAIN.md`, `ABC_FLOW.md` и др. |
+| `Fractal3DWindow` | Сорок три трёхмерных режима (`Fractal3DKind`): поверхности по оценке расстояния, объёмы плотности, десять живых моделирований на ГП, аналитические сцены. Общие камера и навигация (`Fractal3DWindow.Navigation.cs`), сохраняемые настройки качества, теней и управления (`Fractal3DPreferencesStore`), подготовка, палитры, сохранения, экспорт; рендер — `Core/Rendering3D/Fractal3DRenderer*.cs`. Документы режимов — `FractalExplorerWPF/*3D*.md`, `HOPF.md`, `KIFS.md`, `KLEINIAN3D.md`, `ANTOINE_NECKLACE.md`, `NEWTON3D.md`, `TERRAIN.md`, `ABC_FLOW.md` и др. |
 | `Fractal3DConstantPickerWindow` | Выбор константы C Жюлиабульба и горящего корабля 3D — Жюлиа на карте исходного фрактала. |
 | `GrayScottWindow` | Gray–Scott 2D на ЦП/ГП с поиском узоров (`GRAY_SCOTT.md`). |
 | `IfsWindow` | IFS Барнсли/Хейуэя. |
@@ -202,6 +202,8 @@ FractalExplorerWPF/FractalExplorerWPF/FractalExplorerWPF/
 Периодические поверхности: `PeriodicSurfaceEditor` — смешивание семейств, переменная толщина и два лабиринта (`PERIODIC_SURFACES.md`, проверка `periodic-surfaces`).
 
 Многогранники 4D: `Polytope4DEditor` — шесть правильных тел, проекции, сечения и анимация (`POLYTOPES4D.md`, проверка `polytope4d`).
+
+Квантовые орбитали: `QuantumOrbitalEditor` — базисы n/l/m, плотность, фаза и суперпозиции (`QUANTUM_ORBITALS.md`, проверка `quantum-orbitals`).
 
 Ландшафты: `TerrainEditor` — шум, остров/кратер, термическая эрозия и окраска по уклону (`TERRAIN.md`, проверка `terrain`).
 

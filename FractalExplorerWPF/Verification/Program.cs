@@ -62,6 +62,8 @@ internal static partial class Program
         {
             try
             {
+                if (group is "all" or "quantum-orbitals") await VerifyQuantumOrbitalsAsync(args);
+                if (group == "quantum-orbitals") return;
                 if (group is "all" or "polytope4d") await VerifyPolytope4DAsync(args);
                 if (group == "polytope4d") return;
                 if (group == "ui-computation") { await VerifyUiComputationAsync(); return; }

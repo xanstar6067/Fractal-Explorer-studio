@@ -37,6 +37,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.QuantumOrbitals)
+            return _orbitalPixel ??= _device!.CreatePixelShader(Compile(OrbitalPixelEntry()).Span);
         if (kind == Fractal3DKind.Newton3D)
             return _newtonPixel ??= _device!.CreatePixelShader(Compile(NewtonPixelShaderEntry()).Span);
         if (kind == Fractal3DKind.Lyapunov3D)
@@ -82,6 +84,7 @@ public sealed partial class Fractal3DRenderer
     private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token,
         IProgress<int>? progress = null)
     {
+        if (state.Kind == Fractal3DKind.QuantumOrbitals) return OrbitalVolumeView(state, token, progress);
         if (state.Kind == Fractal3DKind.Newton3D) return NewtonVolumeView(state, token, progress);
         if (state.Kind == Fractal3DKind.Lyapunov3D) return LyapunovVolumeView(state, token, progress);
         if (SimulationVolumeView(state, token) is { } simulation) return simulation;
@@ -283,6 +286,7 @@ public sealed partial class Fractal3DRenderer
         _cahnHilliardPixelShader?.Dispose();
         _leniaPixelShader?.Dispose();
         DisposeLyapunov();
+        DisposeOrbitals();
         DisposeNewton();
         _physarumPixelShader?.Dispose();
         DisposeSimulationPreviews();

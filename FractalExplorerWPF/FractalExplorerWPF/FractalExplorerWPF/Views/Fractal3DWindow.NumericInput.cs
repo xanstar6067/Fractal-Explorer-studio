@@ -108,6 +108,7 @@ public partial class Fractal3DWindow
         NumericInput.Include(this, QuaternionEditor);
         NumericInput.Include(this, PhoenixExplorer);
         NumericInput.Include(this, HybridEditor);
+        NumericInput.Include(this, OrbitalEditor);
         NumericInput.Include(this, NewtonEditor);
         NumericInput.Include(this, HyperbolicEditor);
         if (_mode.HasCubeRule)

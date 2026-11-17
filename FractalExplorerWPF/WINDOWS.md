@@ -669,3 +669,16 @@ null от своей маски. Свои правила ограничены 12
 Палитра Ньютона использует текущие корни, включая ручные изменения, без повторного поиска.
 Проверка без показа окон: `ui-computation` в проекте Verification.
 Подгонка вида квадратичного аттрактора Спротта в `DynamicSystemWindow` также считает снимок коэффициентов в фоне; изменение параметров и закрытие отменяют задачу.
+
+
+### Квантовые орбитали (`Fractal3DWindow`, `QuantumOrbitalEditor`)
+
+Режим `Fractal3DKind.QuantumOrbitals` в общем 3D-окне. Панель
+`Controls/QuantumOrbitalEditor.xaml` и `.xaml.cs`: n/l/m с зависимыми диапазонами,
+вещественный/комплексный базис, вторая орбиталь, доля и относительная фаза,
+область в a₀, разрешение поля, уровень и срез. Обычные стили показывают изоповерхность,
+«Плотность» — объёмное облако; общие камера, палитры, подготовка, сохранения и экспорт.
+Класс режима — `Models/Fractal3DModes/QuantumOrbitalsMode.cs`; вычисление —
+`Core/Rendering3D/Fractal3DRenderer.QuantumOrbitals.cs`, `Shaders/QuantumOrbitalsCompute.hlsl`;
+визуализация — ветвь общего `Volume.hlsl`. Состояние `QuantumOrbitalSettings` глубоко копируется.
+Модель, ограничения и ручные сценарии — [QUANTUM_ORBITALS.md](QUANTUM_ORBITALS.md).

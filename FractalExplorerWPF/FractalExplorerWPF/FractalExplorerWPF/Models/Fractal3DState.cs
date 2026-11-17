@@ -72,6 +72,8 @@ public sealed class Fractal3DState
     public Lenia3DSettings Lenia { get; set; } = new();
 
     public Lyapunov3DSettings Lyapunov { get; set; } = new();
+    public QuantumOrbitalSettings QuantumOrbital { get; set; } = new();
+
     public Newton3DSettings Newton { get; set; } = new();
 
     public KifsSettings Kifs { get; set; } = new();
@@ -198,6 +200,7 @@ public sealed class Fractal3DState
         clone.Turing = Turing is null ? new() : Turing with { };
         clone.Lenia = Lenia is null ? new() : Lenia with { };
         clone.Lyapunov = Lyapunov is null ? new() : Lyapunov with { };
+        clone.QuantumOrbital = QuantumOrbital is null ? new() : QuantumOrbital with { };
         clone.Newton = Newton is null ? new() : Newton with { };
         clone.CahnHilliard = CahnHilliard is null ? new() : CahnHilliard with { };
         clone.IfsTransforms = IfsTransforms.Select(transform => transform.Clone()).ToList();

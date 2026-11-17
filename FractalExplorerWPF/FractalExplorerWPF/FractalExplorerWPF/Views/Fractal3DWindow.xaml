@@ -101,6 +101,7 @@
                             <controls:Buddhabrot4DEditor x:Name="BuddhabrotEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="BuddhabrotAtlas_OnClick"/>
                             <controls:KleinianEditor x:Name="KleinianEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="KleinianAtlas_OnClick"/>
                             <controls:AntoineEditor x:Name="AntoineEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="AntoineAtlas_OnClick"/>
+                            <controls:QuantumOrbitalEditor x:Name="OrbitalEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
                             <controls:Newton3DEditor x:Name="NewtonEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"
                                                      AtlasRequested="Newton3DAtlas_OnClick"/>
                             <StackPanel x:Name="DlaPanel" Visibility="Collapsed">
