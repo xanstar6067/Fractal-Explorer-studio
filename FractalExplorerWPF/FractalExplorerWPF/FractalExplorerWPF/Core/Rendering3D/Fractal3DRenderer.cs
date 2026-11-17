@@ -162,6 +162,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
             EnsureLSystem(state, token);
+            EnsurePolytope4D(state, token);
             EnsureHopf(state, token);
             EnsureKleinian(state, token);
             EnsureAntoine(state, token);
@@ -280,6 +281,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         WriteConstants(BuildConstants(state, width, height, offsetY), state);
         EnsureApollonianTree(state);
         EnsureLSystem(state, token);
+        EnsurePolytope4D(state, token);
         EnsureHopf(state, token);
         EnsureKleinian(state, token);
         EnsureAntoine(state, token);
@@ -724,6 +726,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeIfsResources();
         DisposeTerrainResources();
         DisposeLSystemResources();
+        DisposePolytope4DResources();
         DisposeHopfResources();
         DisposeKleinianResources();
         DisposeAntoineResources();

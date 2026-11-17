@@ -510,6 +510,7 @@ internal static class Program
                 // параметры, пространственный редактор и экспорт встроены в окно.
                 // MengerSponge, Vicsek и CantorDust включают встроенный CubeRuleEditor (три слоя правила).
                 // BulbBoxHybrid включает встроенный BulbBoxHybridEditor (цепочка операций и преобразований).
+                // Polytope4D включает Polytope4DEditor: шесть тел, проекции, сечения и вращения (fractal3d-polytope4-d).
                 // Terrain включает TerrainEditor (остров/кратер, термическая эрозия и уклон).
                 // PeriodicSurfaces включает PeriodicSurfaceEditor (смеси, переменная ширина и два лабиринта).
                 // Кадр считает GPU. Общий менеджер палитр снимается

@@ -76,6 +76,7 @@ public partial class Fractal3DWindow
 
     private void InitialPreparationCancel_OnClick(object sender, RoutedEventArgs e)
     {
+        if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.Stop();
         // Для растущих фракталов сохраняется остановка на достигнутой форме.
         if (Kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D)
             CancelButton_OnClick(sender, e);

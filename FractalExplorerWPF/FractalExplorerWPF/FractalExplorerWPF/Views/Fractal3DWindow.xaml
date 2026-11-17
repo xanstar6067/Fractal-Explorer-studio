@@ -46,6 +46,7 @@
                     <ComboBox x:Name="PresetBox" SelectionChanged="PresetBox_OnSelectionChanged"/>
                     <controls:LSystem3DEditor x:Name="LSystemEditor" Visibility="Collapsed" SettingsChanged="LSystem_OnChanged" AtlasRequested="LSystemAtlas_OnClick" Margin="0,8,0,0"/>
                     <controls:AbcFlowEditor x:Name="AbcFlowEditor" Visibility="Collapsed" SettingsChanged="AbcFlow_OnChanged" AtlasRequested="AbcFlowAtlas_OnClick" Margin="0,8,0,0"/>
+                    <controls:Polytope4DEditor x:Name="Polytope4DEditor" Visibility="Collapsed" SettingsChanged="Polytope4D_OnChanged" Margin="0,8,0,0"/>
                     <controls:HopfEditor x:Name="HopfEditor" Visibility="Collapsed" SettingsChanged="Hopf_OnChanged" AtlasRequested="HopfAtlas_OnClick" Margin="0,8,0,0"/>
 
                     <StackPanel x:Name="LichtenbergPanel" Visibility="Collapsed" Margin="0,8,0,4">

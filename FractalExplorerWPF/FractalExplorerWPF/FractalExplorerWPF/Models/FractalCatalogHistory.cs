@@ -264,6 +264,7 @@ internal static class FractalCatalogHistory
         Add("2026-10-16T10:15:02+03:00", MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy));
         Add("2026-10-16T10:49:02+03:00", "McMullen");
         Add("2026-10-16T12:52:28+03:00", MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Percolation));
+        Add("2026-11-17T12:51:27+03:00", Fractal3DCatalog.LaunchKey(Fractal3DKind.Polytope4D));
         return dates;
 
         void Add(string timestamp, params string[] launchKeys)

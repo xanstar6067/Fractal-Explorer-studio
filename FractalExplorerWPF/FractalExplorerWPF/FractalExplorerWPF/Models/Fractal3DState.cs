@@ -84,6 +84,7 @@ public sealed class Fractal3DState
     public TerrainSettings Terrain { get; set; } = new();
     public LSystem3DSettings LSystem { get; set; } = new();
     public AbcFlowSettings AbcFlow { get; set; } = new();
+    public Polytope4DSettings Polytope4D { get; set; } = new();
     public HopfSettings Hopf { get; set; } = new();
     public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
     public ImplicitSurfaceSettings ImplicitSurface { get; set; } = new();
@@ -181,6 +182,7 @@ public sealed class Fractal3DState
         clone.Lichtenberg = Lichtenberg is null ? new() : Lichtenberg with { };
         clone.LSystem = LSystem is null ? new() : LSystem with { };
         clone.AbcFlow = AbcFlow is null ? new() : AbcFlow with { };
+        clone.Polytope4D = Polytope4D is null ? new() : Polytope4D with { };
         clone.Hopf = Hopf?.Copy() ?? new();
         clone.PeriodicSurface = PeriodicSurface is null ? new() : PeriodicSurface with { };
         clone.ImplicitSurface = ImplicitSurface is null ? new() : ImplicitSurface with { };

@@ -271,6 +271,8 @@ float Map(float3 p, out float4 trap)
 
 #if (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     return LMap(p, trap);
+#elif FRACTAL_KIND == KIND_Polytope4D
+    return PolytopeMap(p, trap);
 #elif FRACTAL_KIND == KIND_Hopf
     return HopfMap(p, trap);
 #elif FRACTAL_KIND == KIND_Kleinian
@@ -1175,6 +1177,8 @@ float4 PSMain(PSInput input) : SV_TARGET
 #if FRACTAL_KIND == KIND_AbcFlow
     radius += .12; // largest particle radius beyond a periodic corner
 #endif
+#elif FRACTAL_KIND == KIND_Polytope4D
+    float radius = ShapeA.x;
 #elif FRACTAL_KIND == KIND_Hopf
     float radius = ShapeA.x;
 #elif FRACTAL_KIND == KIND_PeriodicSurfaces || FRACTAL_KIND == KIND_ImplicitSurface

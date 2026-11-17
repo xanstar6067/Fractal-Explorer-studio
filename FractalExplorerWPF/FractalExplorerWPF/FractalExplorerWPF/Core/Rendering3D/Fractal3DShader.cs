@@ -22,6 +22,7 @@ internal static class Fractal3DShader
             Fractal3DKind.HyperbolicHoneycomb => HyperbolicHoneycombShader.Geometry,
             Fractal3DKind.ImplicitSurface => ImplicitSurfaceShader.Build(implicitSurface ?? new()),
             Fractal3DKind.PeriodicSurfaces => PeriodicSurfaceShader.Source,
+            Fractal3DKind.Polytope4D => ShaderSource.Load("Polytope4D.hlsl"),
             Fractal3DKind.Hopf => HopfShader.Source,
             Fractal3DKind.Terrain => TerrainShader.Source,
             Fractal3DKind.LSystem3D or Fractal3DKind.AbcFlow => LSystem3DShader.Source,

@@ -54,6 +54,9 @@ public abstract class Fractal3DMode(Fractal3DKind kind, Fractal3DDefinition defi
     /// <summary>Заголовок блока «Форма», если режим называет его по-своему.</summary>
     public virtual string? ShapeHeader => null;
 
+    public virtual bool HasDedicatedShapeEditor => false;
+    public virtual bool NeedsWidePanel => false;
+
     #endregion
 
     #region Окраска

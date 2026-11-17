@@ -181,6 +181,7 @@ public partial class Fractal3DWindow : Window
         Terrain = CaptureTerrain(),
         LSystem = Kind == Fractal3DKind.LSystem3D ? LSystemEditor.Capture() : new(),
         AbcFlow = Kind == Fractal3DKind.AbcFlow ? AbcFlowEditor.Capture() : new(),
+        Polytope4D = Kind == Fractal3DKind.Polytope4D ? Polytope4DEditor.Capture() : new(),
         Hopf = Kind == Fractal3DKind.Hopf ? HopfEditor.Capture() : new(),
         PeriodicSurface = CapturePeriodicSurface(),
         ImplicitSurface = CaptureImplicitSurface(),
@@ -393,6 +394,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.Kleinian) KleinianEditor.Load(state.Kleinian ?? new());
         if (Kind == Fractal3DKind.AntoineNecklace) AntoineEditor.Load(state.Antoine ?? new());
         LoadPeriodicSurface(state.PeriodicSurface);
+        if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.Load(state.Polytope4D ?? new());
         LoadImplicitSurface(state.ImplicitSurface);
         LoadHyperbolicHoneycomb(state.HyperbolicHoneycomb);
         LoadDla(state.Dla);
@@ -441,6 +443,12 @@ public partial class Fractal3DWindow : Window
         ScheduleJuliabulbMapRender();
     }
 
+    private void Polytope4D_OnChanged(object? sender, EventArgs e)
+    {
+        if (!_updatingUi && Kind == Fractal3DKind.Polytope4D)
+            ScheduleRender(immediate: Polytope4DEditor.IsPlaying);
+    }
+
     private void ConfigureKindLayout()
     {
         // Источники цвета: подписи и доступность задаёт класс режима, общий с менеджером сохранений.
@@ -451,10 +459,10 @@ public partial class Fractal3DWindow : Window
             item.Visibility = Collapse(_mode.HasColoringMode(mode));
         }
         if (_mode.ShapeHeader is { } header) ShapeExpander.Header = header;
-        ShapeExpander.Visibility = Collapse(Kind is not (Fractal3DKind.AbcFlow or Fractal3DKind.Hopf or
+        ShapeExpander.Visibility = Collapse(!_mode.HasDedicatedShapeEditor && Kind is not (Fractal3DKind.AbcFlow or Fractal3DKind.Hopf or
             Fractal3DKind.LSystem3D or Fractal3DKind.Lichtenberg3D));
         // Режимы со своим редактором формул или геометрии получают панель пошире.
-        if (Kind is Fractal3DKind.AbcFlow or Fractal3DKind.Hopf or Fractal3DKind.LSystem3D or Fractal3DKind.HyperbolicHoneycomb or
+        if (_mode.NeedsWidePanel || Kind is Fractal3DKind.AbcFlow or Fractal3DKind.Hopf or Fractal3DKind.LSystem3D or Fractal3DKind.HyperbolicHoneycomb or
             Fractal3DKind.ImplicitSurface or Fractal3DKind.PeriodicSurfaces)
             ControlsColumn.Width = new GridLength(395);
 
@@ -508,6 +516,7 @@ public partial class Fractal3DWindow : Window
         TerrainPanel.Visibility = Collapse(Kind == Fractal3DKind.Terrain);
         LSystemEditor.Visibility = Collapse(Kind == Fractal3DKind.LSystem3D);
         AbcFlowEditor.Visibility = Collapse(Kind == Fractal3DKind.AbcFlow);
+        Polytope4DEditor.Visibility = Collapse(Kind == Fractal3DKind.Polytope4D);
         HopfEditor.Visibility = Collapse(Kind == Fractal3DKind.Hopf);
         BuddhabrotEditor.Visibility = Collapse(Kind == Fractal3DKind.Buddhabrot4D);
         LichtenbergPanel.Visibility = LichtenbergOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lichtenberg3D);
@@ -836,6 +845,7 @@ public partial class Fractal3DWindow : Window
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.Stop();
         if (Kind == Fractal3DKind.QuaternionJulia) StopQuaternionAnimation();
         if (Kind == Fractal3DKind.Dla3D) StopDlaGrowth();
         else if (Kind == Fractal3DKind.Lichtenberg3D) PauseLichtenberg();
@@ -867,6 +877,7 @@ public partial class Fractal3DWindow : Window
             _lichtenbergRunning = false; _lichtenbergRequested = _lichtenbergCount;
             UpdateLichtenbergLabels();
         }
+        if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.Stop();
         if (Kind == Fractal3DKind.Hopf) StopHopfAnimation();
         if (Kind == Fractal3DKind.QuaternionJulia) StopQuaternionAnimation();
         if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.StopAtDisplayedPhase();
@@ -994,7 +1005,7 @@ public partial class Fractal3DWindow : Window
 
         // Движение кончилось — доводим кадр. Мышь отпускают не только кнопкой: так же кончаются
         // инерция, перелёт и автовращение, и в каждом случае показанным остаётся живой кадр.
-        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || QuaternionSlicePlaying;
+        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying;
         if (_wasMoving && !moving) RequestFrame(FrameQuality.Full, RefineDelayMs);
         _wasMoving = moving;
 
@@ -1036,7 +1047,7 @@ public partial class Fractal3DWindow : Window
         _renderCts?.Cancel();
         var cts = new CancellationTokenSource();
         _renderCts = cts;
-        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || QuaternionSlicePlaying;
+        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying;
 
         // Черновик во весь холст, да ещё и без движения, ничем не отличается от полного кадра:
         // считаем его сразу полным, чтобы не гонять ту же работу дважды и честно назвать результат.
@@ -1077,7 +1088,7 @@ public partial class Fractal3DWindow : Window
                 var progress = new Progress<int>(ReportProgress);
                 BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
                 cts.Token.ThrowIfCancellationRequested();
-                if (!IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
+                if ((Kind == Fractal3DKind.Polytope4D && !Polytope4DEditor.IsCurrentFrame(state.Polytope4D)) || !IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
                 RenderOptions.SetBitmapScalingMode(CanvasImage, BitmapScalingMode.HighQuality);
                 CanvasImage.Source = bitmap;
                 StatusText.Text = $"Готово за {watch.Elapsed.TotalSeconds:F3} сек.; кадр {width}×{height}, " +
@@ -1123,7 +1134,7 @@ public partial class Fractal3DWindow : Window
                     if (!_frameRequested) ShowPreparationError("Подготовка отменена");
                     return;
                 }
-                if (!IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
+                if ((Kind == Fractal3DKind.Polytope4D && !Polytope4DEditor.IsCurrentFrame(state.Polytope4D)) || !IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
 
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
                 RenderOptions.SetBitmapScalingMode(CanvasImage,
@@ -1160,6 +1171,8 @@ public partial class Fractal3DWindow : Window
             if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.OnFrameDisplayed(_renderer.AbcFlowSections, state);
             if (Kind == Fractal3DKind.LSystem3D)
                 LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount, state.LSystem);
+            if (Kind == Fractal3DKind.Polytope4D)
+                Polytope4DEditor.OnFrameDisplayed(state.Polytope4D, _renderer.Polytope4DGeometry);
             if (Kind == Fractal3DKind.Hopf)
             {
                 OnHopfFrameDisplayed(state);
@@ -1195,6 +1208,7 @@ public partial class Fractal3DWindow : Window
             CrashLogger.Log("Fractal3DWindow.RenderFrameAsync", exception);
             if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.ShowError(exception.Message);
+            else if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.Hopf) HopfEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.QuaternionJulia) QuaternionEditor.ShowError(exception.Message);
             else MessageBox.Show(this, exception.Message, _definition.Title,
@@ -1215,7 +1229,7 @@ public partial class Fractal3DWindow : Window
     /// </summary>
     private void RequestRefinement(FrameQuality quality, double scale, int ssaa, bool simplified)
     {
-        if (IsMoving || _dlaRunning || _lichtenbergRunning || _simulation?.IsRunning == true || _simulation?.IsBusy == true || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying) || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || QuaternionSlicePlaying) return;
+        if (IsMoving || _dlaRunning || _lichtenbergRunning || _simulation?.IsRunning == true || _simulation?.IsBusy == true || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying) || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying) return;
         if (quality == FrameQuality.Draft && (scale < 1 || simplified))
             RequestFrame(FrameQuality.Full, RefineDelayMs);
         else if (quality != FrameQuality.Antialiased && ssaa > 1)
@@ -1330,6 +1344,7 @@ public partial class Fractal3DWindow : Window
         _isClosing = true;
         _simulation?.Close();
         LSystemEditor.CancelWork();
+        Polytope4DEditor.Stop();
         HopfEditor.Stop();
         QuaternionEditor.Stop();
         AbcFlowEditor.Stop();
