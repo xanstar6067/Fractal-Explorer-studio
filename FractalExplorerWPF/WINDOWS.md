@@ -691,3 +691,11 @@ null от своей маски. Свои правила ограничены 12
 настраиваются область, разбиение, линии координат и нормирование размера.
 Геометрия — `ParametricSurfaceMesh.cs`, GPU — `Fractal3DRenderer.ParametricSurface.cs`
 и `Shaders/ParametricSurface.hlsl`. Подробности — [PARAMETRIC_SURFACES.md](PARAMETRIC_SURFACES.md).
+
+### Перколяция и пористые среды 3D
+
+Режим `Fractal3DKind.Percolation3D` открывается в общем `Fractal3DWindow`.
+Панель `Controls/Percolation3DEditor.xaml` / `.xaml.cs` управляет типом среды,
+seed, заполнением, осями прохода и среза и показом кластеров. Связность и
+кратчайший путь вычисляет `Core/Math/Percolation3D.cs`, воксели рисует Direct3D 11
+через `Shaders/PercolationVolume.hlsl`. Подробнее — [PERCOLATION3D.md](PERCOLATION3D.md).

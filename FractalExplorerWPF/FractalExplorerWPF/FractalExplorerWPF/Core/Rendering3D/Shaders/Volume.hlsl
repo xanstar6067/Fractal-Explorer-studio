@@ -40,7 +40,9 @@ cbuffer Frame : register(b0)
     float4 Palette[16];
 };
 
-#if VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || VOLUME_KIND == KIND_Newton3D || VOLUME_KIND == KIND_QuantumOrbitals
+#if VOLUME_KIND == KIND_Percolation3D
+Texture3D<uint4> Density : register(t0);
+#elif VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || VOLUME_KIND == KIND_Newton3D || VOLUME_KIND == KIND_QuantumOrbitals
 Texture3D<float4> Density : register(t0);
 #elif VOLUME_KIND == KIND_Dla3D || VOLUME_KIND == KIND_Turing3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D
@@ -94,6 +96,7 @@ float3 LinearToSrgb(float3 color)
     return lerp(low, high, step(0.0031308, color));
 }
 
+#if VOLUME_KIND != KIND_Percolation3D
 #if VOLUME_KIND == KIND_Turing3D
 // Область показа — куб, шар или сферическая оболочка — с мягким краем в полторы клетки.
 // Радиус 0.97 записан литералом: шар не упирается в грани куба.
@@ -206,6 +209,8 @@ float SampleDensity(float3 samplePosition)
 #endif
 }
 
+#endif
+
 float3 SkyAt(float3 direction)
 {
     return lerp(BackgroundBottom.rgb, BackgroundTop.rgb,
@@ -234,6 +239,9 @@ float3 SamplePalette(float value, int repeat)
     return lerp(Palette[first].rgb, Palette[first + 1].rgb, saturate(span - first));
 }
 
+#if VOLUME_KIND == KIND_Percolation3D
+#include "PercolationVolume.hlsl"
+#else
 float3 SurfaceAlbedo(float3 normal, float3 surfacePoint, float3 rayDirection,
                      float depth, float occlusion, float stepsRatio)
 {
@@ -723,3 +731,4 @@ float4 PSMain(PSInput input) : SV_TARGET
     return float4(LinearToSrgb(color), 1.0);
 #endif
 }
+#endif

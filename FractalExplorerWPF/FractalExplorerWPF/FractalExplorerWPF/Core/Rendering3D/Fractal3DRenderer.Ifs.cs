@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using FractalExplorerWPF.Core.PercolationMath;
+using FractalExplorerWPF.Infrastructure;
 using FractalExplorerWPF.Models;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
@@ -8,6 +10,10 @@ namespace FractalExplorerWPF.Core.Rendering3D;
 public sealed partial class Fractal3DRenderer
 {
     private ID3D11PixelShader? _ifsPixelShader;
+    private ID3D11PixelShader? _percolationPixelShader;
+    internal (Percolation3DSettings Settings, Percolation3DStatistics Statistics)? PercolationField { get; private set; }
+    private static ShaderCacheEntry PercolationPixelEntry() =>
+        new("percolation3d-pixel", VolumeShader.Build(Fractal3DKind.Percolation3D), "PSMain", "ps_5_0");
     private ID3D11PixelShader? _flamePixelShader;
     private ID3D11PixelShader? _buddhabrotPixelShader;
     private Buddhabrot4DOrbitCloud? _buddhabrotCloud;
@@ -37,6 +43,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.Percolation3D)
+            return _percolationPixelShader ??= _device!.CreatePixelShader(Compile(PercolationPixelEntry()).Span);
         if (kind == Fractal3DKind.QuantumOrbitals)
             return _orbitalPixel ??= _device!.CreatePixelShader(Compile(OrbitalPixelEntry()).Span);
         if (kind == Fractal3DKind.Newton3D)
@@ -95,12 +103,18 @@ public sealed partial class Fractal3DRenderer
     private void EnsureIfsVolume(Fractal3DState state, CancellationToken token)
     {
         if (_ifsVolumeState is not null && SameVolumeGeometry(_ifsVolumeState, state)) return;
+        Percolation3DSettings? percolation = state.Kind == Fractal3DKind.Percolation3D ? state.Percolation3D ?? new() : null;
         bool colorVolume = state.Kind is Fractal3DKind.Flame3D or Fractal3DKind.Buddhabrot4D;
         bool ageVolume = state.Kind is Fractal3DKind.Dla3D or Fractal3DKind.Lichtenberg3D;
-        int side = colorVolume ? Flame3DVolume.Side : ageVolume ? Dla3DVolume.Side : Ifs3DVolume.Side;
-        int bytesPerCell = colorVolume ? 8 : ageVolume ? 2 : 1;
-        Format format = colorVolume ? Format.R16G16B16A16_Float : ageVolume ? Format.R8G8_UNorm : Format.R8_UNorm;
-        byte[] voxels = state.Kind switch
+        int side = percolation?.Size ?? (colorVolume ? Flame3DVolume.Side : ageVolume ? Dla3DVolume.Side : Ifs3DVolume.Side);
+        int bytesPerCell = percolation is not null ? 4 : colorVolume ? 8 : ageVolume ? 2 : 1;
+        Format format = percolation is not null ? Format.R8G8B8A8_UInt :
+            colorVolume ? Format.R16G16B16A16_Float : ageVolume ? Format.R8G8_UNorm : Format.R8_UNorm;
+        Percolation3DStatistics? statistics = null;
+        byte[] voxels;
+        if (percolation is not null)
+            (voxels, statistics) = Percolation3DVolume.Build(percolation, token);
+        else voxels = state.Kind switch
         {
             Fractal3DKind.Buddhabrot4D => BuildBuddhabrotVolume(state, token),
             Fractal3DKind.Dla3D => BuildDlaVolume(state, token),
@@ -113,6 +127,7 @@ public sealed partial class Fractal3DRenderer
         // Once upload starts, an allocation/map failure must not leave a valid-looking
         // snapshot pointing at a replaced or partially updated texture.
         _ifsVolumeState = null;
+        PercolationField = null;
 
         if (_ifsVolumeTexture is not null && (_volumeFormat != format || _volumeSide != side))
         {
@@ -159,6 +174,7 @@ public sealed partial class Fractal3DRenderer
         _volumeFormat = format;
         _volumeSide = side;
         _ifsVolumeState = state.Clone();
+        PercolationField = percolation is not null && statistics is not null ? (percolation, statistics) : null;
         if (state.Kind == Fractal3DKind.Lichtenberg3D)
         {
             LichtenbergDisplayedField = _lichtenberg!.Snapshot();
@@ -201,6 +217,8 @@ public sealed partial class Fractal3DRenderer
     internal static bool SameVolumeGeometry(Fractal3DState first, Fractal3DState second)
     {
         if (first.Kind != second.Kind) return false;
+        if (first.Kind == Fractal3DKind.Percolation3D)
+            return (first.Percolation3D ?? new()).SameField(second.Percolation3D ?? new());
         if (first.Kind == Fractal3DKind.Lyapunov3D) return first.Lyapunov.SameField(second.Lyapunov);
         if (first.Kind == Fractal3DKind.Lichtenberg3D)
             return first.Lichtenberg.SameGrowth(second.Lichtenberg) &&
@@ -287,6 +305,8 @@ public sealed partial class Fractal3DRenderer
         _leniaPixelShader?.Dispose();
         DisposeLyapunov();
         DisposeOrbitals();
+        _percolationPixelShader?.Dispose();
+        PercolationField = null;
         DisposeNewton();
         _physarumPixelShader?.Dispose();
         DisposeSimulationPreviews();

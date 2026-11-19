@@ -68,6 +68,8 @@ internal static partial class Program
                 if (group == "polytope4d") return;
                 if (group is "all" or "parametric-surface") await VerifyParametricSurfaceAsync(args);
                 if (group == "parametric-surface") return;
+                if (group is "all" or "percolation3d") await VerifyPercolation3DAsync(args);
+                if (group == "percolation3d") return;
                 if (group == "ui-computation") { await VerifyUiComputationAsync(); return; }
                 if (group is "all" or "phoenix-saves") await VerifyLegacyPhoenixSavesAsync();
                 if (group == "phoenix-saves") return;

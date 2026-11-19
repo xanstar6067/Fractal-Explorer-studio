@@ -194,6 +194,7 @@ public partial class Fractal3DWindow : Window
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
         QuantumOrbital = Kind == Fractal3DKind.QuantumOrbitals ? OrbitalEditor.Capture() : new(),
+        Percolation3D = Kind == Fractal3DKind.Percolation3D ? PercolationEditor.Capture() : null,
         Newton = Kind == Fractal3DKind.Newton3D ? NewtonEditor.Capture() : new(),
         Power = ReadField(PowerBox, _mode.PowerField),
         BurningShipFormula = SelectedBurningShipFormula,
@@ -407,6 +408,7 @@ public partial class Fractal3DWindow : Window
         _simulation?.Load(state);
         LoadLyapunov(state.Lyapunov);
         if (Kind == Fractal3DKind.QuantumOrbitals) OrbitalEditor.Load(state.QuantumOrbital ?? new());
+        if (Kind == Fractal3DKind.Percolation3D) PercolationEditor.Load(state.Percolation3D ?? new());
         if (Kind == Fractal3DKind.Newton3D) NewtonEditor.Load(state.Newton ?? new());
 
         MaxStepsBox.Text = state.MaxSteps.ToString(CultureInfo.InvariantCulture);
@@ -537,6 +539,7 @@ public partial class Fractal3DWindow : Window
         KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
         AntoineEditor.Visibility = Collapse(Kind == Fractal3DKind.AntoineNecklace);
         OrbitalEditor.Visibility = Collapse(Kind == Fractal3DKind.QuantumOrbitals);
+        PercolationEditor.Visibility = Collapse(Kind == Fractal3DKind.Percolation3D);
         NewtonEditor.Visibility = Collapse(Kind == Fractal3DKind.Newton3D);
         PeriodicEditor.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
         ImplicitPanel.Visibility = Collapse(Kind == Fractal3DKind.ImplicitSurface);
@@ -754,6 +757,13 @@ public partial class Fractal3DWindow : Window
     {
         if (_updatingUi || PresetBox.SelectedIndex < 0 || PresetBox.SelectedIndex >= _presets.Count) return;
         ApplyState(Fractal3DPreferencesStore.Load().ApplyTo(_presets[PresetBox.SelectedIndex]));
+    }
+
+    private void Percolation_OnChanged(object sender, EventArgs e)
+    {
+        if (_updatingUi) return;
+        _renderCts?.Cancel();
+        ScheduleRender();
     }
 
     private void Parameter_OnChanged(object sender, EventArgs e)
@@ -1190,6 +1200,9 @@ public partial class Fractal3DWindow : Window
             if (Kind == Fractal3DKind.Polytope4D)
                 Polytope4DEditor.OnFrameDisplayed(state.Polytope4D, _renderer.Polytope4DGeometry);
             OnParametricFrameDisplayed(state.ParametricSurface);
+            if (state.Percolation3D is { } percolation && _renderer.PercolationField is { } field &&
+                field.Settings.SameField(percolation))
+                PercolationEditor.ShowStatistics(percolation, field.Statistics);
             if (Kind == Fractal3DKind.Hopf)
             {
                 OnHopfFrameDisplayed(state);
@@ -1227,6 +1240,7 @@ public partial class Fractal3DWindow : Window
             else if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.ParametricSurface) ParametricEditor.ShowMeshStatus(exception.Message);
+            else if (Kind == Fractal3DKind.Percolation3D) PercolationEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.Hopf) HopfEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.QuaternionJulia) QuaternionEditor.ShowError(exception.Message);
             else MessageBox.Show(this, exception.Message, _definition.Title,

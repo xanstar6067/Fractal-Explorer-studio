@@ -1008,3 +1008,16 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 ```
 
 `--out <папка>` сохраняет четыре контрольных PNG. Модель и ручные сценарии — [PARAMETRIC_SURFACES.md](../PARAMETRIC_SURFACES.md).
+
+### `percolation3d`
+
+Проверяет воспроизводимость и вложенность образцов, связность по граням,
+кратчайший маршрут, отсутствие перехода между краями массива, сохранение
+и числовой ввод. На Direct3D 11 проверяет глубину среза, подсветку пути
+и повторное использование текстуры при смене вида.
+
+```powershell
+dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- percolation3d
+```
+
+`--out <папка>` сохраняет контрольные PNG. Модель и ручные сценарии — [PERCOLATION3D.md](../PERCOLATION3D.md).

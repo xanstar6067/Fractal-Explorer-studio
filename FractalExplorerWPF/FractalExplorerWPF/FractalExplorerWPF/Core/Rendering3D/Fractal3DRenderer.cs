@@ -586,6 +586,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(Lyapunov3DComputeShader.CacheEntry);
         entries.Add(OrbitalPixelEntry());
         entries.Add(OrbitalComputeEntry());
+        entries.Add(PercolationPixelEntry());
         entries.Add(NewtonPixelShaderEntry());
         entries.Add(Newton3DComputeShader.CacheEntry);
         entries.AddRange(Newton3DFormulas.Examples.Select(example => Newton3DComputeShader.Entry(new() { Formula = example.Formula }))

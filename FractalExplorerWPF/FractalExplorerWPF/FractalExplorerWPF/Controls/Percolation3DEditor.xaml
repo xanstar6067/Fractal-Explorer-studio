@@ -1,0 +1,93 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.Percolation3DEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock x:Name="StatisticsText" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <TextBlock Text="Тип среды" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="MediumBox" SelectionChanged="FieldChanged">
+            <ComboBoxItem Content="Независимые ячейки"/>
+            <ComboBoxItem Content="Коррелированные поры"/>
+        </ComboBox>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,8,0">
+                <TextBlock Text="Сторона решётки" Style="{StaticResource FieldCaption}"/>
+                <TextBox x:Name="SizeBox" controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Начальное число (seed)" Style="{StaticResource FieldCaption}"/>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Случайное" Margin="6,0,0,0" Click="RandomSeedClicked"/>
+                    <TextBox x:Name="SeedBox" TextChanged="FieldChanged"/>
+                </DockPanel>
+            </StackPanel>
+        </Grid>
+        <TextBlock x:Name="ProbabilityLabel" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
+            <Slider x:Name="ProbabilitySlider" Minimum="0" Maximum="1" SmallChange="0.002" LargeChange="0.02"
+                    Margin="0,0,8,0" ValueChanged="ProbabilitySliderChanged"/>
+            <TextBox Grid.Column="1" x:Name="ProbabilityBox"
+                     controls:NumericSpinner.IsEnabled="True" TextChanged="FieldChanged"/>
+        </Grid>
+        <Button x:Name="CriticalButton" HorizontalAlignment="Left" Content="Критическая область · p ≈ 0,3116"
+                Margin="0,4,0,0" Click="CriticalClicked"/>
+        <TextBlock x:Name="MediumHint" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}" Margin="0,6,0,2"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,8,0">
+                <TextBlock Text="Ось прохода" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="AxisBox" SelectionChanged="FieldChanged">
+                    <ComboBoxItem Content="X"/>
+                    <ComboBoxItem Content="Y"/>
+                    <ComboBoxItem Content="Z"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Вид" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="ViewBox" SelectionChanged="ViewChanged">
+                    <ComboBoxItem Content="Все кластеры"/>
+                    <ComboBoxItem Content="Крупнейший кластер"/>
+                    <ComboBoxItem Content="Сквозные кластеры"/>
+                    <ComboBoxItem Content="Маршрут сквозь объём"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+        <CheckBox x:Name="PathBox" Content="Подсветить кратчайший путь" Margin="0,8,0,2"
+                  Checked="ViewChanged" Unchecked="ViewChanged"
+                  ToolTip="Бирюзовый — вход, оранжевый — выход на противоположную грань."/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,8,0">
+                <TextBlock Text="Внутренний срез" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="CutBox" SelectionChanged="ViewChanged">
+                    <ComboBoxItem Content="Целый образец"/>
+                    <ComboBoxItem Content="Открыть разрез"/>
+                    <ComboBoxItem Content="Один слой"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Ось среза" Style="{StaticResource FieldCaption}"/>
+                <ComboBox x:Name="CutAxisBox" SelectionChanged="ViewChanged">
+                    <ComboBoxItem Content="X"/>
+                    <ComboBoxItem Content="Y"/>
+                    <ComboBoxItem Content="Z"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+        <StackPanel x:Name="CutPositionPanel">
+            <TextBlock Text="Положение среза · доля от 0 до 1" Style="{StaticResource FieldCaption}"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="86"/></Grid.ColumnDefinitions>
+                <Slider x:Name="CutPositionSlider" Minimum="0" Maximum="1" SmallChange="0.025" LargeChange="0.10"
+                        Margin="0,0,8,0" ValueChanged="CutSliderChanged"/>
+                <TextBox Grid.Column="1" x:Name="CutPositionBox"
+                         controls:NumericSpinner.IsEnabled="True" TextChanged="ViewChanged"/>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
