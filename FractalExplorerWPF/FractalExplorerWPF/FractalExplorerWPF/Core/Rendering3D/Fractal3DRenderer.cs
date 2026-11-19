@@ -159,6 +159,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
             FrameConstants constants = BuildConstants(state, width, height, 0);
             constants.Resolution = new Vector4(width, height, (float)(pixelX - 0.5), (float)(pixelY - 0.5));
             constants.Probe = new Vector4(1, 0, 0, 0);
+            PrepareParametricSurface(state, token, ref constants);
             WriteConstants(constants, state);
             EnsureApollonianTree(state);
             EnsureLSystem(state, token);
@@ -278,7 +279,9 @@ public sealed partial class Fractal3DRenderer : IDisposable
     {
         stages?.Report(Fractal3DRenderStage.PreparingData);
         ID3D11DeviceContext context = _context!;
-        WriteConstants(BuildConstants(state, width, height, offsetY), state);
+        var frameConstants = BuildConstants(state, width, height, offsetY);
+        PrepareParametricSurface(state, token, ref frameConstants);
+        WriteConstants(frameConstants, state);
         EnsureApollonianTree(state);
         EnsureLSystem(state, token);
         EnsurePolytope4D(state, token);
@@ -729,6 +732,7 @@ public sealed partial class Fractal3DRenderer : IDisposable
         DisposeTerrainResources();
         DisposeLSystemResources();
         DisposePolytope4DResources();
+        DisposeParametricSurface();
         DisposeHopfResources();
         DisposeKleinianResources();
         DisposeAntoineResources();

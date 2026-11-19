@@ -45,7 +45,8 @@ public enum Fractal3DKind
     AntoineNecklace,
     Newton3D,
     Polytope4D,
-    QuantumOrbitals
+    QuantumOrbitals,
+    ParametricSurface
 }
 
 public sealed record Fractal3DDefinition(

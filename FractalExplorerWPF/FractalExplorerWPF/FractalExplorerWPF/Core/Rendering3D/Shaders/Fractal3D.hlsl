@@ -799,7 +799,20 @@ float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDi
         return TraceCubeRule(origin + direction * minDistance, direction, maxDistance, distance, steps, trap) ? .2 : 1;
     }
 #endif
-#if FRACTAL_KIND == KIND_ImplicitSurface
+#if FRACTAL_KIND == KIND_ParametricSurface
+    float3 axis = normalize(cross(direction, abs(direction.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
+    float3 other = cross(direction, axis);
+    float visibility = 0;
+    [loop] for (int i = 0; i < 4; i++)
+    {
+        float angle = i * 1.5707963;
+        float3 ray = normalize(direction + (cos(angle) * axis + sin(angle) * other) / (sharpness * 4));
+        float distance; int steps; float4 trap; float3 normal;
+        visibility += TraceParametric(origin + ray * minDistance, ray, maxDistance,
+            distance, steps, trap, normal) ? .05 : .25;
+    }
+    return visibility;
+#elif FRACTAL_KIND == KIND_ImplicitSurface
     float distance; int steps; float4 trap;
     return TraceImplicit(origin+direction*minDistance,direction,maxDistance,distance,steps,trap) ? .2 : 1;
 #elif FRACTAL_KIND == KIND_Kleinian
@@ -863,6 +876,21 @@ float SoftShadow(float3 origin, float3 direction, float minDistance, float maxDi
 // расплывалось пятнами, не повторяя рельеф.
 float Occlusion(float3 p, float3 normal, float unit)
 {
+#if FRACTAL_KIND == KIND_ParametricSurface
+    float3 axis = normalize(cross(normal, abs(normal.y) < .9 ? float3(0,1,0) : float3(1,0,0)));
+    float3 other = cross(normal, axis);
+    float limit = .18 * unit;
+    float occluded = 0;
+    [loop] for (int i = 0; i < 3; i++)
+    {
+        float angle = i * 2.0943951;
+        float3 ray = normalize(normal + cos(angle) * axis + sin(angle) * other);
+        float distance; int steps; float4 trap; float3 hitNormal;
+        if (TraceParametric(p + normal * (.001 * unit), ray, limit, distance, steps, trap, hitNormal))
+            occluded += 1 - distance / limit;
+    }
+    return 1 - occluded / 3;
+#else
     float occluded = 0.0;
     float weight = 1.0;
     float4 trap;
@@ -874,6 +902,7 @@ float Occlusion(float3 p, float3 normal, float unit)
         weight *= 0.75;
     }
     return saturate(1.0 - 3.0 * occluded);
+#endif
 }
 
 // Цвет по положению на градиенте. Повтор «отражать» со смягчением краёв — это ровно та
@@ -936,7 +965,7 @@ float3 SkyAt(float3 direction)
 // расстоянии выступы фигуры не нагоняют туман.
 float ViewScale()
 {
-#if FRACTAL_KIND == KIND_Terrain
+#if FRACTAL_KIND == KIND_Terrain || FRACTAL_KIND == KIND_ParametricSurface
     // Ландшафт не самоподобен, а высота над рельефом скачет при каждом облёте холма:
     // туман у него всегда на заданной дальности.
     return 1.0;
@@ -978,7 +1007,11 @@ float3 SurfaceAlbedo(
     if (mode == 2) value = trap.x;
 #endif
     else if (mode == 3) value = travelled / depthSpan * 6.0;
+#if FRACTAL_KIND == KIND_ParametricSurface
+    else if (mode == 4) value = trap.y;
+#else
     else if (mode == 4) value = trap.y * 3.0;
+#endif
     else if (mode == 5) value = trap.z / max(March.w - 1.0, 1.0);
     else if (mode == 6) value = log(1.0 + trap.w) * 0.5;
 #if FRACTAL_KIND == KIND_Terrain
@@ -1022,6 +1055,9 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
     bool hit = false;
 #if FRACTAL_KIND == KIND_Terrain
     hit = TraceTerrain(origin, reflected, March.z, distance, steps);
+#elif FRACTAL_KIND == KIND_ParametricSurface
+    float3 reflectedNormal;
+    hit = TraceParametric(origin, reflected, March.z, distance, steps, reflectedTrap, reflectedNormal);
 #elif (FRACTAL_KIND == KIND_LSystem3D || FRACTAL_KIND == KIND_AbcFlow)
     hit = TraceLSystem(origin, reflected, March.z, distance, steps, reflectedTrap);
 #elif FRACTAL_KIND == KIND_ImplicitSurface
@@ -1072,6 +1108,8 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming,
     float3 reflectedNormal = normalize(float3(-slope.x, 1.0, -slope.y));
     if (dot(reflectedNormal, reflected) > 0.0) reflectedNormal = -reflectedNormal;
     float stepsRatio = saturate((float)steps / max(2.0 * (ShapeA.z - 1.0), 1.0));
+#elif FRACTAL_KIND == KIND_ParametricSurface
+    float stepsRatio = saturate(steps / 128.0);
 #else
     float3 reflectedNormal = EstimateNormal(hitPoint, max(epsilon, 1e-6));
     float stepsRatio = saturate((float)steps / max(March.x, 1.0));
@@ -1177,7 +1215,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 #if FRACTAL_KIND == KIND_AbcFlow
     radius += .12; // largest particle radius beyond a periodic corner
 #endif
-#elif FRACTAL_KIND == KIND_Polytope4D
+#elif FRACTAL_KIND == KIND_Polytope4D || FRACTAL_KIND == KIND_ParametricSurface
     float radius = ShapeA.x;
 #elif FRACTAL_KIND == KIND_Hopf
     float radius = ShapeA.x;
@@ -1233,6 +1271,9 @@ float4 PSMain(PSInput input) : SV_TARGET
 #endif
 
     int style = (int)Style.x;
+#if FRACTAL_KIND == KIND_ParametricSurface
+    if (style == 3 || style == 4) style = 0;
+#endif
     float strength = max(Style.y, 0.0);
     bool volumetric = style == 3 || style == 4;
     // Плотность рисует фигуру насквозь, но зонду по-прежнему нужно первое попадание:
@@ -1256,6 +1297,11 @@ float4 PSMain(PSInput input) : SV_TARGET
     hit = TraceTerrain(rayOrigin, rayDirection, maxDistance, travelled, usedSteps);
     exhausted = false;
     epsilon = max(pixelRadius * travelled * 0.1, 1e-6);
+#elif FRACTAL_KIND == KIND_ParametricSurface
+    float3 normal;
+    hit = TraceParametric(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap, normal);
+    exhausted = false;
+    epsilon = max(pixelRadius * travelled * .05, 1e-6);
 #elif FRACTAL_KIND == KIND_ImplicitSurface
     hit = TraceImplicit(rayOrigin, rayDirection, maxDistance, travelled, usedSteps, trap);
     exhausted = false;
@@ -1364,6 +1410,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3 sky = SkyAt(rayDirection);
 #if FRACTAL_KIND == KIND_Terrain
     float stepsRatio = saturate((float)usedSteps / max(2.0 * (ShapeA.z - 1.0), 1.0));
+#elif FRACTAL_KIND == KIND_ParametricSurface
+    float stepsRatio = saturate(usedSteps / 128.0);
 #else
     float stepsRatio = saturate((float)usedSteps / max((float)maxSteps, 1.0));
 #endif
@@ -1395,7 +1443,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     TerrainHeight(surfacePoint.xz, terrainSlope);
     float3 normal = normalize(float3(-terrainSlope.x, 1.0, -terrainSlope.y));
     if (dot(normal, rayDirection) > 0) normal = -normal;
-#else
+#elif FRACTAL_KIND != KIND_ParametricSurface
     float3 normal = EstimateNormal(surfacePoint, max(epsilon, 1e-6));
 #if FRACTAL_KIND == KIND_PeriodicSurfaces || FRACTAL_KIND == KIND_ImplicitSurface
     if (dot(normal, rayDirection) > 0) normal = -normal;
@@ -1489,6 +1537,9 @@ float4 PSMain(PSInput input) : SV_TARGET
     }
 
     if (style == 3) color += glowTint * glow * 1.2;
+#if FRACTAL_KIND == KIND_ParametricSurface
+    color *= 1 - .72 * ParametricGrid(trap.xy);
+#endif
     color = lerp(color, sky, saturate(shadeDepth / depthSpan));
     return float4(LinearToSrgb(color), 1.0);
 }

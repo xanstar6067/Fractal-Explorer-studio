@@ -995,3 +995,16 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 сохранения и связанные ограничения числового ввода в окне.
 `--out <папка>` задаёт каталог диагностических PNG и изолированных данных.
 Модель и ручные сценарии — [QUANTUM_ORBITALS.md](../QUANTUM_ORBITALS.md).
+
+### `parametric-surface`
+
+Сетка всех пресетов, аналитическая сфера и плоскость, пропуск неопределённых узлов,
+проверка формул и отмена. Direct3D 11 проверяет видимость четырёх разных поверхностей,
+точность зонда, наложение сетки, окраску по u/v и переиспользование геометрии.
+Также проверяются общий кэш шейдеров, точное восстановление из сохранения и черновик формулы в редакторе.
+
+```powershell
+dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- parametric-surface
+```
+
+`--out <папка>` сохраняет четыре контрольных PNG. Модель и ручные сценарии — [PARAMETRIC_SURFACES.md](../PARAMETRIC_SURFACES.md).

@@ -682,3 +682,12 @@ null от своей маски. Свои правила ограничены 12
 `Core/Rendering3D/Fractal3DRenderer.QuantumOrbitals.cs`, `Shaders/QuantumOrbitalsCompute.hlsl`;
 визуализация — ветвь общего `Volume.hlsl`. Состояние `QuantumOrbitalSettings` глубоко копируется.
 Модель, ограничения и ручные сценарии — [QUANTUM_ORBITALS.md](QUANTUM_ORBITALS.md).
+
+### Суперформула и параметрические поверхности
+
+Режим `Fractal3DKind.ParametricSurface` общего `Fractal3DWindow` открывает
+`Controls/ParametricSurfaceEditor.xaml` / `.xaml.cs`. Панель переключает
+суперформулу с двумя профилями и три уравнения в параметрах u/v. В ней
+настраиваются область, разбиение, линии координат и нормирование размера.
+Геометрия — `ParametricSurfaceMesh.cs`, GPU — `Fractal3DRenderer.ParametricSurface.cs`
+и `Shaders/ParametricSurface.hlsl`. Подробности — [PARAMETRIC_SURFACES.md](PARAMETRIC_SURFACES.md).

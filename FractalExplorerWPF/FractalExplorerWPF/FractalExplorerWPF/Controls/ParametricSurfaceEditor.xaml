@@ -1,0 +1,97 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.ParametricSurfaceEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             PreviewKeyDown="OnPreviewKeyDown">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="Help" TargetType="TextBlock">
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Foreground" Value="{DynamicResource Theme.SecondaryTextBrush}"/>
+                <Setter Property="Margin" Value="0,4,0,4"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel>
+        <TextBlock Style="{StaticResource FieldCaption}" Text="Способ построения"/>
+        <ComboBox x:Name="FamilyBox" SelectionChanged="OnFamilyChanged" AutomationProperties.Name="Способ построения">
+            <ComboBoxItem Content="Суперформула Гилиса"/>
+            <ComboBoxItem Content="Уравнения x(u,v), y(u,v), z(u,v)"/>
+        </ComboBox>
+
+        <StackPanel x:Name="SuperPanel" Margin="0,5,0,0">
+            <TextBlock Style="{StaticResource Help}" Text="m задаёт частоту повторения, n₁ — силу деформации, n₂ и n₃ — форму лепестков. Масштабы a и b меняют их пропорции."/>
+            <CheckBox x:Name="LinkBox" Content="Использовать профиль долготы и для широты"
+                      Checked="OnViewChanged" Unchecked="OnViewChanged" Margin="0,4,0,6"/>
+            <Expander Header="Долгота (u) · вокруг оси Y" IsExpanded="True">
+                <StackPanel x:Name="LongitudePanel" Margin="8,0,0,4"/>
+            </Expander>
+            <Expander x:Name="LatitudeExpander" Header="Широта (v) · от полюса к полюсу">
+                <StackPanel x:Name="LatitudePanel" Margin="8,0,0,4"/>
+            </Expander>
+            <UniformGrid Columns="2" Margin="0,5,0,0">
+                <Button Content="Начальная форма" Click="ResetProfiles" Margin="0,0,3,0"/>
+                <Button Content="Случайная форма" Click="RandomizeProfiles" Margin="3,0,0,0"
+                        ToolTip="Подобрать новую пару профилей и сразу показать её"/>
+            </UniformGrid>
+        </StackPanel>
+
+        <StackPanel x:Name="EquationsPanel" Margin="0,5,0,0">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="58"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <Label Grid.Row="0" Content="x(u,v)" Target="{Binding ElementName=XBox}"/>
+                <Label Grid.Row="1" Content="y(u,v)" Target="{Binding ElementName=YBox}"/>
+                <Label Grid.Row="2" Content="z(u,v)" Target="{Binding ElementName=ZBox}"/>
+                <TextBox x:Name="XBox" Grid.Row="0" Grid.Column="1" FontFamily="Consolas" MaxLength="2048" TextChanged="OnDraftChanged"/>
+                <TextBox x:Name="YBox" Grid.Row="1" Grid.Column="1" FontFamily="Consolas" MaxLength="2048" TextChanged="OnDraftChanged"/>
+                <TextBox x:Name="ZBox" Grid.Row="2" Grid.Column="1" FontFamily="Consolas" MaxLength="2048" TextChanged="OnDraftChanged"/>
+            </Grid>
+            <UniformGrid Columns="2" Margin="0,4,0,0">
+                <Button x:Name="ApplyButton" Content="Применить формулы" Click="ApplyClicked" Margin="0,0,3,0" ToolTip="Ctrl+Enter"/>
+                <Button x:Name="RevertButton" Content="Отменить правки" Click="RevertClicked" Margin="3,0,0,0"/>
+            </UniformGrid>
+            <TextBlock x:Name="FormulaStatus" Style="{StaticResource Help}"/>
+            <Expander Header="Синтаксис">
+                <TextBlock Style="{StaticResource Help}" Margin="8,2,0,6"
+                           Text="Введите правые части. Переменные u, v и коэффициенты a, b, c. Константы pi, e. Операции + − * / и ^ с целой степенью от −16 до 16. Функции sin, cos, abs, sqrt, exp, log, min, max. Углы в радианах, десятичный разделитель в формулах — точка."/>
+            </Expander>
+            <Expander x:Name="CoefficientsExpander" Header="Коэффициенты формул" IsExpanded="True">
+                <StackPanel x:Name="CoefficientsPanel" Margin="8,0,0,4"/>
+            </Expander>
+            <Expander x:Name="DomainExpander" Header="Область u и v" IsExpanded="True">
+                <StackPanel Margin="8,0,0,4">
+                    <UniformGrid x:Name="DomainPanel" Columns="2"/>
+                    <UniformGrid Columns="3">
+                        <Button Content="0…2π" Click="PeriodicDomainClicked" Margin="0,0,4,0"
+                                ToolTip="Один полный оборот по каждой оси"/>
+                        <Button Content="Сфера" Click="SphericalDomainClicked" Margin="0,0,4,0"
+                                ToolTip="u от −π до π, v от −π/2 до π/2"/>
+                        <Button Content="−1…1" Click="SquareDomainClicked" ToolTip="Квадратная область от −1 до 1"/>
+                    </UniformGrid>
+                    <TextBlock x:Name="DomainStatus" Style="{StaticResource Help}" Visibility="Collapsed"/>
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+
+        <Expander Header="Разбиение и сетка" Margin="0,8,0,0" IsExpanded="True">
+            <StackPanel Margin="8,0,0,4">
+                <TextBlock Style="{StaticResource Help}" Text="Разбиение задаёт точность формы. Линии u/v показывают координаты на поверхности."/>
+                <UniformGrid x:Name="MeshPanel" Columns="2"/>
+                <UniformGrid Columns="3">
+                    <Button Content="Быстро" Click="CoarseMeshClicked" Margin="0,0,4,0" ToolTip="48 × 32"/>
+                    <Button Content="Обычно" Click="DefaultMeshClicked" Margin="0,0,4,0" ToolTip="112 × 72"/>
+                    <Button Content="Подробно" Click="FineMeshClicked" ToolTip="192 × 144"/>
+                </UniformGrid>
+                <CheckBox x:Name="FitBox" Content="Центрировать и нормировать размер"
+                          Checked="OnViewChanged" Unchecked="OnViewChanged" Margin="0,6,0,4"
+                          ToolTip="Вписать форму в общий масштаб, сохранив её пропорции"/>
+                <CheckBox x:Name="GridBox" Content="Показывать линии u/v" Checked="OnViewChanged" Unchecked="OnViewChanged"/>
+                <StackPanel x:Name="GridPanel"/>
+            </StackPanel>
+        </Expander>
+        <TextBlock x:Name="MeshStatus" Style="{StaticResource Help}" Visibility="Collapsed"/>
+    </StackPanel>
+</UserControl>

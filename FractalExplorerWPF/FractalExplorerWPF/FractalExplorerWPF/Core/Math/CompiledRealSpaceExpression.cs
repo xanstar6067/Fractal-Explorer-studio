@@ -16,27 +16,31 @@ public sealed class CompiledRealSpaceExpression
         return (_parameterMask & (1 << index)) != 0;
     }
     public double Evaluate(double x, double y, double z, double a = 1, double b = .35, double c = 0) =>
-        _root.Evaluate([x, y, z, a, b, c]);
+        _root.Evaluate(stackalloc double[] { x, y, z, a, b, c });
     public string Hlsl => _root.Emit(false);
     public string IntervalHlsl => _root.Emit(true);
 
-    public static CompiledRealSpaceExpression Parse(string? text)
+    public static CompiledRealSpaceExpression Parse(string? text) => Parse(text, parametric: false);
+
+    internal static CompiledRealSpaceExpression ParseParametric(string? text) => Parse(text, parametric: true);
+
+    private static CompiledRealSpaceExpression Parse(string? text, bool parametric)
     {
         if (string.IsNullOrWhiteSpace(text) || text.Length > 2048)
             throw new ArgumentException("Введите формулу до 2048 символов.");
-        var parser = new Parser(text);
+        var parser = new Parser(text, parametric);
         Node root = parser.Parse();
         return new(root, parser.ParameterMask);
     }
 
     private abstract record Node
     {
-        public abstract double Evaluate(double[] values);
+        public abstract double Evaluate(ReadOnlySpan<double> values);
         public abstract string Emit(bool interval);
     }
     private sealed record Number(double Value) : Node
     {
-        public override double Evaluate(double[] values) => Value;
+        public override double Evaluate(ReadOnlySpan<double> values) => Value;
         public override string Emit(bool interval)
         {
             string literal = ((float)Value).ToString("R", CultureInfo.InvariantCulture);
@@ -46,14 +50,14 @@ public sealed class CompiledRealSpaceExpression
     }
     private sealed record Variable(int Index) : Node
     {
-        public override double Evaluate(double[] values) => values[Index];
+        public override double Evaluate(ReadOnlySpan<double> values) => values[Index];
         public override string Emit(bool interval) => Index < 3
             ? (interval ? new[] { "ix", "iy", "iz" }[Index] : "q." + "xyz"[Index])
             : interval ? $"float2(ShapeB.{"xyz"[Index - 3]},ShapeB.{"xyz"[Index - 3]})" : "ShapeB." + "xyz"[Index - 3];
     }
     private sealed record Binary(char Op, Node Left, Node Right) : Node
     {
-        public override double Evaluate(double[] v) => Op switch
+        public override double Evaluate(ReadOnlySpan<double> v) => Op switch
         {
             '+' => Left.Evaluate(v) + Right.Evaluate(v), '-' => Left.Evaluate(v) - Right.Evaluate(v),
             '*' => Left.Evaluate(v) * Right.Evaluate(v), _ => Left.Evaluate(v) / Right.Evaluate(v)
@@ -64,12 +68,12 @@ public sealed class CompiledRealSpaceExpression
     }
     private sealed record Power(Node Base, int Exponent) : Node
     {
-        public override double Evaluate(double[] v) => System.Math.Pow(Base.Evaluate(v), Exponent);
+        public override double Evaluate(ReadOnlySpan<double> v) => System.Math.Pow(Base.Evaluate(v), Exponent);
         public override string Emit(bool interval) => $"{(interval ? "IPow" : "RealPow")}({Base.Emit(interval)},{Exponent})";
     }
     private sealed record Function(string Name, Node Argument, Node? Second = null) : Node
     {
-        public override double Evaluate(double[] v)
+        public override double Evaluate(ReadOnlySpan<double> v)
         {
             double t = Argument.Evaluate(v);
             return Name switch
@@ -83,7 +87,7 @@ public sealed class CompiledRealSpaceExpression
             $"{(interval ? "I" + char.ToUpperInvariant(Name[0]) + Name[1..] : Name)}({Argument.Emit(interval)}{(Second is null ? "" : "," + Second.Emit(interval))})";
     }
 
-    private sealed class Parser(string text)
+    private sealed class Parser(string text, bool parametric)
     {
         public int ParameterMask { get; private set; }
         private readonly string _text = text.ToLowerInvariant().Replace('−', '-').Replace('·', '*');
@@ -91,9 +95,11 @@ public sealed class CompiledRealSpaceExpression
         public Node Parse()
         {
             Node n = Sum();
-            if (Take('=')) n = Add(new Binary('-', n, Sum()));
+            if (!parametric && Take('=')) n = Add(new Binary('-', n, Sum()));
             Skip();
-            if (_pos != _text.Length) throw Error("Неожиданный символ. Умножение записывается как x*y.");
+            if (_pos != _text.Length) throw Error(parametric
+                ? "Неожиданный символ. Введите только правую часть, умножение записывается как u*v."
+                : "Неожиданный символ. Умножение записывается как x*y.");
             return n;
         }
         private Node Add(Node n)
@@ -165,7 +171,7 @@ public sealed class CompiledRealSpaceExpression
             string name = _text[start.._pos];
             if (name == "pi") return Add(new Number(System.Math.PI));
             if (name == "e") return Add(new Number(System.Math.E));
-            if (name.Length == 1 && "xyzabc".IndexOf(name[0]) is int index && index >= 0)
+            if (name.Length == 1 && (parametric ? "uv abc" : "xyzabc").IndexOf(name[0]) is int index && index >= 0)
             {
                 if (index >= 3) ParameterMask |= 1 << (index - 3);
                 return Add(new Variable(index));
@@ -176,7 +182,8 @@ public sealed class CompiledRealSpaceExpression
                 if (name is "min" or "max") { Need(','); second = Sum(); }
                 Need(')'); return Add(new Function(name, arg, second));
             }
-            throw Error("Ожидается число, x/y/z, a/b/c или поддерживаемая функция.");
+            throw Error(parametric ? "Ожидается число, u/v, a/b/c или поддерживаемая функция."
+                : "Ожидается число, x/y/z, a/b/c или поддерживаемая функция.");
         }
         private void Skip() { while (_pos < _text.Length && char.IsWhiteSpace(_text[_pos])) _pos++; }
         private bool Take(char c) { Skip(); if (_pos >= _text.Length || _text[_pos] != c) return false; _pos++; return true; }

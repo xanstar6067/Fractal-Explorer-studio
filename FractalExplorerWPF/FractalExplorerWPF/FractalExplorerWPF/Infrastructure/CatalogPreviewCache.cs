@@ -18,6 +18,7 @@ internal static class CatalogPreviewCache
                 ? kind switch
                 {
                     Fractal3DKind.QuantumOrbitals => "v1-quantum-orbitals",
+                    Fractal3DKind.ParametricSurface => "v1-parametric-surface",
                     Fractal3DKind.Newton3D => "v3-newton",
                     Fractal3DKind.BurningShipJulia => "v3-thickness",
                     _ => "v2"

@@ -56,6 +56,7 @@ public abstract class Fractal3DMode(Fractal3DKind kind, Fractal3DDefinition defi
 
     public virtual bool HasDedicatedShapeEditor => false;
     public virtual bool NeedsWidePanel => false;
+    public virtual bool UsesRayMarchQuality => true;
 
     #endregion
 

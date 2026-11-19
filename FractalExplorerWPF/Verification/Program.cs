@@ -66,6 +66,8 @@ internal static partial class Program
                 if (group == "quantum-orbitals") return;
                 if (group is "all" or "polytope4d") await VerifyPolytope4DAsync(args);
                 if (group == "polytope4d") return;
+                if (group is "all" or "parametric-surface") await VerifyParametricSurfaceAsync(args);
+                if (group == "parametric-surface") return;
                 if (group == "ui-computation") { await VerifyUiComputationAsync(); return; }
                 if (group is "all" or "phoenix-saves") await VerifyLegacyPhoenixSavesAsync();
                 if (group == "phoenix-saves") return;

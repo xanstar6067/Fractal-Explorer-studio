@@ -105,6 +105,7 @@ public partial class Fractal3DWindow
         NumericInput.Include(this, KleinianEditor);
         NumericInput.Include(this, AntoineEditor);
         NumericInput.Include(this, Polytope4DEditor);
+        NumericInput.Include(this, ParametricEditor);
         NumericInput.Include(this, QuaternionEditor);
         NumericInput.Include(this, PhoenixExplorer);
         NumericInput.Include(this, HybridEditor);

@@ -182,6 +182,7 @@ public partial class Fractal3DWindow : Window
         LSystem = Kind == Fractal3DKind.LSystem3D ? LSystemEditor.Capture() : new(),
         AbcFlow = Kind == Fractal3DKind.AbcFlow ? AbcFlowEditor.Capture() : new(),
         Polytope4D = Kind == Fractal3DKind.Polytope4D ? Polytope4DEditor.Capture() : new(),
+        ParametricSurface = Kind == Fractal3DKind.ParametricSurface ? ParametricEditor.Capture() : null,
         Hopf = Kind == Fractal3DKind.Hopf ? HopfEditor.Capture() : new(),
         PeriodicSurface = CapturePeriodicSurface(),
         ImplicitSurface = CaptureImplicitSurface(),
@@ -286,7 +287,9 @@ public partial class Fractal3DWindow : Window
     }
 
     public BitmapSource? CaptureCurrentPreview(int width, int height) =>
-        SavePreviewCapture.Capture(SavePreviewLayer, CanvasHost.Background, width, height, CanvasImage);
+        IsCurrentParametricFrame(_displayedParametricSurface)
+            ? SavePreviewCapture.Capture(SavePreviewLayer, CanvasHost.Background, width, height, CanvasImage)
+            : null;
 
     public Task<BitmapSource> RenderStatePreviewAsync(
         Fractal3DState state, int width, int height, CancellationToken token, IProgress<int>? progress) =>
@@ -396,6 +399,7 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.AntoineNecklace) AntoineEditor.Load(state.Antoine ?? new());
         LoadPeriodicSurface(state.PeriodicSurface);
         if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.Load(state.Polytope4D ?? new());
+        if (Kind == Fractal3DKind.ParametricSurface) ParametricEditor.Load(state.ParametricSurface ?? new());
         LoadImplicitSurface(state.ImplicitSurface);
         LoadHyperbolicHoneycomb(state.HyperbolicHoneycomb);
         LoadDla(state.Dla);
@@ -471,13 +475,18 @@ public partial class Fractal3DWindow : Window
         IterationsLabel.Text = _mode.IterationsField.Label;
         IterationsLabel.Visibility = IterationsBox.Visibility = Collapse(_mode.UsesIterations);
         bool volume = _mode.IsDensityVolume;
-        RayQualityGrid.Visibility = Collapse(!volume && Kind != Fractal3DKind.Terrain);
+        RayQualityGrid.Visibility = Collapse(_mode.UsesRayMarchQuality && !volume && Kind != Fractal3DKind.Terrain);
         MaxDistanceLabel.Visibility = MaxDistanceBox.Visibility = Collapse(volume);
         BailoutPanel.Visibility = Collapse(_mode.UsesBailout);
 
         if (Kind == Fractal3DKind.Terrain)
             foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
                 ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
+        if (Kind == Fractal3DKind.ParametricSurface)
+        {
+            ((ComboBoxItem)ShadingStyleBox.Items[(int)Fractal3DShadingStyle.Glow]).Visibility = Visibility.Collapsed;
+            ((ComboBoxItem)ShadingStyleBox.Items[(int)Fractal3DShadingStyle.Density]).Visibility = Visibility.Collapsed;
+        }
         if (Kind is Fractal3DKind.Flame3D or Fractal3DKind.Buddhabrot4D)
         {
             ColoringExpander.Visibility = Visibility.Collapsed;
@@ -519,6 +528,7 @@ public partial class Fractal3DWindow : Window
         LSystemEditor.Visibility = Collapse(Kind == Fractal3DKind.LSystem3D);
         AbcFlowEditor.Visibility = Collapse(Kind == Fractal3DKind.AbcFlow);
         Polytope4DEditor.Visibility = Collapse(Kind == Fractal3DKind.Polytope4D);
+        ParametricEditor.Visibility = Collapse(Kind == Fractal3DKind.ParametricSurface);
         HopfEditor.Visibility = Collapse(Kind == Fractal3DKind.Hopf);
         BuddhabrotEditor.Visibility = Collapse(Kind == Fractal3DKind.Buddhabrot4D);
         LichtenbergPanel.Visibility = LichtenbergOverlay.Visibility = Collapse(Kind == Fractal3DKind.Lichtenberg3D);
@@ -931,7 +941,7 @@ public partial class Fractal3DWindow : Window
     private void ToggleControlsButton_OnClick(object sender, RoutedEventArgs e)
     {
         FractalControlPanel.Toggle(ref _controlsVisible, ControlsColumn, ControlsHost,
-            ToggleControlsButton, PanelWidth);
+            ToggleControlsButton, _mode.NeedsWidePanel ? 395 : PanelWidth);
         ScheduleRender();
     }
 
@@ -1092,6 +1102,7 @@ public partial class Fractal3DWindow : Window
                 var progress = new Progress<int>(ReportProgress);
                 BitmapSource bitmap = await RenderBitmapAsync(state, width, height, ssaa, cts.Token, progress);
                 cts.Token.ThrowIfCancellationRequested();
+                if (!IsCurrentParametricFrame(state.ParametricSurface)) return;
                 if ((Kind == Fractal3DKind.Polytope4D && !Polytope4DEditor.IsCurrentFrame(state.Polytope4D)) || !IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
                 RenderOptions.SetBitmapScalingMode(CanvasImage, BitmapScalingMode.HighQuality);
                 CanvasImage.Source = bitmap;
@@ -1138,6 +1149,7 @@ public partial class Fractal3DWindow : Window
                     if (!_frameRequested) ShowPreparationError("Подготовка отменена");
                     return;
                 }
+                if (!IsCurrentParametricFrame(state.ParametricSurface)) return;
                 if ((Kind == Fractal3DKind.Polytope4D && !Polytope4DEditor.IsCurrentFrame(state.Polytope4D)) || !IsCurrentNewtonFrame(state) || !IsCurrentImplicitFrame(state) || !IsCurrentLyapunovFrame(state) || _simulation?.IsCurrentFrame(state) == false || !IsCurrentLichtenbergFrame(state)) return;
 
                 target.WritePixels(new Int32Rect(0, 0, width, height), buffer, width * 4, 0);
@@ -1177,6 +1189,7 @@ public partial class Fractal3DWindow : Window
                 LSystemEditor.OnFrameDisplayed(_renderer.LSystemSegmentCount, _renderer.LSystemSymbolCount, state.LSystem);
             if (Kind == Fractal3DKind.Polytope4D)
                 Polytope4DEditor.OnFrameDisplayed(state.Polytope4D, _renderer.Polytope4DGeometry);
+            OnParametricFrameDisplayed(state.ParametricSurface);
             if (Kind == Fractal3DKind.Hopf)
             {
                 OnHopfFrameDisplayed(state);
@@ -1213,6 +1226,7 @@ public partial class Fractal3DWindow : Window
             if (Kind == Fractal3DKind.LSystem3D) LSystemEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.AbcFlow) AbcFlowEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.ShowError(exception.Message);
+            else if (Kind == Fractal3DKind.ParametricSurface) ParametricEditor.ShowMeshStatus(exception.Message);
             else if (Kind == Fractal3DKind.Hopf) HopfEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.QuaternionJulia) QuaternionEditor.ShowError(exception.Message);
             else MessageBox.Show(this, exception.Message, _definition.Title,

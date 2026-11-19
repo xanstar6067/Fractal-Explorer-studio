@@ -87,6 +87,8 @@ public sealed class Fractal3DState
     public LSystem3DSettings LSystem { get; set; } = new();
     public AbcFlowSettings AbcFlow { get; set; } = new();
     public Polytope4DSettings Polytope4D { get; set; } = new();
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ParametricSurfaceSettings? ParametricSurface { get; set; }
     public HopfSettings Hopf { get; set; } = new();
     public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
     public ImplicitSurfaceSettings ImplicitSurface { get; set; } = new();

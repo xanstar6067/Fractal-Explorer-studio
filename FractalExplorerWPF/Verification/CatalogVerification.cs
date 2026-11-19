@@ -365,10 +365,13 @@ internal static partial class Program
             Check(ViewItems(window).Select(tile => tile.IntroducedAt).SequenceEqual(
                       catalog.Select(item => item.IntroducedAt).OrderByDescending(date => date)),
                 "New arrivals must be sorted by introduction time, newest first.");
-            Check(ViewItems(window).Take(3).Select(tile => tile.Item.LaunchKey).SequenceEqual(
+            // Keep the historical checks independent of entries added after October 16.
+            var historicalCutoff = new DateTimeOffset(2026, 10, 17, 0, 0, 0, TimeSpan.FromHours(3));
+            var historicalArrivals = ViewItems(window).Where(tile => tile.IntroducedAt < historicalCutoff).ToList();
+            Check(historicalArrivals.Take(3).Select(tile => tile.Item.LaunchKey).SequenceEqual(
                 new[] { MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Percolation), "McMullen", MathematicalLaboratoryCatalog.LaunchKey(MathematicalLaboratoryKind.Rauzy) }),
-                "Percolation, McMullen and Rauzy must lead arrivals in their October 16 introduction order.");
-            var earlierArrivals = ViewItems(window).Skip(3).ToList();
+                "Percolation, McMullen and Rauzy must retain their October 16 introduction order.");
+            var earlierArrivals = historicalArrivals.Skip(3).ToList();
             Check(earlierArrivals.Take(4).Select(tile => tile.Item.LaunchKey).SequenceEqual(
                 new[] { "Sandpile", Fractal3DCatalog.LaunchKey(Fractal3DKind.Newton3D), Fractal3DCatalog.LaunchKey(Fractal3DKind.AntoineNecklace), Fractal3DCatalog.LaunchKey(Fractal3DKind.Kleinian) }),
                 "Sandpile, Newton, Antoine and Kleinian must follow their introduction times within the same day.");
