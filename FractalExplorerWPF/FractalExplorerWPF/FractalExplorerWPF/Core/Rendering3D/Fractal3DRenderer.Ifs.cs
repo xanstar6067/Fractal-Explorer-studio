@@ -43,6 +43,8 @@ public sealed partial class Fractal3DRenderer
 
     private ID3D11PixelShader GetIfsPixelShader(Fractal3DKind kind)
     {
+        if (kind == Fractal3DKind.StandingWaves)
+            return _standingWavePixel ??= _device!.CreatePixelShader(Compile(StandingWavePixelEntry()).Span);
         if (kind == Fractal3DKind.Percolation3D)
             return _percolationPixelShader ??= _device!.CreatePixelShader(Compile(PercolationPixelEntry()).Span);
         if (kind == Fractal3DKind.QuantumOrbitals)
@@ -92,6 +94,7 @@ public sealed partial class Fractal3DRenderer
     private ID3D11ShaderResourceView EnsureDensityVolume(Fractal3DState state, CancellationToken token,
         IProgress<int>? progress = null)
     {
+        if (state.Kind == Fractal3DKind.StandingWaves) return StandingWaveVolumeView(state, token);
         if (state.Kind == Fractal3DKind.QuantumOrbitals) return OrbitalVolumeView(state, token, progress);
         if (state.Kind == Fractal3DKind.Newton3D) return NewtonVolumeView(state, token, progress);
         if (state.Kind == Fractal3DKind.Lyapunov3D) return LyapunovVolumeView(state, token, progress);
@@ -305,6 +308,7 @@ public sealed partial class Fractal3DRenderer
         _leniaPixelShader?.Dispose();
         DisposeLyapunov();
         DisposeOrbitals();
+        DisposeStandingWaves();
         _percolationPixelShader?.Dispose();
         PercolationField = null;
         DisposeNewton();

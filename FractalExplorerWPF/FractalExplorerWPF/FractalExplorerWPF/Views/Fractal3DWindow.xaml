@@ -104,6 +104,8 @@
                             <controls:KleinianEditor x:Name="KleinianEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="KleinianAtlas_OnClick"/>
                             <controls:AntoineEditor x:Name="AntoineEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged" AtlasRequested="AntoineAtlas_OnClick"/>
                             <controls:QuantumOrbitalEditor x:Name="OrbitalEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"/>
+                            <controls:StandingWaveEditor x:Name="WaveEditor" Visibility="Collapsed"
+                                                         SettingsChanged="StandingWaves_OnChanged" PlaybackRequested="StandingWaves_OnPlaybackRequested"/>
                             <controls:Percolation3DEditor x:Name="PercolationEditor" Visibility="Collapsed" SettingsChanged="Percolation_OnChanged"/>
                             <controls:Newton3DEditor x:Name="NewtonEditor" Visibility="Collapsed" SettingsChanged="Parameter_OnChanged"
                                                      AtlasRequested="Newton3DAtlas_OnClick"/>

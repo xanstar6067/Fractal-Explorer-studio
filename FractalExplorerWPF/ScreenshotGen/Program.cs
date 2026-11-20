@@ -513,6 +513,7 @@ internal static class Program
                 // QuantumOrbitals включает QuantumOrbitalEditor: n/l/m, базис, смесь, фаза, поле и срез (fractal3d-quantum-orbitals).
                 // Polytope4D включает Polytope4DEditor: шесть тел, проекции, сечения и вращения (fractal3d-polytope4-d).
                 // ParametricSurface включает ParametricSurfaceEditor: профили Гилиса и уравнения (fractal3d-parametric-surface).
+                // StandingWaves включает StandingWaveEditor: моды, воспроизведение и сечение (fractal3d-standing-waves).
                 // Percolation3D включает Percolation3DEditor: связность, порог, кратчайший путь и срезы (fractal3d-percolation3-d).
                 // Terrain включает TerrainEditor (остров/кратер, термическая эрозия и уклон).
                 // PeriodicSurfaces включает PeriodicSurfaceEditor (смеси, переменная ширина и два лабиринта).

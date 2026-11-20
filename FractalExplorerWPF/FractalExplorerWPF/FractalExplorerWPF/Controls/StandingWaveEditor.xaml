@@ -1,0 +1,96 @@
+<UserControl x:Class="FractalExplorerWPF.Controls.StandingWaveEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FractalExplorerWPF.Controls">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/FractalExplorerWPF;component/Controls/Fractal3DPanelStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="WaveNumber" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="controls:NumericSpinner.IsEnabled" Value="True"/>
+                <EventSetter Event="TextChanged" Handler="OnChanged"/>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Text="Моды" Style="{StaticResource FieldCaption}"/>
+        <TextBlock Text="nₓ, nᵧ, n𝓏 — число полуволн вдоль каждой оси. Амплитуда 0 отключает моду."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        <StackPanel x:Name="ModeRows" Margin="0,6,0,0"/>
+        <Button x:Name="AddButton" Content="+ Добавить моду" HorizontalAlignment="Left" Click="AddMode"/>
+
+        <Expander Header="Размеры резонатора" Margin="0,10,0,0">
+            <UniformGrid Columns="3" Margin="0,4,0,0">
+                <StackPanel Margin="0,0,5,0">
+                    <TextBlock Text="Длина X" Style="{StaticResource FieldCaption}"/>
+                    <TextBox x:Name="LengthXBox" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Длина X"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,5,0">
+                    <TextBlock Text="Длина Y" Style="{StaticResource FieldCaption}"/>
+                    <TextBox x:Name="LengthYBox" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Длина Y"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Длина Z" Style="{StaticResource FieldCaption}"/>
+                    <TextBox x:Name="LengthZBox" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Длина Z"/>
+                </StackPanel>
+            </UniformGrid>
+        </Expander>
+
+        <TextBlock Text="Время" Style="{StaticResource FieldCaption}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Button x:Name="PlayButton" Content="▶ Пуск" Click="TogglePlayback" Margin="0,0,5,0"/>
+            <TextBox x:Name="TimeBox" Grid.Column="1" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Время"/>
+            <Button Grid.Column="2" Content="К началу" Click="ResetTime" Margin="5,0,0,0"/>
+        </Grid>
+        <DockPanel Margin="0,5,0,0">
+            <TextBlock Text="Скорость воспроизведения" VerticalAlignment="Center"/>
+            <TextBox x:Name="SpeedBox" Width="72" HorizontalAlignment="Right" Style="{StaticResource WaveNumber}"
+                     AutomationProperties.Name="Скорость воспроизведения"/>
+        </DockPanel>
+
+        <TextBlock Text="Отображение" Style="{StaticResource FieldCaption}"/>
+        <ComboBox x:Name="ViewBox" SelectionChanged="OnChanged" AutomationProperties.Name="Отображение">
+            <ComboBoxItem Content="Изоповерхность амплитуды"/>
+            <ComboBoxItem Content="Облако амплитуды"/>
+            <ComboBoxItem Content="Узловые поверхности"/>
+            <ComboBoxItem Content="Плоское сечение"/>
+        </ComboBox>
+        <StackPanel x:Name="LevelPanel">
+            <TextBlock Text="Порог амплитуды" Style="{StaticResource FieldCaption}"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
+                <Slider x:Name="LevelSlider" Minimum=".02" Maximum="1" SmallChange=".01" LargeChange=".1"
+                        ValueChanged="OnSliderChanged" Margin="0,0,6,0" AutomationProperties.Name="Порог амплитуды"/>
+                <TextBox x:Name="LevelBox" Grid.Column="1" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Порог амплитуды"/>
+            </Grid>
+        </StackPanel>
+        <StackPanel x:Name="NodePanel">
+            <TextBlock Text="Толщина слоя около нуля" Style="{StaticResource FieldCaption}"/>
+            <TextBox x:Name="NodeWidthBox" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Толщина слоя около нуля"/>
+            <TextBlock Text="При смешивании разных частот на экране видны нули текущего кадра. Они могут двигаться."
+                       TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+        </StackPanel>
+        <CheckBox x:Name="CutBox" Content="Убрать часть объёма" Margin="0,8,0,0" Checked="OnChanged" Unchecked="OnChanged"/>
+        <StackPanel x:Name="CutPanel">
+            <TextBlock Text="Ось и положение сечения" Style="{StaticResource FieldCaption}"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="55"/><ColumnDefinition/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
+                <ComboBox x:Name="AxisBox" SelectionChanged="OnChanged" AutomationProperties.Name="Ось сечения">
+                    <ComboBoxItem Content="X"/><ComboBoxItem Content="Y"/><ComboBoxItem Content="Z"/>
+                </ComboBox>
+                <Slider x:Name="CutSlider" Grid.Column="1" Minimum=".01" Maximum=".99" SmallChange=".01" LargeChange=".1"
+                        ValueChanged="OnSliderChanged" Margin="6,0" AutomationProperties.Name="Положение сечения"/>
+                <TextBox x:Name="PositionBox" Grid.Column="2" Style="{StaticResource WaveNumber}" AutomationProperties.Name="Положение сечения"/>
+            </Grid>
+        </StackPanel>
+        <Expander Header="Точность поля" Margin="0,8,0,0">
+            <ComboBox x:Name="ResolutionBox" SelectionChanged="OnChanged" Margin="0,4,0,0" AutomationProperties.Name="Точность поля">
+                <ComboBoxItem Content="64³ · быстро"/><ComboBoxItem Content="96³ · точнее"/><ComboBoxItem Content="128³ · тонкие детали"/>
+            </ComboBox>
+        </Expander>
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="{DynamicResource Theme.SecondaryTextBrush}"/>
+    </StackPanel>
+</UserControl>

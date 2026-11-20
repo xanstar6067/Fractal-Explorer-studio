@@ -47,7 +47,8 @@ public enum Fractal3DKind
     Polytope4D,
     QuantumOrbitals,
     ParametricSurface,
-    Percolation3D
+    Percolation3D,
+    StandingWaves
 }
 
 public sealed record Fractal3DDefinition(

@@ -586,6 +586,8 @@ public sealed partial class Fractal3DRenderer : IDisposable
         entries.Add(Lyapunov3DComputeShader.CacheEntry);
         entries.Add(OrbitalPixelEntry());
         entries.Add(OrbitalComputeEntry());
+        entries.Add(StandingWavePixelEntry());
+        entries.Add(StandingWaveComputeEntry());
         entries.Add(PercolationPixelEntry());
         entries.Add(NewtonPixelShaderEntry());
         entries.Add(Newton3DComputeShader.CacheEntry);

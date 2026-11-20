@@ -8,7 +8,7 @@
     VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D || \
     VOLUME_KIND == KIND_SwiftHohenberg3D || VOLUME_KIND == KIND_Lenia3D || VOLUME_KIND == KIND_QuantumOrbitals || \
-    VOLUME_KIND == KIND_Physarum3D || VOLUME_KIND == KIND_Lyapunov3D || VOLUME_KIND == KIND_Newton3D)
+    VOLUME_KIND == KIND_Physarum3D || VOLUME_KIND == KIND_Lyapunov3D || VOLUME_KIND == KIND_Newton3D || VOLUME_KIND == KIND_StandingWaves)
 // Срез и грани — как у моделирований; у Тьюринга своя маска области и порог 0,5.
 #define VOLUME_CUT (VOLUME_GPU_FIELD || VOLUME_KIND == KIND_Turing3D)
 // Излучение и поглощение по цвету текселя (rgb — сумма цветов, a — плотность).
@@ -44,7 +44,7 @@ cbuffer Frame : register(b0)
 Texture3D<uint4> Density : register(t0);
 #elif VOLUME_FLAME || VOLUME_KIND == KIND_Excitable3D || VOLUME_KIND == KIND_GinzburgLandau3D || VOLUME_KIND == KIND_Newton3D || VOLUME_KIND == KIND_QuantumOrbitals
 Texture3D<float4> Density : register(t0);
-#elif VOLUME_KIND == KIND_Dla3D || VOLUME_KIND == KIND_Turing3D || \
+#elif VOLUME_KIND == KIND_StandingWaves || VOLUME_KIND == KIND_Dla3D || VOLUME_KIND == KIND_Turing3D || \
     VOLUME_KIND == KIND_Kobayashi3D || VOLUME_KIND == KIND_PhaseFieldCrystal3D
 Texture3D<float2> Density : register(t0);
 #else
@@ -143,9 +143,39 @@ float NewtonColor(float3 p, int mode)
 }
 #endif
 
+#if VOLUME_KIND == KIND_StandingWaves
+cbuffer StandingWaveField : register(b1)
+{
+    float4 WaveGrid;
+    float4 WaveModes[4];
+};
+#include "StandingWavesField.hlsl"
+
+float2 WaveAt(float3 localPosition)
+{
+    return Density.SampleLevel(DensitySampler, saturate(localPosition * .5 + .5), 0);
+}
+
+float WaveDensity(float2 wave, float3 localPosition)
+{
+    if ((int)ShapeB.z != 2) return abs(wave.x);
+    // First-order distance to the zero set, in fractions of the cavity sides.
+    // Suppress fixed walls and the degenerate case of an identically zero field.
+    float wall = 1 - max(abs(localPosition.x), max(abs(localPosition.y), abs(localPosition.z)));
+    return wave.y > 1e-5 ? saturate(1 - abs(wave.x) / (wave.y * ShapeA.z)) *
+        smoothstep(3 / ShapeA.x, 6 / ShapeA.x, wall) : 0;
+}
+#endif
+
 float SampleDensity(float3 samplePosition)
 {
-#if VOLUME_KIND == KIND_Turing3D
+#if VOLUME_KIND == KIND_StandingWaves
+    float3 local = samplePosition / BoxInversion.xyz;
+    if (any(abs(local) > 1.0001)) return 0;
+    int axis = (int)ShapeB.x;
+    if (axis > 0 && samplePosition[axis - 1] > ShapeB.y + .0001) return 0;
+    return WaveDensity(WaveAt(local), local);
+#elif VOLUME_KIND == KIND_Turing3D
     // Поле переводится в заполненность с уровнем поверхности 0,5: у пустой фазы плотность
     // нулевая, и тени, затенение складок и облако ведут себя как у остальных объёмов.
     float region = RegionMask(samplePosition);
@@ -257,6 +287,10 @@ float3 SurfaceAlbedo(float3 normal, float3 surfacePoint, float3 rayDirection,
 #if VOLUME_KIND == KIND_Turing3D
     if (mode == 2) value = ScaleAt(surfacePoint);
     else if (mode == 4) value = length(surfacePoint);
+#elif VOLUME_KIND == KIND_StandingWaves
+    float u = WaveAt(surfacePoint / BoxInversion.xyz).x;
+    if (mode == 2) value = (int)ShapeB.z == 2 ? .5 : step(0, u);
+    else if (mode == 4) value = abs(u);
 #elif VOLUME_KIND == KIND_QuantumOrbitals
     float4 orbital = Density.SampleLevel(DensitySampler, saturate(surfacePoint*.5+.5), 0);
     if (mode == 2) {
@@ -317,9 +351,16 @@ float3 EstimateNormal(float3 p, float cell, float3 rayDirection)
     int axis = (int)ShapeB.x;
     if (axis > 0 && abs(p[axis - 1] - ShapeB.y) < .0002)
         return axis == 1 ? float3(1,0,0) : axis == 2 ? float3(0,1,0) : float3(0,0,1);
+#if VOLUME_KIND == KIND_StandingWaves
+    float3 edge = abs(abs(p) - BoxInversion.xyz);
+    if (edge.x < .0002) return float3(sign(p.x),0,0);
+    if (edge.y < .0002) return float3(0,sign(p.y),0);
+    if (edge.z < .0002) return float3(0,0,sign(p.z));
+#else
     if (abs(abs(p.x) - 1.0) < .0002) return float3(sign(p.x),0,0);
     if (abs(abs(p.y) - 1.0) < .0002) return float3(0,sign(p.y),0);
     if (abs(abs(p.z) - 1.0) < .0002) return float3(0,0,sign(p.z));
+#endif
 #endif
     float3 gradient = float3(
         SampleDensity(p + float3(cell, 0, 0)) - SampleDensity(p - float3(cell, 0, 0)),
@@ -379,6 +420,14 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming, flo
     float3 reflected = normalize(reflect(incoming, normal));
     float3 origin = surfacePoint + normal * cell * 4.0;
     float3 safe = reflected + (abs(reflected) < 1e-6) * 1e-6;
+#if VOLUME_KIND == KIND_StandingWaves
+    float3 halfBox = BoxInversion.xyz;
+    float3 nearPlane = (-halfBox - origin) / safe;
+    int cutAxis = (int)ShapeB.x;
+    float3 boxMax = float3(cutAxis == 1 ? ShapeB.y : halfBox.x,
+        cutAxis == 2 ? ShapeB.y : halfBox.y, cutAxis == 3 ? ShapeB.y : halfBox.z);
+    float3 farPlane = (boxMax - origin) / safe;
+#else
     float3 nearPlane = (-1.0 - origin) / safe;
 #if VOLUME_CUT
     int cutAxis = (int)ShapeB.x;
@@ -387,6 +436,7 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming, flo
     float3 farPlane = (boxMax - origin) / safe;
 #else
     float3 farPlane = (1.0 - origin) / safe;
+#endif
 #endif
     float3 lo = min(nearPlane, farPlane);
     float3 hi = max(nearPlane, farPlane);
@@ -398,6 +448,8 @@ float3 MirrorReflection(float3 surfacePoint, float3 normal, float3 incoming, flo
     float distance = entry;
 #if VOLUME_KIND == KIND_Turing3D
     const float threshold = 0.5;
+#elif VOLUME_KIND == KIND_StandingWaves
+    float threshold = (int)ShapeB.z == 2 ? .5 : ShapeA.y;
 #elif VOLUME_GPU_FIELD
     float threshold = ShapeA.y;
 #elif VOLUME_KIND == KIND_Dla3D
@@ -439,6 +491,14 @@ float4 PSMain(PSInput input) : SV_TARGET
                                  CameraRight.xyz * plane.x + CameraUp.xyz * plane.y);
     float3 origin = CameraPosition.xyz;
     float3 safe = direction + (abs(direction) < 1e-6) * 1e-6;
+#if VOLUME_KIND == KIND_StandingWaves
+    float3 halfBox = BoxInversion.xyz;
+    float3 nearPlane = (-halfBox - origin) / safe;
+    int cutAxis = (int)ShapeB.x;
+    float3 boxMax = float3(cutAxis == 1 ? ShapeB.y : halfBox.x,
+        cutAxis == 2 ? ShapeB.y : halfBox.y, cutAxis == 3 ? ShapeB.y : halfBox.z);
+    float3 farPlane = (boxMax - origin) / safe;
+#else
     float3 nearPlane = (-1.0 - origin) / safe;
 #if VOLUME_CUT
     int cutAxis = (int)ShapeB.x;
@@ -448,11 +508,34 @@ float4 PSMain(PSInput input) : SV_TARGET
 #else
     float3 farPlane = (1.0 - origin) / safe;
 #endif
+#endif
     float3 lo = min(nearPlane, farPlane);
     float3 hi = max(nearPlane, farPlane);
     float entry = max(0.0, max(lo.x, max(lo.y, lo.z)));
     float exitDistance = min(hi.x, min(hi.y, hi.z));
     float3 sky = SkyAt(direction);
+#if VOLUME_KIND == KIND_StandingWaves
+    if ((int)ShapeB.z == 3)
+    {
+        int axis = (int)ShapeB.x - 1;
+        if (axis < 0 || abs(direction[axis]) < 1e-7)
+            return Probe.x > .5 ? PackFloat(-1) : float4(LinearToSrgb(sky), 1);
+        float hit = (ShapeB.y - origin[axis]) / direction[axis];
+        float3 p = origin + direction * hit;
+        float3 local = p / halfBox;
+        if (hit < 0 || any(abs(local) > 1.0001))
+            return Probe.x > .5 ? PackFloat(-1) : float4(LinearToSrgb(sky), 1);
+        if (Probe.x > .5) return PackFloat(hit);
+        float3 gradient;
+        float u = StandingWaveAt(saturate(local * .5 + .5), gradient);
+        float3 normal = axis == 0 ? float3(1, 0, 0) : axis == 1 ? float3(0, 1, 0) : float3(0, 0, 1);
+        int mode = (int)Flags.x;
+        float3 tint = mode == 2 || mode == 4
+            ? SamplePalette((mode == 2 ? step(0, u) : abs(u)) * ShapeC.y + ShapeC.z, (int)PaletteInfo.y)
+            : SurfaceAlbedo(normal, p, direction, hit, 1, 0);
+        return float4(LinearToSrgb(lerp(sky, tint, saturate(abs(u) * 1.35))), 1);
+    }
+#endif
 #if VOLUME_KIND == KIND_Lyapunov3D || VOLUME_KIND == KIND_Newton3D
     // Плоское сечение (BoxInversion.y): цвет λ на плоскости среза без трассировки объёма.
     if (BoxInversion.y > .5) {
@@ -477,7 +560,9 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     // The traversal must cover the whole box. A fixed user ray-step limit used to
     // terminate halfway through it, leaving camera-centered circular silhouettes.
-#if VOLUME_CUT
+#if VOLUME_KIND == KIND_StandingWaves
+    float cell = 2.0 / ShapeA.x * min(halfBox.x, min(halfBox.y, halfBox.z));
+#elif VOLUME_CUT
     float cell = 2.0 / ShapeA.x;
 #elif VOLUME_FLAME
     float cell = 2.0 / FLAME_SIDE;
@@ -489,6 +574,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     float stepLength = cell * 0.65;
 #if VOLUME_KIND == KIND_Turing3D
     const float threshold = 0.5;
+#elif VOLUME_KIND == KIND_StandingWaves
+    float threshold = (int)ShapeB.z == 2 ? .5 : ShapeA.y;
 #elif VOLUME_GPU_FIELD
     float threshold = ShapeA.y;
 #elif VOLUME_KIND == KIND_Dla3D
@@ -525,6 +612,31 @@ float4 PSMain(PSInput input) : SV_TARGET
         float3 color=sky*transmittance+emission;
         return float4(LinearToSrgb(color/(1+color*.35)),1);
     }
+#elif VOLUME_KIND == KIND_StandingWaves
+    if ((int)ShapeB.z == 1)
+    {
+        float3 emission = 0;
+        float transmission = 1;
+        [loop] for (int j = 0; j < 1536 && distance < exitDistance && transmission > .005; j++)
+        {
+            float dt = min(stepLength, exitDistance - distance);
+            float3 p = origin + direction * (distance + dt * .5);
+            float3 local = p / halfBox;
+            float2 wave = WaveAt(local);
+            float density = WaveDensity(wave, local);
+            if (Probe.x > .5 && density >= threshold) return PackFloat(distance + dt * .5);
+            float visible = saturate((density - threshold) / max(1 - threshold, .001));
+            if (visible > 0)
+            {
+                float alpha = 1 - exp(-visible * dt * 11 * max(Style.y, .01));
+                float3 tint = SurfaceAlbedo(float3(0, 0, 1), p, direction, distance - entry, 1, 0);
+                emission += transmission * alpha * tint;
+                transmission *= 1 - alpha;
+            }
+            distance += dt;
+        }
+        return Probe.x > .5 ? PackFloat(-1) : float4(LinearToSrgb(sky * transmission + emission), 1);
+    }
 #elif VOLUME_KIND == KIND_QuantumOrbitals
     // Integrate probability density; phase is evaluated from the interpolated wave.
     if ((int)Style.x == 4 && Probe.x < .5) {
@@ -558,6 +670,10 @@ float4 PSMain(PSInput input) : SV_TARGET
     }
 #endif
     int style = (int)Style.x;
+#if VOLUME_KIND == KIND_StandingWaves
+    // The wave editor chooses cloud or surface. Density is a lighting fallback for surfaces.
+    if (style == 4) style = 5;
+#endif
     float strength = max(Style.y, 0.0);
 #if VOLUME_FLAME
     // Свечение и облако — излучение и поглощение вдоль луча; у Буддаброта свечение

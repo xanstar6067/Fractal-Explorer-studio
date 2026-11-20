@@ -91,6 +91,8 @@ public sealed class Fractal3DState
     public ParametricSurfaceSettings? ParametricSurface { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Percolation3DSettings? Percolation3D { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public StandingWaveSettings? StandingWave { get; set; }
     public HopfSettings Hopf { get; set; } = new();
     public PeriodicSurfaceSettings PeriodicSurface { get; set; } = new();
     public ImplicitSurfaceSettings ImplicitSurface { get; set; } = new();
@@ -204,6 +206,7 @@ public sealed class Fractal3DState
         clone.Turing = Turing is null ? new() : Turing with { };
         clone.Lenia = Lenia is null ? new() : Lenia with { };
         clone.Lyapunov = Lyapunov is null ? new() : Lyapunov with { };
+        clone.StandingWave = StandingWave?.Validated();
         clone.QuantumOrbital = QuantumOrbital is null ? new() : QuantumOrbital with { };
         clone.Newton = Newton is null ? new() : Newton with { };
         clone.CahnHilliard = CahnHilliard is null ? new() : CahnHilliard with { };

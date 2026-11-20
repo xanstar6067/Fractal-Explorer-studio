@@ -1009,6 +1009,15 @@ dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.c
 
 `--out <папка>` сохраняет четыре контрольных PNG. Модель и ручные сценарии — [PARAMETRIC_SURFACES.md](../PARAMETRIC_SURFACES.md).
 
+### `standing-waves`
+
+Проверяет частоту аналитической моды, узловой срез и смену знака на Direct3D 11,
+видимость готовых сцен, добавление моды, числовой ввод и сохранение параметров с временем.
+
+```powershell
+dotnet run --project .\FractalExplorerWPF\Verification\SavePreviewVerification.csproj -- standing-waves
+```
+
 ### `percolation3d`
 
 Проверяет воспроизводимость и вложенность образцов, связность по граням,

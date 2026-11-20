@@ -194,6 +194,7 @@ public partial class Fractal3DWindow : Window
         Lichtenberg = CaptureLichtenberg(),
         Lyapunov = CaptureLyapunov(),
         QuantumOrbital = Kind == Fractal3DKind.QuantumOrbitals ? OrbitalEditor.Capture() : new(),
+        StandingWave = Kind == Fractal3DKind.StandingWaves ? WaveEditor.Capture() : null,
         Percolation3D = Kind == Fractal3DKind.Percolation3D ? PercolationEditor.Capture() : null,
         Newton = Kind == Fractal3DKind.Newton3D ? NewtonEditor.Capture() : new(),
         Power = ReadField(PowerBox, _mode.PowerField),
@@ -408,6 +409,11 @@ public partial class Fractal3DWindow : Window
         _simulation?.Load(state);
         LoadLyapunov(state.Lyapunov);
         if (Kind == Fractal3DKind.QuantumOrbitals) OrbitalEditor.Load(state.QuantumOrbital ?? new());
+        if (Kind == Fractal3DKind.StandingWaves)
+        {
+            StopStandingWaves();
+            WaveEditor.Load(state.StandingWave ?? new());
+        }
         if (Kind == Fractal3DKind.Percolation3D) PercolationEditor.Load(state.Percolation3D ?? new());
         if (Kind == Fractal3DKind.Newton3D) NewtonEditor.Load(state.Newton ?? new());
 
@@ -484,6 +490,8 @@ public partial class Fractal3DWindow : Window
         if (Kind == Fractal3DKind.Terrain)
             foreach (Fractal3DShadingStyle style in new[] { Fractal3DShadingStyle.Glow, Fractal3DShadingStyle.Density, Fractal3DShadingStyle.Translucent })
                 ((ComboBoxItem)ShadingStyleBox.Items[(int)style]).Visibility = Visibility.Collapsed;
+        if (Kind == Fractal3DKind.StandingWaves)
+            ((ComboBoxItem)ShadingStyleBox.Items[(int)Fractal3DShadingStyle.Density]).Visibility = Visibility.Collapsed;
         if (Kind == Fractal3DKind.ParametricSurface)
         {
             ((ComboBoxItem)ShadingStyleBox.Items[(int)Fractal3DShadingStyle.Glow]).Visibility = Visibility.Collapsed;
@@ -539,6 +547,7 @@ public partial class Fractal3DWindow : Window
         KleinianEditor.Visibility = Collapse(Kind == Fractal3DKind.Kleinian);
         AntoineEditor.Visibility = Collapse(Kind == Fractal3DKind.AntoineNecklace);
         OrbitalEditor.Visibility = Collapse(Kind == Fractal3DKind.QuantumOrbitals);
+        WaveEditor.Visibility = Collapse(Kind == Fractal3DKind.StandingWaves);
         PercolationEditor.Visibility = Collapse(Kind == Fractal3DKind.Percolation3D);
         NewtonEditor.Visibility = Collapse(Kind == Fractal3DKind.Newton3D);
         PeriodicEditor.Visibility = Collapse(Kind == Fractal3DKind.PeriodicSurfaces);
@@ -895,6 +904,7 @@ public partial class Fractal3DWindow : Window
     private void SuspendLive(Action action)
     {
         _suspended = true;
+        StopStandingWaves();
         _simulation?.Suspend();
         if (Kind == Fractal3DKind.Lichtenberg3D)
         {
@@ -1029,14 +1039,15 @@ public partial class Fractal3DWindow : Window
 
         // Движение кончилось — доводим кадр. Мышь отпускают не только кнопкой: так же кончаются
         // инерция, перелёт и автовращение, и в каждом случае показанным остаётся живой кадр.
-        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying;
+        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying || _standingWavesPlaying;
         if (_wasMoving && !moving) RequestFrame(FrameQuality.Full, RefineDelayMs);
         _wasMoving = moving;
 
         if (_isRendering) return;
+        AdvanceStandingWaves(now);
         if (!_frameRequested)
         {
-            if (!IsMoving) DetachLoop();
+            if (!IsMoving && !_standingWavesPlaying) DetachLoop();
             return;
         }
         if (now < _frameDueMs) return;
@@ -1054,6 +1065,8 @@ public partial class Fractal3DWindow : Window
         try
         {
             state = CaptureViewState("preview");
+            if (_standingWavesPlaying && state.StandingWave is { } wave)
+                state.StandingWave = wave with { Time = _standingWaveRequestedTime };
             // Поле моделирования ещё готовится на ГП: кадр появится, когда порция опубликует его.
             if (_simulation is not null && !_simulation.PrepareFrame(state)) return;
             if (Kind == Fractal3DKind.Dla3D) state.Dla.ParticleCount = _dlaRequestedCount;
@@ -1071,7 +1084,7 @@ public partial class Fractal3DWindow : Window
         _renderCts?.Cancel();
         var cts = new CancellationTokenSource();
         _renderCts = cts;
-        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying;
+        bool moving = IsMoving || _lichtenbergRunning || _simulation?.IsRunning == true || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying || _standingWavesPlaying;
 
         // Черновик во весь холст, да ещё и без движения, ничем не отличается от полного кадра:
         // считаем его сразу полным, чтобы не гонять ту же работу дважды и честно назвать результат.
@@ -1200,6 +1213,8 @@ public partial class Fractal3DWindow : Window
             if (Kind == Fractal3DKind.Polytope4D)
                 Polytope4DEditor.OnFrameDisplayed(state.Polytope4D, _renderer.Polytope4DGeometry);
             OnParametricFrameDisplayed(state.ParametricSurface);
+            if (_standingWavesPlaying && state.StandingWave is { } displayedWave)
+                WaveEditor.ShowTime(displayedWave.Time);
             if (state.Percolation3D is { } percolation && _renderer.PercolationField is { } field &&
                 field.Settings.SameField(percolation))
                 PercolationEditor.ShowStatistics(percolation, field.Statistics);
@@ -1241,6 +1256,11 @@ public partial class Fractal3DWindow : Window
             else if (Kind == Fractal3DKind.Polytope4D) Polytope4DEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.ParametricSurface) ParametricEditor.ShowMeshStatus(exception.Message);
             else if (Kind == Fractal3DKind.Percolation3D) PercolationEditor.ShowError(exception.Message);
+            else if (Kind == Fractal3DKind.StandingWaves)
+            {
+                StopStandingWaves();
+                WaveEditor.ShowError(exception.Message);
+            }
             else if (Kind == Fractal3DKind.Hopf) HopfEditor.ShowError(exception.Message);
             else if (Kind == Fractal3DKind.QuaternionJulia) QuaternionEditor.ShowError(exception.Message);
             else MessageBox.Show(this, exception.Message, _definition.Title,
@@ -1261,7 +1281,7 @@ public partial class Fractal3DWindow : Window
     /// </summary>
     private void RequestRefinement(FrameQuality quality, double scale, int ssaa, bool simplified)
     {
-        if (IsMoving || _dlaRunning || _lichtenbergRunning || _simulation?.IsRunning == true || _simulation?.IsBusy == true || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying) || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying) return;
+        if (IsMoving || _dlaRunning || _lichtenbergRunning || _simulation?.IsRunning == true || _simulation?.IsBusy == true || (Kind == Fractal3DKind.LSystem3D && LSystemEditor.IsPlaying) || (Kind == Fractal3DKind.Hopf && HopfEditor.IsPlaying) || (Kind == Fractal3DKind.AbcFlow && AbcFlowEditor.IsPlaying) || (Kind == Fractal3DKind.Polytope4D && Polytope4DEditor.IsPlaying) || QuaternionSlicePlaying || _standingWavesPlaying) return;
         if (quality == FrameQuality.Draft && (scale < 1 || simplified))
             RequestFrame(FrameQuality.Full, RefineDelayMs);
         else if (quality != FrameQuality.Antialiased && ssaa > 1)
